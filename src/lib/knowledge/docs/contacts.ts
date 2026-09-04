@@ -67,6 +67,20 @@ export const contactsDocs = defineDocs([
       "The Conversation tab is read-only — there is no reply box anywhere in Contacts, so you cannot send a one-off message from SwiftCard; use Call, or the Share menu, or your own phone. Editing under \"CONTACT INFO\" covers Name, Company, Email and Phone only; the source badge and the date added can't be changed. Notes and \"Where did you meet?\" are worth filling in properly, because they are exactly what the AI reads when it writes follow-up messages. There is no status or pipeline dropdown on this page.",
   },
   {
+    id: "share-your-card-with-a-contact",
+    title: "Sharing your card with a contact (and where that email lands)",
+    audience: ["user"],
+    triggers: [
+      "share my card", "share button", "send my card", "send my contact information",
+      "share contact info", "went to spam", "spam folder", "junk folder", "didn't get my email",
+      "who is the email from", "promotions tab",
+    ],
+    answer:
+      "The Share button on a contact sends them your card by text, by email, or both. The email arrives from your name followed by \"via SwiftCard\" (the address is hello@swiftcard.me), replies go straight to your own email address, and the message contains your card link, a picture of your card, and your name, title, company, phone and email as text.",
+    detail:
+      "It says \"via SwiftCard\" because the email is sent by SwiftCard's mail servers on your behalf — the same way Calendly or DocuSign send on someone's behalf. Putting only your name on it is what makes mail providers treat it as impersonation and file it as spam, so the \"via\" line is there to keep it in the inbox. If a recipient still can't find it, have them check Spam or Promotions once and mark it \"Not spam\" — that teaches their mailbox for every future message. Sharing to your own address is not a good test: providers are hardest on mail that appears to come from you, to you. Contacts who unsubscribe or bounce are suppressed automatically and the Share button will tell you so.",
+  },
+  {
     id: "follow-up-automations",
     title: "Automated follow-up sequences",
     audience: ["user"],

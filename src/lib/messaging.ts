@@ -99,11 +99,22 @@ export type SendResult = "sent" | "not_configured" | "failed";
 // `baseFrom` lets a caller pass an already-resolved address (getMarketingFrom(),
 // which falls back to Resend's sandbox sender before the domain verifies) without
 // losing the display-name personalisation or this sanitizer.
+//
+// "Dana via SwiftCard", never bare "Dana" (2026-09-03, the spam-folder report).
+// A person's name on an address that is not theirs is the exact shape of
+// display-name spoofing, and Gmail scores it that way: a bare "Dana
+// <hello@swiftcard.me>" with Reply-To dana@gmail.com is a mismatch it has no
+// way to read as legitimate — and when Dana mails HERSELF to test, Gmail
+// flags "someone is using your name" outright and spam-folders it. The "via"
+// form is the pattern Google documents for services sending on a user's
+// behalf (Calendly, DocuSign, Google Docs all do it): the person is still the
+// first thing in the inbox row, and the domain now explains itself.
 export function senderFrom(displayName: string | null | undefined, baseFrom?: string | null): string {
   const configured = baseFrom || process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
   const addr = configured.match(/<([^>]+)>/)?.[1] ?? configured.trim();
   const name = (displayName || "SwiftCard").replace(/[<>"\r\n]/g, "").trim() || "SwiftCard";
-  return `${name} <${addr}>`;
+  const via = /swiftcard/i.test(name) ? name : `${name} via SwiftCard`;
+  return `${via} <${addr}>`;
 }
 
 // ── Opt-out / suppression (STOP compliance + email unsubscribe) ─────────────

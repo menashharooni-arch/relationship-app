@@ -13,6 +13,9 @@ export type DomainStatus = {
   exists: boolean;              // domain created in Resend
   status: string;               // not_started | pending | verified | failed | …
   records: ResendRecord[];
+  /** Open/click tracking as Resend reports it AFTER ensureDomain() has had its
+   *  say — both must be false; see disableTracking(). */
+  tracking?: { open: boolean; click: boolean };
   error?: string;
 };
 
@@ -27,11 +30,39 @@ async function findDomain(): Promise<{ id: string; status: string } | null> {
   return data.data?.find((d) => d.name === DOMAIN) ?? null;
 }
 
-async function domainDetail(id: string): Promise<{ status: string; records: ResendRecord[] }> {
+type DomainDetail = { status: string; records: ResendRecord[]; tracking: { open: boolean; click: boolean } };
+
+async function domainDetail(id: string): Promise<DomainDetail> {
   const res = await fetch(`${RESEND_API}/domains/${id}`, { headers: headers() });
   if (!res.ok) throw new Error(`Resend domain read failed (${res.status})`);
-  const d = (await res.json()) as { status: string; records?: ResendRecord[] };
-  return { status: d.status, records: d.records ?? [] };
+  const d = (await res.json()) as { status: string; records?: ResendRecord[]; open_tracking?: boolean; click_tracking?: boolean };
+  return { status: d.status, records: d.records ?? [], tracking: { open: d.open_tracking === true, click: d.click_tracking === true } };
+}
+
+// Open and click tracking are OFF for this domain, and stay off.
+//
+// Click tracking rewrites every link in the body to Resend's tracking host,
+// so a card link that reads swiftcard.me/dana in the text points somewhere
+// else when hovered — the exact link/text mismatch spam filters (and Gmail's
+// "suspicious link" banner) exist to catch — and it does it on mail sent
+// under a user's name to one person. Open tracking adds an invisible remote
+// pixel, the other classic bulk-mail marker. Neither is worth a single message
+// in a spam folder. This is a dashboard toggle anyone can flip by accident;
+// enforcing it from code on every status read makes the mistake self-healing.
+// PATCH /domains/{id} — https://resend.com/docs/api-reference/domains/update-domain
+async function disableTracking(id: string, current: DomainDetail["tracking"]): Promise<DomainDetail["tracking"]> {
+  if (!current.open && !current.click) return current;
+  try {
+    const res = await fetch(`${RESEND_API}/domains/${id}`, {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ open_tracking: false, click_tracking: false }),
+    });
+    if (res.ok) return { open: false, click: false };
+  } catch { /* reported through the returned state, below */ }
+  // Still on: the admin panel shows it in red rather than this hiding the
+  // domain's verified status behind an error.
+  return current;
 }
 
 // Current state; creates the domain in Resend on first call so the DNS
@@ -56,7 +87,8 @@ export async function ensureDomain(): Promise<DomainStatus> {
       found = { id: created.id, status: created.status };
     }
     const detail = await domainDetail(found.id);
-    return { configured: true, exists: true, status: detail.status, records: detail.records };
+    const tracking = await disableTracking(found.id, detail.tracking);
+    return { configured: true, exists: true, status: detail.status, records: detail.records, tracking };
   } catch (e) {
     return { configured: true, exists: false, status: "error", records: [], error: String(e) };
   }
@@ -72,7 +104,8 @@ export async function verifyDomain(): Promise<DomainStatus> {
     if (!found) return ensureDomain();
     await fetch(`${RESEND_API}/domains/${found.id}/verify`, { method: "POST", headers: headers() });
     const detail = await domainDetail(found.id);
-    return { configured: true, exists: true, status: detail.status, records: detail.records };
+    const tracking = await disableTracking(found.id, detail.tracking);
+    return { configured: true, exists: true, status: detail.status, records: detail.records, tracking };
   } catch (e) {
     return { configured: true, exists: false, status: "error", records: [], error: String(e) };
   }

@@ -31,7 +31,7 @@ describe("office invite email", () => {
 
   it("From names the inviter and the office on the verified address", () => {
     const from = senderFrom(invite().fromName);
-    expect(from).toBe("Dana (Acme Realty) <hello@swiftcard.me>");
+    expect(from).toBe("Dana (Acme Realty) via SwiftCard <hello@swiftcard.me>");
     // The bug this replaces: header said "SwiftCard", body said "Dana invited you".
     expect(from).not.toBe(BASE);
   });

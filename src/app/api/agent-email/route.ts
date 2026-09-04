@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { htmlToText } from "@/lib/email-text";
 
 // ── Email relay for the Agent Flow agents ────────────────────────────────────
 // GitHub Actions can't read the app's RESEND_API_KEY (it's a Vercel-sensitive
@@ -35,6 +36,10 @@ export async function POST(req: NextRequest) {
       to: [to],
       subject: `[Agent Flow] ${body.subject.slice(0, 180)}`,
       html: body.html.slice(0, 100_000),
+      // Internal mail, but it shares hello@swiftcard.me's reputation with
+      // every card a user shares: HTML-only is a spam signal, so it gets the
+      // same plain-text part as everything else.
+      text: htmlToText(body.html.slice(0, 100_000)),
     }),
   });
   return NextResponse.json({ ok: res.ok }, { status: res.ok ? 200 : 502 });
