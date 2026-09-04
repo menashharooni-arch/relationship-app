@@ -358,8 +358,18 @@ Sign with the **`https://`** scheme — `src/app/api/twilio/inbound/route.ts:46`
 
 ### Resend — reproducing the silent false-success against the real API
 
+> **The old recipe no longer works.** It forced a rejection by overriding
+> `RESEND_FROM_EMAIL`, and no send site reads that variable any more — every
+> address comes from `src/lib/email-senders.ts`, which reads no environment at
+> all. Setting it now changes nothing, the send SUCCEEDS, and you would read
+> that as "the error-propagation fix regressed" when it has not.
+>
+> To force a rejection, temporarily point `DOMAIN` in `src/lib/email-senders.ts`
+> at an unverified domain (revert before committing — a test pins the real one).
+
 ```bash
-RESEND_FROM_EMAIL='SwiftCard <noreply@definitely-not-verified.test>' npm run dev
+# edit src/lib/email-senders.ts: const DOMAIN = "definitely-not-verified.test"
+npm run dev
 curl -s -i -X POST http://localhost:3000/api/leads/<LEAD_ID>/message \
   -H 'Content-Type: application/json' -b cookies.txt -d '{"message":"probe","channel":"email"}'
 ```

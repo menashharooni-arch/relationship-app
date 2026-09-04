@@ -50,6 +50,11 @@ export async function POST(request: NextRequest) {
 
   const result = await sendRawEmail({
     to: toEmail,
+    // Same act as the Share button: a user sending their card to a person.
+    sender: "connect",
+    // A reply belongs to the SENDER, not to us. Without this the recipient's
+    // reply would land on connect@ and never reach the person they met.
+    replyTo: user.email ?? null,
     fromName: firstName,
     subject: `${firstName} shared their contact card with you`,
     // Same act as the Share button, from the scanner: one person handing another

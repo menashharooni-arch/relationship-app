@@ -76,7 +76,7 @@ export const contactsDocs = defineDocs([
       "who is the email from", "promotions tab",
     ],
     answer:
-      "The Share button on a contact sends them your card by text, by email, or both. The email arrives from your name followed by \"via SwiftCard\" (the address is hello@swiftcard.me), replies go straight to your own email address, and the message contains your card link, a picture of your card, and your name, title, company, phone and email as text.",
+      "The Share button on a contact sends them your card by text, by email, or both. The email arrives from your name followed by \"via SwiftCard\" (the address is connect@swiftcard.me), replies go straight to your own email address, and the message contains your card link, a picture of your card, and your name, title, company, phone and email as text.",
     detail:
       "It says \"via SwiftCard\" because the email is sent by SwiftCard's mail servers on your behalf — the same way Calendly or DocuSign send on someone's behalf. Putting only your name on it is what makes mail providers treat it as impersonation and file it as spam, so the \"via\" line is there to keep it in the inbox. If a recipient still can't find it, have them check Spam or Promotions once and mark it \"Not spam\" — that teaches their mailbox for every future message. Sharing to your own address is not a good test: providers are hardest on mail that appears to come from you, to you. Contacts who unsubscribe or bounce are suppressed automatically and the Share button will tell you so.",
   },
