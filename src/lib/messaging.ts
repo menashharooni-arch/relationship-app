@@ -534,6 +534,30 @@ export function emailSignatureHtml(opts: { senderName: string; company?: string 
 // promo line (Pro = no SwiftCard branding). The Unsubscribe link is NEVER
 // dropped — it's a compliance requirement, not branding — so a paid sender's
 // footer keeps the unsubscribe on its own.
+/**
+ * Wrap an email body in a real HTML document.
+ *
+ * WHY: our personal emails shipped as a bare <div> — no doctype, no
+ * <meta charset>. They carry real non-ASCII characters ("View & save my card
+ * →", "Founder · SwiftCard"), and a client that does not get told the encoding
+ * renders those as "â†'" and "Â·". Resend does send charset=utf-8 in the MIME
+ * header, so most clients are fine — but a forwarded or re-quoted message can
+ * lose that header, and Outlook honours the in-document meta over it. Declaring
+ * it costs nothing and removes the whole class of mojibake. The transactional
+ * templates (email-templates.ts) have always done this; the personal ones
+ * were the odd ones out.
+ *
+ * The preheader is the grey line Gmail shows after the subject. Left alone it
+ * takes the first words of the body ("Hi Sarah,"), which wastes the one bit of
+ * inbox real estate that tells the recipient who this is from.
+ */
+export function emailDocument(body: string, preheader?: string | null): string {
+  const pre = preheader
+    ? `<span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;mso-hide:all;">${esc(preheader)}</span>`
+    : "";
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head><body style="margin:0;padding:0;background-color:#ffffff;">${pre}${body}</body></html>`;
+}
+
 export function personalEmailHtml(text: string, signature: string, unsubscribeUrl?: string | null, paid?: boolean): string {
   const paragraphs = esc(text.trim())
     .split(/\n{2,}/)
@@ -543,11 +567,11 @@ export function personalEmailHtml(text: string, signature: string, unsubscribeUr
   const promo = `Sent with <a href="${APP_URL}/join?src=follow_up" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> — make your own, free to start.`;
   const unsub = unsubscribeUrl ? `<a href="${unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>` : "";
   const footer = paid ? unsub : [promo, unsub].filter(Boolean).join(" · ");
-  return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
+  return emailDocument(`<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;background-color:#ffffff;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
   <div>${paragraphs}</div>
   ${signature}
   ${footer ? `<p style="margin-top:18px;color:#9ca3af;font-size:11px;">${footer}</p>` : ""}
-</div>`;
+</div>`);
 }
 
 // A proper personal email: subject + message body + signature (name/company + card link).
