@@ -5,7 +5,7 @@ import { join } from "node:path";
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
 
-// The "Download on the App Store" surfaces. There are five of them across the
+// The "Download on the App Store" surfaces. There are four of them across the
 // site and the post-signup flow, and before this they were copy-pasted markup —
 // which is exactly how two badges on one page end up different sizes with
 // different hover states, and how a change lands on one and not the others.
@@ -16,7 +16,6 @@ const BADGE = "src/components/AppStoreBadge.tsx";
 // Every consumer, and what each one is for.
 const CONSUMERS: [string, string][] = [
   ["src/components/site/SiteNav.tsx", "desktop header, left of Log in"],
-  ["src/app/page.tsx", "homepage hero, beside \"See how it works\""],
   ["src/components/site/SiteFooter.tsx", "footer"],
   ["src/components/WelcomePlan.tsx", "/welcome — card is live (new signup)"],
   ["src/app/cards/new/NewCardWizard.tsx", "wizard step 5 — card is live (signed in)"],
@@ -64,52 +63,25 @@ describe("the shine", () => {
 });
 
 describe("placement", () => {
-  // Owner request 2026-09-03, restated: the badge belongs directly to the RIGHT
-  // of "See how it works", on desktop AND on mobile. It was briefly put in the
-  // nav and under the claim box instead; these pin the real thing.
-  it("hero: the badge is paired with 'See how it works' in a nowrap group", () => {
+  // Owner decision 2026-09-03 (evening): NO badge in the homepage hero. The
+  // morning's request had put one directly right of "See how it works"; the
+  // owner then removed exactly that one — the header and footer badges stay.
+  // "See how it works" itself and the claim box are untouched.
+  it("hero: there is no App Store badge next to 'See how it works'", () => {
     const src = read("src/app/page.tsx");
+    expect(src).not.toContain("<AppStoreBadge");
+    expect(src).not.toMatch(/from "@\/components\/AppStoreBadge"/);
+    // The button and the claim box are still there, in that order.
     const cta = src.indexOf('id="hero-cta"');
-    const badge = src.indexOf("<AppStoreBadge", cta);
-    const claim = src.indexOf("<HeroClaim", cta);
     expect(cta).toBeGreaterThan(-1);
-    // Right of the button...
-    expect(badge).toBeGreaterThan(cta);
-    // ...and ahead of the claim box, which wraps below the pair.
-    expect(claim).toBeGreaterThan(badge);
-    // The pair shares its own flex group, so the badge stays welded to the
-    // button instead of being a loose third child of the wrapping row (where it
-    // would drop to its own line the moment the column narrowed).
-    const groupOpen = src.lastIndexOf("<div className=\"flex flex-wrap items-center", cta);
-    expect(groupOpen).toBeGreaterThan(-1);
-    const group = src.slice(groupOpen, claim);
-    expect(group).toContain('id="hero-cta"');
-    expect(group).toContain("<AppStoreBadge");
-  });
-
-  it("hero: the badge is sized to the button's exact height", () => {
-    // .rd-btn-lg is padding 1rem + font-size 1rem at line-height 1 + 1px border
-    // = 50px. The lg badge is py-2.5 + 30px of label = 50px. If either moves,
-    // the two stop lining up.
-    expect(read("src/app/page.tsx")).toMatch(/<AppStoreBadge[^>]*size="lg"/);
-    const badge = read(BADGE);
-    // py-2.5 is what makes the 50px; the horizontal padding is allowed to shrink
-    // on phones, the vertical is NOT.
-    expect(badge).toMatch(/lg: \{ pad: "px-3 sm:px-4 py-2\.5"/);
-    const css = read("src/app/globals.css");
-    expect(css).toContain(".rd-btn-lg { padding: 1rem 1.7rem; font-size: 1rem; }");
-  });
-
-  // The pair is 327px on a phone. Without wrapping it would push past a 360px
-  // Android viewport and give the whole page a horizontal scrollbar.
-  it("hero: the pair wraps rather than overflowing a narrow phone", () => {
-    expect(read("src/app/page.tsx")).toMatch(/<div className="flex flex-wrap items-center gap-2 sm:gap-3">/);
+    expect(src.slice(cta)).toContain("See how it works");
+    expect(src.indexOf("<HeroClaim", cta)).toBeGreaterThan(cta);
   });
 
   // Owner kept the header badge on desktop (2026-09-03) — but ONLY there. The
   // mobile bar carries the logo, Get started and the menu trigger inside 375px;
   // a badge with words needs 85px it does not have, and the icon-only version
-  // that does fit was a compromise nobody asked for. Phones get the hero badge.
+  // that does fit was a compromise nobody asked for.
   it("nav: the badge is in the desktop cluster and nowhere else", () => {
     const nav = read("src/components/site/SiteNav.tsx");
     const uses = [...nav.matchAll(/<AppStoreBadge/g)];
