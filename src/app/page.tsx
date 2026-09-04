@@ -2,7 +2,6 @@ import { SOFTWARE_APPLICATION_JSONLD, jsonLdScript } from "@/lib/brand";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TRIAL_DAYS } from "@/lib/plan";
-import AppStoreBadge from "@/components/AppStoreBadge";
 import SiteNav from "@/components/site/SiteNav";
 import HeroClaim from "@/components/site/HeroClaim";
 import HeroShowcase from "@/components/site/HeroShowcase";
@@ -138,27 +137,16 @@ export default function Home() {
                   decision, Jul 2026): it should show the card working, not the
                   steps list. The claim box takes the visitor's first name into
                   the builder pre-filled (?name=…). */}
+              {/* No App Store badge here (owner decision 2026-09-03, evening —
+                  reversing the morning's "beside the button" request): the
+                  desktop header already carries one next to Log in, and the
+                  footer another, so a third in the hero was clutter beside the
+                  one thing this row is for. The badge component and its other
+                  placements are untouched. */}
               <div className="mt-7 flex flex-wrap items-center gap-3" data-reveal>
-                {/* "See how it works" and the App Store badge are one pair, on
-                    one line, at every width (owner request 2026-09-03) — so they
-                    share a nowrap group rather than being three loose children
-                    of the wrapping row, where the badge would fall to its own
-                    line the moment the column narrowed. The claim box, being the
-                    signup CTA and much wider, wraps below them.
-                    Black badge because the hero is a light surface; `lg` because
-                    it is sized to the button's exact 50px height. */}
-                {/* flex-wrap is a guard, not a layout: the pair is 327px wide
-                    and every phone from 375px up has room for it, but a 360px
-                    Android has 328 and a 320px screen has 288. Without wrapping
-                    the group would push past the viewport and give the whole
-                    page a horizontal scrollbar; with it, the badge drops under
-                    the button on those two sizes instead. */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                  <Link id="hero-cta" href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg !bg-white/85">
-                    See how it works
-                  </Link>
-                  <AppStoreBadge tone="black" size="lg" />
-                </div>
+                <Link id="hero-cta" href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg !bg-white/85">
+                  See how it works
+                </Link>
                 <HeroClaim />
               </div>
             </div>
