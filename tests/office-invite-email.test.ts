@@ -30,17 +30,19 @@ describe("office invite email", () => {
   });
 
   it("From names the inviter and the office on the verified address", () => {
-    const from = senderFrom(invite().fromName);
-    expect(from).toBe("Dana (Acme Realty) via SwiftCard <hello@swiftcard.me>");
+    // support@ — a team invitation is the platform writing to a stranger on a
+    // customer's behalf. The route passes sender:"support" (api/office/invite).
+    const from = senderFrom(invite().fromName, "support");
+    expect(from).toBe("Dana (Acme Realty) via SwiftCard <support@swiftcard.me>");
     // The bug this replaces: header said "SwiftCard", body said "Dana invited you".
     expect(from).not.toBe(BASE);
   });
 
   it("a hostile office name cannot break the From header", () => {
-    const from = senderFrom('Dana <evil@x.com>\r\nBcc: leak@x.com (Acme)');
+    const from = senderFrom('Dana <evil@x.com>\r\nBcc: leak@x.com (Acme)', "support");
     expect(from).not.toMatch(/[\r\n]/);
     expect(from.match(/</g)!.length).toBe(1);
-    expect(from.endsWith("<hello@swiftcard.me>")).toBe(true);
+    expect(from.endsWith("<support@swiftcard.me>")).toBe(true);
   });
 
   it("both unsubscribe links point at an endpoint that answers POST", () => {

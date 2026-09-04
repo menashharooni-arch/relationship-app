@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { NextResponse } from "next/server";
-import { getMarketingFrom } from "@/lib/resend-domain";
 import { sendRawEmail, isOptedOut, contactUnsubUrl } from "@/lib/messaging";
 import { buildInviteEmail } from "@/lib/office-invite-email";
 import { APP_STORE_URL } from "@/lib/app-store";
@@ -233,8 +232,10 @@ export async function POST(req: Request) {
     // it under Promotions and let a one-click opt-out land the invitee in
     // message_opt_outs, silently blocking the resend they'd then ask for.
     personal: true,
-    // verified domain when set up, Resend sandbox fallback otherwise
-    fromAddress: await getMarketingFrom(),
+    // A team invitation is the platform writing to a stranger on a customer's
+    // behalf: support@ carries it, and the inviter's own address is the
+    // Reply-To below so "who are you?" reaches the person who can answer.
+    sender: "support",
     // The inviting admin's verified auth email — from supabase.auth.getUser(),
     // never a free-text profile field. Gives a stranger a real mailbox to reply
     // to, which is the strongest positive signal a receiver can observe.

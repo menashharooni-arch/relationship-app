@@ -107,7 +107,11 @@ export async function email(subject, html) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "SwiftCard Agents <hello@swiftcard.me>", to: [sys.digest_email], subject, html }),
+    // From support@, never hello@ — these land ON hello@, and mail from your
+    // own address to your own address is a spoofing pattern that trains the
+    // owner's mailbox against the domain their user-facing mail sends from.
+    // Kept in sync with src/lib/email-senders.ts (this file cannot import TS).
+    body: JSON.stringify({ from: "SwiftCard Agents <support@swiftcard.me>", to: [sys.digest_email], subject, html }),
   });
   if (!res.ok) console.error(`resend → ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return res.ok;

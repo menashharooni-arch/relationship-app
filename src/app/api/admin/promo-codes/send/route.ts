@@ -3,7 +3,6 @@ import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { promoEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { requireAdmin } from "@/lib/admin";
-import { getMarketingFrom } from "@/lib/resend-domain";
 import { getAccountEmailMap } from "@/lib/account-email";
 import { emailOptOutSet, isEmailOptedOut } from "@/lib/messaging";
 
@@ -64,7 +63,6 @@ export async function POST(req: NextRequest) {
   const { data: profiles } = await q;
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const from = await getMarketingFrom();
   // Send to each user's ACCOUNT (auth) email, not profiles.email (which can be
   // the card's public contact address).
   const authEmails = await getAccountEmailMap();
@@ -130,8 +128,11 @@ export async function POST(req: NextRequest) {
 
     try {
       const { data: emailData, error: sendErr } = await resend.emails.send({
+        // NO `from` override here. It used to be spread AFTER the template,
+        // which silently replaced the campaign sender with the transactional
+        // one — so the marketing/transactional split never actually happened.
+        // The template carries news@ (lib/email-senders).
         ...template,
-        from,
         to: recipient,
         ...(unsub ? { headers: marketingHeaders(unsub) } : {}),
       });

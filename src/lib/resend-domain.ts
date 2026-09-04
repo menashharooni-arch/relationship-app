@@ -4,8 +4,6 @@
 
 const RESEND_API = "https://api.resend.com";
 const DOMAIN = "swiftcard.me";
-const VERIFIED_FROM = "SwiftCard <hello@swiftcard.me>";
-const FALLBACK_FROM = "SwiftCard <onboarding@resend.dev>";
 
 type ResendRecord = { record: string; name: string; type: string; value: string; ttl?: string; priority?: number; status?: string };
 export type DomainStatus = {
@@ -115,17 +113,11 @@ export async function verifyDomain(): Promise<DomainStatus> {
 // branded address once the domain is verified; fall back to Resend's sandbox
 // sender (which only delivers to the account owner). Cached for 5 minutes so
 // bulk sends don't hit the Resend API per-recipient.
-let fromCache: { value: string; at: number } | null = null;
-export async function getMarketingFrom(): Promise<string> {
-  if (process.env.RESEND_FROM_EMAIL) return process.env.RESEND_FROM_EMAIL;
-  if (fromCache && Date.now() - fromCache.at < 5 * 60_000) return fromCache.value;
-  let value = FALLBACK_FROM;
-  try {
-    const found = process.env.RESEND_API_KEY ? await findDomain() : null;
-    if (found?.status === "verified") value = VERIFIED_FROM;
-  } catch {
-    /* fall back */
-  }
-  fromCache = { value, at: Date.now() };
-  return value;
-}
+// getMarketingFrom() is GONE. It returned RESEND_FROM_EMAIL first and was
+// spread over the template's own sender, so setting MARKETING_FROM_EMAIL never
+// had any effect — campaigns kept shipping from the transactional address and
+// the marketing/transactional split silently did not exist. Worse, its
+// fallback was the Resend shared sandbox domain, which is unauthenticated for
+// us and would have stamped a real customer name onto it.
+//
+// Sender selection now lives in ONE place: src/lib/email-senders.ts.

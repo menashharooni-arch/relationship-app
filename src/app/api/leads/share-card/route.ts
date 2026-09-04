@@ -200,6 +200,9 @@ export async function POST(req: NextRequest) {
         // their details, and the subject should read that way in the list.
         subject: `Contact information from ${ownerName}`,
         html,
+        // One person handing another their details: connect@, with the reply
+        // going to the card owner. It must never come back to us.
+        sender: "connect",
         replyTo,
         fromName: ownerName,
         // The user tapped Share on one contact — this is personal mail, not a
