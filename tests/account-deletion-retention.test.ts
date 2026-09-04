@@ -278,3 +278,65 @@ describe("the dialog wires the sequence up", () => {
     expect(ui).toMatch(/<DownloadLink/);
   });
 });
+
+describe("the owner hears about it, and can read the answers", () => {
+  const alert = () => readFileSync(join(process.cwd(), "src/lib/retention-alert.ts"), "utf8");
+
+  it("alerts on every save and on the deletion — but not on the survey step", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/api/account/retention/route.ts"), "utf8");
+    for (const outcome of ["grant", "discount", "downgrade", "quiet"]) {
+      expect(route, `${outcome} does not alert`).toMatch(new RegExp(`await saved\\("${outcome}"\\)`));
+    }
+    // Someone who picks a reason and then takes the free month never left.
+    const surveyBlock = route.slice(route.indexOf('if (action === "survey")'), route.indexOf('// ── 30 days of Pro'));
+    expect(surveyBlock).not.toMatch(/saved\(|alertRetention/);
+  });
+
+  it("alerts when the account is actually deleted", () => {
+    const del = readFileSync(join(process.cwd(), "src/app/api/account/delete/route.ts"), "utf8");
+    expect(del).toMatch(/alertRetention\(/);
+    expect(del).toMatch(/outcome: "deleted"/);
+  });
+
+  it("never lets a failed alert block a save or a deletion", () => {
+    // App Review 5.1.1(v): deletion must complete.
+    expect(alert()).toMatch(/catch \{[\s\S]{0,120}never block/);
+    const del = readFileSync(join(process.cwd(), "src/app/api/account/delete/route.ts"), "utf8");
+    const at = del.indexOf("alertRetention");
+    expect(del.slice(at, at + 500)).toMatch(/catch/);
+  });
+
+  it("carries the reason and comment, not just the outcome", () => {
+    expect(alert()).toMatch(/reason\?: string \| null/);
+    expect(alert()).toMatch(/comment\?: string \| null/);
+  });
+
+  it("sends internal mail FROM support@ TO hello@ — never hello@ to itself", () => {
+    const a = alert();
+    expect(a).toMatch(/senderAddress\("support"/);
+    expect(a).toMatch(/to: \[INBOX_ADDRESS\]/);
+    expect(a).toMatch(/text: htmlToText\(html\)/);
+  });
+
+  it("escapes the user's own words before they reach the owner's inbox", () => {
+    const a = alert();
+    // The comment is interpolated directly; the reason goes through row(),
+    // which escapes its value. What must never appear is either of them
+    // reaching the HTML raw.
+    expect(a).toMatch(/escapeHtml\(opts\.comment\)/);
+    expect(a).toMatch(/escapeHtml\(v\)/);
+    expect(a, "raw comment in HTML").not.toMatch(/\$\{opts\.comment\}/);
+    expect(a, "raw reason in HTML").not.toMatch(/\$\{opts\.reason\}/);
+  });
+
+  it("computes the save rate over DECIDED attempts, not mid-flow ones", () => {
+    const a = alert();
+    expect(a).toMatch(/const decided = saved \+ deleted/);
+    expect(a).toMatch(/decided \? Math\.round\(\(saved \/ decided\) \* 100\) : 0/);
+  });
+
+  it("is reachable in the admin nav", () => {
+    const nav = readFileSync(join(process.cwd(), "src/app/admin/AdminNav.tsx"), "utf8");
+    expect(nav).toMatch(/href: "\/admin\/retention"/);
+  });
+});

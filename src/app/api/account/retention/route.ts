@@ -6,6 +6,7 @@ import { isRateLimited } from "@/lib/rate-limit";
 import { isPaidPlan } from "@/lib/plan";
 import { isApplePaid } from "@/lib/iap-entitlement";
 import { reportError } from "@/lib/report-error";
+import { alertRetention } from "@/lib/retention-alert";
 import {
   RETENTION_GRANT_DAYS,
   RETENTION_DISCOUNT_MONTHS,
@@ -182,6 +183,18 @@ export async function POST(req: NextRequest) {
     retentionUsed: cust._retentionUsed,
   });
 
+  // The reason they gave at step 1-2, so an alert carries WHY, not just WHAT.
+  const lastSurvey = (rec.surveys ?? [])[(rec.surveys ?? []).length - 1];
+  const saved = (outcome: "grant" | "discount" | "downgrade" | "quiet") =>
+    alertRetention({
+      userId: user.id,
+      email: user.email ?? null,
+      plan: (profile.plan as string | null) ?? null,
+      outcome,
+      reason: lastSurvey?.reason ?? null,
+      comment: lastSurvey?.comment ?? null,
+    });
+
   // ── Record the answers ────────────────────────────────────────────────────
   if (action === "survey") {
     const reason = typeof body.reason === "string" ? body.reason.slice(0, 200) : "";
@@ -214,6 +227,7 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", user.id);
     if (error) return NextResponse.json({ error: "Couldn't start your free month. Please try again." }, { status: 500 });
+    await saved("grant");
     return NextResponse.json({ ok: true, days: RETENTION_GRANT_DAYS, until: expires });
   }
 
@@ -257,6 +271,7 @@ export async function POST(req: NextRequest) {
         },
       })
       .eq("id", user.id);
+    await saved("discount");
     return NextResponse.json({ ok: true, percent: RETENTION_DISCOUNT_PERCENT, months: RETENTION_DISCOUNT_MONTHS });
   }
 
@@ -289,6 +304,7 @@ export async function POST(req: NextRequest) {
         },
       })
       .eq("id", user.id);
+    await saved("downgrade");
     return NextResponse.json({ ok: true });
   }
 
@@ -309,5 +325,6 @@ export async function POST(req: NextRequest) {
       customization: { ...cust, _retention: { ...rec, savedBy: "quiet", savedAt: new Date().toISOString() } },
     })
     .eq("id", user.id);
+  await saved("quiet");
   return NextResponse.json({ ok: true });
 }

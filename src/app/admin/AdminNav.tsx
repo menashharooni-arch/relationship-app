@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/admin/website", label: "Website" },
   { href: "/admin/marketing", label: "Marketing" },
   { href: "/admin/referrals", label: "Referrals" },
+  { href: "/admin/retention", label: "Retention" },
   { href: "/admin/plans", label: "Sandbox" },
   { href: "/admin/agent-flow", label: "Agent Flow" },
 ];

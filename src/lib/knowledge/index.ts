@@ -43,6 +43,7 @@ export const UNDOCUMENTED_ROUTES: Record<string, string> = {
   "/admin/marketing": "Staff console — internal marketing tooling.",
   "/admin/plans": "Staff console — internal plan matrix.",
   "/admin/referrals": "Staff console — internal referral auditing.",
+  "/admin/retention": "Staff console — the churn funnel: who opened the delete or cancel flow, the reason they gave, and whether an offer kept them. Contains other customers' words; never describe or quote it to a customer.",
   "/admin/users": "Staff console — internal user list.",
   "/admin/users/[id]": "Staff console — internal user detail.",
   "/admin/website": "Staff console — internal site content tooling.",
