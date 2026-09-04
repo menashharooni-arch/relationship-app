@@ -4,7 +4,6 @@ import { requireAdmin } from "@/lib/admin";
 import { ensureEmailPreferences } from "@/lib/email-prefs";
 import { slugTaken } from "@/lib/username";
 import { sendRawEmail } from "@/lib/messaging";
-import { getMarketingFrom } from "@/lib/resend-domain";
 import { escapeHtml, safeUrlAttr } from "@/lib/escape";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -109,7 +108,10 @@ export async function POST(req: NextRequest) {
       const result = await sendRawEmail({
         to: email,
         subject: "Your SwiftCard account is ready",
-        fromAddress: await getMarketingFrom(),
+        // The platform speaking to its own new user: support@, with replies to
+        // a mailbox a person reads — someone locked out of a brand-new account
+        // will reply to this asking for help.
+        sender: "support",
         // Account setup: the recipient cannot get in without the link inside,
         // so it must reach the inbox. Nobody "unsubscribes" from their own
         // account creation, and offering it here only risks suppressing the

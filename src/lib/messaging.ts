@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { htmlToText } from "@/lib/email-text";
 import { reportError } from "@/lib/report-error";
+import { from as senderAddress, replyToFor, type SenderKey } from "@/lib/email-senders";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -93,29 +94,17 @@ function personalHeaders(): Record<string, string> {
 
 export type SendResult = "sent" | "not_configured" | "failed";
 
-// Build the From header: the per-sender display name on the ONE verified address
-// (RESEND_FROM_EMAIL), so recipients see the person who messaged them — not a
-// generic "SwiftCard" — while every user still sends from the same verified domain.
-// `baseFrom` lets a caller pass an already-resolved address (getMarketingFrom(),
-// which falls back to Resend's sandbox sender before the domain verifies) without
-// losing the display-name personalisation or this sanitizer.
-//
-// "Dana via SwiftCard", never bare "Dana" (2026-09-03, the spam-folder report).
-// A person's name on an address that is not theirs is the exact shape of
-// display-name spoofing, and Gmail scores it that way: a bare "Dana
-// <hello@swiftcard.me>" with Reply-To dana@gmail.com is a mismatch it has no
-// way to read as legitimate — and when Dana mails HERSELF to test, Gmail
-// flags "someone is using your name" outright and spam-folders it. The "via"
-// form is the pattern Google documents for services sending on a user's
-// behalf (Calendly, DocuSign, Google Docs all do it): the person is still the
-// first thing in the inbox row, and the domain now explains itself.
-export function senderFrom(displayName: string | null | undefined, baseFrom?: string | null): string {
-  const configured = baseFrom || process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
-  const addr = configured.match(/<([^>]+)>/)?.[1] ?? configured.trim();
-  const name = (displayName || "SwiftCard").replace(/[<>"\r\n]/g, "").trim() || "SwiftCard";
-  const via = /swiftcard/i.test(name) ? name : `${name} via SwiftCard`;
-  return `${via} <${addr}>`;
+// The From header for a one-to-one message a USER sent. Delegates to
+// lib/email-senders (the single source of truth) and keeps the "Name via
+// SwiftCard" form: a bare personal name on an address that is not theirs is
+// display-name spoofing, and Gmail scores it that way — a bare "Dana
+// <connect@swiftcard.me>" with Reply-To dana@gmail.com is a mismatch it has no
+// way to read as legitimate. The "via" form is what Google documents for
+// services sending on a user's behalf (Calendly, DocuSign, Google Docs).
+export function senderFrom(displayName: string | null | undefined, key: SenderKey = "connect"): string {
+  return senderAddress(key, displayName);
 }
+
 
 // ── Opt-out / suppression (STOP compliance + email unsubscribe) ─────────────
 // SMS STOP must suppress that phone platform-wide (carrier requirement), so the
@@ -366,23 +355,30 @@ export async function sendRawEmail(opts: {
   to: string;
   subject: string;
   html: string;
+  /** Where a reply should land. Omit to use the sender's own default — never
+   *  leave a user-facing email with nowhere to reply (see email-senders.ts). */
   replyTo?: string | null;
+  /** Personalises the From ("Dana via SwiftCard"). Only meaningful on `connect`. */
   fromName?: string | null;
-  /** Pre-resolved From address (e.g. getMarketingFrom()); the display name is still applied. */
-  fromAddress?: string | null;
+  /** WHICH identity sends this. Defaults to `support` — the platform speaking
+   *  to its own user, which is the safe assumption for an unclassified send.
+   *  "inbox" is excluded at the TYPE level: from() throws on it, and that throw
+   *  would land in this function's own catch and be reported as a plain send
+   *  failure. A compile error is the correct place to catch that. */
+  sender?: Exclude<SenderKey, "inbox">;
   /** A HUMAN pressed send just now (shared their card, typed a reply) — not a
    *  scheduler. Omits the List-Unsubscribe headers. See personalHeaders(). */
   personal?: boolean;
 }): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
+  const key: Exclude<SenderKey, "inbox"> = opts.sender ?? "support";
+  const replyTo = replyToFor(key, opts.replyTo);
   try {
     const { error } = await resend.emails.send({
-      from: opts.fromName
-        ? senderFrom(opts.fromName, opts.fromAddress)
-        : (opts.fromAddress || process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>"),
+      from: senderAddress(key, opts.fromName),
       to: opts.to,
-      ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+      ...(replyTo ? { replyTo } : {}),
       subject: opts.subject,
       html: opts.html,
       // multipart/alternative: a plain-text part is a major deliverability
@@ -471,7 +467,7 @@ export async function deliverToLead(opts: {
   if (use === "email" && lead.email) {
     if (await isOptedOut("email", lead.email)) return { channel: "email", status: "opted_out" };
     const status = opts.email
-      ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, replyTo: sender.email || null, fromName: sender.name || null, personal: opts.personal })
+      ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, sender: "connect", replyTo: sender.email || null, fromName: sender.name || null, personal: opts.personal })
       : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, title: sender.title, text: opts.text, subject: opts.subject, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername, senderPaid: opts.senderPaid, personal: opts.personal });
     if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "email", body: opts.text, status });
     return { channel: "email", status };
@@ -593,6 +589,9 @@ export async function sendBrandedEmail(opts: {
 }): Promise<SendResult> {
   if (!process.env.RESEND_API_KEY) return "not_configured";
   const resend = new Resend(process.env.RESEND_API_KEY);
+  // A reply to a card share is a reply to THAT PERSON. It must reach them, not
+  // us — connect@ only catches the case where the card carries no email.
+  const replyTo = replyToFor("connect", opts.replyTo);
   const cardUrl = opts.cardUsername ? `${APP_URL}/${opts.cardUsername}` : null;
   const subject = opts.subject?.trim() || `Message from ${opts.senderName}`;
   // Sign off with the sender's card — the stored Swift Signature when they have
@@ -613,9 +612,10 @@ export async function sendBrandedEmail(opts: {
   try {
     const { error } = await resend.emails.send({
       // Recipient sees the person's name; replies go to the user's own inbox.
-      from: senderFrom(opts.senderName),
+      // This is always `connect` — a message from one person to another.
+      from: senderAddress("connect", opts.senderName),
       to: opts.to,
-      ...(opts.replyTo ? { replyTo: opts.replyTo } : {}),
+      ...(replyTo ? { replyTo } : {}),
       subject,
       html,
       // Plain-text alternative (multipart) — deliverability. See email-text.ts.

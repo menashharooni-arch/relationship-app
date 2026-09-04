@@ -3,30 +3,25 @@ import { htmlToText } from "./email-text";
 import { appStoreEmailBlock } from "./app-store";
 // The downgrade card quotes real limits rather than remembered ones.
 import { PLAN_LIMITS } from "./plan";
+import { from as senderFrom_, replyToFor, type SenderKey } from "./email-senders";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-// Default sender = the app's VERIFIED, authenticated domain (SPF + DKIM + DMARC
-// are live on swiftcard.me). RESEND_FROM_EMAIL overrides when set. Never default
-// to onboarding@resend.dev — that shared sandbox domain isn't authenticated for
-// us and only delivers to the Resend account owner, so real sends spam-out or
-// bounce. Sending from the aligned, authenticated domain is the #1 deliverability
-// requirement.
-const FROM = process.env.RESEND_FROM_EMAIL || "SwiftCard <hello@swiftcard.me>";
-
-// Marketing goes out from a SEPARATE sender so campaign reputation and
-// transactional reputation cannot contaminate each other. Mailbox providers
-// score reputation per sending domain/subdomain: with one sender, a single
-// campaign that draws complaints also sends receipts, payment-failure warnings
-// and trial notices to spam — mail the user actually needs and is expecting.
-// Splitting them is standard practice and the reason Resend hands you a
-// `send.` subdomain in the first place.
+// The From on every template now comes from lib/email-senders — the single
+// source of truth — instead of an env var read in a dozen places. Money mail
+// goes out as billing@, account/lifecycle mail as support@, campaigns as
+// news@. Splitting them means a reply to a receipt and a reply to a campaign
+// land in different queues, and a complaint on a campaign is attributable to
+// the campaign identity rather than to the address that also sends receipts.
 //
-// Verify a second subdomain in Resend (e.g. news.swiftcard.me), publish its
-// DNS, then set MARKETING_FROM_EMAIL. Until it is set this falls back to the
-// transactional sender, so nothing breaks — but the isolation does not exist
-// yet either, so set it BEFORE the first campaign, not after.
-const MARKETING_FROM =
-  process.env.MARKETING_FROM_EMAIL?.trim() || FROM;
+// NOTE ON ISOLATION: all four are on swiftcard.me, which mailbox providers
+// score as ONE reputation. This split buys per-address filtering, clean reply
+// routing, and a seam to move bulk onto its own subdomain later — it does not
+// yet stop a campaign complaint from touching transactional mail. Moving
+// `news` to news.swiftcard.me is the change that would, and it costs a
+// cold-start warm-up, which is why it is deliberately not done here.
+const BILLING_FROM: SenderKey = "billing";
+const SUPPORT_FROM: SenderKey = "support";
+const MARKETING_FROM: SenderKey = "news";
 
 // CAN-SPAM §7704(a)(5) requires a VALID PHYSICAL POSTAL ADDRESS in every
 // commercial message — a street address, or a registered PO/private mailbox.
@@ -68,8 +63,13 @@ export function marketingHeaders(unsubscribeUrl: string): Record<string, string>
 // Every builder returns html AND a plain-text alternative. Passing `text` to
 // Resend makes the message multipart/alternative — HTML-only mail is a strong
 // spam signal, so this materially improves inbox placement. See email-text.ts.
-function built(from: string, subject: string, html: string) {
-  return { from, subject, html, text: htmlToText(html) };
+// Every template carries its From AND its Reply-To. Setting Reply-To centrally
+// is what guarantees the hard rule: no user-facing email may have a reply path
+// that goes nowhere. A receipt that says "just reply to this email" has to mean
+// it — billing@ and support@ receive, and campaigns route replies to support@.
+function built(key: SenderKey, subject: string, html: string) {
+  const replyTo = replyToFor(key);
+  return { from: senderFrom_(key), ...(replyTo ? { replyTo } : {}), subject, html, text: htmlToText(html) };
 }
 
 // ─── Shared layout wrapper ────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ export function welcomeEmail(opts: {
     `)}
     ${appStoreEmailBlock("SwiftCard for iPhone — your card, QR code and new contacts, right in your pocket.")}
   `;
-  return built(FROM, `Your SwiftCard is live, ${opts.firstName}!`, layout(body, opts.unsubscribeUrl));
+  return built(SUPPORT_FROM, `Your SwiftCard is live, ${opts.firstName}!`, layout(body, opts.unsubscribeUrl));
 }
 
 // What a user keeps on Free vs. loses when their Pro access ends — reused by
@@ -215,7 +215,7 @@ export function trialEndingSoonEmail(opts: {
     ${btn(`${APP_URL}/pricing`, "Keep Pro — upgrade →")}
     ${p(`No pressure — you can upgrade anytime, even after you're back on Free. Everything you've built will be waiting for you.`)}
   `;
-  return built(FROM, `${day} left of your ${what}`, layout(body, opts.unsubscribeUrl));
+  return built(SUPPORT_FROM, `${day} left of your ${what}`, layout(body, opts.unsubscribeUrl));
 }
 
 // Sent on the day the trial / free-month grant downgrades to Free.
@@ -233,7 +233,7 @@ export function trialEndedEmail(opts: {
     ${btn(`${APP_URL}/pricing`, "Upgrade back to Pro →")}
     ${p(`Change your mind? Upgrading takes about 30 seconds and instantly re-unlocks everything — including any paused follow-up sequences.`)}
   `;
-  return built(FROM, what, layout(body, opts.unsubscribeUrl));
+  return built(SUPPORT_FROM, what, layout(body, opts.unsubscribeUrl));
 }
 
 // (The old "never shared your card" nudge email was removed for good — no
@@ -311,7 +311,7 @@ export function receiptEmail(opts: {
     `)}
     ${p(`If you have any questions about this charge, just reply to this email.`)}
   `;
-  return built(FROM, `Your SwiftCard receipt — ${opts.amount}`, layout(body));
+  return built(BILLING_FROM, `Your SwiftCard receipt — ${opts.amount}`, layout(body));
 }
 
 // A checkout that starts with a free trial or a promo's free days charges $0.00
@@ -364,7 +364,7 @@ export function trialStartedEmail(opts: {
     `)}
     ${p(`Questions? Just reply to this email.`)}
   `;
-  return built(FROM, `Your SwiftCard ${opts.planName} starts now — first charge ${opts.firstChargeDate}`, layout(body));
+  return built(BILLING_FROM, `Your SwiftCard ${opts.planName} starts now — first charge ${opts.firstChargeDate}`, layout(body));
 }
 
 // Sent when a renewal charge fails (card expired, declined, insufficient funds).
@@ -393,7 +393,7 @@ export function paymentFailedEmail(opts: {
     `)}
     ${p(`If you have any questions, just reply to this email.`)}
   `;
-  return built(FROM, `Action needed: your SwiftCard payment failed`, layout(body));
+  return built(BILLING_FROM, `Action needed: your SwiftCard payment failed`, layout(body));
 }
 
 export function marketingEmail(opts: {
