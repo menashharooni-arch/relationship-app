@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
   // Sender identity mirrors the automations: the CARD the contact belongs to
   // (name/company/email per card), profile as fallback.
   const [{ data: card }, { data: profile }] = await Promise.all([
-    admin.from("cards").select("name, company, email").eq("username", lead.card_owner as string).maybeSingle(),
+    admin.from("cards").select("name, title, company, email, phone").eq("username", lead.card_owner as string).maybeSingle(),
     admin.from("profiles").select("name, company, email, plan, customization").eq("id", user.id).maybeSingle(),
   ]);
   // A deleted account sends nothing (same choke point as the automations).
@@ -94,6 +94,8 @@ export async function POST(req: NextRequest) {
   }
   const ownerName = (card?.name as string) || (profile?.name as string) || "A SwiftCard user";
   const ownerCompany = (card?.company as string) || (profile?.company as string) || null;
+  const ownerTitle = (card?.title as string) || null;
+  const ownerPhone = (card?.phone as string) || null;
   const replyTo = (card?.email as string) || (profile?.email as string) || null;
   // Pro/Office is sold as "no SwiftCard branding" — drop the attribution lines
   // for paid senders (the STOP notice and the unsubscribe link always stay:
@@ -159,12 +161,32 @@ export async function POST(req: NextRequest) {
       const preview = `<a href="${cardUrl}" style="text-decoration:none;"><img src="${sigUrl}" alt="${altName}" width="360" style="display:block;width:100%;max-width:360px;height:auto;border:0;border-radius:14px;" /></a>
   <p style="margin:12px 0 0;font-size:13px;"><a href="${cardUrl}" style="color:#2563eb;font-weight:600;text-decoration:none;">View &amp; save my card →</a></p>`;
 
+      // Deliverability (2026-09-03, the spam-folder report): this mail used to
+      // be two short lines, a 360px image and an "Unsubscribe" link — the
+      // silhouette of a promo blast, and a spam filter scoring an image-heavy
+      // body with almost no text does not care that a human pressed Share.
+      // The image stays (it IS the card); what changes is the text around it:
+      //   • the sender's details as real, selectable text under the image, so
+      //     the message reads as a person's signature — and still says who
+      //     they are with images blocked;
+      //   • a plain "why you are receiving this" line, which is what Google's
+      //     own guidance asks of mail sent on someone's behalf.
+      const sigLines = [
+        `<p style="margin:0;font-size:14px;font-weight:700;color:#111827;">${esc(ownerName)}</p>`,
+        ownerTitle || ownerCompany
+          ? `<p style="margin:2px 0 0;font-size:13px;color:#4b5563;">${[ownerTitle, ownerCompany].filter(Boolean).map((v) => esc(v)).join(" · ")}</p>`
+          : "",
+        ownerPhone ? `<p style="margin:2px 0 0;font-size:13px;color:#4b5563;">${esc(ownerPhone)}</p>` : "",
+        replyTo ? `<p style="margin:2px 0 0;font-size:13px;color:#4b5563;">${esc(replyTo)}</p>` : "",
+      ].filter(Boolean).join("");
+
       const html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;background-color:#ffffff;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
   <p style="margin:0 0 16px;">${contactFirst ? `Hi ${esc(contactFirst)},` : "Hi,"}</p>
-  <p style="margin:0 0 16px;">Save my contact information in the link below.</p>
+  <p style="margin:0 0 16px;">Save my contact information in the link below. It opens my digital business card, and you can add me to your phone with one tap.</p>
   <p style="margin:0 0 20px;"><a href="${cardUrl}" style="color:#2563eb;font-weight:600;">${esc(cardUrl.replace(/^https?:\/\//, ""))}</a></p>
   ${preview}
-  <p style="margin-top:24px;color:#9ca3af;font-size:11px;">${paid ? "" : `Sent with <a href="${APP_URL}/join?src=share_contact" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a> · `}<a href="${contactUnsubUrl(lead.email as string)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a></p>
+  <div style="margin-top:20px;padding-top:14px;border-top:1px solid #e5e7eb;">${sigLines}</div>
+  <p style="margin-top:24px;color:#9ca3af;font-size:11px;">You're receiving this because ${esc(ownerName)} shared their contact card with you.${paid ? "" : ` Sent with <a href="${APP_URL}/join?src=share_contact" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a>.`} <a href="${contactUnsubUrl(lead.email as string)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a></p>
 </div>`;
 
       results.email = await sendRawEmail({

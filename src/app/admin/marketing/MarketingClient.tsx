@@ -23,6 +23,7 @@ type PromoLogEntry = PromoCode & {
 };
 type DomainStatus = {
   configured: boolean; exists: boolean; status: string; error?: string;
+  tracking?: { open: boolean; click: boolean };
   records: { record: string; name: string; type: string; value: string; ttl?: string; priority?: number; status?: string }[];
 };
 
@@ -264,6 +265,15 @@ export default function MarketingClient() {
                 </table>
               </div>
             </div>
+          )}
+          {/* Off means off: the server turns both back off on every read, so
+              this line only ever reads "on" when that PATCH failed. */}
+          {domain.tracking && (
+            <p className={`text-xs mt-2 ${domain.tracking.open || domain.tracking.click ? "text-red-300" : "text-emerald-200/80"}`}>
+              {domain.tracking.open || domain.tracking.click
+                ? "Open/click tracking is ON in Resend and could not be turned off — links are being rewritten. Turn both off at resend.com → Domains → swiftcard.me."
+                : "Open and click tracking are off — links in every email point straight at swiftcard.me."}
+            </p>
           )}
           {domain.error && <p className="text-red-300 text-xs mt-2">{domain.error}</p>}
         </div>

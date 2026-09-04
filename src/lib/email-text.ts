@@ -38,6 +38,15 @@ export function htmlToText(html: string): string {
   s = s.replace(/<script[\s\S]*?<\/script>/gi, "");
   s = s.replace(/<!--[\s\S]*?-->/g, "");
 
+  // Images → their alt text. The card signature is an <img> whose alt is
+  // "Name, Company — SwiftCard"; dropping it left the text part of a shared
+  // card with nothing that named the sender. Runs before the link pass so a
+  // linked image becomes "alt (href)" instead of a bare URL.
+  s = s.replace(/<img\b[^>]*>/gi, (tag) => {
+    const alt = /\balt=["']([^"']*)["']/i.exec(tag)?.[1]?.trim();
+    return alt ? ` ${alt} ` : "";
+  });
+
   // Links → "label (href)", so URLs survive in text-only clients.
   s = s.replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_, href, label) => {
     const text = label.replace(/<[^>]+>/g, "").trim();
