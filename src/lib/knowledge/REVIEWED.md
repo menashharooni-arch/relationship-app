@@ -67,3 +67,14 @@ One line per review, newest last.
   pages Jake drafts, but those publish as ordinary /blog content through the
   existing owner-approval gate; the assistants already know how to talk about
   the blog, and no feature, price, plan, label or flow changed.
+
+- **2026-09-04 · up to `638d584`** — `ContactsClient.tsx` changed, but nothing a
+  user should be TOLD changed. The automation panel still shows "Sends <date>"
+  and "Sent <date>" in exactly those words; the fix is that the scheduled date
+  is now derived from the daily run (18:00 UTC) instead of the raw due instant,
+  so an automation set up late in the evening no longer displays every step a
+  day early. `automations.ts › when-follow-ups-send` already says sends are
+  processed once a day and that the times beside each cadence describe the
+  shape of the schedule rather than the minute a message leaves — both still
+  true, and both now match what the screen shows. No page, button, label, plan
+  line or step count moved.
