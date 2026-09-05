@@ -21,6 +21,7 @@ import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 import { isCardInScope, parseCardScope } from "@/lib/crm-scope";
 import { clientIp } from "@/lib/client-ip";
 import { notifyVisit } from "@/lib/visit-notify";
+import { CRM_WEBHOOK_TIMEOUT_MS } from "@/lib/crm-events";
 import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveLocation } from "@/lib/request-geo";
 
@@ -302,11 +303,15 @@ export async function POST(req: NextRequest) {
       // after() for the same reason as the CRM syncs above: an unawaited fetch
       // can be cut off when the function freezes after responding, so the Zap
       // would silently never fire.
+      // Bounded, like dispatchCrmEvent: after() keeps the function alive until
+      // this settles, so an unanswering webhook would otherwise pin the
+      // instance for the platform's full limit on every captured lead.
       after(
         fetch(ownerProfile.zapier_webhook_url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, company: company || null, message: message || null, location, source: source ? getSourceLabel(source) : null, card_owner, tags: safeTags.length ? safeTags : null, created_at: new Date().toISOString() }),
+          signal: AbortSignal.timeout(CRM_WEBHOOK_TIMEOUT_MS),
         }).catch((e) => reportError("leads.zapier", e)),
       );
     }
