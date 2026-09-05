@@ -50,12 +50,24 @@ export async function dispatchCrmEvent(ownerUsername: string | null | undefined,
     if (event.type.startsWith("view.") && !prefs.views) return;
     if (event.type === "conversation.notification" && !prefs.notifications) return;
 
+    // Bounded. This is awaited INSIDE the view pipeline — after the card_views
+    // row is written and before the milestone check and the owner's
+    // notification. The catch below swallows an error, but an error was never
+    // the risk: a webhook that simply never answers held the request open
+    // until the platform killed it, and everything after this line — the
+    // milestone, the card_events row, the push — silently never ran. The bar
+    // existed; the bell didn't. A Zap either answers in well under this or
+    // is not going to.
     await fetch(p.zapier_webhook_url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...event, card_owner: base, _ts: new Date().toISOString() }),
+      signal: AbortSignal.timeout(CRM_WEBHOOK_TIMEOUT_MS),
     });
   } catch {
     /* best-effort — never block the caller on CRM delivery */
   }
 }
+
+/** How long a CRM webhook may hold a view or lead request open. */
+export const CRM_WEBHOOK_TIMEOUT_MS = 5000;

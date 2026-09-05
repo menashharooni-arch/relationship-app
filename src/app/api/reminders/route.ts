@@ -532,6 +532,9 @@ export async function GET(req: NextRequest) {
     // were due in one run (the catch-up case), the second write erased the
     // first step's stamp — and that step re-sent the next day.
     let curSeq = seq;
+    // Channels this contact has already been messaged on during THIS run —
+    // see the one-per-run guard below the channel checks.
+    const sentThisRun = new Set<"email" | "sms">();
 
     for (const item of seq) {
       if (item.sent_at) continue;
@@ -596,6 +599,16 @@ export async function GET(req: NextRequest) {
       }
       const asEmail = itemChannel === "email";
 
+      // ONE MESSAGE PER CONTACT PER CHANNEL PER RUN. Overdue steps are caught
+      // up (a missed cron day, a resumed flow) — but "caught up" used to mean
+      // ALL of them, in one pass: an owner who re-upgraded after two months
+      // had day 14, day 28 and day 56 land on the same person in the same
+      // minute. Three emails at once from someone you met once reads as spam
+      // and gets reported as it, which hurts every other sender on the
+      // domain. The steps still all send — one per daily run, in order — so
+      // nothing is lost, and a legitimately-missed single day is unaffected.
+      if (sentThisRun.has(itemChannel)) continue;
+
       // CLAIM BEFORE SENDING. Recording the step first means a crash, timeout
       // or overlapping run can only ever LOSE a message, never duplicate one —
       // and if the claim cannot be written we do not send at all, because a
@@ -608,6 +621,10 @@ export async function GET(req: NextRequest) {
         continue;
       }
       curSeq = claim.seq ?? curSeq;
+      // Counted at the claim, not the send result: a transient failure below
+      // releases the claim for a later run, and this contact still should not
+      // get a SECOND step on the same channel today.
+      sentThisRun.add(itemChannel);
 
       const r = await deliverToLead({
         leadId: seqLead.id,
