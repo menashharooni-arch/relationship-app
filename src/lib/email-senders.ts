@@ -53,7 +53,15 @@ type SenderDef = {
 // So the From splits immediately (that is the deliverability and organisation
 // win) while replies keep going somewhere known-good. Flip this to true the
 // moment the aliases exist and every reply path moves in one line.
-export const ALIASES_LIVE = false;
+//
+// 2026-09-05: LIVE. connect@, support@, billing@ and news@ were created as
+// aliases on hello@swiftcard.me in Google Workspace and verified end to end —
+// a message to each was accepted and logged for the domain in Email Log Search.
+// The domain has no catch-all and no default routing rule (both checked, both
+// empty) and exactly one user, so those addresses resolve because the aliases
+// exist and for no other reason. Every reply path below now lands on its own
+// identity instead of falling back to the shared inbox.
+export const ALIASES_LIVE = true;
 
 const INBOX = `hello@${DOMAIN}`;
 
