@@ -40,6 +40,33 @@ describe("a CRM webhook can never hold the view pipeline open", () => {
   });
 });
 
+describe("the Share button sends to a contact once, not once per tap", () => {
+  // Production, 2026-08-11: three identical share-card texts to one person in
+  // 31 seconds — a double (triple) tap, each one a real Twilio send. The route
+  // had only a per-USER cap, which is for runaway clients, not thumbs.
+  const src = stripComments(read("src/app/api/leads/share-card/route.ts"));
+
+  it("rate-limits per (user, contact), not just per user", () => {
+    expect(src).toMatch(/isRateLimited\(`share-card:\$\{user\.id\}:\$\{leadId\}`,\s*1,\s*SHARE_REPEAT_WINDOW_MS\)/);
+  });
+
+  it("checks it after leadId is known and before anything is sent", () => {
+    const guard = src.indexOf("share-card:${user.id}:${leadId}");
+    const leadCheck = src.indexOf('if (!leadId) return');
+    const firstSend = Math.min(...["sendSms(", "sendRawEmail("].map((s) => src.indexOf(s)).filter((i) => i > -1));
+    expect(guard).toBeGreaterThan(leadCheck);
+    expect(guard).toBeLessThan(firstSend);
+  });
+
+  it("is a double-tap window, not a lockout", async () => {
+    // Long enough to swallow a repeat tap, short enough that a deliberate
+    // re-send a little later still works without support getting involved.
+    const { SHARE_REPEAT_WINDOW_MS } = await import("@/app/api/leads/share-card/route");
+    expect(SHARE_REPEAT_WINDOW_MS).toBeGreaterThanOrEqual(30_000);
+    expect(SHARE_REPEAT_WINDOW_MS).toBeLessThanOrEqual(5 * 60_000);
+  });
+});
+
 describe("a resumed sequence does not flood the contact", () => {
   const src = read("src/app/api/reminders/route.ts");
 

@@ -39,6 +39,9 @@ function esc(v: string | null | undefined): string {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+/** A second Share to the same contact inside this window is a double-tap. */
+export const SHARE_REPEAT_WINDOW_MS = 60 * 1000;
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -58,6 +61,18 @@ export async function POST(req: NextRequest) {
     channel?: string;
   };
   if (!leadId) return NextResponse.json({ error: "leadId required" }, { status: 400 });
+
+  // ONE SHARE PER CONTACT PER MINUTE. The per-user cap above stops a runaway
+  // client; it does nothing about the ordinary case, a thumb landing on Share
+  // twice. Production has exactly that: three identical texts to one person
+  // inside 31 seconds, all real Twilio sends. A repeat inside a minute is a
+  // double-tap, not a decision, and the person on the other end gets it once.
+  if (await isRateLimited(`share-card:${user.id}:${leadId}`, 1, SHARE_REPEAT_WINDOW_MS)) {
+    return NextResponse.json(
+      { error: "You just shared your card with this contact. Give it a minute before sending again." },
+      { status: 429 },
+    );
+  }
   const channel = rawChannel === "email" || rawChannel === "both" ? rawChannel : "sms";
 
   const admin = getAdminSupabase();
