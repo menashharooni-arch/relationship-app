@@ -91,23 +91,21 @@ describe("office invite email", () => {
   });
 });
 
-// ── App Store badge (owner order 2026-09-02): the invite carries a download
-// option for the sub-user — but ONLY once the app is actually listed. ─────────
+// ── App Store badge: added to the invite on 2026-09-02, removed again on
+// 2026-09-06 — the invite has exactly one door. ──────────────────────────────
 describe("office invite App Store badge", () => {
-  it("absent while the app is unpublished (no appStoreUrl)", () => {
+  // Removed on purpose (owner decision, 2026-09-06): the invite is claimed
+  // only by tapping its link, and a second door ("get the app") led people to
+  // install first, sign in with Google, and land in a personal Free account
+  // with the invite still pending. The app is offered on the "Your card is
+  // live!" screen instead. The welcome email keeps its badge (below).
+  it("never appears in the invite, even with the listing live", () => {
     const html = invite().html;
     expect(html).not.toMatch(/App.Store/);
     expect(html).not.toMatch(/apps\.apple\.com/);
-  });
-
-  it("present, linked, and escaped once the listing URL exists", () => {
-    const html = invite({ appStoreUrl: "https://apps.apple.com/app/id6798875872" }).html;
-    expect(html).toContain('href="https://apps.apple.com/app/id6798875872"');
-    expect(html).toContain("Download on the");
-    expect(html).toMatch(/SwiftCard iPhone app/);
-    // The route passes the module constant, wired for real:
+    expect(html).not.toMatch(/SwiftCard iPhone app/);
     const route = readFileSync(join(process.cwd(), "src/app/api/office/invite/route.ts"), "utf8");
-    expect(route).toMatch(/appStoreUrl: APP_STORE_URL/);
+    expect(route).not.toMatch(/appStoreUrl/);
   });
 
   it("the welcome email rides the same switch (appStoreEmailBlock)", () => {

@@ -10,6 +10,7 @@ import { ensureEmailPreferences } from "@/lib/email-prefs";
 import { sendWelcomeEmail } from "@/lib/welcome-email";
 import { clientIpFromHeaders } from "@/lib/client-ip";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
+import { findPendingInviteForEmail } from "@/lib/pending-invite";
 
 function accountHandle(email: string | undefined, userId: string): string {
   const base = (email?.split("@")[0] ?? "user").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || "user";
@@ -147,8 +148,17 @@ export default async function OnboardingPage({
 
     // Brand-new account → return to a pending guest editor (to claim the draft)
     // if we have one, otherwise the dashboard with the App Store prompt.
-    redirect(safeNext ?? "/dashboard?welcome=1");
+    redirect(safeNext ?? (await inviteLanding(user.email)) ?? "/dashboard?welcome=1");
   }
 
-  redirect(safeNext ?? "/dashboard");
+  redirect(safeNext ?? (await inviteLanding(user.email)) ?? "/dashboard");
+}
+
+// Someone with an unaccepted team invite for this email who signed in some
+// other way (typically: installed the iPhone app first, then Google) goes to
+// the Join step, not to a dashboard that asks them to build a personal card.
+// A tapped invite link arrives with ?next=/join/… and never reaches this.
+async function inviteLanding(email: string | null | undefined): Promise<string | null> {
+  const invite = await findPendingInviteForEmail(email);
+  return invite ? `/join/${encodeURIComponent(invite.token)}` : null;
 }
