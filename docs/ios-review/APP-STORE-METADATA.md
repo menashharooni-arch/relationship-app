@@ -169,9 +169,11 @@ Turn them on in Settings, then open that account's card link (shown on its dashb
 ```
 
 ## Screenshots
-One 6.9-inch iPhone set at 1320 × 2868 px, nine frames, in
-`app-store/screenshots/6.9-inch-v2` — its README explains the persona, the
-design choices and how to regenerate. Search results show the first three,
+One 6.9-inch iPhone set at 1320 × 2868 px, eight frames, in
+`app-store/screenshots/6.9-inch-v3` (2026-09-06; bigger bleed-off phone,
+status bar and Dynamic Island in the glass, feature kicker, accent phrase in
+each headline) — its README explains the persona, the design choices and how
+to regenerate. Search results show the first three,
 so the story lands there: your card → they save you → every lead in your
 pocket. Upload with `scripts/asc-upload-screenshots.mjs` targeting the
 pending version's localization id; it deletes and recreates the set so the
