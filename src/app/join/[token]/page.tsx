@@ -20,7 +20,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
 
   if (!invite) {
     return (
-      <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
+      <main className="sc-app min-h-screen bg-gray-950 flex items-center justify-center px-5">
         <div className="text-center max-w-sm">
           <SwiftCardLogo size={32} onDark />
           <h1 className="text-2xl font-bold text-white mt-8 mb-3">This link doesn&apos;t work anymore</h1>
@@ -37,7 +37,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
 
   if (invite.status === "active") {
     return (
-      <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
+      <main className="sc-app min-h-screen bg-gray-950 flex items-center justify-center px-5">
         <div className="text-center max-w-sm">
           <SwiftCardLogo size={32} onDark />
           <h1 className="text-2xl font-bold text-white mt-8 mb-3">You&apos;re already on the team</h1>
@@ -61,7 +61,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
         ? "This invitation was already declined."
         : "This invite has expired.";
     return (
-      <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
+      <main className="sc-app min-h-screen bg-gray-950 flex items-center justify-center px-5">
         <div className="text-center max-w-sm">
           <SwiftCardLogo size={32} onDark />
           <h1 className="text-2xl font-bold text-white mt-8 mb-3">This link doesn&apos;t work anymore</h1>
@@ -86,7 +86,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
 
   if (!user) {
     return (
-      <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
+      <main className="sc-app min-h-screen bg-gray-950 flex items-center justify-center px-5">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-6">
@@ -110,7 +110,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   }
 
   return (
-    <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5">
+    <main className="sc-app min-h-screen bg-gray-950 flex items-center justify-center px-5">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
