@@ -73,7 +73,12 @@ function built(key: SenderKey, subject: string, html: string) {
 }
 
 // ─── Shared layout wrapper ────────────────────────────────────────────────────
-function layout(body: string, unsubscribeUrl?: string) {
+// `prefsUrl` is the preference centre (lib/email-token → /email/preferences).
+// It is offered ALONGSIDE the one-click unsubscribe, never instead of it:
+// CAN-SPAM and the Gmail/Yahoo rules both require a way OUT, and a page that
+// only offers "manage" is the dark pattern they exist to stop. The plain
+// Unsubscribe link stays exactly where it was.
+function layout(body: string, unsubscribeUrl?: string, prefsUrl?: string) {
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#FAF7F2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
@@ -96,8 +101,11 @@ function layout(body: string, unsubscribeUrl?: string) {
     <p style="margin:0;color:#94a3b8;font-size:11px;line-height:1.6;">
       ${POSTAL_ADDRESS}
     </p>
-    ${unsubscribeUrl
-      ? `<p style="margin:4px 0 0;color:#b6bcc6;font-size:9px;line-height:1.5;"><a href="${unsubscribeUrl}" style="color:#b6bcc6;text-decoration:underline;">Unsubscribe</a></p>`
+    ${unsubscribeUrl || prefsUrl
+      ? `<p style="margin:6px 0 0;color:#64748b;font-size:12px;line-height:1.6;">${[
+          prefsUrl ? `<a href="${prefsUrl}" style="color:#475569;text-decoration:underline;">Manage email preferences</a>` : "",
+          unsubscribeUrl ? `<a href="${unsubscribeUrl}" style="color:#475569;text-decoration:underline;">Unsubscribe</a>` : "",
+        ].filter(Boolean).join(" &nbsp;·&nbsp; ")}</p>`
       : `<p style="margin:4px 0 0;color:#b6bcc6;font-size:10px;line-height:1.5;">You are receiving this because you have an account with SwiftCard.</p>`}
   </td></tr>
 
@@ -146,6 +154,8 @@ export function welcomeEmail(opts: {
   firstName: string;
   cardUrl: string;
   unsubscribeUrl?: string;
+  /** Preference centre link for the footer — marketing/lifecycle mail only. */
+  prefsUrl?: string;
 }) {
   const safeName = escapeHtml(opts.firstName);
   const safeCardUrl = safeUrlAttr(opts.cardUrl);
@@ -167,7 +177,7 @@ export function welcomeEmail(opts: {
     `)}
     ${appStoreEmailBlock("SwiftCard for iPhone — your card, QR code and new contacts, right in your pocket.")}
   `;
-  return built(SUPPORT_FROM, `Your SwiftCard is live, ${opts.firstName}!`, layout(body, opts.unsubscribeUrl));
+  return built(SUPPORT_FROM, `Your SwiftCard is live, ${opts.firstName}!`, layout(body, opts.unsubscribeUrl, opts.prefsUrl));
 }
 
 // What a user keeps on Free vs. loses when their Pro access ends — reused by
@@ -204,6 +214,8 @@ export function trialEndingSoonEmail(opts: {
   daysLeft: number;
   isTrial: boolean;
   unsubscribeUrl?: string;
+  /** Preference centre link for the footer — marketing/lifecycle mail only. */
+  prefsUrl?: string;
 }) {
   const what = opts.isTrial ? "free Pro trial" : "free month of Pro";
   const day = opts.daysLeft === 1 ? "1 day" : `${opts.daysLeft} days`;
@@ -215,7 +227,7 @@ export function trialEndingSoonEmail(opts: {
     ${btn(`${APP_URL}/pricing`, "Keep Pro — upgrade →")}
     ${p(`No pressure — you can upgrade anytime, even after you're back on Free. Everything you've built will be waiting for you.`)}
   `;
-  return built(SUPPORT_FROM, `${day} left of your ${what}`, layout(body, opts.unsubscribeUrl));
+  return built(SUPPORT_FROM, `${day} left of your ${what}`, layout(body, opts.unsubscribeUrl, opts.prefsUrl));
 }
 
 // Sent on the day the trial / free-month grant downgrades to Free.
@@ -223,6 +235,8 @@ export function trialEndedEmail(opts: {
   firstName: string;
   isTrial: boolean;
   unsubscribeUrl?: string;
+  /** Preference centre link for the footer — marketing/lifecycle mail only. */
+  prefsUrl?: string;
 }) {
   const what = opts.isTrial ? "Your 14-day Pro trial has ended" : "Your free month of Pro has ended";
   const safeName = escapeHtml(opts.firstName);
@@ -233,7 +247,7 @@ export function trialEndedEmail(opts: {
     ${btn(`${APP_URL}/pricing`, "Upgrade back to Pro →")}
     ${p(`Change your mind? Upgrading takes about 30 seconds and instantly re-unlocks everything — including any paused follow-up sequences.`)}
   `;
-  return built(SUPPORT_FROM, what, layout(body, opts.unsubscribeUrl));
+  return built(SUPPORT_FROM, what, layout(body, opts.unsubscribeUrl, opts.prefsUrl));
 }
 
 // (The old "never shared your card" nudge email was removed for good — no
@@ -246,6 +260,8 @@ export function promoEmail(opts: {
   headline: string;
   body: string;
   unsubscribeUrl?: string;
+  /** Preference centre link for the footer — marketing/lifecycle mail only. */
+  prefsUrl?: string;
 }) {
   const safeCode = escapeHtml(opts.code);
   const body = `
@@ -262,7 +278,7 @@ export function promoEmail(opts: {
     ${btn(safeUrlAttr(`${APP_URL}/pricing?code=${encodeURIComponent(opts.code)}`), `Apply code & upgrade →`)}
     ${p(`Apply it at checkout on the pricing page. If you have any questions, just reply to this email.`)}
   `;
-  return built(MARKETING_FROM, opts.headline, layout(body, opts.unsubscribeUrl));
+  return built(MARKETING_FROM, opts.headline, layout(body, opts.unsubscribeUrl, opts.prefsUrl));
 }
 
 export function receiptEmail(opts: {
@@ -404,13 +420,15 @@ export function marketingEmail(opts: {
   ctaLabel: string;
   ctaUrl: string;
   unsubscribeUrl?: string;
+  /** Preference centre link for the footer — marketing/lifecycle mail only. */
+  prefsUrl?: string;
 }) {
   const emailBody = `
     ${h1(escapeHtml(opts.headline))}
     ${p(escapeHtml(opts.body))}
     ${btn(safeUrlAttr(opts.ctaUrl), escapeHtml(opts.ctaLabel))}
   `;
-  return built(MARKETING_FROM, opts.subject, layout(emailBody, opts.unsubscribeUrl));
+  return built(MARKETING_FROM, opts.subject, layout(emailBody, opts.unsubscribeUrl, opts.prefsUrl));
 }
 
 // ─── Unsubscribe URL helper ───────────────────────────────────────────────────

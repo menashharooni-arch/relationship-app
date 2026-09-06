@@ -171,6 +171,20 @@ export const accountDocs = defineDocs([
       "What gets sent when AI is allowed: the photo you take when scanning a business card, a contact's name, company, where you met and your notes when AI writes a follow-up, and messages you type to the assistant \u2014 sent to the AI provider to produce the result and to no one else. Saying no turns AI features off without affecting anything else. A decline made in the app is honoured on the website too. The privacy details live at swiftcard.me/privacy.",
   },
   {
+    id: "email-preference-center",
+    title: "Choosing which SwiftCard emails you get",
+    audience: ["user"],
+    triggers: [
+      "unsubscribe", "stop emails", "too many emails", "opt out", "email preferences",
+      "manage email preferences", "pause emails", "less email", "marketing emails",
+      "how do i stop", "remove me from the list",
+    ],
+    answer:
+      "Every marketing email from SwiftCard has a \"Manage email preferences\" link in its footer. It opens /email/preferences, where you can switch individual types on or off — lead alerts and follow-up tips, product updates, the weekly analytics digest, and offers — pause everything for 30 days, or unsubscribe from all marketing email. You do not need to sign in, and the link works from any device.",
+    detail:
+      "The link works for 90 days after the email was sent; after that, use a more recent email or the unsubscribe control your email app shows at the top of the message. Unsubscribing takes two taps — the link, then \"No thanks, unsubscribe me\" — and takes effect immediately, with no form to fill in. Gmail and Apple Mail also draw their own unsubscribe button on our marketing mail; that works instantly too. Account and lead notifications are NOT marketing and keep arriving whatever these switches say: sign-in and password emails, alerts when someone shares their details with you, billing and payment receipts. Someone who unsubscribes from everything still gets those.",
+  },
+  {
     id: "delete-account",
     title: "Deleting your account, and getting it back",
     audience: ["user"],

@@ -6,6 +6,8 @@ import { marketingEmail, unsubUrl, marketingHeaders } from "@/lib/email-template
 import { getAccountEmailMap } from "@/lib/account-email";
 import { isPaidPlan } from "@/lib/plan";
 import { emailOptOutSet, isEmailOptedOut } from "@/lib/messaging";
+import { marketingAudience } from "@/lib/marketing-consent";
+import { preferenceCenterUrl } from "@/lib/email-token";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -191,6 +193,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // THE preference-centre gate: category flag, 30-day pause and the new
+  // marketing_opt_out, for the whole list in one chunked read. A broadcast is a
+  // product update; promotions have their own sender and their own category.
+  // Fail-closed inside the helper — an id whose row could not be read is absent
+  // from the set, so the check below skips it.
+  const allowedByPrefs = await marketingAudience(
+    (profiles ?? []).map((p) => p.id as string),
+    "product_updates",
+  );
+
   // Contact-level opt-outs for this whole recipient list, in one chunked read
   // (same reason the prefs above are batched — N serial round trips in one
   // invocation is a timeout risk). Fail-closed inside the helper.
@@ -261,9 +273,9 @@ export async function POST(req: NextRequest) {
     // Missing row = never opted out (same as the old .single() returning null).
     const prefs = prefsById.get(profile.id as string);
 
-    if (prefs?.marketing_emails === false) {
+    if (prefs?.marketing_emails === false || !allowedByPrefs.has(profile.id as string)) {
       skipped++;
-      if (campaignId) await logRecipient({ user_id: profile.id, email: recipient, status: "skipped", error: "Unsubscribed from marketing" });
+      if (campaignId) await logRecipient({ user_id: profile.id, email: recipient, status: "skipped", error: "Unsubscribed, paused, or opted out of this category" });
       continue;
     }
 
@@ -317,6 +329,7 @@ export async function POST(req: NextRequest) {
       ctaLabel,
       ctaUrl,
       unsubscribeUrl: unsub,
+      prefsUrl: preferenceCenterUrl(profile.id as string),
     });
 
     try {

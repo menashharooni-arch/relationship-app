@@ -34,6 +34,8 @@ import { purgeExpiredDeletedAccounts, reconcileDeletedSubscriptions } from "@/li
 import { applyDueSeatReductions } from "@/lib/office-scheduled-seats";
 import { insertNotification } from "@/lib/notify";
 import { trialEndingSoonEmail, trialEndedEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
+import { canSendMarketing } from "@/lib/marketing-consent";
+import { preferenceCenterUrl } from "@/lib/email-token";
 import { reportError } from "@/lib/report-error";
 import { cardIsOffline } from "@/lib/card-active";
 
@@ -250,10 +252,14 @@ export async function GET(req: NextRequest) {
       // undefined when the account has no email_preferences row, which used to
       // be every account. The downgrade itself is unaffected and visible in-app.
       if (!unsub) continue;
+      // Lifecycle mail carries List-Unsubscribe, so by Gmail's own definition
+      // it is bulk and the preference centre governs it too.
+      if (!(await canSendMarketing(u.id as string, "product_updates"))) continue;
       const tpl = trialEndedEmail({
         firstName: u.name?.split(" ")[0] || "there",
         isTrial: u.wasTrial,
         unsubscribeUrl: unsub,
+        prefsUrl: preferenceCenterUrl(u.id as string),
       });
       // One-click unsubscribe headers (Gmail/Yahoo requirement) on the lifecycle email.
       const { data: sent } = await resend.emails
@@ -307,12 +313,16 @@ export async function GET(req: NextRequest) {
         // This one is an upgrade pitch — never send it to someone who opted
         // out, and never without a working opt-out to offer (`unsub` is
         // undefined when the account has no email_preferences row).
-        if (marketingOk && unsub) {
+        // Same category gate as the trial-ended mail above: this is an upgrade
+        // pitch, and someone who paused or switched product updates off has
+        // said not to send it.
+        if (marketingOk && unsub && (await canSendMarketing(u.id as string, "product_updates"))) {
           const tpl = trialEndingSoonEmail({
             firstName: (u.name as string)?.split(" ")[0] || "there",
             daysLeft,
             isTrial: cust._trial === true,
             unsubscribeUrl: unsub,
+            prefsUrl: preferenceCenterUrl(u.id as string),
           });
           // One-click unsubscribe headers (Gmail/Yahoo requirement) on the lifecycle email.
           const { data: sent } = await resend.emails
