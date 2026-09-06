@@ -117,13 +117,16 @@ function ManagedTag() {
 // server wrapper (cards/new/page.tsx) passes guest={!user}. Every change is
 // snapshotted to a localStorage draft; the "Create card" action is gated behind
 // auth (requireAuth) and the draft is claimed → real card after they sign in.
-export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, org = null, linkedinEnabled = false }: {
+export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, tourOnDone = false, org = null, linkedinEnabled = false }: {
   isPro: boolean;
   guest?: boolean;
   /** The account's FIRST card (count === 0) being built while signed in and on
    *  Free — unlocks the Pro design controls as a preview, same as a guest, then
    *  gates on an explicit Free/Pro choice before the card is created. */
   isFirstCard?: boolean;
+  /** This is the account's first card (any plan) — hand off to the dashboard
+   *  with the guided tour. Distinct from isFirstCard, the Free design gate. */
+  tourOnDone?: boolean;
   /** Absolute origin for the share link/QR — passed in so a preview deploy
    *  shares its own URL rather than hardcoding production. */
   appUrl?: string;
@@ -143,7 +146,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   const postCheckout = searchParams.get("postcheckout");
   // First card → the guided tour starts on the dashboard (the empty-state
   // dashboard deliberately does not run it — nothing to point at yet).
-  const doneHref = postCheckout === "office" ? "/office/admin" : isFirstCard ? "/dashboard?tour=1" : "/dashboard";
+  const doneHref = postCheckout === "office" ? "/office/admin" : (isFirstCard || tourOnDone) ? "/dashboard?tour=1" : "/dashboard";
   // A plan-specific CTA (Get Pro / Get Office) routes here with ?plan=… so the
   // visitor still builds their card first, but AFTER account creation goes
   // straight to payment for that plan — no plan chooser again (unified flow).
