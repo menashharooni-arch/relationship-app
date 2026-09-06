@@ -957,11 +957,11 @@ export default async function DashboardPage({
                       <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
                           <p className="text-gray-100 text-sm font-semibold truncate">{loc.location}</p>
-                          <p className="text-white text-sm font-bold tabular-nums shrink-0">{loc.total} <span className="text-gray-500 font-medium text-[11px]">views</span></p>
+                          <p className="text-white text-sm font-bold tabular-nums shrink-0">{loc.total.toLocaleString("en-US")} <span className="text-gray-500 font-medium text-[11px]">views</span></p>
                         </div>
                         <div className="flex items-center gap-4 text-[11px]">
-                          <span className="text-gray-500">SwiftCard <span className="text-gray-200 font-semibold tabular-nums">{loc.card}</span></span>
-                          <span className="text-gray-500">Swift Links <span className="text-gray-200 font-semibold tabular-nums">{loc.link}</span></span>
+                          <span className="text-gray-500">SwiftCard <span className="text-gray-200 font-semibold tabular-nums">{loc.card.toLocaleString("en-US")}</span></span>
+                          <span className="text-gray-500">Swift Links <span className="text-gray-200 font-semibold tabular-nums">{loc.link.toLocaleString("en-US")}</span></span>
                         </div>
                       </div>
                     ))}
@@ -1014,7 +1014,7 @@ export default async function DashboardPage({
               <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[11px]">
                 <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{visibleLeads.length}</span></span>
                 {bestDay && bestDay.views > 0 ? (
-                  <span className="text-gray-500">Best day <span className="text-gray-200 font-semibold">{new Date(bestDay.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span> · {bestDay.views}</span>
+                  <span className="text-gray-500">Best day <span className="text-gray-200 font-semibold">{new Date(bestDay.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span> · {bestDay.views.toLocaleString("en-US")}</span>
                 ) : (
                   <span className="text-gray-600">No views yet</span>
                 )}

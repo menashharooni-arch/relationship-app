@@ -186,7 +186,24 @@ try {
   // surfaces (the card, and Swift Links under "<username>__links") so the
   // Month tab shows thousands of views, a 30-bar chart, a best day, and the
   // Locations tab has a spread of towns. Weekends dip, one launch day spikes.
-  const TOWNS = ["Portland, OR", "Seattle, WA", "San Francisco, CA", "Bend, OR", "Vancouver, WA", "Los Angeles, CA", "Boise, ID", "Eugene, OR"];
+  // Towns are WEIGHTED, not round-robin: a real photographer's traffic is her
+  // home city by a mile, a couple of nearby metros, then a long tail. The
+  // first pass dealt towns out evenly and every row read "657 views" — a list
+  // of identical numbers is the one thing that screams fake data. Swift Links
+  // traffic skews differently (Instagram audiences in Bend and LA) so the
+  // per-town split varies too.
+  const TOWN_WEIGHTS = {
+    card:  [["Portland, OR", 46], ["Seattle, WA", 17], ["Vancouver, WA", 10], ["Bend, OR", 8], ["San Francisco, CA", 7], ["Los Angeles, CA", 5], ["Eugene, OR", 4], ["Boise, ID", 3]],
+    links: [["Portland, OR", 33], ["Bend, OR", 17], ["Seattle, WA", 14], ["Los Angeles, CA", 12], ["San Francisco, CA", 9], ["Vancouver, WA", 7], ["Eugene, OR", 5], ["Boise, ID", 3]],
+  };
+  // Deterministic pseudo-random so the set regenerates identically.
+  const hash = (a, b, c) => { let h = 2166136261 ^ a; h = Math.imul(h ^ b, 16777619); h = Math.imul(h ^ c, 16777619); return (h >>> 0) / 4294967296; };
+  const pickTown = (surface, d, i) => {
+    const w = TOWN_WEIGHTS[surface]; const total = w.reduce((t, [, n]) => t + n, 0);
+    let r = hash(surface === "card" ? 1 : 2, d, i) * total;
+    for (const [town, n] of w) { if ((r -= n) < 0) return town; }
+    return w[0][0];
+  };
   const SOURCES = ["qr_code", "direct_link", "nfc_tap", "email_signature", "swift_links"];
   const views = [];
   let cardTotal = 0, linkTotal = 0;
@@ -203,7 +220,7 @@ try {
         if (d === 0 && at > new Date()) at.setHours(new Date().getHours(), 0, 0, 0);
         views.push({
           username: key, viewed_at: at.toISOString(),
-          location: TOWNS[(d + i * 3) % TOWNS.length],
+          location: pickTown(key === uname ? "card" : "links", d, i),
           source: SOURCES[(d * 3 + i) % SOURCES.length],
           // Some visitors come back: a repeat id every 6th view.
           visitor_id: i % 6 === 0 ? `shot-repeat-${d % 9}-${i % 11}` : `shot-${key.length}-${d}-${i}`,
