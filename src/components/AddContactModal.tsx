@@ -115,7 +115,7 @@ export default function AddContactModal({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:pb-0">
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setOpen(false); reset(); }} />
 

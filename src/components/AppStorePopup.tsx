@@ -37,7 +37,7 @@ export default function AppStorePopup({ trigger }: { trigger: boolean }) {
   if (!open || native || !APP_STORE_URL) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={(e) => e.target === e.currentTarget && close()}>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:pb-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={(e) => e.target === e.currentTarget && close()}>
       <div className="w-full max-w-sm rounded-3xl bg-gray-900 border border-gray-800 shadow-2xl p-6 text-center">
         <div className="w-14 h-14 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center mx-auto mb-4">
           <svg viewBox="0 0 24 24" fill="#60a5fa" className="w-7 h-7">

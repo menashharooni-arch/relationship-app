@@ -271,7 +271,7 @@ function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchas
       role="dialog"
       aria-modal="true"
       aria-labelledby="iap-paywall-title"
-      className="fixed inset-0 z-[120] flex items-end justify-center p-3 sm:items-center"
+      className="fixed inset-0 z-[120] flex items-end justify-center p-3 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:items-center sm:pb-3"
       style={{ background: "rgba(0,0,0,0.65)" }}
     >
       <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-gray-800 bg-gray-900 shadow-2xl">
