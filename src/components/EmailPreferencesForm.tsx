@@ -5,9 +5,14 @@ import { useState } from "react";
 type Props = {
   initialMarketing: boolean;
   initialReceipts: boolean;
+  /** False for an Office member whose seat the owner pays for — they are never
+   *  billed, so a receipts switch controls mail that cannot reach them. Their
+   *  stored value is still submitted untouched, so hiding the row never
+   *  rewrites a preference. See canSeeBilling() in lib/office-roles. */
+  showReceipts?: boolean;
 };
 
-export default function EmailPreferencesForm({ initialMarketing, initialReceipts }: Props) {
+export default function EmailPreferencesForm({ initialMarketing, initialReceipts, showReceipts = true }: Props) {
   const [marketing, setMarketing] = useState(initialMarketing);
   const [receipts, setReceipts] = useState(initialReceipts);
   const [saving, setSaving] = useState(false);
@@ -46,12 +51,14 @@ export default function EmailPreferencesForm({ initialMarketing, initialReceipts
         checked={marketing}
         onChange={setMarketing}
       />
-      <Toggle
-        label="Payment receipts"
-        description="Confirmation emails when you're billed"
-        checked={receipts}
-        onChange={setReceipts}
-      />
+      {showReceipts && (
+        <Toggle
+          label="Payment receipts"
+          description="Confirmation emails when you're billed"
+          checked={receipts}
+          onChange={setReceipts}
+        />
+      )}
 
       <button
         onClick={save}

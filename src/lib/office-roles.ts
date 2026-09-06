@@ -96,6 +96,33 @@ export const resolveOfficeContext = cache(async (userId: string): Promise<Office
 // it's the office OWNER, whose subscription they manage on the org's behalf.
 // Without this, those routes read the delegate's own (nonexistent) subscription
 // and every billing action but seat-count fails. SERVER-SIDE only.
+/**
+ * Whether this account should see BILLING surfaces: the plan-and-billing
+ * section, and the "Payment receipts" email preference.
+ *
+ * An Office sub-user's seat is paid by the office owner. They are never
+ * charged, and the receipt path is keyed to the user who holds the Stripe
+ * subscription — so a "Confirmation emails when you're billed" switch offers
+ * them control over mail that cannot reach them. Owner request 2026-09-06:
+ * hide it rather than explain it.
+ *
+ * Two exceptions, both real money:
+ *   • a delegated billing_admin manages the ORGANISATION's billing; and
+ *   • a sub-user who kept a PERSONAL subscription from before joining the team
+ *     is still charged for it every month, and does get those receipts.
+ *
+ * Pure so both settings pages can share one rule instead of re-deriving it and
+ * drifting apart.
+ */
+export function canSeeBilling(
+  office: OfficeContext | null | undefined,
+  personalSubscriptionId: string | null | undefined,
+): boolean {
+  if (!office || office.isOwner) return true;
+  if (roleHasCapability(office.role, "manage_billing")) return true;
+  return !!personalSubscriptionId;
+}
+
 export async function resolveBillingSubjectId(userId: string): Promise<string> {
   const ctx = await resolveOfficeContext(userId);
   if (ctx && !ctx.isOwner && roleHasCapability(ctx.role, "manage_billing") && ctx.ownerId) {
