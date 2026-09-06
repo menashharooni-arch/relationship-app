@@ -37,7 +37,7 @@ export default async function EmailPreferencesPage({
             message — either one works without signing in.
           </p>
           <p className="mt-5 text-sm" style={{ color: "#64748b" }}>
-            Stuck? <Link href="/contact" className="underline" style={{ color: "#0f172a" }}>Contact us</Link> and we&apos;ll
+            Stuck? <Link href="/contact" className="underline" style={{ color: "#0f172a" }}>Contact us</Link>{" "}and we&apos;ll
             take you off the list.
           </p>
         </div>
