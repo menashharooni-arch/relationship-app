@@ -65,7 +65,14 @@ function CopyButton({ value, label, copiedLabel = "Copied ✓", className }: {
 
 function QrModal({ url, name, onClose }: { url: string; name: string; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-5" role="dialog" aria-modal="true" aria-label={`QR code for ${name}`}>
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center px-5"
+      style={{
+        paddingTop: "calc(1.25rem + env(safe-area-inset-top))",
+        paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))",
+      }}
+      role="dialog" aria-modal="true" aria-label={`QR code for ${name}`}
+    >
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
       <div className="relative bg-gray-900 border border-gray-800 rounded-2xl p-6 text-center max-w-xs w-full">
         <div className="flex items-center justify-between mb-4">
@@ -97,7 +104,24 @@ function Drawer({ person, appUrl, caps, onClose }: {
     <>
       <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={`${person.name} details`}>
         <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-        <aside className="relative w-full sm:max-w-md bg-gray-900 border-l border-gray-800 h-full overflow-y-auto p-5">
+        {/* SAFE AREA. This is `fixed inset-0`, so it opens flush with the
+            PHYSICAL top of the screen under viewport-fit=cover — body's
+            safe-area padding does not move a fixed element. Without the insets
+            below, the avatar, the name and the × close button all sat under the
+            clock and the Dynamic Island: unreachable, and visibly clipped. Same
+            defect and same remedy as .sc-overlay-topbar in globals.css.
+
+            Additive rather than max(): the person still needs the normal 1.25rem
+            of breathing room BELOW the island, not padding that merely reaches
+            it. env() resolves to 0 where there is no inset, so this is a no-op
+            on desktop and correct on a notched phone in Safari too. */}
+        <aside
+          className="relative w-full sm:max-w-md bg-gray-900 border-l border-gray-800 h-full overflow-y-auto px-5"
+          style={{
+            paddingTop: "calc(1.25rem + env(safe-area-inset-top))",
+            paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))",
+          }}
+        >
           <div className="flex items-start justify-between gap-3 mb-5">
             <div className="flex items-center gap-3 min-w-0">
               <Avatar name={person.name} photoUrl={person.photoUrl} size={44} />
