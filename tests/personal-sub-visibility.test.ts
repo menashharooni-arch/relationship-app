@@ -32,11 +32,20 @@ describe("a sub-user's own subscription is visible and cancellable", () => {
   });
 
   it("the Settings page shows the billing section when they have their own sub", () => {
+    // The rule moved out of this page into lib/office-roles (canSeeBilling) so
+    // /settings and /profile could share it — the assertion follows it rather
+    // than pinning where it used to live. The personal-subscription escape
+    // hatch is what matters and it must survive the move.
     const src = read("src/app/settings/flows/page.tsx");
-    const at = src.indexOf("const canSeeBilling");
-    expect(at).toBeGreaterThan(-1);
+    const at = src.indexOf("const showBilling");
+    expect(at, "the settings page no longer derives a billing flag").toBeGreaterThan(-1);
     const decl = src.slice(at, src.indexOf(";", at));
-    expect(decl, "canSeeBilling no longer accounts for a personal subscription").toContain("stripe_subscription_id");
+    expect(decl).toContain("canSeeBilling(officeCtx");
+    expect(decl, "the billing flag no longer accounts for a personal subscription").toContain("stripe_subscription_id");
+
+    const helper = read("src/lib/office-roles.ts");
+    const fn = helper.slice(helper.indexOf("export function canSeeBilling"));
+    expect(fn.slice(0, fn.indexOf("\n}"))).toContain("personalSubscriptionId");
   });
 
   it("the read model flags the trimmed view, and the UI renders it", () => {

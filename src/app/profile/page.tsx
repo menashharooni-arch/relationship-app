@@ -7,6 +7,7 @@ import EmailPreferencesForm from "@/components/EmailPreferencesForm";
 import MobileNavGate from "@/components/MobileNavGate";
 import CopyButton from "@/components/CopyButton";
 import DashboardLink from "@/components/DashboardLink";
+import { resolveOfficeContext, canSeeBilling } from "@/lib/office-roles";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -19,11 +20,17 @@ export default async function ProfilePage() {
   if (!profile) redirect("/onboarding");
 
   const admin = getAdminSupabase();
-  const { data: emailPrefs } = await admin
-    .from("email_preferences")
-    .select("marketing_emails, receipt_emails")
-    .eq("user_id", user.id)
-    .single();
+  const [{ data: emailPrefs }, officeCtx] = await Promise.all([
+    admin
+      .from("email_preferences")
+      .select("marketing_emails, receipt_emails")
+      .eq("user_id", user.id)
+      .single(),
+    resolveOfficeContext(user.id),
+  ]);
+  // Same rule as /settings — an Office member whose seat the owner pays for is
+  // never billed, so the receipts switch is hidden for them here too.
+  const showBilling = canSeeBilling(officeCtx, profile.stripe_subscription_id as string | null);
 
   const defaults = {
     day1: { enabled: true, time: "13:00" },
@@ -78,6 +85,7 @@ export default async function ProfilePage() {
           <EmailPreferencesForm
             initialMarketing={emailPrefs?.marketing_emails ?? true}
             initialReceipts={emailPrefs?.receipt_emails ?? true}
+            showReceipts={showBilling}
           />
         </div>
       </div>

@@ -26,7 +26,7 @@ import MobileNavGate from "@/components/MobileNavGate";
 import SettingsShell, { type SettingsSection } from "@/components/SettingsShell";
 import SignOutButton from "@/components/SignOutButton";
 import EmailPreferencesForm from "@/components/EmailPreferencesForm";
-import { resolveOfficeContext, roleHasCapability, canViewOfficeAdmin } from "@/lib/office-roles";
+import { resolveOfficeContext, canViewOfficeAdmin, canSeeBilling } from "@/lib/office-roles";
 import { Suspense } from "react";
 import Link from "next/link";
 import { isPaidPlan } from "@/lib/plan";
@@ -137,10 +137,7 @@ export default async function FlowSettingsPage({
   // a sub they couldn't see or cancel anywhere in the app. The API returns the
   // trimmed personal-sub view for them (personalSubOnly), never the org's plan
   // manager, so showing the section cannot expose team billing.
-  const canSeeBilling =
-    !isOfficeSubUser ||
-    roleHasCapability(officeCtx.role, "manage_billing") ||
-    !!profile.stripe_subscription_id;
+  const showBilling = canSeeBilling(officeCtx, profile.stripe_subscription_id as string | null);
 
   const googleIntegration = integrations?.find((i) => i.provider === "google");
   const hubspotIntegration = integrations?.find((i) => i.provider === "hubspot");
@@ -257,7 +254,7 @@ export default async function FlowSettingsPage({
         </div>
       ),
     } as SettingsSection,
-    ...(canSeeBilling ? [{
+    ...(showBilling ? [{
       id: "billing",
       label: "Plan and billing",
       desc: "Your plan and billing.",
@@ -290,6 +287,7 @@ export default async function FlowSettingsPage({
           <EmailPreferencesForm
             initialMarketing={emailPrefs?.marketing_emails ?? true}
             initialReceipts={emailPrefs?.receipt_emails ?? true}
+            showReceipts={showBilling}
           />
           {/* Order matters here, and it used to be backwards.
               Direct CRM connections come FIRST: they're the common case, and one
