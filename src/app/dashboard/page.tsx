@@ -28,6 +28,8 @@ import AppStorePopup from "@/components/AppStorePopup";
 import IapProbe from "@/components/IapProbe";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import TourBanner from "@/components/TourBanner";
+import PendingInviteBanner from "@/components/PendingInviteBanner";
+import { findPendingInviteForEmail } from "@/lib/pending-invite";
 import TourAutoStart from "@/components/TourAutoStart";
 import MyCardsList from "@/components/dashboard/MyCardsList";
 import TrialBanner from "@/components/TrialBanner";
@@ -146,6 +148,11 @@ export default async function DashboardPage({
   const trialDaysLeft = onAppGrant ? daysUntil(proExpiresAt as string) : 0;
   const isTrialGrant = !!(profile.customization as { _trial?: boolean } | null)?._trial;
 
+  // An unaccepted team invite for this email: the person reached the dashboard
+  // without tapping the invite link (installed the app first, or signed in on
+  // the web). Only looked up for accounts that aren't already Office members.
+  const pendingInvite = isEnterprise ? null : await findPendingInviteForEmail(user.email);
+
   // No cards yet → show the "create your card" empty state.
   if (!hasCards) {
     return (
@@ -188,11 +195,24 @@ export default async function DashboardPage({
               <path strokeLinecap="round" d="M3 9.5h18" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Let&apos;s create your first card</h1>
-          <p className="text-gray-400 text-sm mb-8 max-w-sm">Your digital business card — add your info, socials, and design in about 60 seconds.</p>
-          <Link href="/cards/new?add=1" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors">
-            Create your card →
-          </Link>
+          {pendingInvite ? (
+            <>
+              {/* Invited but never tapped the link: joining IS the first step,
+                  not a personal card — that would be the wrong card. */}
+              <PendingInviteBanner officeName={pendingInvite.officeName} token={pendingInvite.token} primary />
+              <Link href="/cards/new?add=1" className="mt-6 text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                Not part of {pendingInvite.officeName}? Create a personal card instead
+              </Link>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold text-white mb-2">Let&apos;s create your first card</h1>
+              <p className="text-gray-400 text-sm mb-8 max-w-sm">Your digital business card — add your info, socials, and design in about 60 seconds.</p>
+              <Link href="/cards/new?add=1" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors">
+                Create your card →
+              </Link>
+            </>
+          )}
         </main>
       </>
     );
@@ -717,6 +737,9 @@ export default async function DashboardPage({
               notifications switch is offered without going looking for it.
               Renders nothing on the web, or once push is on / declined. */}
           <NativePushNudge />
+
+          {/* Unaccepted team invite for this email — their way into the hub. */}
+          {pendingInvite && <PendingInviteBanner officeName={pendingInvite.officeName} token={pendingInvite.token} />}
 
           {/* Reverse-trial / free-Pro countdown */}
           {onAppGrant && trialDaysLeft > 0 && <TrialBanner daysLeft={trialDaysLeft} isTrial={isTrialGrant} />}
