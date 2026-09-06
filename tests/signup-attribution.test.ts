@@ -78,6 +78,18 @@ describe("the guided tour reaches a brand-new account", () => {
     const emptyBranchEnd = c.indexOf("</main>", emptyBranchAt);
     expect(c.slice(emptyBranchAt, emptyBranchEnd)).not.toContain("<TourAutoStart");
     const wizard = code("src/app/cards/new/NewCardWizard.tsx");
-    expect(wizard).toMatch(/isFirstCard \? "\/dashboard\?tour=1"/);
+    expect(wizard).toMatch(/\(isFirstCard \|\| tourOnDone\) \? "\/dashboard\?tour=1"/);
+  });
+
+  it("an invited Office member's first card hands off to the tour too", () => {
+    // isFirstCard is the FREE design-preview gate (`!isPro`), and an invited
+    // member is on the enterprise plan the moment they accept the seat — so
+    // their first card ended on a dashboard with no tour (owner report,
+    // 2026-09-06). The tour flag must not depend on the plan.
+    const page = code("src/app/cards/new/page.tsx");
+    expect(page).toMatch(/const tourOnDone = !!user && authedAdd && !authedPlan && cardCount === 0;/);
+    expect(page).toContain("tourOnDone={tourOnDone}");
+    const wizard = code("src/app/cards/new/NewCardWizard.tsx");
+    expect(wizard).toContain("tourOnDone = false");
   });
 });

@@ -18,6 +18,7 @@ const Wizard = NewCardWizard as ComponentType<{
   isPro: boolean;
   guest?: boolean;
   isFirstCard?: boolean;
+  tourOnDone?: boolean;
   appUrl?: string;
   walletEnabled?: boolean;
   org?: OrgManaged | null;
@@ -139,6 +140,13 @@ export default async function NewCardPage({
   // Pro-design-then-choose-plan treatment a guest gets. A plan-specific CTA
   // (?plan=pro|office) already has a fixed target plan, so it's excluded.
   const isFirstCard = !!user && authedAdd && !authedPlan && !isPro && cardCount === 0;
+  // The guided tour belongs to EVERY first card, whatever the plan. isFirstCard
+  // above is the Free-plan design-preview gate and is deliberately false for a
+  // paid account — which is exactly what an invited Office member is (the seat
+  // grants the enterprise plan before they build), so their "Your card is
+  // live!" screen sent them to a dashboard with no tour. Kept separate so the
+  // design gate stays Free-only.
+  const tourOnDone = !!user && authedAdd && !authedPlan && cardCount === 0;
 
   // Office SUB-USER adding a card to their account: the company half of the
   // card (nickname, company, logo, website, office phone, fax, address) is
@@ -187,6 +195,7 @@ export default async function NewCardPage({
         isPro={isPro}
         guest={!authedAdd}
         isFirstCard={isFirstCard}
+        tourOnDone={tourOnDone}
         appUrl={process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}
         walletEnabled={hasWalletConfig()}
         org={org}
