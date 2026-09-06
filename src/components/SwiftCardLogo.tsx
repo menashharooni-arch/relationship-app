@@ -34,11 +34,15 @@ export default function SwiftCardLogo({ size = 36, wordmark = true, onDark = fal
       <SwiftCardIcon size={size} />
       {wordmark && (
         <span
+          // A CLASS, not an inline colour: inside a themed .sc-app surface the
+          // light theme recolours .text-white to ink (globals.css), so the
+          // wordmark follows the page. An inline #ffffff ignored the theme and
+          // vanished on the cream join page.
+          className={onDark ? "text-white" : "text-gray-900"}
           style={{
             fontSize: size * 0.52,
             fontWeight: 800,
             letterSpacing: "-0.02em",
-            color: onDark ? "#ffffff" : "#111827",
             lineHeight: 1,
           }}
         >
