@@ -12,6 +12,7 @@ import { PLAN_LIMITS } from "@/lib/plan";
 import { isDuplicateStripeEvent, clearStripeEvent } from "@/lib/stripe-idempotency";
 import { reportError } from "@/lib/report-error";
 import { insertNotification } from "@/lib/notify";
+import { sendPushToUser } from "@/lib/push";
 import { stripeDowngradeAllowed } from "@/lib/iap-entitlement";
 import { provisionOfficeForOwner, tearDownOfficeForOwner, officeAccessEndedMessage } from "@/lib/office-billing-sync";
 
@@ -137,6 +138,18 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
     subject: template.subject,
     resend_id: sent?.id,
   });
+
+  // Push as well as email, and this is the one category allowed through quiet
+  // hours: a card that failed is fixed in two minutes, and the alternative is
+  // waking up to a downgraded account. Never a sales message — it says what
+  // happened and opens billing.
+  await sendPushToUser(profile.id as string, {
+    category: "billing_problem",
+    title: "Payment failed",
+    body: `Your ${planName} payment didn't go through.`,
+    url: `${APP_URL}/settings/flows?billing=1`,
+    tag: "billing-problem",
+  }).catch(() => {});
 }
 
 export async function POST(req: NextRequest) {

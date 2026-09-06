@@ -13,7 +13,6 @@ import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveLocation } from "@/lib/request-geo";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 import { recordView } from "@/lib/record-view";
-import type { MilestoneNotice } from "@/lib/milestones";
 import { notifyVisit } from "@/lib/visit-notify";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -104,18 +103,13 @@ export async function POST(req: NextRequest) {
     // Anything not recorded (same-visit reload, self-view) makes no
     // notification either: the bell can never say something the bars don't.
     let viewOutcome: "recorded" | null = null;
-    let milestone: MilestoneNotice | null = null;
     if (event_type === "viewed_card") {
       const viewsKey = surface === "links" ? `${card_owner_username}__links` : card_owner_username;
-      const { outcome, milestone: reached } = await recordView({
+      const { outcome } = await recordView({
         req, username: viewsKey, visitorId: visitor_id, source, ip,
-        // We are about to notify about this visit; the milestone rides along
-        // in that one notification rather than buzzing the phone again.
-        deferMilestonePush: true,
       });
       if (outcome !== "recorded") return NextResponse.json({ ok: true, [outcome]: true });
       viewOutcome = "recorded";
-      milestone = reached ?? null;
     }
 
     // ONE VISIT = ONE EVENT. The same visitor re-touching
@@ -227,6 +221,30 @@ export async function POST(req: NextRequest) {
         // hour — events above the cap still record, they just don't buzz.
         const flooded = await isRateLimited(`notify-ip:${card_owner_username}:${ip}`, 6, 60 * 60 * 1000);
 
+        // FIRST view only, and never a repeat one.
+        //
+        // Every visit used to buzz. That is the notification people turn off:
+        // a card shared at an event is opened twenty times in an afternoon and
+        // none of those, after the first, is news. So a view interrupts once —
+        // the first time that card is ever opened — and push-policy.ts batches
+        // even that to one an hour. A saved contact gets no push at all: it
+        // still writes the bell row and still upgrades this visit.
+        let pushCategory: "first_view" | undefined;
+        if (isView) {
+          // Count under the SAME key the view was recorded with: card_views
+          // stores the Swift Links surface as "<slug>__links", so counting the
+          // bare slug here would always return 0 for a links view and silently
+          // never notify.
+          const { count } = await admin
+            .from("card_views")
+            .select("id", { count: "exact", head: true })
+            .eq("username", surface === "links" ? `${card_owner_username}__links` : card_owner_username);
+          // 1 = the view just recorded. Anything more and this card has been
+          // seen before. A failed count returns null, which is not "first" —
+          // the quiet direction, deliberately.
+          if (count === 1) pushCategory = "first_view";
+        }
+
         if (notice && !flooded) {
           // ONE NOTIFICATION PER PERSON PER VISIT. A view then a save by the
           // same visitor upgrades the notification the owner already has
@@ -238,15 +256,9 @@ export async function POST(req: NextRequest) {
             ip,
             notice: {
               type: notice.type,
+              ...(pushCategory ? { pushCategory } : {}),
               title: notice.title,
               body: notice.body,
-              // A milestone crossed by THIS view is SAID in the same push
-              // rather than sent as a second one a second later — that pair
-              // ("First 5 views!" at 21:28:02, "Aaron Lavi viewed your card"
-              // at 21:28:03) is the duplicate the owner reported. The
-              // milestone keeps its own bell row, which is its once-ever
-              // ledger; what it no longer keeps is its own buzz.
-              ...(milestone ? { pushBody: `${notice.body} ${milestone.title}` } : {}),
               // Deep-link to THIS card's dashboard — a bare /dashboard opened
               // whichever card the owner last had selected, which on a
               // multi-card account could be the wrong one.

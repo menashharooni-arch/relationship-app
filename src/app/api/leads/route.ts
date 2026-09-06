@@ -334,9 +334,13 @@ export async function POST(req: NextRequest) {
       // already notified. Sharing their info is the biggest news of the visit,
       // so it UPGRADES that notification in place and replaces the banner —
       // rather than being the third buzz from one visitor.
-      const title = locked ? "New lead locked" : `New contact: ${name}`;
+      // A locked lead is still a lead, and the person still needs to know a
+      // real human just handed over their details. The old copy was an upgrade
+      // pitch on the lock screen — marketing, which push-policy.ts forbids —
+      // and it buried the news. State the fact; the dashboard explains the cap.
+      const title = locked ? `New contact: ${name}` : `New contact: ${name}`;
       const body = locked
-        ? "You've hit your 5 free leads this month. Upgrade to Pro to unlock this one — and never miss the next."
+        ? `${name} shared their info — open to unlock.`
         : `${name} shared their info with you${sourceStr}.`;
       after(
         notifyVisit({
@@ -346,6 +350,7 @@ export async function POST(req: NextRequest) {
           ip,
           notice: {
             type: "new_lead",
+            pushCategory: "new_lead",
             title,
             body,
             url: `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner)}`,

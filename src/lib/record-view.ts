@@ -30,13 +30,6 @@ export async function recordView(opts: {
   visitorId: string | null;
   source: string | null;
   ip: string;
-  /**
-   * Hand the milestone back instead of pushing it. The caller is about to
-   * notify the owner about this same visit and folds the achievement into that
-   * one notification — two pushes a second apart for one visitor is the exact
-   * duplicate we removed (lib/visit-notify.ts).
-   */
-  deferMilestonePush?: boolean;
 }): Promise<{ outcome: RecordViewOutcome; location: string | null; milestone?: MilestoneNotice | null }> {
   const { req, visitorId, source, ip } = opts;
   const username = opts.username.toLowerCase();
@@ -109,7 +102,7 @@ export async function recordView(opts: {
   });
 
   // Milestone notification (5, 10, 25, 50, 100, …). Best-effort.
-  const milestone = await checkViewMilestone(username, { deferPush: opts.deferMilestonePush });
+  const milestone = await checkViewMilestone(username);
 
   return { outcome: "recorded", location, milestone };
 }

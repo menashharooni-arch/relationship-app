@@ -197,7 +197,7 @@ export default function NativeAppBridge() {
                 fetch("/api/push/subscribe", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns", replaces: previous }),
+                  body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns", replaces: previous, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
                 }).then((r) => {
                   if (r.ok) { try { localStorage.setItem("swiftcard_apns_endpoint", endpoint); } catch { /* ignore */ } }
                 }).catch(() => { /* offline — next launch retries */ });
