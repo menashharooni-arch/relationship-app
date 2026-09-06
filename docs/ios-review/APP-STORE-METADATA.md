@@ -129,12 +129,11 @@ Data types collected — declare exactly these:
 - Sign-in required: **Yes** — two demo accounts, same password (set by
   `node scripts/create-apple-review-account.js`; the password lives only in
   the ASC review-detail field, never in this repo):
-  - `applereview-free@swiftcard.me` — **must be on plan `free`**. It is the
-    account the reviewer uses to exercise In-App Purchase, so every gate and
-    the paywall have to be reachable from it. A sandbox purchase during a
-    review flips it to `pro` (RevenueCat webhook, `_planSource: apple`) —
-    reset it before every submission or the paywall is unreachable, which is
-    the exact shape of the 5th rejection.
+  - `applereview-free@swiftcard.me` — seeded Free account. It WILL drift to
+    `pro` (RevenueCat re-grants App Review's own sandbox purchase on every
+    renewal, `_planSource: apple`) and resetting the row does not hold. The
+    notes therefore no longer rely on it being Free: the reviewer is told to
+    create a fresh in-app account for the purchase test.
   - `applereview@swiftcard.me` — Pro, set from our admin, no subscription
     attached anywhere.
   - Both: clear `customization._aiConsent` before every submission so the
@@ -157,8 +156,13 @@ THIRD-PARTY AI (5.1.1 / 5.1.2)
 Before any personal data reaches the AI service, a dialog names the recipient (Google), itemises exactly what is sent (the photo taken when scanning a business card; a contact's name, company, where you met and notes when AI drafts a follow-up; messages typed to the assistant), and offers equal Allow / Don't allow choices. This is enforced on our servers: until an account has explicitly allowed, every AI endpoint refuses requests from the app. Our privacy policy at swiftcard.me/privacy names Google (the Gemini API), lists each category of data sent and its purpose, and states that inputs are not used to train models. Both demo accounts have had their choice reset, so the dialog appears the first time an AI feature is used.
 
 DEMO ACCOUNTS (both use the password in the field below)
-  1. applereview-free@swiftcard.me: a Free account. Use this one to exercise the In-App Purchase; every plan gate and the paywall are reachable from it.
-  2. applereview@swiftcard.me: set to Pro by us from our own admin so you can see the Pro feature set without a sandbox purchase. No subscription of any kind is attached to it, through Apple or otherwise.
+  1. applereview-free@swiftcard.me: seeded with sample contacts and card views.
+  2. applereview@swiftcard.me: set to Pro by us from our own admin so the Pro feature set is visible without a purchase. No subscription of any kind is attached to it, through Apple or otherwise.
+
+Either demo account may already show Pro when you sign in. App Review's own sandbox purchases from the previous review remain attached to these accounts, and a sandbox subscription re-grants on each renewal. That is expected and is not a purchase outside the app.
+
+TO EXERCISE THE IN-APP PURCHASE
+Please create a fresh account inside the app: on the sign-in screen, choose the "Create account" tab. It takes a few seconds, starts on the Free plan, and every plan gate and the paywall are reachable from it. Then Settings > Plan and billing > "Upgrade to Pro" (or any locked Pro feature) opens the StoreKit paywall, where the two subscriptions above can be purchased with a sandbox Apple ID.
 
 PUSH NOTIFICATIONS
 Turn them on in Settings, then open that account's card link (shown on its dashboard under Share) from another device or browser. A notification arrives within a few seconds of the card being viewed.
