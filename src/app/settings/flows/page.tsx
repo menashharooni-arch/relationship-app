@@ -26,6 +26,7 @@ import MobileNavGate from "@/components/MobileNavGate";
 import SettingsShell, { type SettingsSection } from "@/components/SettingsShell";
 import SignOutButton from "@/components/SignOutButton";
 import EmailPreferencesForm from "@/components/EmailPreferencesForm";
+import PushPreferencesForm from "@/components/PushPreferencesForm";
 import { resolveOfficeContext, canViewOfficeAdmin, canSeeBilling } from "@/lib/office-roles";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -278,6 +279,11 @@ export default async function FlowSettingsPage({
           {/* Push notifications toggle — the wizard offers opt-in once at card
               creation; this is the permanent on/off switch for this device. */}
           <EnablePushButton label="Turn on push notifications" allowDisable />
+          {/* And exactly WHICH pushes. The five categories in push-policy.ts are
+              the whole allowed list; showing them here is both the control and
+              the honest disclosure of what "turn on notifications" signs you up
+              for. Identical on web and in the iOS shell. */}
+          <PushPreferencesForm />
           {/* Native-only: the standing switch for AI features (the consent the
               in-app dialog asks for — App Review 5.1.2(i)). Renders nothing on
               the web, which is never asked. */}

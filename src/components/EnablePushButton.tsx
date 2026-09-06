@@ -195,7 +195,7 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
         const res = await fetch("/api/push/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns", replaces: previous }),
+          body: JSON.stringify({ endpoint, p256dh: "apns", auth: "apns", replaces: previous, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
         });
         if (!res.ok) {
           reportPushFailure(`subscribe returned ${res.status}`);
@@ -237,7 +237,7 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
       await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint: json.endpoint, p256dh: json.keys?.p256dh, auth: json.keys?.auth }),
+        body: JSON.stringify({ endpoint: json.endpoint, p256dh: json.keys?.p256dh, auth: json.keys?.auth, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       });
 
       setState("subscribed");

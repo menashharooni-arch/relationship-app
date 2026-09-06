@@ -1,8 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { sendPushToUser } from "@/lib/push";
 import { SEEDED_VISITOR_PREFIX } from "@/lib/seeded-views";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 // View-count achievements — game-like nudges that pull owners back into the
 // app as their card gains traction. Fired from the view-tracking API.
@@ -26,23 +24,15 @@ const MILESTONE_COUNTS = Object.keys(MILESTONES).map(Number).sort((a, b) => b - 
 
 // Called after each recorded view. Counts the card's combined SwiftCard +
 // Swift Links views; when the total has REACHED a milestone that was never
-// announced, notifies the owner (in-app + push). Reached, not "lands exactly
+// announced, writes the owner a BELL ROW — never a push. Reached, not "lands exactly
 // on": two views committing near-simultaneously can jump the count straight
 // over a milestone (4 → 6), and an exact-match check skipped it forever.
 // The notifications table doubles as the dedupe ledger so a burst of
 // simultaneous views can't fire the same milestone twice.
 export type MilestoneNotice = { type: string; title: string; body: string };
 
-/** The milestone this view crossed when the caller deferred its push, else null. */
-export async function checkViewMilestone(
-  rawUsername: string,
-  // The view that crossed this milestone is about to notify the owner itself.
-  // Pushing here too is how one visitor produced two lock-screen banners a
-  // second apart ("First 5 views!" and "Someone viewed your card"). When the
-  // caller defers, it gets the milestone back and folds it into that one
-  // notification — the achievement still reaches the owner, as one buzz.
-  opts?: { deferPush?: boolean },
-): Promise<MilestoneNotice | null> {
+/** The milestone this view crossed, for the caller's own record, else null. */
+export async function checkViewMilestone(rawUsername: string): Promise<MilestoneNotice | null> {
   try {
     const base = rawUsername.replace(/__links$/, "");
     if (!base) return null;
@@ -95,20 +85,12 @@ export async function checkViewMilestone(
     });
     if (!created) return null;
 
-    // Deferred: the view that crossed this milestone is already notifying the
-    // owner, and a second buzz a second later is exactly the duplicate we are
-    // removing. The bell row above still stands on its own — it IS the
-    // once-ever ledger, so it must always be written — and the caller mentions
-    // the achievement inside that single push instead.
-    if (opts?.deferPush) return { type, title: m.title, body: m.body };
-
-    await sendPushToUser(ownerId, {
-      title: m.title,
-      body: m.body,
-      url: `${APP_URL}/dashboard?card=${encodeURIComponent(base)}`,
-      tag: `milestone-${base}-${reached}`,
-    }).catch(() => {});
-    return null;
+    // NO PUSH, ever. A view milestone is a statistic — the product cheering,
+    // not news the person has to act on — and push-policy.ts deliberately has
+    // no category that could carry it. The bell row above is the whole
+    // announcement, and it is also the once-ever ledger, so it must always be
+    // written. The milestone is returned only so a caller can record it.
+    return { type, title: m.title, body: m.body };
   } catch {
     /* achievements are best-effort — never block view tracking */
     return null;

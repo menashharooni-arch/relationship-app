@@ -1,6 +1,7 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { sendPushToUser } from "@/lib/push";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
+import type { PushCategory } from "@/lib/push-policy";
 
 // ONE NOTIFICATION PER PERSON, PER CARD, PER VISIT.
 //
@@ -79,6 +80,12 @@ export function visitPushTag(key: string): string {
 export type VisitNotice = {
   /** notifications.type — also the VISIT_RANK lookup ("milestone_5" ranks as "milestone"). */
   type: string;
+  /** Which of the five interrupt-worthy categories this is, if any.
+   *  OMITTED ON PURPOSE for everything else: a saved contact and a repeat view
+   *  still write the bell row and still upgrade the visit, they just do not
+   *  buzz. The caller decides, because only it knows whether a view is the
+   *  card's FIRST (push-policy.ts). */
+  pushCategory?: PushCategory;
   title: string;
   body: string;
   /** Deep link for the push tap. */
@@ -152,7 +159,9 @@ export async function notifyVisit(opts: {
   const tag = visitPushTag(key);
 
   const push = async () => {
+    if (!notice.pushCategory) return;   // bell-only news
     await sendPushToUser(opts.userId, {
+      category: notice.pushCategory,
       title: notice.title,
       body: notice.pushBody ?? notice.body,
       url: notice.url,

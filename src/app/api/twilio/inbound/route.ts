@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import twilio from "twilio";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { addOptOut, removeOptOut, normalizePhone, logMessage } from "@/lib/messaging";
+import { sendPushToUser } from "@/lib/push";
+import { insertNotification } from "@/lib/notify";
 import { reportError } from "@/lib/report-error";
 
 const STOP_WORDS = new Set(["stop", "stopall", "unsubscribe", "cancel", "end", "quit", "stop all"]);
@@ -95,14 +97,14 @@ export async function POST(req: NextRequest) {
       const admin = getAdminSupabase();
       const { data: leads } = await admin
         .from("leads")
-        .select("id, card_owner, phone")
+        .select("id, card_owner, phone, name")
         .ilike("phone", `%${digits.slice(-7)}%`)
         .limit(25);
       const matches = (leads ?? []).filter((l) => l.phone && normalizePhone(l.phone) === digits);
 
-      let target: { id: string; card_owner: string | null } | null = null;
+      let target: { id: string; card_owner: string | null; name?: string | null } | null = null;
       if (matches.length === 1) {
-        target = matches[0] as { id: string; card_owner: string | null };
+        target = matches[0] as { id: string; card_owner: string | null; name?: string | null };
       } else if (matches.length > 1) {
         const { data: lastOut } = await admin
           .from("lead_messages")
@@ -115,12 +117,43 @@ export async function POST(req: NextRequest) {
           .maybeSingle();
         const winnerId = lastOut?.lead_id as string | undefined;
         target = winnerId
-          ? ((matches.find((m) => m.id === winnerId) ?? null) as { id: string; card_owner: string | null } | null)
+          ? ((matches.find((m) => m.id === winnerId) ?? null) as { id: string; card_owner: string | null; name?: string | null } | null)
           : null;
       }
 
       if (target) {
         await logMessage({ leadId: target.id, cardOwner: target.card_owner, direction: "in", channel: "sms", body: bodyText, status: "received" });
+
+        // A lead answering a follow-up is a live conversation, and the reply is
+        // worthless an hour late — this is the one inbound event in the product
+        // that is genuinely time-critical. Bell row AND push, on every plan.
+        if (target.card_owner) {
+          const { data: cardRow } = await admin
+            .from("cards").select("user_id").eq("username", target.card_owner).maybeSingle();
+          const { data: owner } = cardRow?.user_id
+            ? await admin.from("profiles").select("id").eq("id", cardRow.user_id).maybeSingle()
+            : await admin.from("profiles").select("id").eq("username", target.card_owner).maybeSingle();
+          if (owner?.id) {
+            const who = (target.name || "").trim() || "A contact";
+            const url = `${(process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me").replace(/\/$/, "")}/dashboard?lead=${encodeURIComponent(target.id)}`;
+            await insertNotification({
+              user_id: owner.id as string,
+              card_owner: target.card_owner,
+              type: "lead_reply",
+              title: `${who} replied`,
+              // The message itself, trimmed by push-policy to the lock-screen
+              // budget. Seeing the actual words is why this is worth a buzz.
+              body: bodyText.replace(/\s+/g, " ").trim().slice(0, 300),
+            }).catch(() => {});
+            await sendPushToUser(owner.id as string, {
+              category: "lead_reply",
+              title: `${who} replied`,
+              body: bodyText,
+              url,
+              tag: `lead-reply-${target.id}`,
+            }).catch(() => {});
+          }
+        }
       }
     } catch { /* ignore */ }
   }

@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  const { endpoint, p256dh, auth, replaces } = await req.json();
+  const { endpoint, p256dh, auth, replaces, timezone } = await req.json();
   if (!endpoint || !p256dh || !auth) {
     return NextResponse.json({ error: "Missing subscription fields" }, { status: 400 });
   }
@@ -78,6 +78,27 @@ export async function POST(req: NextRequest) {
       .delete()
       .eq("user_id", user.id)
       .eq("endpoint", replaces);
+  }
+
+  // Learn the device's timezone here, because this is the only moment we are
+  // certain we have a real device in front of us. Quiet hours are 10pm-8am
+  // LOCAL; without a zone they fall back to UTC, which would silence a
+  // Californian's afternoon and buzz them at 3am. Best-effort: a failure to
+  // record it must never fail the subscription itself.
+  if (typeof timezone === "string" && timezone && timezone.length < 64) {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+      const { data: prof } = await admin
+        .from("profiles").select("customization").eq("id", user.id).maybeSingle();
+      const customization = (prof?.customization ?? {}) as Record<string, unknown>;
+      const push = { ...((customization._push ?? {}) as Record<string, unknown>) };
+      if (push.timezone !== timezone) {
+        push.timezone = timezone;
+        await admin.from("profiles")
+          .update({ customization: { ...customization, _push: push } })
+          .eq("id", user.id);
+      }
+    } catch { /* invalid zone, or profile write failed — not fatal */ }
   }
 
   return NextResponse.json({ ok: true });

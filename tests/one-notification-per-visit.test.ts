@@ -161,32 +161,28 @@ describe("every notifier goes through the visit ledger", () => {
   });
 });
 
-describe("a milestone rides along with the view that earned it", () => {
-  it("hands the milestone back instead of pushing when the caller defers", () => {
-    expect(milestones()).toMatch(/if \(opts\?\.deferPush\) return \{ type, title: m\.title, body: m\.body \}/);
+describe("a milestone is a bell row and nothing more", () => {
+  // Superseded 2026-09-06 by the push policy. This block used to guard the
+  // "fold the milestone into the visit's push" compromise; milestones now have
+  // no route to a phone at all, because a view count is a statistic and
+  // push-policy.ts has no category that can carry one. What still matters is
+  // that the bell row is written — it is the once-ever ledger, and without it
+  // the same milestone announces itself again on the next view.
+  it("never pushes, on any path", () => {
+    expect(milestones()).not.toMatch(/sendPushToUser/);
+    expect(milestones()).not.toMatch(/deferPush/);
   });
 
   it("still writes its own bell row — that row is the once-ever ledger", () => {
-    // The row must be written even when the push is deferred. Skipping it
-    // would leave nothing recording that this milestone was announced, and the
-    // next view would announce it all over again.
-    const src = milestones();
-    const insertAt = src.indexOf("insertNotification({");
-    const deferAt = src.indexOf("if (opts?.deferPush) return");
-    expect(insertAt).toBeGreaterThan(-1);
-    expect(deferAt).toBeGreaterThan(insertAt);
-  });
-
-  it("still fires standalone when nothing else is notifying (the /api/views path)", () => {
     const src = milestones();
     expect(src).toMatch(/insertNotification\(\{/);
-    expect(src).toMatch(/tag: `milestone-\$\{base\}-\$\{reached\}`/);
+    expect(src).toMatch(/if \(!created\) return null;/);
   });
 
-  it("is said inside the visit's one push instead of sent as a second one", () => {
+  it("no longer has a push to defer, so the caller no longer defers one", () => {
     const src = cardEvents();
-    expect(src).toMatch(/deferMilestonePush: true/);
-    expect(src).toMatch(/\.\.\.\(milestone \? \{ pushBody: `\$\{notice\.body\} \$\{milestone\.title\}` \} : \{\}\)/);
+    expect(src).not.toMatch(/deferMilestonePush/);
+    expect(src).not.toMatch(/pushBody/);
   });
 
   it("does not overwrite the bell row's own type, so the milestone ledger holds", () => {

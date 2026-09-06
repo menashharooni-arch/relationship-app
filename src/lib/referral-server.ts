@@ -5,9 +5,7 @@ import { getStripe } from "./stripe";
 import { isPaidPlan, TRIAL_DAYS } from "./plan";
 import { REFERRAL, freeMonthDays, sourceGrantsFreeMonth, isSignupSource } from "./referral";
 import { insertNotification } from "./notify";
-import { sendPushToUser } from "./push";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no ambiguous chars (0/O/1/I/L)
 
@@ -446,12 +444,9 @@ async function notifyReferrerOfSignup(referrerId: string): Promise<void> {
   }
 
   await insertNotification({ user_id: referrerId, type, title, body });
-  await sendPushToUser(referrerId, {
-    title,
-    body,
-    url: `${APP_URL}/settings/flows#refer`,
-    tag: `referral-${p.validSignups}`,
-  }).catch(() => {});
+  // NO PUSH. Earning a referral month is good news, but it is our marketing,
+  // not something the person must act on — see push-policy.ts. The in-app
+  // notification and the email still tell them.
 }
 
 // Called from the Stripe webhook when a referred user becomes a PAYING customer.
