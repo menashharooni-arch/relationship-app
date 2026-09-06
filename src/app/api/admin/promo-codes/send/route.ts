@@ -5,6 +5,8 @@ import { promoEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { requireAdmin } from "@/lib/admin";
 import { getAccountEmailMap } from "@/lib/account-email";
 import { emailOptOutSet, isEmailOptedOut } from "@/lib/messaging";
+import { canSendMarketing } from "@/lib/marketing-consent";
+import { preferenceCenterUrl } from "@/lib/email-token";
 
 // POST /api/admin/promo-codes/send — email a promo code to targeted users.
 // Same session-based admin gate as the rest of the console.
@@ -103,6 +105,9 @@ export async function POST(req: NextRequest) {
     const prefs = prefsById.get(profile.id as string);
 
     if (prefs?.marketing_emails === false) { skipped++; continue; }
+    // A promo code is the "Offers and promotions" category — someone who kept
+    // product updates but switched offers off must not receive this.
+    if (!(await canSendMarketing(profile.id as string, "promotions"))) { skipped++; continue; }
     if (isEmailOptedOut(contactOptOuts, recipient)) { skipped++; continue; }
 
     const firstName = profile.name?.split(" ")[0] || "there";
@@ -124,6 +129,7 @@ export async function POST(req: NextRequest) {
       headline,
       body: message,
       unsubscribeUrl: unsub,
+      prefsUrl: preferenceCenterUrl(profile.id as string),
     });
 
     try {

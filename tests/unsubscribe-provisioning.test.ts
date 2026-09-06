@@ -88,8 +88,11 @@ describe("no marketing send without a working opt-out", () => {
   it("the cron's lifecycle mail is gated the same way", () => {
     const c = code("src/app/api/reminders/route.ts");
     // Downgrade notice: bare guard. Expiry pitch: folded into its condition.
+    // Both gained the preference-centre category check alongside the opt-out
+    // guard they already had — the rule this protects (never send without a
+    // working opt-out) is unchanged, the condition just got stricter.
     expect(c).toMatch(/if \(!unsub\) continue;/);
-    expect(c).toMatch(/if \(marketingOk && unsub\)/);
+    expect(c).toMatch(/if \(marketingOk && unsub && \(await canSendMarketing\(/);
   });
 
   it("/api/unsubscribe reports failure when a token matches nothing", () => {

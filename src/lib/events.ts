@@ -63,6 +63,15 @@ export const EVENTS = [
   // Retention / growth
   "subscription_cancel_started",
   "referral_link_copied",
+
+  // Email preference centre. `variant` carries the opt-out source
+  // ("footer" | "one_click_header") and the survey answer — both low
+  // cardinality, neither an id.
+  "email_preferences_saved",
+  "email_paused_30d",
+  "email_digest_only_chosen",
+  "email_full_unsubscribe",
+  "email_unsubscribe_reason_given",
 ] as const;
 
 export type EventName = (typeof EVENTS)[number];
