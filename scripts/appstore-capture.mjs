@@ -81,12 +81,48 @@ const LINKS = [
   { emoji: "✉️", label: "Join the newsletter", url: "https://lenabrooks.photo/news", size: "compact" },
 ];
 
+// Every field a contact can show is filled. "No notes" / "Not set" / "no flow"
+// in a listing screenshot reads as an empty product. Jordan is the lead the
+// story follows: shared their info back from the public card (frame 02),
+// appears in Contacts (03), and has a running follow-up automation (08).
+const D = (daysAgo, h = 10, m = 0) => {
+  const t = new Date(); t.setDate(t.getDate() - daysAgo); t.setHours(h, m, 0, 0); return t.toISOString();
+};
+const SEQ = (anchor, sent, first) => [
+  { day: 0, time: "10:00", channel: "email", subject: "Great meeting you", message: `Hi ${first}, lovely to meet you today. Here's my portfolio and the 2026 packages we talked about — shout if you have questions.`, anchor, sent_at: sent ? anchor : null },
+  { day: 3, time: "09:30", channel: "email", subject: "Quick follow-up", message: `Hi ${first}, just checking in — happy to hold a date for you while you decide.`, anchor, sent_at: null },
+  { day: 7, time: "11:00", channel: "email", subject: "Dates are filling up", message: `Hi ${first}, spring weekends are going fast. Want me to pencil one in?`, anchor, sent_at: null },
+  { day: 1, time: "12:00", channel: "sms", message: `Hi ${first}, Lena here — great meeting you. My portfolio: lenabrooks.photo/portfolio`, anchor, sent_at: sent ? anchor : null },
+  { day: 5, time: "12:00", channel: "sms", message: `Hi ${first}, still happy to hold a date for you. Just reply here.`, anchor, sent_at: null },
+];
 const LEADS = [
-  { name: "Jordan Rivera", company: "Rivera Design Co.", email: "jordan.rivera@example.com", phone: "(415) 555-0110", tags: ["qr"], source: "qr_code" },
-  { name: "Marcus Webb", company: "Webb & Co.", email: "marcus.webb@example.com", phone: "(415) 555-0121", tags: [], source: "direct_link" },
-  { name: "Priya Nair", company: "Lumen Health", email: "priya.nair@example.com", phone: "(415) 555-0132", tags: ["nfc"], source: "nfc_tap" },
-  { name: "Sofia Delgado", company: "Delgado Partners", email: "sofia@example.com", phone: "(415) 555-0143", tags: [], source: "swift_links" },
-  { name: "Tom Bergeron", company: "Harbor Financial", email: "tom.b@example.com", phone: "(415) 555-0154", tags: ["qr"], source: "qr_code" },
+  { name: "Jordan Rivera", company: "Rivera Design Co.", email: "jordan.rivera@example.com", phone: "(415) 555-0110",
+    location: "Portland, OR", tags: ["qr", "sms-ok"], source: "qr_code", visitor_id: "shot-visitor-jordan", created_at: D(0, 9, 12),
+    where_met: "Rivera Design Co. studio opening, Pearl District",
+    notes: "Wants a brand shoot for the new studio in March. Budget approved. Send the 2026 packages and two dates.",
+    message: "Loved meeting you at the opening! Send me the brand shoot packages when you get a chance.",
+    status: "hot", follow_up_sequence: SEQ(D(0, 9, 12), true, "Jordan") },
+  { name: "Marcus Webb", company: "Webb & Co.", email: "marcus.webb@example.com", phone: "(415) 555-0121",
+    location: "Seattle, WA", tags: ["sms-ok"], source: "direct_link", visitor_id: "shot-visitor-marcus", created_at: D(1, 16, 40),
+    where_met: "Referred by Priya Nair", notes: "Headshots for a team of 12, wants them done on-site in one afternoon.",
+    message: "Priya passed along your card — we need team headshots before the rebrand launches.",
+    status: "warm", follow_up_sequence: SEQ(D(1, 16, 40), true, "Marcus") },
+  { name: "Priya Nair", company: "Lumen Health", email: "priya.nair@example.com", phone: "(415) 555-0132",
+    location: "Portland, OR", tags: ["nfc", "sms-ok"], source: "nfc_tap", visitor_id: "shot-visitor-priya", created_at: D(2, 11, 5),
+    where_met: "Portland Creative Mornings, NFC tap", notes: "Booked: wedding, 14 June, Sauvie Island. Second shooter confirmed.",
+    message: "So glad we met at Creative Mornings. June 14 is the date!", status: "booked", follow_up_sequence: SEQ(D(2, 11, 5), true, "Priya") },
+  { name: "Sofia Delgado", company: "Delgado Partners", email: "sofia@example.com", phone: "(415) 555-0143",
+    location: "Bend, OR", tags: ["sms-ok"], source: "swift_links", visitor_id: "shot-visitor-sofia", created_at: D(3, 19, 22),
+    where_met: "Came through the Swift Links page from Instagram", notes: "Engagement session in the fall, golden hour at Smith Rock.",
+    message: "Found you on Instagram — your Smith Rock photos are exactly what we want.", status: "warm", follow_up_sequence: SEQ(D(3, 19, 22), true, "Sofia") },
+  { name: "Tom Bergeron", company: "Harbor Financial", email: "tom.b@example.com", phone: "(415) 555-0154",
+    location: "Lake Oswego, OR", tags: ["qr", "sms-ok"], source: "qr_code", visitor_id: "shot-visitor-tom", created_at: D(5, 13, 50),
+    where_met: "Harbor Financial client dinner", notes: "Annual report portraits for 6 partners, needs them by end of quarter.",
+    message: "Great chatting at dinner. Let\u2019s get the partner portraits on the calendar.", status: "warm", follow_up_sequence: SEQ(D(5, 13, 50), true, "Tom") },
+  { name: "Amara Okafor", company: "Bloom & Vine Events", email: "amara@example.com", phone: "(503) 555-0166",
+    location: "Portland, OR", tags: ["sms-ok"], source: "email_signature", visitor_id: "shot-visitor-amara", created_at: D(8, 8, 15),
+    where_met: "Replied to my email signature", notes: "Wedding planner. Wants a preferred-vendor arrangement for 2026 weddings.",
+    message: "Saw your card in your email — we should talk about working together next season.", status: "hot", follow_up_sequence: SEQ(D(8, 8, 15), true, "Amara") },
 ];
 
 // Full-page captures stitch the page in viewport-sized bands, so anything
@@ -146,32 +182,81 @@ try {
   })).json();
   cardId = card?.[0]?.id;
 
-  // Analytics with zeros in it sells nothing. Seed a fortnight of views across
-  // hours, days, sources and towns so the Traffic chart, the Locations tab and
-  // the counters all render like a real account's.
-  const TOWNS = ["San Francisco, CA", "Oakland, CA", "San Jose, CA", "Sacramento, CA", "Los Angeles, CA", "Portland, OR"];
-  const SOURCES = ["qr_code", "direct_link", "nfc_tap", "swift_links", "email_signature"];
+  // Analytics with zeros in it sells nothing. Seed a full month on BOTH
+  // surfaces (the card, and Swift Links under "<username>__links") so the
+  // Month tab shows thousands of views, a 30-bar chart, a best day, and the
+  // Locations tab has a spread of towns. Weekends dip, one launch day spikes.
+  const TOWNS = ["Portland, OR", "Seattle, WA", "San Francisco, CA", "Bend, OR", "Vancouver, WA", "Los Angeles, CA", "Boise, ID", "Eugene, OR"];
+  const SOURCES = ["qr_code", "direct_link", "nfc_tap", "email_signature", "swift_links"];
   const views = [];
-  for (let d = 0; d < 14; d++) {
-    const n = d === 0 ? 31 : d === 1 ? 22 : 6 + ((d * 7) % 9);
-    for (let i = 0; i < n; i++) {
-      const at = new Date(Date.now() - d * 86400000 - ((i * 97) % 20) * 3600000 - (i % 13) * 60000);
-      views.push({
-        username: uname, viewed_at: at.toISOString(),
-        location: TOWNS[(d + i) % TOWNS.length],
-        source: SOURCES[(d * 3 + i) % SOURCES.length],
-        visitor_id: `shot-${d}-${i}`,
-      });
+  let cardTotal = 0, linkTotal = 0;
+  for (let d = 0; d < 30; d++) {
+    const at0 = new Date(); at0.setDate(at0.getDate() - d);
+    const weekend = [0, 6].includes(at0.getDay());
+    const base = weekend ? 88 : 132 + ((d * 37) % 41);
+    const nCard = d === 6 ? 412 : d === 0 ? 176 : base;
+    const nLink = Math.round(nCard * (d === 6 ? 0.7 : 0.44));
+    for (const [key, n] of [[uname, nCard], [`${uname}__links`, nLink]]) {
+      for (let i = 0; i < n; i++) {
+        const at = new Date(at0);
+        at.setHours(7 + ((i * 7 + d) % 15), (i * 13) % 60, (i * 29) % 60, 0);
+        if (d === 0 && at > new Date()) at.setHours(new Date().getHours(), 0, 0, 0);
+        views.push({
+          username: key, viewed_at: at.toISOString(),
+          location: TOWNS[(d + i * 3) % TOWNS.length],
+          source: SOURCES[(d * 3 + i) % SOURCES.length],
+          // Some visitors come back: a repeat id every 6th view.
+          visitor_id: i % 6 === 0 ? `shot-repeat-${d % 9}-${i % 11}` : `shot-${key.length}-${d}-${i}`,
+        });
+      }
+      if (key === uname) cardTotal += n; else linkTotal += n;
     }
   }
-  await adm("/rest/v1/card_views", { method: "POST", body: JSON.stringify(views) });
-  console.log("  seeded", views.length, "views");
+  for (let i = 0; i < views.length; i += 1000) {
+    await adm("/rest/v1/card_views", { method: "POST", body: JSON.stringify(views.slice(i, i + 1000)) });
+  }
+  console.log("  seeded", views.length, "views —", cardTotal, "card,", linkTotal, "links");
 
-  await adm("/rest/v1/leads", {
-    method: "POST",
+  const leadRows = await (await adm("/rest/v1/leads", {
+    method: "POST", headers: { Prefer: "return=representation" },
     body: JSON.stringify(LEADS.map((l) => ({ ...l, card_owner: uname }))),
+  })).json();
+  const jordan = Array.isArray(leadRows) ? leadRows.find((l) => l.name === "Jordan Rivera") : null;
+
+  // What the contact's Conversation tab shows: the activity log (card_events)
+  // and the message thread (lead_messages). Jordan viewed the card, tapped
+  // Save Contact, shared their info, got the day-0 email, and replied.
+  const ev = (l, event_type, minsAgo) => ({
+    card_owner_username: uname, visitor_id: l.visitor_id, event_type, source: l.source,
+    visitor_name: l.name, visitor_email: l.email, visitor_phone: l.phone, location: l.location,
+    created_at: new Date(Date.now() - minsAgo * 60000).toISOString(),
   });
-  console.log("  seeded", uname);
+  await adm("/rest/v1/card_events", { method: "POST", body: JSON.stringify([
+    ev(LEADS[0], "viewed_card", 214), ev(LEADS[0], "clicked_save_contact", 213), ev(LEADS[0], "shared_info", 211),
+    ev(LEADS[1], "viewed_card", 1600), ev(LEADS[1], "shared_info", 1598),
+    ev(LEADS[2], "viewed_card", 3000), ev(LEADS[2], "downloaded_vcard", 2999), ev(LEADS[2], "shared_info", 2997),
+  ]) });
+  if (jordan?.id) {
+    await adm("/rest/v1/lead_messages", { method: "POST", body: JSON.stringify([
+      { lead_id: jordan.id, card_owner: uname, direction: "out", channel: "email", status: "sent",
+        body: "Hi Jordan, lovely to meet you today. Here's my portfolio and the 2026 packages we talked about \u2014 shout if you have questions.",
+        created_at: new Date(Date.now() - 190 * 60000).toISOString() },
+      { lead_id: jordan.id, card_owner: uname, direction: "in", channel: "email", status: "received",
+        body: "Thanks Lena! The Studio package looks perfect. Could we do the second week of March?",
+        created_at: new Date(Date.now() - 95 * 60000).toISOString() },
+    ]) });
+  }
+  // The dashboard's Quick Contacts → Notifications panel.
+  const note = (type, title, body, minsAgo) => ({
+    user_id: userId, card_owner: uname, type, title, body, read: false,
+    created_at: new Date(Date.now() - minsAgo * 60000).toISOString(),
+  });
+  await adm("/rest/v1/notifications", { method: "POST", body: JSON.stringify([
+    note("new_lead", "Jordan Rivera shared their info", "Rivera Design Co. \u00b7 via QR code \u00b7 \u201cSend me the brand shoot packages\u201d", 211),
+    note("new_lead", "Marcus Webb saved your contact", "Webb & Co. \u00b7 via your link", 1598),
+    note("card_view", "Card viewed 176 times today", "Top source: QR code \u00b7 Portland, OR", 30),
+  ]) });
+  console.log("  seeded", uname, "with", LEADS.length, "contacts");
 
   browser = await chromium.launch();
   const ctx = await browser.newContext({
@@ -208,6 +293,16 @@ try {
   const pub = await pubCtx.newPage();
   await pub.goto(`${BASE}/${uname}`, { waitUntil: "networkidle" });
   await shot(pub, "public-card", { full: true });
+  // The same page with the share-back form filled in, as Jordan is about to
+  // send it — frame 02 shows a lead coming back, not four empty inputs.
+  try {
+    await pub.fill('input[placeholder="Your name *"]', "Jordan Rivera");
+    await pub.fill('input[placeholder="Your phone number *"]', "(415) 555-0110");
+    await pub.fill('input[placeholder="Your email (optional)"]', "jordan.rivera@example.com");
+    await pub.fill('textarea[placeholder="Quick message (optional)"], input[placeholder="Quick message (optional)"]',
+      "Loved meeting you at the opening! Send me the brand shoot packages when you get a chance.");
+    await shot(pub, "public-card-shared", { full: true, wait: 600 });
+  } catch (e) { console.log("  ! share-back form not filled:", e.message.split("\n")[0]); }
   await pub.goto(`${BASE}/links/${uname}`, { waitUntil: "networkidle" });
   await shot(pub, "swift-links", { full: true });
   await pubCtx.close();
@@ -244,7 +339,7 @@ try {
 
   // Dashboard twice: as it lands, and with Traffic switched to Month so the
   // analytics frame shows a fortnight of bars instead of today's handful.
-  await page.goto(`${BASE}/dashboard`, { waitUntil: "networkidle" }).catch(() => {});
+  await page.goto(`${BASE}/dashboard?vrange=month`, { waitUntil: "networkidle" }).catch(() => {});
   // The shell paints a splash over the first viewport. A full-page shot taken
   // too early bakes that overlay across the top third of the image, which is
   // where the card and the traffic counters live.
@@ -266,12 +361,9 @@ try {
     console.log("  ! 'Other ways to share' not found");
   }
 
-  const month = page.locator('button:has-text("Month")').first();
-  if (await month.count().catch(() => 0)) {
-    await month.click().catch(() => {});
-    await page.waitForTimeout(2000);
-    await shot(page, "dashboard-month", { full: true });
-  }
+  await page.goto(`${BASE}/dashboard?vrange=locations`, { waitUntil: "networkidle" }).catch(() => {});
+  await page.waitForTimeout(4000);
+  await shot(page, "dashboard-locations", { full: true, wait: 1500 });
 
   // The Signature is only a button until you open it — the picture of the card
   // that goes in an email lives behind "Preview & copy".
@@ -296,6 +388,20 @@ try {
     const tab = page.locator('button:has-text("Contact info")').first();
     if (await tab.count().catch(() => 0)) { await tab.click().catch(() => {}); await page.waitForTimeout(1800); }
     await shot(page, "contact-detail", { full: true });
+    // The detail panel scrolls INSIDE a fixed-height container, so a full-page
+    // shot ends at the first automation card. Scroll the panel itself until
+    // "Notes & context" sits at the top and take a viewport shot: notes, where
+    // you met, and both automation switches in one screen.
+    await page.evaluate(() => {
+      const el = [...document.querySelectorAll("p, h2, h3, span")].find((n) => /^notes & context$/i.test(n.textContent?.trim() ?? ""));
+      if (!el) return;
+      el.scrollIntoView({ block: "start" });
+      // The panel has a sticky header; back off so the section label clears it.
+      let sc = el.parentElement;
+      while (sc && sc !== document.body && getComputedStyle(sc).overflowY !== "auto" && getComputedStyle(sc).overflowY !== "scroll") sc = sc.parentElement;
+      if (sc && sc !== document.body) sc.scrollTop -= 84; else window.scrollBy(0, -84);
+    }).catch(() => {});
+    await shot(page, "contact-detail-automations", { full: false, wait: 900 });
   } else {
     console.log("  ! contact row not found");
   }
@@ -306,7 +412,10 @@ try {
   if (browser) await browser.close().catch(() => {});
   console.log("cleaning up…");
   try {
-    await adm(`/rest/v1/card_views?username=eq.${uname}`, { method: "DELETE" });
+    await adm(`/rest/v1/card_views?username=in.(${uname},${uname}__links)`, { method: "DELETE" });
+    await adm(`/rest/v1/card_events?card_owner_username=eq.${uname}`, { method: "DELETE" });
+    await adm(`/rest/v1/lead_messages?card_owner=eq.${uname}`, { method: "DELETE" });
+    if (userId) await adm(`/rest/v1/notifications?user_id=eq.${userId}`, { method: "DELETE" });
     await adm(`/rest/v1/leads?card_owner=eq.${uname}`, { method: "DELETE" });
     if (cardId) await adm(`/rest/v1/cards?id=eq.${cardId}`, { method: "DELETE" });
     if (userId) {

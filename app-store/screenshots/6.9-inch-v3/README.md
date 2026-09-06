@@ -1,29 +1,40 @@
 # 6.9-inch App Store screenshots (1320 × 2868) — v3
 
-Eight frames, built 2026-09-06, replacing the v2 set. Same persona (Lena
-Brooks, photographer), same real screens, a stronger frame.
+Ten frames (Apple's maximum), built 2026-09-06, replacing the v2 set. Same
+persona (Lena Brooks, photographer), real screens, a busier account and a
+stronger frame.
 
 ## What changed from v2, and why
 
+- **The account behind the screens is a working Pro account.** v2's seed had
+  five contacts with no notes, zero Swift Link views, "No notifications yet"
+  and a fortnight of double-digit view days — an empty product. The seed now
+  writes a month of views on both surfaces (≈4,300 card, ≈2,000 Swift Links,
+  one spike day, weekend dips, repeat visitors), six contacts with company,
+  town, where-you-met, notes, a share-back message, `sms-ok` consent and a
+  running email + text sequence (day-0 items already sent), card_events for
+  the Conversation tab, a sent follow-up with a reply in `lead_messages`, and
+  three notifications. Nothing on any frame reads "No notes", "Not set",
+  "no flow" or `0`.
+- **The share-back is shown happening.** Frame 02 is the public card with
+  the "Share your info with Lena" form filled in as Jordan; frame 03 has
+  Jordan in Contacts; frames 04–05 open Jordan's record. One lead, followed
+  from the tap to the follow-up.
 - **The phone is bigger and runs off the bottom edge.** A search-result
-  thumbnail is ~200px tall. v2 fitted the whole phone inside the frame, so the
-  app itself was a third of the pixels. v3 lets the device bleed off the
-  bottom, which is how every top-grossing listing buys screen size.
-- **Status bar and Dynamic Island inside the glass.** The captures are web
-  renders with no system chrome; a bare page in a phone silhouette read as a
-  website in a picture frame. Light pages get a bar in their own page colour,
-  the Swift Links photo cover gets white glyphs laid over the image.
+  thumbnail is ~200px tall; v2 fitted the whole phone inside the frame, so
+  the app was a third of the pixels.
+- **Status bar and Dynamic Island inside the glass.** Bare web renders in a
+  phone silhouette read as a website in a picture frame.
 - **A kicker pill names the feature** above the headline, and one phrase per
-  headline is set in the accent tint. v2's flat white text had no hierarchy.
+  headline is set in the accent tint.
 - **The tab bar no longer floats mid-screen.** Full-page captures paint
-  position:fixed chrome once at the first viewport's bottom edge, so v2's
-  dashboard frame had the tab bar sitting above the traffic chart.
-  `appstore-capture.mjs` now hides `.sc-tabbar` and `.sc-help-bubble` for
-  full-page shots.
-- **Crops start on clean edges.** Every y offset was chosen from the capture
-  on disk so no frame opens on a half-sliced card or ends on a half button.
-- **Nine frames became eight.** v2's fifth frame (Swift Links tiles) showed
-  the same page as the fourth once the links went compact.
+  position:fixed chrome once at the first viewport's bottom edge; v2's
+  dashboard frame had the tab bar above the chart. `appstore-capture.mjs`
+  hides `.sc-tabbar` and `.sc-help-bubble` for full-page shots.
+- **The contact detail scrolls inside a panel**, so a full-page shot stops at
+  the first automation card. The capture scrolls the panel to "Notes &
+  context" and takes a viewport shot (`contact-detail-automations`).
+- **Crops start on clean edges**, chosen from the capture on disk.
 
 ## The set, in listing order
 
@@ -32,17 +43,20 @@ Search results show the first three, so the story has to land there.
 | # | Kicker | Caption | Screen |
 |---|---|---|---|
 | 01 | Digital business card | Your card. One link. | public card, top |
-| 02 | Save contact | They save you in one tap | Save Contact + share-back form |
-| 03 | Contacts | Every lead, in your pocket | Contacts with source badges |
-| 04 | Swift Links | All your links, one page | cover photo, bio, socials, links |
-| 05 | Swift Signature | Your card in every email | signature preview dialog |
-| 06 | Analytics | See exactly who's looking | Share buttons + traffic chart |
-| 07 | Share | QR, NFC and Apple Wallet | Share options incl. Add to Apple Wallet |
-| 08 | Follow-ups | It writes the follow-up for you | contact detail → automations |
+| 02 | Share back | They save you, then share back | Save Contact + the share-back form filled in |
+| 03 | Contacts | Every lead, in your pocket | six contacts with source badges |
+| 04 | Contact | Who they are, where you met | Jordan: contact info, notes, where met |
+| 05 | Follow-ups | It writes the follow-up for you | notes → automations, email sequence on, day-0 sent |
+| 06 | Analytics | See exactly who's looking | Month: 3,529 / 1,727 views, 30-bar chart, notifications |
+| 07 | Locations | Know which towns find you | Locations tab, eight towns split card / links |
+| 08 | Swift Links | All your links, one page | cover photo, bio, socials, links |
+| 09 | Swift Signature | Your card in every email | signature preview dialog |
+| 10 | Share | QR, NFC and Apple Wallet | Share options incl. Add to Apple Wallet |
 
 Every frame is a real screen of the running app (Apple 2.3.3): a caption, a
 status bar and a device frame around a real capture are allowed, a mocked-up
-slide is not.
+slide is not. The numbers are seeded, not invented on the frame — they are
+what the app computed from the rows the seed wrote.
 
 ## Regenerating
 
@@ -50,8 +64,9 @@ slide is not.
     node scripts/appstore-compose.mjs     # framed set    → this directory
 
 The capture script creates a throwaway Supabase account on whatever
-`.env.local` points at, seeds it, drives a real login, and deletes everything
-in a finally block. See the comments in it for the traps it encodes.
+`.env.local` points at, seeds it, drives a real login, and deletes every row
+it wrote (card_views on both keys, card_events, lead_messages, notifications,
+leads, card, profile, auth user) in a finally block.
 
 ## Uploading
 
@@ -62,4 +77,5 @@ is live and cannot accept screenshots. Target the pending version:
       node scripts/asc-upload-screenshots.mjs app-store/screenshots/6.9-inch-v3
 
 It deletes and recreates the APP_IPHONE_67 set, so the listing mirrors this
-directory exactly rather than appending.
+directory exactly rather than appending. A version that is Waiting for Review
+refuses the delete (409) — remove it from review first.
