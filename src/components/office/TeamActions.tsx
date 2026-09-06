@@ -33,7 +33,11 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-5" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-gray-900 border border-gray-800 rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+      {/* Bottom sheet on phones: the sheet sits on the physical bottom edge, so
+          without this its last row ("Send invite") sat inside the home-
+          indicator strip under viewport-fit=cover. env() is 0 on desktop. */}
+      <div className="relative w-full sm:max-w-md bg-gray-900 border border-gray-800 rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto"
+        style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white font-bold text-base">{title}</h2>
           <button onClick={onClose} aria-label="Close" className="text-gray-500 hover:text-white text-xl leading-none px-1">×</button>

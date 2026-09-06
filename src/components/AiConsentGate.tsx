@@ -71,7 +71,7 @@ export default function AiConsentGate({
       role="dialog"
       aria-modal="true"
       aria-labelledby="ai-consent-title"
-      className="fixed inset-0 z-[110] flex items-end justify-center p-4 sm:items-center"
+      className="fixed inset-0 z-[110] flex items-end justify-center p-4 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:items-center sm:pb-4"
       style={{ background: "rgba(0,0,0,0.6)" }}
     >
       <div className="w-full max-w-sm rounded-3xl border border-gray-800 bg-gray-900 p-6 shadow-2xl">
