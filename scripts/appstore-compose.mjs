@@ -56,34 +56,42 @@ const FRAMES = [
     title: "Your card.\n<em>One link.</em>",
     sub: "Text it, show the QR, or tap an NFC card. It opens anywhere, no app needed.",
     bar: { bg: "#e2e0dd", fg: "#111" } },
-  { n: "02", src: "public-card",   y: 865,  kicker: "Save contact",
-    title: "They save you\n<em>in one tap</em>",
-    sub: "Straight into their phone contacts, and they can send their details back.",
+  { n: "02", src: "public-card-shared", y: 850, kicker: "Share back",
+    title: "They save you,\n<em>then share back</em>",
+    sub: "One tap adds you to their phone. Their details come straight to you.",
     bar: { bg: "#e2e0dd", fg: "#111" } },
   { n: "03", src: "contacts",      y: 0,    kicker: "Contacts",
     title: "Every lead,\n<em>in your pocket</em>",
-    sub: "Who they are, how you met, and what to do next.",
+    sub: "Who they are, how they found you, and what to do next.",
     bar: { bg: "#fbf7f1", fg: "#111" } },
-  { n: "04", src: "swift-links",   y: 0,    kicker: "Swift Links",
+  { n: "04", src: "contact-detail", y: 90,  kicker: "Contact",
+    title: "Who they are,\n<em>where you met</em>",
+    sub: "Jordan shared their info at the opening. Notes, context and the next step, in one place.",
+    bar: { bg: "#faf7f2", fg: "#111" } },
+  { n: "05", src: "contact-detail-automations", y: 0, kicker: "Follow-ups",
+    title: "It writes the\n<em>follow-up</em> for you",
+    sub: "An email and text sequence written from your notes, sending itself on schedule.",
+    bar: { bg: "#faf7f2", fg: "#111" } },
+  { n: "06", src: "dashboard",     y: 2150, kicker: "Analytics",
+    title: "See exactly\n<em>who’s looking</em>",
+    sub: "Thousands of views a month, by hour, by source, and who came back.",
+    bar: { bg: "#fbf7f1", fg: "#111" } },
+  { n: "07", src: "dashboard-locations", y: 2270, kicker: "Locations",
+    title: "Know which towns\n<em>find you</em>",
+    sub: "Every view placed on the map, split between your card and Swift Links.",
+    bar: { bg: "#fbf7f1", fg: "#111" } },
+  { n: "08", src: "swift-links",   y: 0,    kicker: "Swift Links",
     title: "All your links,\n<em>one page</em>",
     sub: "Photo, bio, socials, portfolio and booking at your own link.",
     bar: { overlay: true, fg: "#fff" } },
-  { n: "05", src: "signature",     y: 200,  kicker: "Swift Signature",
+  { n: "09", src: "signature",     y: 200,  kicker: "Swift Signature",
     title: "Your card in\n<em>every email</em>",
     sub: "A live card under every message you send. Paste it once.",
     bar: { bg: "#4b4948", fg: "#fff" } },
-  { n: "06", src: "dashboard",     y: 1660, kicker: "Analytics",
-    title: "See exactly\n<em>who’s looking</em>",
-    sub: "Views by hour, by source and by town, updated as they happen.",
-    bar: { bg: "#fbf7f1", fg: "#111" } },
-  { n: "07", src: "ways-to-share", y: 610,  kicker: "Share",
+  { n: "10", src: "ways-to-share", y: 610,  kicker: "Share",
     title: "QR, NFC and\n<em>Apple Wallet</em>",
     sub: "However you meet people, your card is one tap away.",
     bar: { bg: "#646360", fg: "#fff" } },
-  { n: "08", src: "contact-detail", y: 760, kicker: "Follow-ups",
-    title: "It writes the\n<em>follow-up</em> for you",
-    sub: "AI drafts each message from where you met and what you noted.",
-    bar: { bg: "#faf7f2", fg: "#111" } },
 ];
 
 const statusBar = (bar) => `
@@ -151,7 +159,9 @@ const page = (f, srcH) => `<style>
 let bad = 0;
 for (const f of FRAMES) {
   const srcH = pngHeight(`${RAW}/${f.src}.png`);
-  if (f.y + SRC_VISIBLE > srcH) {
+  // overrun: the page is shorter than the glass; the screen background is the
+  // page colour, so the phone just runs off the frame past the page's end.
+  if (f.y + SRC_VISIBLE > srcH && !f.overrun) {
     console.error(`  ! ${f.n} would run ${f.y + SRC_VISIBLE - srcH}px past the end of ${f.src} (${srcH})`);
     bad++;
   }
