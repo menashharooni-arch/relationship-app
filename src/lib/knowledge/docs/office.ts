@@ -32,7 +32,7 @@ export const officeDocs = defineDocs([
     answer:
       "Team tab → the purple \"+ Add team member\" button at the top right. Enter their email (a name is optional) and press \"Send invite\". They get a passwordless invitation — they sign in with Google or a one-tap email link and their card arrives already branded with your company look.",
     detail:
-      "Invitations expire after 14 days and a pending one holds a seat until it's accepted, retracted, or expires. If you're out of seats the dialog lets you know and explains your options. The invite only works for the exact address it was sent to.",
+      "Invitations expire after 14 days and a pending one holds a seat until it's accepted, retracted, or expires. If you're out of seats, the dialog says so and offers to add one: on the web it shows the price for the new seat, the prorated amount charged today and the new monthly total, and \"Pay & add seat\" charges the card on file and sends the invite in one step. In the iPhone app it offers \"Add a seat on swiftcard.me\", which opens your browser to Settings \u2192 Plan and billing \u2014 seats are bought on the web, never inside the app. Either way you can also free a seat by removing a member or retracting a pending invite. The invite only works for the exact address it was sent to.",
   },
   {
     id: "resend-or-cancel-invite",

@@ -55,9 +55,19 @@ export function canOfferExternalPurchase(): boolean {
   return detectNativeApp() && !!plugin();
 }
 
-/** Where the link goes. `src` is for acquisition attribution, nothing more. */
+/**
+ * Where the link goes. `src` is for acquisition attribution, nothing more.
+ *
+ * The query goes BEFORE any fragment. Appending it blindly produced
+ * "/settings/flows#billing?src=ios_link", where the whole "billing?src=ios_link"
+ * is the fragment — so a deep link to a settings section silently landed on the
+ * default section instead.
+ */
 export function externalPurchaseUrl(path = "/upgrade"): string {
-  return `https://swiftcard.me${path}${path.includes("?") ? "&" : "?"}src=ios_link`;
+  const hashAt = path.indexOf("#");
+  const base = hashAt === -1 ? path : path.slice(0, hashAt);
+  const fragment = hashAt === -1 ? "" : path.slice(hashAt);
+  return `https://swiftcard.me${base}${base.includes("?") ? "&" : "?"}src=ios_link${fragment}`;
 }
 
 /** The one call that actually leaves the app. Everything else delegates here. */
