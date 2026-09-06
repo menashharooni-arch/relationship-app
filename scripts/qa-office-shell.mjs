@@ -286,9 +286,12 @@ try {
     console.log("  landed on", landed);
     if (!landed.startsWith("/join/")) note("join-landing", "wrong-destination", landed);
     await audit(page, "join-page");
+    // The AI-consent sheet can mount a beat after the first dismissal pass and
+    // cover the button; clear it again right before tapping.
+    await page.waitForTimeout(1500); await dismissOverlays(page, { keepTour: true });
     const accept = page.locator('button:has-text("Accept invitation")').first();
     if (await accept.isVisible().catch(() => false)) {
-      await accept.click(); await page.waitForURL(/cards\/new/, { timeout: 30000 }).catch(() => note("join-accept", "no-redirect", page.url()));
+      await accept.click({ timeout: 10000 }).catch(async () => { await dismissOverlays(page, { keepTour: true }); await accept.click({ timeout: 10000 }); }); await page.waitForURL(/cards\/new/, { timeout: 30000 }).catch(() => note("join-accept", "no-redirect", page.url()));
       await page.waitForTimeout(3000); await dismissOverlays(page);
       await audit(page, "wizard-1-info");
       await page.fill('input[placeholder="John Smith"]', "Jordan Okafor").catch((e) => note("wizard-1-info", "fill-failed", "name: " + e.message.split("\n")[0]));
