@@ -59,7 +59,7 @@ vi.mock("@/lib/apns", () => ({
 }));
 
 import { sendPushToUser } from "@/lib/push";
-import { DAILY_CAP, MAX_BODY_CHARS, decidePush, fitBody, inQuietHours, readPushPrefs } from "@/lib/push-policy";
+import { DAILY_CAP, MAX_BODY_CHARS, MAX_TITLE_CHARS, decidePush, fitBody, inQuietHours, readPushPrefs } from "@/lib/push-policy";
 
 // 2pm UTC — comfortably outside quiet hours, so the plan cases test the plan
 // and nothing else.
@@ -204,13 +204,23 @@ describe("quiet hours, 10pm to 8am local", () => {
     expect(apnsSent.length).toBe(1);
   });
 
-  it("lets a billing problem through at 3am — and nothing else", async () => {
+  it("holds a BILLING problem at 3am too — nothing is exempt", async () => {
+    // Reversed 2026-09-06 after re-reading the order. I had exempted billing on
+    // the theory that a decline is urgent; it isn't — Stripe retries over days,
+    // the email has already gone, and nobody can fix a card at 3am that they
+    // can't fix at 8. An exemption would have been the product's convenience.
     vi.setSystemTime(new Date("2026-09-06T10:00:00.000Z")); // 3am in LA
     profile = { plan: "pro", customization: { _push: { timezone: "America/Los_Angeles" } } };
     await sendPushToUser("u1", {
       category: "billing_problem", title: "Payment failed", body: "Your Pro payment didn't go through.", url: "/x",
     });
-    expect(apnsSent.length).toBe(1);
+    expect(apnsSent.length).toBe(0);
+    expect(last()).toMatchObject({ outcome: "quiet_hours", category: "billing_problem" });
+  });
+
+  it("is switchable off by the person, who then gets everything at once", async () => {
+    vi.setSystemTime(new Date("2026-09-06T10:00:00.000Z")); // 3am in LA
+    profile = { plan: "free", customization: { _push: { timezone: "America/Los_Angeles", quietHours: false } } };
     await sendLead();
     expect(apnsSent.length).toBe(1);
   });
@@ -230,8 +240,63 @@ describe("the copy fits a lock screen", () => {
     expect(body).not.toMatch(/\s…$/);
   });
 
+  it("trims the TITLE as well — the line the OS cuts first", async () => {
+    await sendPushToUser("u1", {
+      category: "new_lead",
+      title: "New contact: Christopher Fairweather-Blenkinsop",
+      body: "Tap to save",
+      url: "/x",
+    });
+    const title = apnsSent[0].title as string;
+    expect(title.length).toBeLessThanOrEqual(MAX_TITLE_CHARS);
+    expect(title.endsWith("…")).toBe(true);
+  });
+
   it("leaves short copy alone", () => {
     expect(fitBody("Dana Whitfield replied")).toBe("Dana Whitfield replied");
+  });
+});
+
+describe("every push lands on the exact screen", () => {
+  // Each of these was verified against the code that READS the param, not
+  // against what looked plausible: /dashboard?lead= (my first attempt) reads
+  // no such param and would have dumped someone on the dashboard with their
+  // contact nowhere in sight.
+  const file = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
+
+  it("a new lead opens THAT contact, not the dashboard", () => {
+    const src = file("src/app/api/leads/route.ts");
+    expect(src).toMatch(/\/contacts\?card=\$\{encodeURIComponent\(card_owner\)\}&lead=\$\{insertedLead\.id\}/);
+    expect(src).not.toMatch(/url: `\$\{APP_URL\}\/dashboard\?card=/);
+  });
+
+  it("a reply opens that conversation", () => {
+    expect(file("src/app/api/twilio/inbound/route.ts")).toMatch(/\/contacts\?card=.*&lead=/);
+  });
+
+  it("a billing problem opens billing", () => {
+    expect(file("src/app/api/stripe/webhook/route.ts")).toMatch(/url: `\$\{APP_URL\}\/settings\/flows\?billing=1`/);
+  });
+
+  it("the params it deep-links with are ones the app actually reads", () => {
+    // The guard that would have caught the bug: ?lead= is only a deep link
+    // because ContactsClient consumes it.
+    expect(file("src/components/ContactsClient.tsx")).toMatch(/\?lead=/);
+    expect(file("src/app/contacts/page.tsx")).toMatch(/lead\?: string/);
+  });
+});
+
+describe("a locked free lead is news, not a sales pitch", () => {
+  it("says what happened on BOTH the bell row and the lock screen", () => {
+    // pushBody is what the phone actually shows. Fixing only `body` left
+    // "Upgrade to Pro to unlock this lead." on the lock screen — marketing, in
+    // the one slot that must carry news, on the plan that needs it most.
+    const src = readFileSync(join(process.cwd(), "src/app/api/leads/route.ts"), "utf8");
+    const at = src.indexOf("pushBody: locked");
+    expect(at).toBeGreaterThan(-1);
+    const block = src.slice(at, at + 200);
+    expect(block).not.toMatch(/Upgrade|Pro\b|upgrade/);
+    expect(block).toMatch(/shared their info/);
   });
 });
 

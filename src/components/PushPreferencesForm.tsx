@@ -75,7 +75,7 @@ export default function PushPreferencesForm() {
 
       <Toggle
         label="Quiet hours"
-        description="Nothing between 10pm and 8am your time — except a billing problem"
+        description="Nothing reaches your phone between 10pm and 8am your own time"
         checked={prefs.quietHours !== false}
         disabled={!loaded}
         onChange={(v) => set("quietHours", v)}

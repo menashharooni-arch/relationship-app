@@ -10,6 +10,8 @@
 -- Outcomes: sent, failed, category_off, quiet_hours, daily_cap, batched,
 -- no_subscription, no_deliverable_endpoint.
 --
+-- quiet_hours applies to EVERY category, billing included.
+--
 -- Safe to re-run.
 
 create table if not exists public.push_log (

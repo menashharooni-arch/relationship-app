@@ -335,10 +335,12 @@ export async function POST(req: NextRequest) {
       // so it UPGRADES that notification in place and replaces the banner —
       // rather than being the third buzz from one visitor.
       // A locked lead is still a lead, and the person still needs to know a
-      // real human just handed over their details. The old copy was an upgrade
-      // pitch on the lock screen — marketing, which push-policy.ts forbids —
-      // and it buried the news. State the fact; the dashboard explains the cap.
-      const title = locked ? `New contact: ${name}` : `New contact: ${name}`;
+      // real human just handed over their details. Both the bell body AND the
+      // pushBody below used to be upgrade pitches ("You've hit your 5 free
+      // leads… Upgrade to Pro") — marketing, which push-policy.ts forbids, in
+      // the one slot that should carry news. State the fact; the app explains
+      // the cap when they open it.
+      const title = `New contact: ${name}`;
       const body = locked
         ? `${name} shared their info — open to unlock.`
         : `${name} shared their info with you${sourceStr}.`;
@@ -353,14 +355,23 @@ export async function POST(req: NextRequest) {
             pushCategory: "new_lead",
             title,
             body,
-            url: `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner)}`,
+            // THE EXACT SCREEN: this contact's detail panel, not a dashboard
+            // they then have to search. /contacts?lead= is the same deep link
+            // the in-app bell uses (NotificationsPanel, QuickContactList).
+            url: insertedLead?.id
+              ? `${APP_URL}/contacts?card=${encodeURIComponent(card_owner)}&lead=${insertedLead.id}`
+              : `${APP_URL}/contacts?card=${encodeURIComponent(card_owner)}`,
             // The push carries the saveable vCard; a locked lead must not
             // hand over the contact details it is withholding.
             ...(locked || !insertedLead?.id
               ? {}
               : { vcardUrl: `${APP_URL}/api/leads/vcard?id=${insertedLead.id}` }),
+            // The lock screen shows the useful thing: their number. A LOCKED
+            // lead is the one case where we have nothing to show — the details
+            // are exactly what is being withheld — so it says what happened,
+            // never "Upgrade to Pro", which is a sales message on a phone.
             pushBody: locked
-              ? "Upgrade to Pro to unlock this lead."
+              ? `${name} shared their info — open to unlock.`
               : (phone ? `${phone}${company ? ` · ${company}` : ""}` : (email ?? "Tap to save")),
           },
         }).catch((e) => reportError("leads.notify", e)),

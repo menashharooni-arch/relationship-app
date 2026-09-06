@@ -139,10 +139,10 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
     resend_id: sent?.id,
   });
 
-  // Push as well as email, and this is the one category allowed through quiet
-  // hours: a card that failed is fixed in two minutes, and the alternative is
-  // waking up to a downgraded account. Never a sales message — it says what
-  // happened and opens billing.
+  // Push as well as email. Quiet hours apply to this like everything else —
+  // the email has already gone, Stripe retries a decline over days, and a 3am
+  // banner changes nothing. Never a sales message: it says what happened and
+  // opens billing.
   await sendPushToUser(profile.id as string, {
     category: "billing_problem",
     title: "Payment failed",
