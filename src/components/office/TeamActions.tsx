@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useIsNativeApp } from "@/lib/platform";
+import { canOfferExternalPurchase, openExternalPurchase } from "@/lib/external-purchase";
 import { track } from "@/lib/events";
 
 // ── Team-tab actions: add a member, manage an invite, remove a member ───────
@@ -79,6 +80,16 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
   const [needsSeat, setNeedsSeat] = useState(false);
   const [seatInfo, setSeatInfo] = useState<SeatInfo | null>(null);
   const [seatLoading, setSeatLoading] = useState(false);
+  // Whether this build can leave the app for a purchase. Read after mount for
+  // the same reason `native` is: the plugin lives on `window`, so touching it
+  // during render would disagree with the server HTML. Fails closed — an older
+  // shell without the plugin keeps the remove-a-member copy rather than showing
+  // a button that would do nothing.
+  const [canLinkOut, setCanLinkOut] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- window-only value, hydration-safe by design
+    setCanLinkOut(canOfferExternalPurchase());
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -301,11 +312,26 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
                   <p className="text-gray-500 text-xs mb-4">
                     {canManageSeats
                       ? native
-                        // Native: neutral, actionable in-app — no billing/website pointer.
-                        ? "Remove an existing team member to free up a seat, then send this invite again."
+                        ? canLinkOut
+                          // Native, US storefront: a seat can be bought — just not
+                          // in here. No price and no charge inside the app
+                          // (3.1.1); the button leaves for the default browser,
+                          // which is the allowance the 1.0.0 rejection named.
+                          ? "You can add a seat from your account on the web, then send this invite again."
+                          // No plugin (older shell): the only thing that works
+                          // in-app, stated plainly rather than a dead button.
+                          : "Remove an existing team member to free up a seat, then send this invite again."
                         : "Your plan doesn't support adding seats from here — manage seats from Settings → Plan and billing."
                       : "Ask the account owner to add a seat, then send this invite again."}
                   </p>
+                  {native && canManageSeats && canLinkOut && (
+                    <button
+                      onClick={() => { void openExternalPurchase("/settings/flows#billing"); }}
+                      className="w-full bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold py-2.5 rounded-full transition-colors mb-1"
+                    >
+                      Add a seat on swiftcard.me
+                    </button>
+                  )}
                   <button onClick={() => setNeedsSeat(false)}
                     className="w-full text-gray-300 bg-gray-800 hover:bg-gray-700 text-sm font-semibold py-2.5 rounded-full transition-colors">
                     Go back
