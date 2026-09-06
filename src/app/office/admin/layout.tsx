@@ -22,12 +22,23 @@ export default async function OfficeAdminLayout({ children }: { children: React.
   // from the personal dashboard bell. Empty when the office isn't set up yet.
   const teamNotifications = officeId ? await listOfficeNotifications(officeId) : [];
 
+  // `sc-app` puts the console inside the app's theme system, like the
+  // dashboard. Without it the shell was dark no matter what: in the app's
+  // default light theme the html canvas is cream, so cream showed in the
+  // status-bar strip above this dark page and below it at the bottom bounce —
+  // the "white space at the top and bottom" in the iOS shell. Themed, the page
+  // and the canvas are always the same colour and there is nothing to see.
+  //
+  // `sc-office-header` is the native fix for the sticky header: sticky
+  // `top-0` sticks to the physical top of the screen, under the clock, so the
+  // bell, the dashboard link and the tabs slid beneath the status bar as soon
+  // as you scrolled. globals.css keeps it below the safe area in the shell.
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="sc-app min-h-screen bg-gray-950 text-white">
       {/* Top accent stripe */}
       <div className="sc-top-stripe fixed top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-600 via-violet-500 to-blue-400 z-50" />
 
-      <header className="sticky top-0 z-40 bg-gray-950/90 backdrop-blur border-b border-gray-800/80">
+      <header className="sc-office-header sticky top-0 z-40 bg-gray-950/90 backdrop-blur border-b border-gray-800/80">
         <div className="max-w-6xl mx-auto px-5">
           <div className="flex items-center justify-between h-12">
             <div className="flex items-center gap-3 min-w-0">
