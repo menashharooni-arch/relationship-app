@@ -135,7 +135,11 @@ export async function POST(req: NextRequest) {
             : await admin.from("profiles").select("id").eq("username", target.card_owner).maybeSingle();
           if (owner?.id) {
             const who = (target.name || "").trim() || "A contact";
-            const url = `${(process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me").replace(/\/$/, "")}/dashboard?lead=${encodeURIComponent(target.id)}`;
+            // /contacts?lead=<id> opens THAT conversation. It is the link the
+            // in-app bell already uses; /dashboard?lead= (my first attempt)
+            // reads no such param and would have dumped them on the dashboard.
+            const base = (process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me").replace(/\/$/, "");
+            const url = `${base}/contacts?card=${encodeURIComponent(target.card_owner)}&lead=${encodeURIComponent(target.id)}`;
             await insertNotification({
               user_id: owner.id as string,
               card_owner: target.card_owner,

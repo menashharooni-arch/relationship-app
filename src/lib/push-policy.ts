@@ -59,6 +59,7 @@ export const PUSH_CATEGORY_COPY: Record<PushCategory, { label: string; hint: str
   first_view: { label: "First view of a card", hint: "The first time a card is opened — at most once an hour" },
   meeting_booked: { label: "Meetings booked", hint: "Someone books time with you from your card" },
   billing_problem: { label: "Billing problems", hint: "A payment failed and your plan is at risk" },
+  // NOTE: quiet hours apply to this one too — see decidePush().
 };
 
 /**
@@ -83,6 +84,11 @@ export const DAILY_CAP = 5;          // excludes UNCAPPED categories
 export const QUIET_START_HOUR = 22;  // 10pm local
 export const QUIET_END_HOUR = 8;     // 8am local
 export const MAX_BODY_CHARS = 60;
+// A lock-screen title truncates far earlier than the body — around 40
+// characters on an iPhone, less with a long app name beside it. "New contact:
+// Christopher Fairweather-Blenkinsop" is cut by the OS mid-surname; cutting it
+// ourselves on a word boundary is the difference between a name and a stump.
+export const MAX_TITLE_CHARS = 40;
 export const FIRST_VIEW_BATCH_MS = 60 * 60 * 1000; // ≤ 1 first-view push an hour
 
 export type PushPrefs = Record<PushCategory, boolean> & { quietHours?: boolean; timezone?: string | null };
@@ -161,9 +167,15 @@ export function decidePush(input: PolicyInput): PolicyResult {
     return { send: false, reason: "batched" };
   }
 
-  // A failed payment is time-critical and rare; it is the one thing allowed to
-  // arrive at 3am, because the alternative is losing access without warning.
-  if (category !== "billing_problem" && prefs.quietHours !== false && inQuietHours(now, prefs.timezone)) {
+  // NOTHING is exempt, billing included.
+  //
+  // I had carved out billing_problem on the theory that a failed payment is
+  // urgent enough to wake someone. It isn't: Stripe retries a declined card
+  // over several days, nobody loses access overnight, the email goes out
+  // immediately either way, and at 3am there is nothing they can do that
+  // 8am does not do just as well. A 3am banner would be the product's
+  // convenience, not theirs.
+  if (prefs.quietHours !== false && inQuietHours(now, prefs.timezone)) {
     return { send: false, reason: "quiet_hours" };
   }
 

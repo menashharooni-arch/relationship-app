@@ -3,7 +3,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isApnsEndpoint, sendApnsNotification } from "@/lib/apns";
 import { assertSafeUrl } from "@/lib/safe-fetch";
 import {
-  decidePush, fitBody, readPushPrefs, UNCAPPED,
+  decidePush, fitBody, readPushPrefs, MAX_TITLE_CHARS, UNCAPPED,
   type PushCategory,
 } from "@/lib/push-policy";
 
@@ -101,8 +101,14 @@ export async function sendPushToUser(userId: string, payload: {
 
   if (!subs?.length) { await log("no_subscription"); return; }
 
-  // The lock screen truncates; do it ourselves on a word boundary.
-  payload = { ...payload, body: fitBody(payload.body) };
+  // The lock screen truncates BOTH lines; do it ourselves, on word boundaries.
+  // Title and body have different budgets because the OS gives them different
+  // room — trimming only the body still let a long name be cut mid-word.
+  payload = {
+    ...payload,
+    title: fitBody(payload.title, MAX_TITLE_CHARS),
+    body: fitBody(payload.body),
+  };
 
   // Native iOS devices register with an "apns:<token>" endpoint and go through
   // APNs; browser subscriptions keep going through web-push. Both prune their
