@@ -14,6 +14,7 @@ import ShareWaysPhones from "@/components/site/ShareWaysPhones";
 import WatchShareImage from "@/components/site/WatchShareImage";
 import { INTEGRATIONS, integrationNames } from "@/components/site/integration-brands";
 import TeamsDashboard from "@/components/site/TeamsDashboard";
+import WideDemo from "@/components/site/WideDemo";
 import NativeHidden from "@/components/NativeHidden";
 import NativeFeatureNote from "@/components/NativeFeatureNote";
 
@@ -122,7 +123,27 @@ const PRODUCTS: Record<string, Product> = {
     title: <>See who&apos;s looking. <A>Never lose a lead.</A></>,
     titlePlain: "Dashboard & Analytics",
     subtitle: "Real-time views, saves, and locations. Every contact who taps your card lands in one searchable place — with full history, their replies, and automated follow-ups. Try the dashboard right here.",
-    demo: <DashboardDemo />,
+    // DashboardDemo is a faithful replica of the desktop dashboard: a browser
+    // frame around a two-column board that needs ~720px to hold together. Sent
+    // in raw it was CLIPPED on a phone — the right-hand card panel sat 212px
+    // past the frame's edge, which `overflow-hidden` cut off mid-word, so the
+    // Traffic tabs ended at "Locatio". The homepage already solved this for the
+    // same component by scaling it like a product shot (WideDemo); this is that
+    // same treatment.
+    //
+    // minWidth 720, not the homepage's 760: 720 is the measured width at which
+    // this mock stops clipping, so tablets (720px of room) stay pixel-identical
+    // instead of being scaled by a hair. max-w-[900px] keeps the desktop
+    // rendering exactly as it was — the mock's natural width is 898px inside a
+    // 1104px centred column, and WideDemo's outer is w-full, which would
+    // otherwise stretch it to fill.
+    demo: (
+      <div className="w-full max-w-[900px]">
+        <WideDemo minWidth={720}>
+          <DashboardDemo />
+        </WideDemo>
+      </div>
+    ),
     wide: true,
     features: [
       { t: "Live traffic", d: "SwiftCard and Swift Link views by day, week, and month — see momentum build." },
