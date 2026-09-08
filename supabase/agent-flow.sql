@@ -12,7 +12,7 @@
 
 -- Per-agent settings, editable from the Agent Flow tab without a deploy.
 create table if not exists agent_settings (
-  agent_id     text primary key,          -- 'outreach' | 'prospects' | 'seo' | 'blog' | 'social' | 'mentions' | 'influencer' | 'bugwatch' | 'security' | 'manager'
+  agent_id     text primary key,          -- 'outreach' | 'prospects' | 'seo' | 'blog' | 'social' | 'ads' | 'mentions' | 'influencer' | 'bugwatch' | 'security' | 'perf' | 'flowcheck' | 'manager'
   enabled      boolean not null default true,
   paused       boolean not null default false,  -- per-agent pause; checked between steps
   output_cap   integer not null default 15,     -- max queue items per run
@@ -151,6 +151,7 @@ insert into agent_settings (agent_id, output_cap, usage_cap_usd) values
   ('seo',         5, 1.50),
   ('blog',        2, 3.00),
   ('social',      5, 2.00),
+  ('ads',         4, 2.00),
   ('mentions',   10, 2.00),
   ('influencer', 10, 2.00),
   ('bugwatch',    5, 3.00),

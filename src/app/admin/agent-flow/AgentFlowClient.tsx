@@ -51,15 +51,21 @@ const AGENT_ROLE: Record<string, string> = {
   security: "vulns, leaks, headers", perf: "keeps everything fast",
   flowcheck: "walks the user journeys end-to-end", manager: "runs the company, reports to you",
 };
+// HAND-MAINTAINED, and org.json will not remind you. An agent added to
+// org.json and to agent_settings still renders NOWHERE until its id is in this
+// array — which is exactly how Addy (ads) ran for days, produced campaign
+// briefs into the queue, and had no row on the Agents screen. tests/agent-org
+// now fails if the two ever disagree again.
 const TEAMS: { id: string; label: string; blurb: string; agents: string[]; lead?: string }[] = [
   { id: "manager", label: "🧠 Atlas — Chief of Staff", blurb: "Runs the company, reads everything, reports to you.", agents: ["manager"] },
-  { id: "marketing", label: "📣 Maya's Marketing team", blurb: "SEO, content, outreach — fills your queue with work to approve.", agents: ["seo", "blog", "social", "outreach", "prospects", "mentions", "influencer"], lead: "maya" },
+  { id: "marketing", label: "📣 Maya's Marketing team", blurb: "SEO, content, outreach — fills your queue with work to approve.", agents: ["seo", "blog", "social", "ads", "outreach", "prospects", "mentions", "influencer"], lead: "maya" },
   { id: "protection", label: "🛠️ Rex's Engineering team", blurb: "Speed, bugs, breaches, broken flows — watches the product around the clock.", agents: ["perf", "flowcheck", "security", "bugwatch"], lead: "rex" },
 ];
 const TYPE_LABEL: Record<string, string> = {
   outreach_draft: "Outreach draft", prospect: "Prospect", reply_draft: "Reply draft", influencer: "Influencer pitch",
   video_script: "Video script", blog_post: "Blog post", seo_report: "SEO report", security_finding: "Security finding",
   perf_report: "Speed report", flow_finding: "Flow finding", digest: "Report", generic: "Post draft",
+  ad_campaign: "Ad campaign",
 };
 
 function ago(iso: string | null) {
@@ -714,6 +720,12 @@ export default function AgentFlowClient() {
                         <button onClick={() => copyApprove(it, "the platform")} title="Copies to your clipboard and marks it approved. YOU paste and send." className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Approve &amp; Copy</button>
                       )}
                       {!connReady && it.item_type === "video_script" && <button onClick={() => copyApprove(it, "Higgsfield")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Copy to Higgsfield</button>}
+                      {/* Meta has no connector (ads_management needs App Review
+                          + Business Verification), so an ad brief is copy-out
+                          only — and by the owner's standing rule Addy can never
+                          spend: campaigns are built PAUSED and activated by
+                          hand after the budget is read. */}
+                      {it.item_type === "ad_campaign" && <button onClick={() => copyApprove(it, "Meta Ads Manager (create it PAUSED)")} title="Copies the brief and marks it approved. Nothing is spent: you create the campaign in Ads Manager, paused, and activate it yourself." className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Copy to Ads Manager</button>}
                       {conn && !connReady && <span className="text-[10px] text-gray-600 max-w-[160px] leading-snug">⚡ auto-{conn.label} available — connect it in Settings</span>}
                       {it.item_type === "blog_post" && <button onClick={() => act([it.id], "published")} title="Goes live on swiftcard.me/blog immediately" className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Publish</button>}
                       {it.item_type === "prospect" && <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Mark contacted</button>}
