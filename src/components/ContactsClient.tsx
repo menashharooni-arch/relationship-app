@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { getSourceLabel } from "@/lib/source-labels";
 import { CRON_HOUR_UTC } from "@/lib/cron-schedule";
 import AddContactModal from "@/components/AddContactModal";
-import ShareMyInfoButton from "@/components/ShareMyInfoButton";
+import ShareMyInfoButton, { type CardSigner } from "@/components/ShareMyInfoButton";
 import { PlanGate } from "@/components/PlanGate";
 import { AiDraftTag } from "@/components/AiConsentGate";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
@@ -181,12 +181,15 @@ export default function ContactsClient({
   leads: initialLeads,
   primaryUsername,
   userCards = [],
+  cardSigners = {},
   initialCardFilter = null,
   initialSelectedId = null,
 }: {
   leads: Lead[];
   primaryUsername?: string;
   userCards?: { username: string; name: string }[];
+  /** Per card slug: what a share from one of its contacts is signed with. */
+  cardSigners?: Record<string, CardSigner>;
   initialCardFilter?: string | null;
   /** Deep link (?lead=) — open this contact's detail panel on load. */
   initialSelectedId?: string | null;
@@ -1105,15 +1108,15 @@ export default function ContactsClient({
               ) : (
                 <span className="flex-1 text-center text-xs text-gray-600 py-2.5 rounded-xl border border-dashed border-gray-800">No phone to call</span>
               )}
+              {/* Every option hands off to the owner's own phone (Messages /
+                  Mail / share sheet), pre-addressed to this contact. Nothing
+                  is sent or logged server-side, so there is no onSent. */}
               <ShareMyInfoButton
-                leadId={selected.id}
                 firstName={(selected.name || "them").split(" ")[0]}
-                hasPhone={!!selected.phone}
-                hasEmail={!!selected.email}
+                phone={selected.phone}
+                email={selected.email || null}
                 cardOwner={selected.card_owner}
-                // A sent share is logged server-side; without this the new line
-                // did not appear until the contact was reopened.
-                onSent={refreshActivity}
+                signer={selected.card_owner ? cardSigners[selected.card_owner] ?? null : null}
               />
               <button
                 onClick={saveContactToPhone}

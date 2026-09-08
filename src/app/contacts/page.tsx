@@ -50,7 +50,7 @@ export default async function ContactsPage({
   // four extra round trips of pure latency on the app's most-used screen.
   const admin = getAdminSupabase();
   const cardsQuery = () =>
-    admin.from("cards").select("id, username, name, label").eq("user_id", authedUserId).order("created_at", { ascending: true });
+    admin.from("cards").select("id, username, name, label, title, company, email, phone").eq("user_id", authedUserId).order("created_at", { ascending: true });
   const [{ data: { user } }, params, cookieStore, { data: profile }, cardsRes0] = await Promise.all([
     supabase.auth.getUser(),
     searchParams,
@@ -300,6 +300,16 @@ export default async function ContactsPage({
           initialCardFilter={selectedCardParam ?? null}
           initialSelectedId={selectedLeadParam ?? null}
           userCards={cardList.map((c) => ({ username: c.username, name: c.label || c.name || c.username }))}
+          // What a share from a contact is signed with: the CARD the contact
+          // belongs to (name/title/company/phone/email per card), so the
+          // pre-filled text and email read as that card's owner.
+          cardSigners={Object.fromEntries(cardList.map((c) => [c.username, {
+            name: (c.name as string | null) ?? null,
+            title: (c.title as string | null) ?? null,
+            company: (c.company as string | null) ?? null,
+            phone: (c.phone as string | null) ?? null,
+            email: (c.email as string | null) ?? null,
+          }]))}
         />
       </div>
     </div>

@@ -2,27 +2,34 @@
 
 // "Share my contact information" on a contact's detail view. Small but
 // noticeable: sits beside Call / Save to phone. Tapping it opens a four-way
-// picker.
+// picker. Every option hands off to the OWNER'S OWN PHONE — nothing is sent
+// through SwiftCard's Twilio number or email sender, and nothing is logged.
 //
-// The first three — text / email / both — send a one-time message ("Save my
-// contact information in the link below" + the owner's card link) through the
-// same Twilio number / email sender the automations use. Options the contact
-// has no channel for are disabled.
+//   • Share by text   — opens Messages addressed to THIS contact with the
+//                       message already written; the owner just presses send.
+//   • Share by email  — opens Mail addressed to THIS contact with the subject,
+//                       the message and the owner's signature already written.
+//   • Share by both   — the text first; when the owner comes back the button
+//                       reads "Now email →" and opens the email.
+//   • Share from my phone — the OS share sheet with the bare card link, for
+//                       WhatsApp / AirDrop / anything else. Not pre-addressed:
+//                       navigator.share has no recipient field.
 //
-// The fourth, "Share from my phone", is different in kind: it sends nothing
-// server-side. It opens the device's own share sheet with the card link, so the
-// message goes from the OWNER'S number/apps instead of the SwiftCard sender.
-// Same path as the dashboard ShareButton (Capacitor in the native shell,
-// navigator.share on the web, copy-link as the desktop fallback).
+// The owner asked for exactly this (2026-09-08): a share should open the
+// contact's thread on his phone, pre-filled, so the message goes from HIS
+// number and HIS mailbox. That also side-steps the deliverability problems of
+// mail sent on someone's behalf — a message from the owner's own address is
+// never "via SwiftCard".
 //
-// NOTE: the share sheet cannot be pre-addressed to this contact. navigator.share
-// takes only {title,text,url,files} — there is no recipient field, and the
-// suggested-contacts row is populated by the OS from the user's own message
-// history, not by the page. Pre-filling a specific number needs an `sms:` deep
-// link, which trades away every non-SMS app in the sheet. Deliberately NOT
-// logged to lead_messages either: we can't observe whether the owner actually
-// completed the share, and recording an unverified "sent" is the exact failure
-// the Twilio delivery-status work removed.
+// Two things the platform will not allow, so this code does not pretend to:
+//   1. A mailto: body is plain text. The Swift Signature IMAGE cannot ride in
+//      it, so the email signs off with the same details as text (name, title ·
+//      company, phone, email). The recipient gets the card picture the moment
+//      they open the link.
+//   2. Neither an sms: nor a mailto: hand-off tells us whether the owner sent
+//      it, so none of these write to the contact's Activity & Messages thread.
+//      Recording an unverified "Sent" is the exact bug the Twilio
+//      delivery-status work removed.
 
 import { useEffect, useRef, useState } from "react";
 import { detectNativeApp } from "@/lib/platform";
@@ -30,32 +37,84 @@ import { warmSharePreview } from "@/lib/share-preview";
 
 // Pinned to the SwiftCard domain, NOT window.location.origin — same reason
 // LoginForm pins it. On a Vercel preview host, origin would hand the recipient
-// a *.vercel.app link that 404s once the preview is torn down, and it would
-// disagree with the link the share-card route sends for the other three
-// options. The card link must be canonical wherever it is shared from.
+// a *.vercel.app link that 404s once the preview is torn down. The card link
+// must be canonical wherever it is shared from.
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
-type Props = {
-  leadId: string;
-  firstName: string;
-  hasPhone: boolean;
-  hasEmail: boolean;
-  /** Card slug the contact belongs to — the link the phone share hands off. */
-  cardOwner: string | null;
-  /** Called after a send the SERVER accepted, so the Activity & Messages panel
-   *  can re-read the thread it just wrote to. Not called for the phone share:
-   *  that one sends nothing server-side and logs nothing, so there is nothing
-   *  new to read back. */
-  onSent?: () => void;
+/** The card the contact belongs to — what the messages are signed with. */
+export type CardSigner = {
+  name: string | null;
+  title: string | null;
+  company: string | null;
+  phone: string | null;
+  email: string | null;
 };
 
-type Channel = "sms" | "email" | "both";
-type Action = Channel | "phone";
+type Props = {
+  firstName: string;
+  /** The contact's own channels — the sms:/mailto: hand-offs are addressed to these. */
+  phone: string | null;
+  email: string | null;
+  /** Card slug the contact belongs to — the link every option hands over. */
+  cardOwner: string | null;
+  signer: CardSigner | null;
+};
 
-export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmail, cardOwner, onSent }: Props) {
+type Action = "sms" | "email" | "both" | "phone";
+
+/** "Hi john@acme.com," is worse than "Hi," — greet by nothing rather than noise. */
+function greetingName(firstName: string): string {
+  const w = (firstName || "").trim();
+  return /^[\p{L}'’-]{2,}$/u.test(w) ? w : "";
+}
+
+/**
+ * The text the owner sends. The link is the LAST line on its own: iMessage
+ * renders the rich card preview for a link at the start or end of a message,
+ * and drops it for one buried in the middle.
+ */
+export function shareTextBody(opts: { firstName: string; ownerName: string; cardUrl: string }): string {
+  const first = greetingName(opts.firstName);
+  return `${first ? `Hi ${first}! ` : ""}${opts.ownerName} here - save my contact information in the link below.\n${opts.cardUrl}`;
+}
+
+/** Subject + plain-text body for the mailto: hand-off, signature included. */
+export function shareEmail(opts: { firstName: string; signer: CardSigner | null; ownerName: string; cardUrl: string }): { subject: string; body: string } {
+  const first = greetingName(opts.firstName);
+  const s = opts.signer;
+  const signature = [
+    opts.ownerName,
+    [s?.title, s?.company].filter(Boolean).join(" · "),
+    s?.phone,
+    s?.email,
+  ].filter((v): v is string => !!v && v.trim().length > 0);
+  const body = [
+    first ? `Hi ${first},` : "Hi,",
+    "",
+    "Save my contact information in the link below. It opens my digital business card, and you can add me to your phone with one tap.",
+    "",
+    opts.cardUrl,
+    "",
+    ...signature,
+  ].join("\r\n"); // RFC 6068: line breaks in a mailto: body are %0D%0A
+  return { subject: `Contact information from ${opts.ownerName}`, body };
+}
+
+/** sms: deep link addressed to one number with the message pre-filled.
+ *  `?&body=` is the form both iOS (wants `&`) and Android (wants `?`) accept. */
+export function smsHref(phone: string, body: string): string {
+  return `sms:${phone.replace(/[^\d+]/g, "")}?&body=${encodeURIComponent(body)}`;
+}
+
+export function mailtoHref(email: string, subject: string, body: string): string {
+  return `mailto:${encodeURIComponent(email.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, signer }: Props) {
   const [open, setOpen] = useState(false);
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "copied" | "error">("idle");
-  const [errMsg, setErrMsg] = useState("");
+  // "emailNext" is the second half of "Share by both": the text has been
+  // handed off, and the button now offers the email.
+  const [state, setState] = useState<"idle" | "copied" | "emailNext">("idle");
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Close the picker on outside click / Escape.
@@ -73,32 +132,56 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
     };
   }, [open]);
 
-  async function send(channel: Channel) {
+  // The "Now email →" offer should not sit there forever if the owner moves on.
+  useEffect(() => {
+    if (state !== "emailNext") return;
+    const t = setTimeout(() => setState("idle"), 90_000);
+    return () => clearTimeout(t);
+  }, [state]);
+
+  const hasPhone = !!phone;
+  const hasEmail = !!email;
+  // The link carries ?shared=1: the owner pressed Share on a contact they
+  // already HAVE, so the card page tells the recipient their info has already
+  // been shared instead of asking them to fill the share-back form.
+  const cardUrl = cardOwner ? `${APP_URL}/${cardOwner}?shared=1` : null;
+  const ownerName = signer?.name?.trim() || "SwiftCard user";
+
+  // Open the contact's thread in Messages, message already written. Nothing
+  // is awaited first: the navigation must ride on the tap itself.
+  function openText() {
+    if (!phone || !cardUrl) return;
+    warmSharePreview(cardUrl);
+    window.location.assign(smsHref(phone, shareTextBody({ firstName, ownerName, cardUrl })));
+  }
+
+  // Open a new email to the contact in the owner's mail app — subject, message
+  // and signature already written.
+  function openEmail() {
+    if (!email || !cardUrl) return;
+    warmSharePreview(cardUrl);
+    const { subject, body } = shareEmail({ firstName, signer, ownerName, cardUrl });
+    window.location.assign(mailtoHref(email, subject, body));
+  }
+
+  function shareText() {
     setOpen(false);
-    setState("sending");
-    try {
-      const res = await fetch("/api/leads/share-card", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId, channel }),
-      });
-      const d = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setState("sent");
-        // The route logged this to the contact's thread; tell the panel to
-        // re-read it so the message appears now rather than on the next visit.
-        onSent?.();
-        setTimeout(() => setState("idle"), 4000);
-      } else {
-        setErrMsg((d as { error?: string }).error || "Couldn't send");
-        setState("error");
-        setTimeout(() => setState("idle"), 5000);
-      }
-    } catch {
-      setErrMsg("Couldn't send");
-      setState("error");
-      setTimeout(() => setState("idle"), 5000);
-    }
+    setState("idle");
+    openText();
+  }
+
+  function shareEmailNow() {
+    setOpen(false);
+    setState("idle");
+    openEmail();
+  }
+
+  // Two apps cannot open from one tap. The text goes first; the button then
+  // turns into the email offer for when the owner is back.
+  function shareBoth() {
+    setOpen(false);
+    openText();
+    setState("emailNext");
   }
 
   // Hand the card link to the device's own share sheet. Nothing is sent by us
@@ -135,39 +218,39 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
   }
 
   const OPTIONS: { action: Action; label: string; enabled: boolean; hint: string }[] = [
-    { action: "email", label: "Share by email", enabled: hasEmail, hint: hasEmail ? `Emails your card to ${firstName}` : "No email on this contact" },
-    { action: "sms", label: "Share by text", enabled: hasPhone, hint: hasPhone ? `Texts your card to ${firstName}` : "No phone on this contact" },
-    { action: "both", label: "Share by both", enabled: hasPhone && hasEmail, hint: hasPhone && hasEmail ? "One text + one email" : "Needs both a phone and an email" },
+    { action: "email", label: "Share by email", enabled: hasEmail && !!cardUrl, hint: hasEmail ? `Opens an email to ${firstName}, ready to send` : "No email on this contact" },
+    { action: "sms", label: "Share by text", enabled: hasPhone && !!cardUrl, hint: hasPhone ? `Opens a text to ${firstName}, ready to send` : "No phone on this contact" },
+    { action: "both", label: "Share by both", enabled: hasPhone && hasEmail && !!cardUrl, hint: hasPhone && hasEmail ? "The text first, then the email" : "Needs both a phone and an email" },
     // Enabled regardless of what channels the CONTACT has — this shares from
     // the owner's own phone, so it only needs a card link to hand over.
     { action: "phone", label: "Share from my phone", enabled: !!cardOwner, hint: cardOwner ? "Opens your phone's share sheet" : "No card linked to this contact" },
   ];
 
+  const run = (action: Action) => {
+    if (action === "sms") shareText();
+    else if (action === "email") shareEmailNow();
+    else if (action === "both") shareBoth();
+    else sharePhone();
+  };
+
   return (
     <div ref={wrapRef} className="relative shrink-0">
       <button
         type="button"
-        onClick={() => state === "idle" && setOpen((v) => !v)}
-        disabled={state === "sending"}
+        onClick={() => (state === "emailNext" ? shareEmailNow() : state === "idle" && setOpen((v) => !v))}
         aria-expanded={open}
         aria-haspopup="menu"
-        title={`Share your contact information with ${firstName}`}
+        title={state === "emailNext" ? `Now open the email to ${firstName}` : `Share your contact information with ${firstName}`}
         className={`flex items-center justify-center gap-1.5 text-sm font-semibold py-2.5 px-4 rounded-xl transition-colors ${
-          state === "sent" || state === "copied"
+          state === "copied"
             ? "bg-emerald-600/20 border border-emerald-600/50 text-emerald-300"
-            : state === "error"
-              ? "bg-red-950/60 border border-red-800 text-red-300"
-              : "bg-blue-600 hover:bg-blue-500 text-white"
+            : "bg-blue-600 hover:bg-blue-500 text-white"
         }`}
       >
-        {state === "sending" ? (
-          "Sending…"
-        ) : state === "sent" ? (
-          <>Sent ✓</>
-        ) : state === "copied" ? (
+        {state === "copied" ? (
           <>Link copied!</>
-        ) : state === "error" ? (
-          <span className="max-w-[120px] truncate" title={errMsg}>{errMsg}</span>
+        ) : state === "emailNext" ? (
+          <>Now email →</>
         ) : (
           <>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
@@ -192,9 +275,9 @@ export default function ShareMyInfoButton({ leadId, firstName, hasPhone, hasEmai
               role="menuitem"
               type="button"
               disabled={!o.enabled}
-              onClick={() => (o.action === "phone" ? sharePhone() : send(o.action))}
-              // The phone option is separated: the three above send from
-              // SwiftCard, this one hands off to the owner's own apps.
+              onClick={() => run(o.action)}
+              // The phone option is separated: the three above are addressed
+              // to this contact, this one lets the owner pick any app.
               className={`w-full text-left px-3.5 py-2.5 hover:bg-gray-800 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors ${
                 o.action === "phone" ? "border-t border-gray-800" : ""
               }`}
