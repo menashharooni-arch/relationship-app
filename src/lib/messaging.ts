@@ -393,8 +393,16 @@ export async function sendRawEmail(opts: {
     // (bad key, unverified domain, suppressed address). The reminders route
     // stamps sent_at on `status === "sent"`, so a discarded error here silently
     // burned sequence steps that never went out.
-    return error ? "failed" : "sent";
-  } catch {
+    if (error) {
+      // The caller gets "failed"; ops gets the REASON. Before this, a rejected
+      // send left no trace anywhere — the SMS path below has reported its
+      // failures since the Twilio rejection audit, and email never did.
+      await reportError("email.send", error.message ?? String(error), { to: opts.to, subject: opts.subject, sender: key }).catch(() => {});
+      return "failed";
+    }
+    return "sent";
+  } catch (e) {
+    await reportError("email.send", e, { to: opts.to, subject: opts.subject, sender: key }).catch(() => {});
     return "failed";
   }
 }

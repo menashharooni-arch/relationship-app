@@ -262,12 +262,16 @@ export async function GET(req: NextRequest) {
         prefsUrl: preferenceCenterUrl(u.id as string),
       });
       // One-click unsubscribe headers (Gmail/Yahoo requirement) on the lifecycle email.
-      const { data: sent } = await resend.emails
+      const { data: sent, error: sendError } = await resend.emails
         .send({ ...tpl, to, ...(unsub ? { headers: marketingHeaders(unsub) } : {}) })
-        .catch(() => ({ data: null }));
-      try {
-        await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_ended", subject: tpl.subject, resend_id: sent?.id });
-      } catch { /* logging is best-effort */ }
+        .catch((e: unknown) => ({ data: null, error: e instanceof Error ? e : new Error(String(e)) }));
+      if (sendError || !sent?.id) {
+        await reportError("reminders.trial-ended.email", sendError ?? "no id returned", { userId: u.id });
+      } else {
+        try {
+          await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_ended", subject: tpl.subject, resend_id: sent.id });
+        } catch { /* logging is best-effort */ }
+      }
     }
   } catch (e) {
     // Was console.error only, unlike the other three jobs in this cron. If
@@ -325,12 +329,16 @@ export async function GET(req: NextRequest) {
             prefsUrl: preferenceCenterUrl(u.id as string),
           });
           // One-click unsubscribe headers (Gmail/Yahoo requirement) on the lifecycle email.
-          const { data: sent } = await resend.emails
+          const { data: sent, error: sendError } = await resend.emails
             .send({ ...tpl, to, ...(unsub ? { headers: marketingHeaders(unsub) } : {}) })
-            .catch(() => ({ data: null }));
-          try {
-            await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_ending_soon", subject: tpl.subject, resend_id: sent?.id });
-          } catch { /* logging is best-effort */ }
+            .catch((e: unknown) => ({ data: null, error: e instanceof Error ? e : new Error(String(e)) }));
+          if (sendError || !sent?.id) {
+            await reportError("reminders.trial-ending-soon.email", sendError ?? "no id returned", { userId: u.id });
+          } else {
+            try {
+              await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_ending_soon", subject: tpl.subject, resend_id: sent.id });
+            } catch { /* logging is best-effort */ }
+          }
         }
       }
     }
