@@ -59,6 +59,19 @@ export async function loadPlaybook(agentId) {
   } catch { return null; }
 }
 
+/** True while supabase/agent-brain.sql has not been run: the playbook table
+ *  does not exist (PostgREST 404 / 42P01). Researching a playbook that has
+ *  nowhere to land would spend tokens every shift and then fail the run at
+ *  the write — so the runner skips the research and says why instead. */
+async function playbookTableMissing() {
+  try {
+    await sb("GET", "agent_playbooks", { params: "select=agent_id&limit=1" });
+    return false;
+  } catch (e) {
+    return /→ 404|42P01|does not exist|PGRST205/.test(String(e));
+  }
+}
+
 function playbookStale(pb) {
   if (!pb?.researched_at) return true;
   return Date.now() - new Date(pb.researched_at).getTime() > PLAYBOOK_MAX_AGE_DAYS * 86400e3;
@@ -74,6 +87,11 @@ export async function ensurePlaybook(run, brief, { role, defaultCadence }) {
   const agentId = run.agentId;
   const existing = await loadPlaybook(agentId);
   if (existing && !playbookStale(existing)) return existing;
+  if (!existing && (await playbookTableMissing())) {
+    await run.note("No playbook yet — supabase/agent-brain.sql has not been run, so I can't research my role until it is. Working from my brief for now.");
+    console.log("agent_playbooks table missing — skipping role research (run supabase/agent-brain.sql)");
+    return null;
+  }
 
   await run.note(existing ? "Refreshing my playbook — re-checking how this job is best done now…" : "First shift: researching how to do this job well…");
   const prompt = `You are about to take a job at SwiftCard (swiftcard.me — the digital business card that shares everything; iOS app + web; Free and Pro plans). Your role: ${role}.
@@ -119,7 +137,10 @@ Return ONLY a JSON object (no prose around it):
     researched_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-  await sb("POST", "agent_playbooks", { body: row, prefer: "resolution=merge-duplicates" });
+  // A failed save must not throw away the shift: the research still shapes
+  // today's work, it just won't be remembered until the table exists.
+  try { await sb("POST", "agent_playbooks", { body: row, prefer: "resolution=merge-duplicates" }); }
+  catch (e) { console.error(`playbook not saved: ${String(e).slice(0, 160)}`); return row; }
   await applyCadence(agentId, cadence);
   const lead = leadOf(agentId);
   await say(partyOf(agentId), lead === "owner" ? "owner" : lead,
@@ -269,10 +290,16 @@ HOW YOU WORK TODAY (the brain):
 
 const AI_TELLS = [
   /i hope this (message |email )?finds you well/i, /i came across your/i, /i couldn'?t help but notice/i,
-  /just wanted to reach out/i, /i'?d love to (connect|chat|hop on)/i, /feel free to/i, /as someone who/i,
+  /just wanted to reach out/i, /i'?d love to/i, /feel free to/i, /as someone who/i,
   /really resonated/i, /hope (that|this) helps!/i, /game.?changer/i, /seamless/i, /streamline/i, /leverage/i,
   /elevate your/i, /unlock (the|your)/i, /delve/i, /navigat(e|ing) the .{0,20}landscape/i, /in today'?s fast.?paced/i,
   /it'?s worth noting/i, /^(additionally|moreover|furthermore),/im, /not only .{3,60} but also/i, /best regards/i, /🚀|✨/u,
+  // The cold-DM openers every inbox has learned to skip (owner order
+  // 2026-09-08: "it can't just be generic — has to be personal").
+  /i'?m reaching out/i, /hope you'?re (doing )?(well|great|good)/i, /hope you'?re having a/i, /i noticed (that )?you/i,
+  /great (post|content|insight|point|share|question|stuff)\b/i, /love (this|your (content|work|page|profile|posts|feed|stuff))\b/i,
+  /keep up the (great|good|amazing) work/i, /look no further/i, /happy to help/i, /^quick question/im, /i'?m a big fan/i,
+  /your (content|work|posts?) (is|are) (amazing|incredible|inspiring|awesome)/i, /i stumbled (up)?on/i,
 ];
 export function soundsHuman(text) {
   if (!text) return { ok: true };
@@ -280,14 +307,50 @@ export function soundsHuman(text) {
   return { ok: true };
 }
 
+// ── Personal, not generic ────────────────────────────────────────────────────
+// Agents that write to ONE specific person (a Reddit thread, a forum question,
+// an Instagram bio, a creator, a partner, a reviewer). A phrase filter cannot
+// tell a personal message from a template, so the model must name the hook —
+// the verbatim detail from THEIR post/bio/review the draft hinges on — and the
+// draft must actually use it. No hook, or a hook the text never touches, and
+// the option is dropped like an AI tell.
+export const PERSONAL_AGENTS = new Set(["mentions", "forums", "prospects", "outreach", "influencer", "partners", "industry", "reviews"]);
+
+const HOOK_STOPWORDS = new Set(["about", "after", "again", "also", "been", "being", "business", "card", "cards", "digital", "does", "doing", "from", "have", "here", "into", "just", "like", "more", "most", "need", "only", "other", "over", "really", "same", "some", "than", "that", "their", "them", "then", "there", "these", "they", "this", "very", "want", "were", "what", "when", "where", "which", "while", "with", "would", "your"]);
+const hookWords = (s) => Array.from(new Set(String(s).toLowerCase().replace(/[^a-z0-9$%'\s-]/g, " ").split(/\s+/).filter((w) => w.length >= 4 && !HOOK_STOPWORDS.has(w))));
+
+/**
+ * Is this draft written to THIS person? `hook` is what the model quoted from
+ * their post/bio; the content must reuse enough of it (numbers, names, the
+ * words they chose) to make sense only as a reply to them.
+ */
+export function isPersonal(content, hook) {
+  const h = String(hook ?? "").trim();
+  if (h.split(/\s+/).length < 3) return { ok: false, why: "no personal_hook (a verbatim detail from their post/bio)" };
+  const words = hookWords(h);
+  if (!words.length) return { ok: false, why: "personal_hook has nothing specific in it" };
+  const text = String(content ?? "").toLowerCase();
+  const hits = words.filter((w) => text.includes(w.replace(/'s$/, "")));
+  const needed = Math.min(2, words.length);
+  if (hits.length < needed) return { ok: false, why: `draft never uses its own hook ("${h.slice(0, 60)}")` };
+  return { ok: true };
+}
+
+export const PERSONAL_RULES = `
+---
+PERSONAL, NOT GENERIC (owner order — a defect if broken):
+- Every option is written to THIS person and could not be sent to anyone else. Before you write it, read their actual post / bio / review / thread (WebFetch it) and pick ONE concrete detail — a number, a name, a phrase they used, the thing they showed — that the reply hinges on.
+- Put that detail, verbatim, in "personal_hook" (3-12 words). Then USE it in the text: react to it, answer it, build on it. A draft that never touches its own hook is dropped by the pipeline before the owner sees it, same as an AI tell.
+- Never open with a compliment that names nothing. Never restate their job title or recap their post back to them. Write like the sharp colleague who actually read it.`;
+
 /** The JSON shape every brain agent returns (appended to the prompt). */
 export const OPTIONS_JSON_SHAPE = `Return ONLY a JSON array (no prose before or after). Each element is ONE item with TWO options:
 {"kind": "<item_type from the instructions>", "title": "<what this item is, 6-12 words>", "platform": "...", "target": "...", "target_url": "...", "dedupe_key": "<stable: platform:handle, thread URL, topic slug, or date+angle>",
  "research": "<2-4 lines: what you found today and why this item now>",
  "request_id": "<only if this answers a request listed above>",
  "options": [
-   {"label": "A", "headline": "<the angle in one line>", "content": "<the COMPLETE finished text/post/script/email, ready as-is>", "why_this": "<one line>", "payload": { <type-specific extras from the instructions> }},
-   {"label": "B", "headline": "...", "content": "...", "why_this": "...", "payload": { }}
+   {"label": "A", "headline": "<the angle in one line>", "content": "<the COMPLETE finished text/post/script/email, ready as-is>", "why_this": "<one line>", "personal_hook": "<when the item is aimed at one specific person: the verbatim 3-12 word detail from THEIR post/bio/review this draft hinges on; omit otherwise>", "payload": { <type-specific extras from the instructions> }},
+   {"label": "B", "headline": "...", "content": "...", "why_this": "...", "personal_hook": "...", "payload": { }}
  ]}
 If nothing today is worth the owner's time, return [].`;
 
@@ -297,7 +360,7 @@ If nothing today is worth the owner's time, return [].`;
  * dropped, and an item left with fewer than two options is not queued at all
  * (the owner is promised a choice, not a single take dressed as one).
  */
-export async function queueChoice(run, it, { personFacing = false } = {}) {
+export async function queueChoice(run, it, { personFacing = false, personal = false } = {}) {
   const kind = String(it?.kind ?? it?.item_type ?? "").trim();
   if (!kind || !it?.title) return { result: "skipped" };
   let options = Array.isArray(it.options) ? it.options.filter((o) => o && typeof o.content === "string" && o.content.trim()) : [];
@@ -309,12 +372,24 @@ export async function queueChoice(run, it, { personFacing = false } = {}) {
       return check.ok;
     });
   }
-  if (options.length < 2) return { result: options.length === 1 && robotic ? "robotic" : "skipped", robotic };
+  // Written to one person? Then it must be written to THAT person. A "DO NOT
+  // POST —" item is the agent flagging a thread it may not answer; it carries
+  // the reason, not a draft, so the hook rule does not apply to it.
+  if (personal) {
+    options = options.filter((o) => {
+      if (/^DO NOT POST/i.test(String(o.content).trim())) return true;
+      const check = isPersonal(o.content, o.personal_hook ?? o.payload?.personal_hook);
+      if (!check.ok) { robotic++; console.log(`dropped option (generic: ${check.why}): ${it.title}`); }
+      return check.ok;
+    });
+  }
+  if (options.length < 2) return { result: robotic ? "robotic" : "skipped", robotic };
   options = options.slice(0, 2).map((o, i) => ({
     label: i === 0 ? "A" : "B",
     headline: String(o.headline ?? "").slice(0, 200),
     content: String(o.content),
     why_this: String(o.why_this ?? "").slice(0, 400),
+    personal_hook: o.personal_hook ? String(o.personal_hook).slice(0, 200) : undefined,
     payload: o.payload && typeof o.payload === "object" ? o.payload : {},
   }));
   const content = options.map((o) => `OPTION ${o.label} — ${o.headline}\n${o.content}`).join("\n\n────────\n\n");

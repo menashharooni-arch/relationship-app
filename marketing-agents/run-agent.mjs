@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { safeMain, parseClaudeJson, extractJson, standDownIfUsageExhausted, standDownForUsage, sb } from "./lib/agentkit.mjs";
 import {
   ensurePlaybook, playbookBlock, recentWorkBlock, intelBlock, openRequests, openRequestsBlock, ownerChatBlock,
-  TWO_OPTIONS_RULES, OPTIONS_JSON_SHAPE, queueChoice, soundsHuman, fileRequest, CAN_REQUEST,
+  TWO_OPTIONS_RULES, OPTIONS_JSON_SHAPE, PERSONAL_RULES, PERSONAL_AGENTS, queueChoice, soundsHuman, isPersonal, fileRequest, CAN_REQUEST,
 } from "./lib/brain.mjs";
 
 const agentId = process.argv[2];
@@ -122,6 +122,9 @@ await safeMain(agentId, async (run) => {
     canAsk.length ? `\n---\nYOU MAY ASK A COLLEAGUE: add a top-level "requests": [{"to": "${canAsk.join("|")}", "kind": "video|image|copy", "brief": "<exactly what you need, one paragraph>"}] to any item that needs it. They answer on their next shift; do not wait for them — the item you queue today must stand on its own.` : "",
     `\n---\nOUTPUT CAP for this run: at most ${run.settings.output_cap} items. Quality over volume — fewer, better items always win.`,
     TWO_OPTIONS_RULES,
+    // Writing to one person? The draft must hinge on something only that
+    // person wrote — and the pipeline checks it (lib/brain.mjs isPersonal).
+    PERSONAL_AGENTS.has(agentId) ? PERSONAL_RULES : "",
     "\n---\n" + instructions,
     "\n---\n" + OPTIONS_JSON_SHAPE,
   ].filter(Boolean).join("\n");
@@ -173,6 +176,10 @@ await safeMain(agentId, async (run) => {
         const check = soundsHuman(it.content ?? "");
         if (!check.ok) { robotic++; console.log(`discarded (AI tell "${check.tell}"): ${it.title}`); continue; }
       }
+      if (PERSONAL_AGENTS.has(agentId) && !/^DO NOT POST/i.test(String(it.content ?? "").trim())) {
+        const check = isPersonal(it.content ?? "", it.personal_hook ?? it.payload?.personal_hook);
+        if (!check.ok) { robotic++; console.log(`discarded (generic: ${check.why}): ${it.title}`); continue; }
+      }
       single++;
       const { result } = await run.addItem(it);
       if (result === "added") added++;
@@ -180,7 +187,7 @@ await safeMain(agentId, async (run) => {
       if (result === "cap") break;
       continue;
     }
-    const out = await queueChoice(run, it, { personFacing: PERSON_FACING.has(agentId) });
+    const out = await queueChoice(run, it, { personFacing: PERSON_FACING.has(agentId), personal: PERSONAL_AGENTS.has(agentId) });
     robotic += out.robotic ?? 0;
     if (out.result === "added") {
       added++;
@@ -194,7 +201,7 @@ await safeMain(agentId, async (run) => {
   }
   const notes = [
     `${dup} duplicate(s) skipped`,
-    robotic ? `${robotic} option(s) DISCARDED for AI-sounding language` : null,
+    robotic ? `${robotic} option(s) DISCARDED for AI-sounding language or generic copy` : null,
     single ? `${single} came without two options` : null,
     asked ? `${asked} request(s) filed with colleagues` : null,
     `${items.length} candidates`,

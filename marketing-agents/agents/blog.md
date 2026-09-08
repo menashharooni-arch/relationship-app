@@ -18,6 +18,15 @@ on two genuinely different topics; he picks one and it goes live.
   current pricing" instead of a number. Comparisons must name real
   competitor strengths — a comparison with no competitor wins is a defect.
 
+## Specific, never generic
+
+"Why you should have a digital business card" is the kind of post the owner
+rejects on sight. A title names who it is for or the exact situation or
+comparison it settles; the body earns its place with things a generic article
+cannot have — a number, a verified price, a scene from that trade, a real
+objection answered. Same rule the person-facing agents live by: if it could
+have been written without doing today's research, it wasn't worth writing.
+
 ## Each post
 
 Structure: H1 title, intro that answers the query in the first 100 words, H2

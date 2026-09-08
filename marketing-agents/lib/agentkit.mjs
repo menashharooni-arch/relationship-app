@@ -60,8 +60,10 @@ export async function sb(method, path, { params = "", body, prefer } = {}) {
 
 export async function getSettings(agentId) {
   const rows = await sb("GET", "agent_settings", { params: `agent_id=eq.${agentId}&limit=1` });
-  if (!rows?.length) throw new Error(`no agent_settings row for '${agentId}' — has supabase/agent-flow.sql been run?`);
-  return rows[0];
+  if (rows?.length) return rows[0];
+  const seeded = await seedSettings(agentId);
+  if (seeded) return seeded;
+  throw new Error(`no agent_settings row for '${agentId}' — has supabase/agent-flow.sql been run?`);
 }
 
 /** Settings for a CHAT turn. A lead (Maya, Sasha, Nina, Rex) has no settings
@@ -71,7 +73,27 @@ export async function getChatSettings(agentId) {
   const rows = await sb("GET", "agent_settings", { params: `agent_id=eq.${agentId}&limit=1` });
   if (rows?.length) return rows[0];
   if (ORG[agentId]?.kind === "lead") return { agent_id: agentId, enabled: true, paused: false, output_cap: 6, usage_cap_tokens: DEFAULT_RUN_CAP_TOKENS };
+  const seeded = await seedSettings(agentId);
+  if (seeded) return seeded;
   throw new Error(`no agent_settings row for '${agentId}' — has supabase/agent-flow.sql been run?`);
+}
+
+const CONFIG_AGENTS = JSON.parse(readFileSync(new URL("../config.json", import.meta.url), "utf8")).agents;
+
+/** An agent added to config.json after the seed in agent-flow.sql ran has no
+ *  settings row. Create it (rested, like every worker after Start) instead of
+ *  failing every run with "has agent-flow.sql been run?" — the same self-heal
+ *  the board route does, so the tab and the runner agree on who exists. */
+async function seedSettings(agentId) {
+  const c = CONFIG_AGENTS[agentId];
+  if (!c) return null;
+  try {
+    const [row] = await sb("POST", "agent_settings", {
+      body: { agent_id: agentId, enabled: true, paused: true, output_cap: c.output_cap ?? 6, schedule: c.default_schedule ?? null },
+      prefer: "resolution=ignore-duplicates,return=representation",
+    }) ?? [];
+    return row ?? null;
+  } catch { return null; }
 }
 
 export async function getSystem() {
