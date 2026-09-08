@@ -7,7 +7,7 @@
 // agent_blog_posts).
 import { readFileSync } from "node:fs";
 import { safeMain, sb, extractJson, standDownIfUsageExhausted } from "./lib/agentkit.mjs";
-import { askClaude, ensurePlaybook, playbookBlock, recentWorkBlock, intelBlock, openRequests, openRequestsBlock, queueChoice, fileRequest } from "./lib/brain.mjs";
+import { askClaude, ensurePlaybook, playbookBlock, recentWorkBlock, intelBlock, openRequests, openRequestsBlock, ownerChatBlock, queueChoice, fileRequest } from "./lib/brain.mjs";
 
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
 const voice = readFileSync(new URL("./BRAND_VOICE.md", import.meta.url), "utf8");
@@ -55,6 +55,7 @@ await safeMain("blog", async (run) => {
     await recentWorkBlock("blog"),
     await intelBlock(),
     openRequestsBlock(requests),
+    await ownerChatBlock("blog"),
     `\n---\nPOSTS THAT ALREADY EXIST ON swiftcard.me/blog (never write these topics or slugs again):\n${existing.length ? existing.join("\n") : "(none yet)"}\nAlso hand-built and covered: /compare/blinq, /compare/hihello, /compare/popl, /compare/linq, /pricing, /templates, and the /for/* industry pages.`,
     `\n---\nSEED TOPICS we know convert (candidates, not orders — pick one only if today's research agrees):\n${seeds.map((s) => `- ${s}`).join("\n") || "(all seeds are written)"}`,
     `\n---\nCompetitor list: ${config.targets.competitors.join(", ")}.`,

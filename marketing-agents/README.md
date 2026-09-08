@@ -70,6 +70,46 @@ only write surface is `agent_messages`. The **Org chart** tab renders
 org.json live: blue pulse = working, red = problem, gray = benched; the
 reporting line animates while a worker runs.
 
+## The group chat (Chat tab) — owner order 2026-09-08
+
+One thread the owner and every agent are on. The owner types
+`@Jake what are you working on?`, `@Rex the login page is broken — fix it`,
+`@marketing report back on this week` or `@everyone …`; each person mentioned
+takes a **turn** and answers in the thread. No `@` at all → Atlas takes it.
+
+- **Schema**: `supabase/agent-chat.sql` — `agent_chat` (message | reply |
+  system lines) + `agent_chat_orders` (one row per mentioned responder:
+  waiting → working → done | failed). Service-role only, like every agent table.
+- **Who can be mentioned** (`src/lib/agent-chat.ts`, from org.json): any
+  worker or Atlas by first name / party id / agent_id, any lead by name
+  (leads take turns too — no `agent_settings` row needed), a team by handle
+  (`@marketing @growth @success @engineering`) which fans out to that lead's
+  workers, and `@everyone` / `@all` = every agent with an agent_id. A trailing
+  `'s` is forgiven; unknown names are called out by a system line.
+- **A turn is a run**: `POST /api/admin/agents/chat` writes the owner message +
+  orders, then dispatches `agent-chat.yml` once per responder (needs
+  `GITHUB_AGENTS_TOKEN`, same as the Run buttons). `chat-turn.mjs` starts a
+  `Run` with trigger `chat` — a *direct* run: it skips the enabled/paused/
+  auto-stop gates (the owner is talking to them) but still respects the
+  monthly and per-run token caps, and it never counts as a scheduled run for
+  the scheduler/watchdog. `@everyone` = 24 runs; the composer warns.
+- **What a turn can do**: reply (always); queue items as two options like any
+  run (`items`); file a help request to the colleague the closed `CAN_REQUEST`
+  map allows; **delegate** (Atlas → anyone, a lead → only their own team,
+  workers → nobody — the delegation is itself a chat message + order, so the
+  colleague takes a turn); **fix** (only Dash, Vera, Finn, Bo, Ruby, Jake → a
+  queue item + the Fixer's DRAFT PR, never merged); **run_now** (its own full
+  workflow). Everything else is the usual draft-only rule: WebSearch/WebFetch
+  only, the only write surface is `agent_*`.
+- **Memory**: `ownerChatBlock()` in the brain puts the last two weeks of chat
+  orders addressed to an agent into its scheduled runs, so "from now on, …" in
+  chat sticks.
+- **Stuck turns**: the watchdog's `sweepChatOrders()` re-dispatches orders
+  still waiting after 3 min / working after 25 min and fails them (with a
+  system line in the thread) after an hour. Comms gets a one-line
+  `💬 Chat → …` record of every order; the agent's own "Saw your message" /
+  "Replied to you in Chat" lines are the run's lifecycle comms.
+
 ## Autonomous vs draft-only
 
 | Agent | Acts on | Mode |

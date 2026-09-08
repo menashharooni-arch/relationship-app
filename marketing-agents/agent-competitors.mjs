@@ -15,7 +15,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { safeMain, sb, extractJson, standDownIfUsageExhausted } from "./lib/agentkit.mjs";
-import { askClaude, ensurePlaybook, playbookBlock, recentWorkBlock, queueChoice } from "./lib/brain.mjs";
+import { askClaude, ensurePlaybook, playbookBlock, recentWorkBlock, ownerChatBlock, queueChoice } from "./lib/brain.mjs";
 import { nyWeekday } from "./lib/schedule.mjs";
 
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
@@ -118,6 +118,7 @@ await safeMain("competitors", async (run) => {
     `\n---\nTODAY: ${new Date().toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long", year: "numeric", month: "long", day: "numeric" })}.`,
     playbookBlock(playbook),
     await recentWorkBlock("competitors"),
+    await ownerChatBlock("competitors"),
     `\n---\nSWIFTCARD'S OWN PRICING for comparison: read https://swiftcard.me/pricing before judging whether a competitor move matters.`,
     changeBlock,
     sweepBlock,

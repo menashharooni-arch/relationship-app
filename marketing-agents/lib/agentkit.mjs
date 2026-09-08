@@ -64,6 +64,16 @@ export async function getSettings(agentId) {
   return rows[0];
 }
 
+/** Settings for a CHAT turn. A lead (Maya, Sasha, Nina, Rex) has no settings
+ *  row — leads are org parties, not scheduled agents — but the owner can still
+ *  @-mention one, so a lead answers with a fixed, modest allowance. */
+export async function getChatSettings(agentId) {
+  const rows = await sb("GET", "agent_settings", { params: `agent_id=eq.${agentId}&limit=1` });
+  if (rows?.length) return rows[0];
+  if (ORG[agentId]?.kind === "lead") return { agent_id: agentId, enabled: true, paused: false, output_cap: 6, usage_cap_tokens: DEFAULT_RUN_CAP_TOKENS };
+  throw new Error(`no agent_settings row for '${agentId}' — has supabase/agent-flow.sql been run?`);
+}
+
 export async function getSystem() {
   const rows = await sb("GET", "agent_system", { params: "limit=1" });
   if (!rows?.length) throw new Error("agent_system row missing — run supabase/agent-flow.sql");
@@ -135,12 +145,17 @@ export async function email(subject, html) {
 
 /** A run handle. Create with startRun(); everything else hangs off it. */
 export class Run {
-  constructor(agentId, row, settings) { this.agentId = agentId; this.id = row.id; this.settings = settings; this.outputCount = 0; this.usageUsd = 0; this.usageTokens = 0; this.notes = []; this.finished = false; }
+  constructor(agentId, row, settings, trigger = "manual") { this.agentId = agentId; this.id = row.id; this.settings = settings; this.trigger = trigger; this.direct = trigger === "chat"; this.outputCount = 0; this.usageUsd = 0; this.usageTokens = 0; this.notes = []; this.finished = false; }
 
-  /** Refuse-to-start gates. Returns null (and records why) instead of a Run when blocked. */
+  /** Refuse-to-start gates. Returns null (and records why) instead of a Run when blocked.
+   *  A CHAT turn (trigger "chat") is the owner talking to this agent directly:
+   *  it answers even when benched or when the office is closed — he asked
+   *  THIS agent — and leads answer on default settings. The monthly token cap
+   *  still holds: nothing outranks the budget line. */
   static async start(agentId, trigger = "manual") {
-    const [settings, system] = await Promise.all([getSettings(agentId), getSystem()]);
-    const blocked =
+    const direct = trigger === "chat";
+    const [settings, system] = await Promise.all([direct ? getChatSettings(agentId) : getSettings(agentId), getSystem()]);
+    const blocked = direct ? null :
       !settings.enabled ? "skipped_disabled" :
       (settings.paused || system.paused || autoStopped(system)) ? "paused" : null;
     if (!blocked) {
@@ -158,9 +173,10 @@ export class Run {
       // Comms: the dispatch and the acknowledgment, at the moment they happen.
       const worker = partyOf(agentId), lead = leadOf(agentId);
       const why = trigger === "start_all" ? "the owner opened the company" : trigger === "schedule" ? "your scheduled window" : "a manual run order";
-      if (lead === "owner") await say(worker, "owner", `On it — compiling your report now.`, { kind: "owner_out", run_id: row.id });
+      if (direct) await say(worker, "owner", `Saw your message in Chat — reading it now.`, { kind: "owner_out", run_id: row.id });
+      else if (lead === "owner") await say(worker, "owner", `On it — compiling your report now.`, { kind: "owner_out", run_id: row.id });
       else { await say(lead, worker, `GO — start your run now (${why}).`, { run_id: row.id }); await say(worker, lead, `On it — starting now.`, { run_id: row.id }); }
-      return new Run(agentId, row, settings);
+      return new Run(agentId, row, settings, trigger);
     }
     await sb("POST", "agent_runs", { body: { agent_id: agentId, trigger, status: blocked, finished_at: new Date().toISOString(), summary: blocked === "paused" ? "Agent (or the whole system) is paused — did not start." : "Agent is disabled — did not start." } });
     console.log(`${agentId}: ${blocked} — not running`);
@@ -176,8 +192,10 @@ export class Run {
 
   /** Pause gate — call between steps. Exits cleanly if paused (no partial writes: items already inserted stay, nothing is half-written). */
   async checkpoint() {
-    const [settings, system] = await Promise.all([getSettings(this.agentId), getSystem()]);
-    if (settings.paused || system.paused || autoStopped(system)) {
+    const [settings, system] = await Promise.all([this.direct ? getChatSettings(this.agentId) : getSettings(this.agentId), getSystem()]);
+    // A chat turn answers the owner even while paused (see start()); the two
+    // token caps below apply to it like any other run.
+    if (!this.direct && (settings.paused || system.paused || autoStopped(system))) {
       const why = autoStopped(system) ? "Auto-stop time reached" : "Paused";
       await this.finish("paused", `${why} mid-run after: ${this.notes.at(-1) ?? "startup"}. ${this.outputCount} item(s) were completed and kept.`);
       process.exit(0);
@@ -230,7 +248,9 @@ export class Run {
       status === "success" ? `Done — ${this.outputCount} item(s) queued${cost}. ${String(summary ?? "").slice(0, 200)}` :
       status === "paused" ? `Stopped at a checkpoint — ${String(summary ?? "").slice(0, 200)}` :
       `⚠ FAILED — ${String(summary ?? "").slice(0, 200)}`;
-    if (lead === "owner") await say(worker, "owner", status === "success" ? `Your report is ready — it's in the queue and your inbox.` : report, { kind: "owner_out", run_id: this.id });
+    // A chat turn reports straight to the owner: its reply is in the Chat tab.
+    if (this.direct) await say(worker, "owner", status === "success" ? `Replied to you in Chat${cost}.` : report, { kind: "owner_out", run_id: this.id });
+    else if (lead === "owner") await say(worker, "owner", status === "success" ? `Your report is ready — it's in the queue and your inbox.` : report, { kind: "owner_out", run_id: this.id });
     else {
       await say(worker, lead, report, { run_id: this.id });
       if (status === "failed") await say(lead, "atlas", `Escalating: ${nameOf(worker)} (${ORG[worker]?.role ?? this.agentId}) failed their run — ${String(summary ?? "").slice(0, 160)}`, { run_id: this.id });

@@ -219,6 +219,27 @@ export function openRequestsBlock(reqs) {
   return `\n---\nREQUESTS WAITING ON ME (answer these FIRST, one item each, and put the request_id in that item's payload.request_id):\n${lines.join("\n")}`;
 }
 
+/** Who may file a request to whom (e.g. social → video). A closed map — an
+ *  agent cannot invent a colleague to lean on. Shared by the daily runner and
+ *  the chat turn. */
+export const CAN_REQUEST = { social: ["video"], ads: ["video"], blog: ["video"], email: ["video"], partners: ["video"], listings: ["video"], cro: ["video"], support: ["cro"] };
+
+/** What the owner told THIS agent in the company chat lately — standing
+ *  instructions every normal run follows until he says otherwise. Read-only,
+ *  best-effort: before supabase/agent-chat.sql runs there is simply no block. */
+export async function ownerChatBlock(agentId) {
+  try {
+    const since = new Date(Date.now() - 14 * 86400e3).toISOString();
+    const rows = await sb("GET", "agent_chat", {
+      params: `kind=eq.message&created_at=gte.${since}&mentions=cs.{${agentId}}&select=from_id,body,created_at&order=created_at.desc&limit=8`,
+    });
+    if (!rows?.length) return "";
+    const who = (id) => (id === "owner" ? "the owner" : id === "atlas" ? "Atlas (chief of staff)" : `my lead ${id[0].toUpperCase()}${id.slice(1)}`);
+    const lines = rows.reverse().map((r) => `- ${r.created_at.slice(0, 10)} from ${who(r.from_id)}: ${String(r.body).replace(/\s+/g, " ").slice(0, 600)}`);
+    return `\n---\nWHAT I WAS TOLD IN THE COMPANY CHAT (direct instructions to me, most recent last — follow them in today's work until the owner says otherwise; if one conflicts with my brief, the owner wins):\n${lines.join("\n")}`;
+  } catch { return ""; }
+}
+
 /** File a request to another agent (e.g. social → video). Best-effort. */
 export async function fileRequest({ from_agent, to_agent, kind, brief, for_item = null }) {
   if (!to_agent || !brief) return null;

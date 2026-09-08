@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ORG, firstName } from "@/lib/agent-org";
+import { mentionables, partyOfResponder } from "@/lib/agent-chat";
 
 // ── Agent Flow v3: one switch, three teams, zero ambiguity ──────────────────
 // The owner's mental model, implemented literally: press ▶ Start All and the
@@ -194,7 +195,10 @@ function cadenceText(schedule: string | null | undefined): string {
 }
 
 type Msg = { id: string; from_id: string; to_id: string; kind: string; body: string; run_id: string | null; created_at: string };
-type View = "agents" | "chart" | "comms" | "queue" | "history" | "settings";
+// The company group chat (agent_chat / agent_chat_orders — supabase/agent-chat.sql).
+type ChatMsg = { id: string; from_id: string; kind: "message" | "reply" | "system"; body: string; mentions: string[] | null; reply_to: string | null; run_id: string | null; payload: Record<string, unknown> | null; created_at: string };
+type ChatOrder = { id: string; message_id: string; responder: string; status: "waiting" | "working" | "done" | "failed"; reply_id: string | null; run_id: string | null; error: string | null };
+type View = "agents" | "chat" | "chart" | "comms" | "queue" | "history" | "settings";
 type TourStep = { view?: View; target?: string; title: string; body: string };
 const TOUR: TourStep[] = [
   { title: "Welcome to Agent Flow", body: "Your workforce. Press Start to OPEN the office — nothing runs yet; every team waits at rest. Wake a team and its agents start working on their own rhythms — a few pieces of content a day, watchdogs every few hours — until you Rest the team, press Pause, your auto-stop time hits, or the monthly token budget stops it. Nothing is ever sent to another platform without you." },
@@ -203,6 +207,7 @@ const TOUR: TourStep[] = [
   { view: "agents", target: "team-marketing", title: "Your teams", body: "Atlas is your chief of staff — he runs the company and reports only to you. Maya leads Marketing (Jake SEO, Nora blog, Milo social, Vince video, Eli email, Addy ads, Ruby website, Cleo competitor watch). Sasha leads Growth & Outreach (Ava, Leo, Remy, Zoe, Wes, Ivy, Kai, Quinn — every first message to a person, drafted for you). Nina leads Customer Success (Sam reviews, Sol help content, Otto retention). Rex leads Engineering (Dash on speed, Finn on user flows, Vera on security, Bo on bugs) — their findings arrive with fixes already drafted." },
   { view: "chart", target: "orgchart", title: "The org chart", body: "Your company, live. Blue pulse = working right now (the reporting line animates too), red = a problem, gray = benched. Click anyone to read their messages." },
   { view: "comms", target: "comms", title: "Communications", body: "The company chat log. Your orders (👑), dispatches down the chain (Maya → Jake: GO), report-backs (Jake → Maya: Done — 4 items, $0.40), and escalations to Atlas when something fails. Every row is a real event, written the moment it happened." },
+  { view: "chat", target: "chat", title: "Chat — talk to your company", body: "One group chat with you and every agent. Type @Jake, @Rex, @marketing or @everyone and tell them what to do, ask for a report, or say what's broken — each person you mention takes a turn (a real run) and answers you here. Leads delegate to their team; watchdogs can queue a fix (a draft PR, never merged). No @ at all and Atlas takes it. Everything an agent produces still lands in your Review queue for your call." },
   { view: "agents", target: "agentrow", title: "One worker, one row", body: "Each row: what they do, whether they're working right now (a live timer counts), when their next shift starts, and their last result. 'Run once' fires them immediately regardless of schedule; the Active toggle benches them; ▾ log is their full diary." },
   { view: "queue", target: "tabs", title: "The Review queue", body: "Everything your agents produce waits here for your call. The badge on the tab shows how many. Approving never posts anything anywhere — you stay the sender." },
   { view: "queue", target: "checkbox", title: "Handling a pile at once", body: "Tick several items (or Select all shown) and a bar appears to approve or reject them together. Approve = 'good, mine to use'. Reject = filed away forever, nothing deleted." },
@@ -236,6 +241,13 @@ export default function AgentFlowClient() {
   const [now, setNow] = useState(() => Date.now());
   const [planUsage, setPlanUsage] = useState<PlanUsage | null>(null);
   const [usageBusy, setUsageBusy] = useState(false);
+  // Group chat state. `chatSeen` is the newest agent reply the owner has had on
+  // screen (persisted) — anything newer is the unread badge on the tab.
+  const [chat, setChat] = useState<{ ready: boolean; messages: ChatMsg[]; orders: ChatOrder[]; dispatch: boolean } | null>(null);
+  const [chatText, setChatText] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const [chatSeen, setChatSeen] = useState<string>(() => { try { return localStorage.getItem("af_chat_seen") ?? ""; } catch { return ""; } });
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
 
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(""), 4200); };
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
@@ -289,6 +301,35 @@ export default function AgentFlowClient() {
     const t = setInterval(pull, 15000);
     return () => clearInterval(t);
   }, [view, commsKind, commsParty]);
+
+  // Group chat: every 5s while the tab is open (agents answer within minutes;
+  // the status chips should move), every 30s otherwise so the unread badge
+  // on the tab stays honest.
+  // Whatever is on screen while the tab is open counts as read.
+  const pullChat = useCallback(() => fetch("/api/admin/agents/chat").then((r) => r.json()).then((d) => {
+    setChat(d);
+    const last = d?.messages?.[d.messages.length - 1]?.created_at as string | undefined;
+    if (view === "chat" && last) { setChatSeen((s) => (last > s ? last : s)); try { localStorage.setItem("af_chat_seen", last); } catch {} }
+  }).catch(() => {}), [view]);
+  useEffect(() => {
+    pullChat();
+    const t = setInterval(pullChat, view === "chat" ? 5000 : 30000);
+    return () => clearInterval(t);
+  }, [view, pullChat]);
+  const chatUnread = (chat?.messages ?? []).filter((m) => m.from_id !== "owner" && m.kind !== "system" && m.created_at > chatSeen).length;
+
+  const sendChat = async () => {
+    const text = chatText.trim();
+    if (!text || chatSending) return;
+    setChatSending(true);
+    const r = await fetch("/api/admin/agents/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: text }) }).then((r) => r.json()).catch(() => ({ error: "network" }));
+    setChatSending(false);
+    if (r.error) { say(`⚠ ${r.error}`); return; }
+    setChatText(""); setMentionQuery(null);
+    const who = (r.responders as string[]).map((id) => firstName(id));
+    say(who.length > 4 ? `Sent — ${who.length} agents are taking a turn.` : `Sent — ${who.join(", ")} ${who.length > 1 ? "are" : "is"} on it.`);
+    pullChat();
+  };
 
   // Tour spotlight: all state updates happen inside the timeout (DOM sync).
   useEffect(() => {
@@ -566,9 +607,10 @@ export default function AgentFlowClient() {
       {/* ── View tabs ── */}
       <div data-aftour="tabs" className="flex flex-wrap items-center gap-1">
         <button onClick={() => setTourStep(0)} className="px-3 py-1.5 rounded-full text-xs font-semibold text-blue-300 bg-blue-950/40 border border-blue-800/50 hover:bg-blue-900/40 whitespace-nowrap transition-colors">✦ Take a tour</button>
-        {([["agents", "Agents"], ["chart", "Org chart"], ["comms", "Comms"], ["queue", "Review queue"], ["history", "History"], ["settings", "Settings"]] as const).map(([v, label]) => (
+        {([["agents", "Agents"], ["chat", "💬 Chat"], ["chart", "Org chart"], ["comms", "Comms"], ["queue", "Review queue"], ["history", "History"], ["settings", "Settings"]] as const).map(([v, label]) => (
           <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${view === v ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
             {label}{v === "queue" && board.pendingTotal > 0 ? ` (${board.pendingTotal})` : ""}
+            {v === "chat" && chatUnread > 0 && <span className="ml-1.5 inline-block min-w-[18px] px-1 rounded-full bg-sky-500 text-white text-[10px] font-bold text-center align-middle">{chatUnread}</span>}
           </button>
         ))}
         {view === "queue" && <><button onClick={load} className="text-xs text-gray-400 hover:text-white px-2 py-1.5 transition-colors">{loading ? "↻ updating…" : "↻ Refresh"}</button>{updatedAt && <span className="text-gray-600 text-[10px]">updated {ago(new Date(updatedAt).toISOString())} · auto every 30s</span>}</>}
@@ -687,6 +729,147 @@ export default function AgentFlowClient() {
               {leads.flatMap(([pid, p]) => workersOf(pid).map(([wid, w]) => <path key={wid} d={edge(pid, wid)} className={`af-edge ${statusOf(w.agent_id) === "working" ? "af-live" : ""}`} stroke={p.color} />))}
               {Object.keys(pos).map((pid) => <Node key={pid} pid={pid} />)}
             </svg>
+          </div>
+        );
+      })()}
+
+      {view === "chat" && (() => {
+        // ── The company group chat ────────────────────────────────────────
+        // One thread, owner on the right, agents on the left, orders shown as
+        // status chips under the message that placed them. Every mention is a
+        // real run: the chip goes ⏳ → 🔵 → ✓ as the agent picks it up and
+        // answers, or ⚠ if the turn failed (the watchdog retries stuck ones).
+        const messages = chat?.messages ?? [];
+        const ordersByMsg: Record<string, ChatOrder[]> = {};
+        for (const o of chat?.orders ?? []) (ordersByMsg[o.message_id] ??= []).push(o);
+        const byId: Record<string, ChatMsg> = Object.fromEntries(messages.map((m) => [m.id, m]));
+        const STATUS: Record<ChatOrder["status"], { icon: string; label: string; cls: string }> = {
+          waiting: { icon: "⏳", label: "waiting to start", cls: "border-gray-700 text-gray-400" },
+          working: { icon: "🔵", label: "working on it", cls: "border-sky-800 text-sky-300 bg-sky-950/30" },
+          done: { icon: "✓", label: "replied", cls: "border-emerald-800 text-emerald-300 bg-emerald-950/20" },
+          failed: { icon: "⚠", label: "turn failed", cls: "border-red-900 text-red-300 bg-red-950/20" },
+        };
+        const partyFor = (id: string) => ORG[id] ?? ORG[partyOfResponder(id)];
+        const renderBody = (text: string) => text.split(/(@[a-z0-9_'-]+)/gi).map((part, i) =>
+          /^@[a-z0-9_'-]+$/i.test(part) ? <span key={i} className="text-sky-300 font-semibold">{part}</span> : <span key={i}>{part}</span>);
+        const options = mentionables();
+        const q = mentionQuery === null ? null : mentionQuery.toLowerCase();
+        const suggestions = q === null ? [] : options.filter((o) => o.handle.startsWith(q) || o.label.toLowerCase().includes(q)).slice(0, 8);
+        const pickMention = (handle: string) => {
+          setChatText((t) => t.replace(/@[a-z0-9_'-]*$/i, `@${handle} `));
+          setMentionQuery(null);
+        };
+        const addChip = (handle: string) => { setChatText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}@${handle} `); setMentionQuery(null); };
+        const everyoneAsked = /@(everyone|all|everybody|team)\b/i.test(chatText);
+        const busyOrders = (chat?.orders ?? []).filter((o) => o.status === "waiting" || o.status === "working").length;
+        return (
+          <div className="space-y-3" data-aftour="chat">
+            {chat && !chat.ready && (
+              <div className="rounded-2xl border border-amber-900/60 bg-amber-950/20 p-5">
+                <p className="text-amber-200 font-semibold">The chat tables aren&apos;t there yet.</p>
+                <p className="text-amber-200/80 text-sm mt-1">Run <code className="text-amber-100">supabase/agent-chat.sql</code> in the Supabase SQL editor once, then reload — the thread appears here.</p>
+              </div>
+            )}
+            {chat?.ready && !chat.dispatch && <p className="text-amber-400 text-xs">⚠ Chat can&apos;t wake agents yet — GITHUB_AGENTS_TOKEN is not set in Vercel. Messages are saved; agents answer once it is.</p>}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
+              <span>You + every agent, one thread. @ someone and they take a turn — a real run — and answer here.</span>
+              {busyOrders > 0 && <span className="text-sky-300">🔵 {busyOrders} turn{busyOrders === 1 ? "" : "s"} in progress</span>}
+              <span className="ml-auto">refreshes every 5s</span>
+            </div>
+
+            {/* Thread — newest at the bottom, stays scrolled to the bottom (column-reverse). */}
+            <div className="rounded-2xl border border-gray-800 bg-gray-950/60 p-3 max-h-[60vh] min-h-[240px] overflow-y-auto flex flex-col-reverse gap-2.5">
+              {messages.length === 0 && (
+                <div className="text-center py-10">
+                  <p className="text-gray-300 font-semibold">Nobody&apos;s said anything yet.</p>
+                  <p className="text-gray-500 text-sm mt-1.5">Try “@Atlas how did the company do this week?” or “@Rex what&apos;s broken right now?” — or type with no @ and Atlas takes it.</p>
+                </div>
+              )}
+              {[...messages].reverse().map((m) => {
+                const mine = m.from_id === "owner";
+                const p = partyFor(m.from_id);
+                const orders = ordersByMsg[m.id] ?? [];
+                const quoted = m.reply_to ? byId[m.reply_to] : null;
+                const pl = (m.payload ?? {}) as { items?: string[]; fixes?: string[]; delegated?: string[]; requests?: string[]; run_now?: boolean };
+                if (m.kind === "system") return (
+                  <div key={m.id} className="text-center">
+                    <span className="inline-block text-[11px] text-gray-500 italic px-3 py-1 rounded-full bg-gray-900 border border-gray-800/80 whitespace-pre-wrap text-left">{m.body}</span>
+                  </div>
+                );
+                return (
+                  <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl border px-4 py-2.5 ${mine ? "border-amber-900/50 bg-amber-950/20" : "border-gray-800 bg-gray-900"}`} style={mine ? undefined : { borderLeftColor: p?.color, borderLeftWidth: 3 }}>
+                      <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                        <span className="font-bold text-white whitespace-nowrap">{mine ? "👑 You" : `${p?.emoji ?? "🤖"} ${p?.name ?? m.from_id}`}</span>
+                        {!mine && <span className="text-gray-500 text-[10px]">{p?.role ?? ""}</span>}
+                        <span className="text-gray-600 text-[10px] ml-auto whitespace-nowrap">{ago(m.created_at)}</span>
+                      </div>
+                      {quoted && (
+                        <p className="mt-1 text-[11px] text-gray-500 border-l-2 border-gray-700 pl-2 truncate">↩ {quoted.from_id === "owner" ? "you" : firstName(quoted.from_id)}: {quoted.body.slice(0, 110)}{quoted.body.length > 110 ? "…" : ""}</p>
+                      )}
+                      <p className="text-gray-200 text-[13px] mt-1 leading-relaxed whitespace-pre-wrap">{renderBody(m.body)}</p>
+                      {!mine && (pl.items?.length || pl.fixes?.length || pl.delegated?.length || pl.requests?.length || pl.run_now) ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                          {!!pl.items?.length && <button onClick={() => { setFilterAgent(partyFor(m.from_id)?.agent_id ?? ""); setFilterType(""); setFilterStatus("pending"); setView("queue"); }} className="px-2 py-0.5 rounded-full border border-emerald-800 text-emerald-300 bg-emerald-950/20 hover:bg-emerald-900/30">{pl.items.length} option{pl.items.length === 1 ? "" : "s"} in your queue → open</button>}
+                          {!!pl.fixes?.length && <button onClick={() => { setFilterAgent(""); setFilterType(""); setFilterStatus("pending"); setView("queue"); }} className="px-2 py-0.5 rounded-full border border-violet-800 text-violet-300 bg-violet-950/20 hover:bg-violet-900/30">🔧 {pl.fixes.length} fix sent to the Fixer (draft PR) → queue</button>}
+                          {!!pl.delegated?.length && <span className="px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">↳ delegated to {pl.delegated.map((d) => firstName(d)).join(", ")}</span>}
+                          {!!pl.requests?.length && <span className="px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">asked {pl.requests.map((d) => firstName(d)).join(", ")} for help</span>}
+                          {pl.run_now && <span className="px-2 py-0.5 rounded-full border border-sky-800 text-sky-300 bg-sky-950/20">▶ full run started</span>}
+                        </div>
+                      ) : null}
+                      {orders.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {orders.map((o) => {
+                            const op = partyFor(o.responder); const s = STATUS[o.status] ?? STATUS.waiting;
+                            return <span key={o.id} title={o.error ? `${s.label}: ${o.error}` : s.label} className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${s.cls}`}>{op?.emoji} {op?.name ?? o.responder} {s.icon}</span>;
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Composer */}
+            <div className="rounded-2xl border border-gray-800 bg-gray-900 p-3 space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {["everyone", "atlas", "maya", "sasha", "nina", "rex"].map((h) => {
+                  const o = options.find((x) => x.handle === h);
+                  return <button key={h} type="button" onClick={() => addChip(h)} title={o?.label} className="text-[11px] px-2 py-1 rounded-full border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors">{o?.emoji} @{h}</button>;
+                })}
+                <span className="text-gray-600 text-[10px] self-center ml-1">…or type @ for everyone on the team</span>
+              </div>
+              <div className="relative">
+                {suggestions.length > 0 && (
+                  <div className="absolute bottom-full left-0 mb-1 w-full max-w-md rounded-xl border border-gray-700 bg-gray-950 shadow-xl overflow-hidden z-10">
+                    {suggestions.map((o) => (
+                      <button key={o.handle} type="button" onMouseDown={(e) => { e.preventDefault(); pickMention(o.handle); }} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-800 flex items-center gap-2">
+                        <span>{o.emoji}</span><span className="font-semibold text-white">@{o.handle}</span><span className="text-gray-500 truncate">{o.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <textarea
+                  value={chatText}
+                  onChange={(e) => { const v = e.target.value; setChatText(v); const m = v.match(/@([a-z0-9_'-]*)$/i); setMentionQuery(m ? m[1] : null); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (suggestions.length && mentionQuery !== null && mentionQuery.length > 0) pickMention(suggestions[0].handle); else sendChat(); }
+                    if (e.key === "Escape") setMentionQuery(null);
+                  }}
+                  onBlur={() => setTimeout(() => setMentionQuery(null), 150)}
+                  disabled={!!chat && !chat.ready}
+                  rows={3}
+                  placeholder="@Jake what are you working on? · @Rex the login page is broken, fix it · @marketing report back on this week · @everyone …"
+                  className="w-full bg-gray-950 border border-gray-800 focus:border-sky-700 outline-none text-gray-100 text-sm rounded-xl px-3 py-2.5 resize-y placeholder:text-gray-600"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <button onClick={sendChat} disabled={chatSending || !chatText.trim() || (!!chat && !chat.ready)} className="px-4 py-2 rounded-full bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white text-sm font-bold transition-colors">{chatSending ? "Sending…" : "Send"}</button>
+                <span className="text-gray-500 text-[11px]">Enter sends · Shift+Enter for a new line · no @ = Atlas takes it</span>
+                {everyoneAsked && <span className="text-amber-400 text-[11px]">⚠ @everyone wakes all {options[0].responders.length} agents — that&apos;s {options[0].responders.length} separate runs and the tokens to match.</span>}
+              </div>
+            </div>
           </div>
         );
       })()}
