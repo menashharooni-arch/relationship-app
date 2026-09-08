@@ -41,7 +41,6 @@ export const ORGANIZATION_JSONLD = {
   url: APP_URL,
   logo: `${APP_URL}/brand-icon.png`,
   description: DESCRIPTION,
-  founder: { "@type": "Person", name: "Menash Harooni", jobTitle: "Founder & Authorized Representative" },
   email: "hello@swiftcard.me",
   foundingLocation: { "@type": "Place", address: { "@type": "PostalAddress", addressLocality: "New York", addressRegion: "NY", addressCountry: "US" } },
   contactPoint: { "@type": "ContactPoint", contactType: "customer support", email: "hello@swiftcard.me", url: `${APP_URL}/contact` },

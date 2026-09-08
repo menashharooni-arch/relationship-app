@@ -36,10 +36,6 @@ export default function CompanyPage() {
           Wallet, or link — with built-in lead capture, a link-in-bio page, and automatic follow-up,
           so the people you meet actually stay in touch.
         </P>
-        <P>
-          <strong>Menash Harooni</strong> is the Founder and Authorized Representative of Swift Card Inc.
-        </P>
-
         {/* Company facts — mirrors the Terms "Company information" block */}
         <dl className="mt-6 mb-3 rounded-xl border border-slate-200 bg-white/60 divide-y divide-slate-200">
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
@@ -53,10 +49,6 @@ export default function CompanyPage() {
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Entity type</dt>
             <dd className="text-slate-800 text-[15px]">Corporation</dd>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Founder &amp; Authorized Representative</dt>
-            <dd className="text-slate-800 text-[15px]">Menash Harooni</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Website</dt>

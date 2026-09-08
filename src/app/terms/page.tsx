@@ -44,8 +44,8 @@ export default function TermsPage() {
         <H2>Company information</H2>
         <P>
           SwiftCard is a digital business card and link-in-bio platform operated by <strong>Swift Card Inc</strong>,
-          a corporation. Menash Harooni is the Founder and Authorized Representative of Swift Card Inc. More
-          details are on our <Link href="/company" className="text-brand underline">Company page</Link>.
+          a corporation. More details are on our{" "}
+          <Link href="/company" className="text-brand underline">Company page</Link>.
         </P>
         <dl className="mt-4 mb-3 rounded-xl border border-slate-200 bg-white/60 divide-y divide-slate-200">
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
@@ -55,10 +55,6 @@ export default function TermsPage() {
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Brand</dt>
             <dd className="text-slate-800 text-[15px]">SwiftCard (swiftcard.me)</dd>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Authorized representative</dt>
-            <dd className="text-slate-800 text-[15px]">Menash Harooni — Founder</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
             <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Contact</dt>
