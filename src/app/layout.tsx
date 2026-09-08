@@ -174,8 +174,8 @@ export default function RootLayout({
           }}
         />
         {/* Brand structured data for Google Search (JSON-LD) — see lib/brand.ts.
-            Organization feeds the knowledge/brand box (name, logo, operator,
-            founder); WebSite is what decides the SITE NAME shown above the URL
+            Organization feeds the knowledge/brand box (name, logo, operator);
+            WebSite is what decides the SITE NAME shown above the URL
             in a result, which otherwise gets guessed from the <title>. */}
         <script
           type="application/ld+json"
