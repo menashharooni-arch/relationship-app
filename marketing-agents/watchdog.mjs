@@ -138,6 +138,7 @@ async function tick() {
   }
 
   await dispatchScheduled();
+  await sweepChatOrders().catch((e) => console.log(`${stamp()} chat sweep error: ${String(e?.message ?? e).slice(0, 160)}`));
 
   // Resolve submitted creative jobs into the shared pool. Nothing else in the
   // system has a reliable clock, and a generation job that is never polled is
@@ -171,14 +172,57 @@ async function dispatchScheduled() {
     const schedule = r.schedule || config.agents[r.agent_id]?.default_schedule;
     if (!schedule) continue;
 
+    // A chat turn is not a shift — it must not push the next scheduled run out.
     const runs = await sb("GET", "agent_runs", {
-      params: `agent_id=eq.${r.agent_id}&select=started_at&order=started_at.desc&limit=1`,
+      params: `agent_id=eq.${r.agent_id}&trigger=neq.chat&select=started_at&order=started_at.desc&limit=1`,
     });
     const lastRunAt = runs?.[0]?.started_at ?? null;
     if (!isDue(schedule, lastRunAt, new Date())) continue;
 
     console.log(`${stamp()} ${r.agent_id} is due (${schedule}, last run ${lastRunAt ?? "never"})`);
     await dispatchAgent(r.agent_id, `scheduled: ${schedule}`);
+  }
+}
+
+/**
+ * The company chat's safety net. The chat API wakes each @-mentioned agent
+ * the moment the owner sends; if that dispatch failed (GitHub hiccup, token
+ * missing at the time) the order sits 'waiting'. Every tick, anything waiting
+ * more than 3 minutes is re-dispatched, and a turn stuck 'working' for 25
+ * minutes (a dead run) is retried the same way. After an hour it is marked
+ * failed and the room is told, so a silence is never mistaken for an answer.
+ */
+const CHAT_WORKFLOW = "agent-chat.yml";
+async function sweepChatOrders() {
+  const now = Date.now();
+  const rows = await sb("GET", "agent_chat_orders", {
+    params: `status=in.(waiting,working)&select=id,message_id,responder,status,created_at,updated_at&order=created_at.asc&limit=40`,
+  }).catch(() => null);
+  if (!rows?.length) return;
+  const retryAfterMs = { waiting: 3 * 60_000, working: 25 * 60_000 };
+  const byResponder = new Map();
+  for (const o of rows) {
+    const ageMs = now - new Date(o.created_at).getTime();
+    const idleMs = now - new Date(o.updated_at ?? o.created_at).getTime();
+    if (ageMs > 60 * 60_000) {
+      await sb("PATCH", "agent_chat_orders", { params: `id=eq.${o.id}`, body: { status: "failed", error: "no turn started within an hour", updated_at: new Date().toISOString() } }).catch(() => {});
+      await sb("POST", "agent_chat", { body: { from_id: "atlas", kind: "system", body: `⚠ ${o.responder} never answered — the turn could not be started within an hour. Send the message again or check GITHUB_AGENTS_TOKEN.`, reply_to: o.message_id } }).catch(() => {});
+      continue;
+    }
+    if (idleMs < retryAfterMs[o.status]) continue;
+    if (!byResponder.has(o.responder)) byResponder.set(o.responder, []);
+    byResponder.get(o.responder).push(o.id);
+  }
+  for (const [responder, ids] of byResponder) {
+    if (!process.env.GH_TOKEN) { console.log(`  ! GH_TOKEN missing — cannot re-wake ${responder}'s chat turn`); return; }
+    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${CHAT_WORKFLOW}/dispatches`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: "application/vnd.github+json" },
+      body: JSON.stringify({ ref: "main", inputs: { agent: responder, trigger: "chat" } }),
+    }).catch(() => null);
+    console.log(`${stamp()} chat: re-woke ${responder} for ${ids.length} order(s) → ${res?.status ?? "network"}`);
+    // Stamp the attempt so the next tick does not fire again immediately.
+    await sb("PATCH", "agent_chat_orders", { params: `id=in.(${ids.join(",")})`, body: { updated_at: new Date().toISOString() } }).catch(() => {});
   }
 }
 

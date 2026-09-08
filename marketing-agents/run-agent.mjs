@@ -17,8 +17,8 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { safeMain, parseClaudeJson, extractJson, standDownIfUsageExhausted, standDownForUsage, sb } from "./lib/agentkit.mjs";
 import {
-  ensurePlaybook, playbookBlock, recentWorkBlock, intelBlock, openRequests, openRequestsBlock,
-  TWO_OPTIONS_RULES, OPTIONS_JSON_SHAPE, queueChoice, soundsHuman, fileRequest,
+  ensurePlaybook, playbookBlock, recentWorkBlock, intelBlock, openRequests, openRequestsBlock, ownerChatBlock,
+  TWO_OPTIONS_RULES, OPTIONS_JSON_SHAPE, queueChoice, soundsHuman, fileRequest, CAN_REQUEST,
 } from "./lib/brain.mjs";
 
 const agentId = process.argv[2];
@@ -84,9 +84,8 @@ async function existingPagesBlock(id) {
 }
 
 // Agents that may ask a colleague for something (creative from Vince, a data
-// pull, a rewrite). The runner files the request; the colleague answers it on
-// their next shift. The set is closed so a prompt cannot invent a recipient.
-const CAN_REQUEST = { social: ["video"], ads: ["video"], blog: ["video"], email: ["video"], partners: ["video"], listings: ["video"], cro: ["video"], support: ["cro"] };
+// pull, a rewrite) come from CAN_REQUEST in lib/brain.mjs — a closed map, so
+// a prompt cannot invent a recipient; the colleague answers on their next shift.
 
 await safeMain(agentId, async (run) => {
   await standDownIfUsageExhausted(run);
@@ -108,6 +107,9 @@ await safeMain(agentId, async (run) => {
     await recentWorkBlock(agentId),
     await intelBlock(),
     openRequestsBlock(requests),
+    // Standing orders from the company chat ("@jake focus on realtors this
+    // week") shape every run until the owner says otherwise.
+    await ownerChatBlock(agentId),
     // Jake must not write a second page for a keyword the site already covers —
     // two thin pages competing for one query is worse than one good page
     // (Google picks one and dilutes both). Handing him the live slug list is

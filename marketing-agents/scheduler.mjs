@@ -31,7 +31,8 @@ for (const r of rows) {
   const schedule = r.schedule || config.agents[r.agent_id]?.default_schedule;
   if (!schedule) continue;
   const prior = await sb("GET", "agent_runs", {
-    params: `agent_id=eq.${r.agent_id}&select=started_at&order=started_at.desc&limit=1`,
+    // A chat turn is not a shift — it must not push the next scheduled run out.
+    params: `agent_id=eq.${r.agent_id}&trigger=neq.chat&select=started_at&order=started_at.desc&limit=1`,
   });
   if (!isDue(schedule, prior?.[0]?.started_at ?? null, new Date())) continue;
   const wf = config.agents[r.agent_id]?.workflow;
