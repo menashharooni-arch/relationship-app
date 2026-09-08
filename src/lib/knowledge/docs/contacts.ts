@@ -68,17 +68,18 @@ export const contactsDocs = defineDocs([
   },
   {
     id: "share-your-card-with-a-contact",
-    title: "Sharing your card with a contact (and where that email lands)",
+    title: "Sharing your card with a contact from your own phone",
     audience: ["user"],
     triggers: [
       "share my card", "share button", "send my card", "send my contact information",
-      "share contact info", "went to spam", "spam folder", "junk folder", "didn't get my email",
-      "who is the email from", "promotions tab",
+      "share contact info", "share by text", "share by email", "share by both",
+      "share from my phone", "prefilled message", "pre-filled", "now email",
+      "who is the email from", "via swiftcard", "went to spam", "spam folder",
     ],
     answer:
-      "The Share button on a contact sends them your card by text, by email, or both. The email arrives from your name followed by \"via SwiftCard\" (the address is connect@swiftcard.me), replies go straight to your own email address, and the message contains your card link, a picture of your card, and your name, title, company, phone and email as text.",
+      "The Share button on an open contact has four options, and every one of them uses your own phone — nothing is sent by SwiftCard. \"Share by text\" opens Messages already addressed to that contact with the message and your card link written; you just press send. \"Share by email\" opens your mail app already addressed to them with the subject, the message and your signature (your name, title, company, phone and email) written. \"Share by both\" does the text first, then the Share button turns into \"Now email →\" — tap it when you're back and the email opens. \"Share from my phone\" opens the phone's share sheet with just the card link, for WhatsApp, AirDrop or anything else.",
     detail:
-      "It says \"via SwiftCard\" because the email is sent by SwiftCard's mail servers on your behalf — the same way Calendly or DocuSign send on someone's behalf. Putting only your name on it is what makes mail providers treat it as impersonation and file it as spam, so the \"via\" line is there to keep it in the inbox. If a recipient still can't find it, have them check Spam or Promotions once and mark it \"Not spam\" — that teaches their mailbox for every future message. Sharing to your own address is not a good test: providers are hardest on mail that appears to come from you, to you. Contacts who unsubscribe or bounce are suppressed automatically and the Share button will tell you so.",
+      "Because the text and email leave from your own number and mailbox, they arrive from you — there is no \"via SwiftCard\" line and nothing for a spam filter to object to. The card link sits on its own last line of the text so iMessage shows a preview of your card. The email is plain text (a mail app can't be handed a picture), so the signature is your details as text; the recipient sees your actual card when they open the link. Your mail app will also add its own signature underneath if you have one set. An option is greyed out when the contact has no phone or no email on file — add it under \"CONTACT INFO\" first. Since the message goes out from your phone, SwiftCard can't see whether you pressed send, so a share does not appear in the contact's Conversation tab.",
   },
   {
     id: "follow-up-automations",
