@@ -95,14 +95,20 @@ async function sendReceiptForUser(opts: {
       });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const { data: sent } = await resend.emails.send({ ...template, to: accountEmail });
+  const { data: sent, error: sendError } = await resend.emails.send({ ...template, to: accountEmail });
+  if (sendError || !sent?.id) {
+    // Report and stop. Writing the log row anyway would claim a receipt that
+    // never left, and the 10-minute dedupe above would then suppress a retry.
+    await reportError("billing.email.receipt", sendError?.message ?? "no id returned", { userId: opts.userId });
+    return;
+  }
 
   await admin.from("email_logs").insert({
     user_id: opts.userId,
     email: accountEmail,
     type: "receipt",
     subject: template.subject,
-    resend_id: sent?.id,
+    resend_id: sent.id,
   });
 }
 
@@ -129,14 +135,18 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
   });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const { data: sent } = await resend.emails.send({ ...template, to: accountEmail });
+  const { data: sent, error: sendError } = await resend.emails.send({ ...template, to: accountEmail });
+  if (sendError || !sent?.id) {
+    await reportError("billing.email.payment_failed", sendError?.message ?? "no id returned", { userId: profile.id });
+    return;
+  }
 
   await admin.from("email_logs").insert({
     user_id: profile.id,
     email: accountEmail,
     type: "payment_failed",
     subject: template.subject,
-    resend_id: sent?.id,
+    resend_id: sent.id,
   });
 
   // Push as well as email. Quiet hours apply to this like everything else —

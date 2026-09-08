@@ -3,6 +3,7 @@ import { from as senderAddress, INBOX_ADDRESS } from "@/lib/email-senders";
 import { Resend } from "resend";
 import { escapeHtml } from "@/lib/escape";
 import { isRateLimited } from "@/lib/rate-limit";
+import { reportError } from "@/lib/report-error";
 import { clientIp } from "@/lib/client-ip";
 
 export async function POST(req: NextRequest) {
@@ -28,7 +29,10 @@ export async function POST(req: NextRequest) {
 
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    await resend.emails.send({
+    // The SDK resolves with {error} on an API rejection rather than throwing, so
+    // the return value has to be read — before this, a bad key or a suppressed
+    // inbox answered {success:true} and the message quietly went nowhere.
+    const { error } = await resend.emails.send({
       // From support@, TO hello@ — never hello@ to itself. The old
       // self-addressed relay was a spoofing pattern that trained the owner's
       // own Gmail against the address their user-facing mail sends from.
@@ -54,6 +58,10 @@ export async function POST(req: NextRequest) {
       // values since text/plain is not HTML.
       text: `New message from ${name}\n\nFrom: ${name}\nEmail: ${email}\n\n${message}\n\nReply directly to this email to respond.`,
     });
+    if (error) {
+      await reportError("contact.send", error.message ?? String(error), { from: email });
+      return NextResponse.json({ error: "Failed to send message." }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
