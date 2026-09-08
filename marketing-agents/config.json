@@ -1,5 +1,5 @@
 {
-  "_comment": "Central agent config. enable/caps/schedules ALSO live in the agent_settings table (editable from the Agent Flow tab without a deploy) \u2014 the DB wins at runtime; these are the seed values and the target lists the prompts consume.",
+  "_comment": "Central agent config. enable/caps/schedules ALSO live in the agent_settings table (editable from the Agent Flow tab without a deploy) — the DB wins at runtime; these are the seed values and the target lists the prompts consume.",
   "digest_email": "hello@swiftcard.me",
   "monthly_usage_cap_usd": 25,
   "agents": {
@@ -11,7 +11,7 @@
       "default_schedule": "every@8h"
     },
     "prospects": {
-      "name": "Link-in-bio Prospects",
+      "name": "Link-in-bio Prospecting",
       "mode": "draft_only",
       "workflow": "agent-prospects.yml",
       "output_cap": 40,
@@ -32,14 +32,14 @@
       "default_schedule": "daily@09:30"
     },
     "social": {
-      "name": "Social Content Factory",
+      "name": "Social Content",
       "mode": "draft_only",
       "workflow": "agent-social.yml",
       "output_cap": 5,
       "default_schedule": "every@8h"
     },
     "mentions": {
-      "name": "Mentions Monitor",
+      "name": "Reddit Conversations",
       "mode": "draft_only",
       "workflow": "agent-mentions.yml",
       "output_cap": 10,
@@ -93,6 +93,83 @@
       "workflow": "agent-ads.yml",
       "output_cap": 4,
       "default_schedule": "daily@10:00"
+    },
+    "video": {
+      "name": "Video & Creative",
+      "mode": "draft_only",
+      "workflow": "agent-video.yml",
+      "output_cap": 6,
+      "default_schedule": "daily@08:00"
+    },
+    "email": {
+      "name": "Email & Newsletter",
+      "mode": "draft_only",
+      "workflow": "agent-email.yml",
+      "output_cap": 2,
+      "default_schedule": "daily@08:30"
+    },
+    "cro": {
+      "name": "Conversion & Website",
+      "mode": "draft_only",
+      "workflow": "agent-cro.yml",
+      "output_cap": 2,
+      "default_schedule": "daily@11:00"
+    },
+    "competitors": {
+      "name": "Competitor Watch",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-competitors.yml",
+      "output_cap": 6,
+      "default_schedule": "every@6h"
+    },
+    "industry": {
+      "name": "Industry Outreach",
+      "mode": "draft_only",
+      "workflow": "agent-industry.yml",
+      "output_cap": 12,
+      "default_schedule": "daily@07:00"
+    },
+    "forums": {
+      "name": "Forums & Communities",
+      "mode": "draft_only",
+      "workflow": "agent-forums.yml",
+      "output_cap": 8,
+      "default_schedule": "every@8h"
+    },
+    "partners": {
+      "name": "Partnerships",
+      "mode": "draft_only",
+      "workflow": "agent-partners.yml",
+      "output_cap": 6,
+      "default_schedule": "daily@09:00"
+    },
+    "listings": {
+      "name": "Directories & Listings",
+      "mode": "draft_only",
+      "workflow": "agent-listings.yml",
+      "output_cap": 6,
+      "default_schedule": "daily@13:00"
+    },
+    "reviews": {
+      "name": "Reviews & Reputation",
+      "mode": "draft_only",
+      "workflow": "agent-reviews.yml",
+      "output_cap": 6,
+      "default_schedule": "every@8h"
+    },
+    "support": {
+      "name": "Help Content",
+      "mode": "draft_only",
+      "workflow": "agent-support.yml",
+      "output_cap": 4,
+      "default_schedule": "daily@14:00"
+    },
+    "retention": {
+      "name": "Retention & Onboarding",
+      "mode": "draft_only",
+      "workflow": "agent-retention.yml",
+      "output_cap": 2,
+      "default_schedule": "daily@15:00"
     }
   },
   "blog": {
@@ -136,10 +213,14 @@
       "Wave"
     ],
     "linkinbio_tools": [
-      "hoo.be",
       "Linktree",
+      "LinkMe",
+      "HiHello",
       "Beacons",
+      "Popl",
+      "Blinq",
       "Stan",
+      "hoo.be",
       "Milkshake",
       "Later Link in Bio",
       "Lnk.Bio"
@@ -177,6 +258,56 @@
       "min": 10000,
       "max": 100000,
       "min_engagement_pct": 3
-    }
+    },
+    "industries": [
+      "realtors",
+      "real-estate brokers",
+      "plumbers",
+      "electricians",
+      "HVAC",
+      "roofers",
+      "general contractors",
+      "landscapers",
+      "insurance agents",
+      "loan officers",
+      "auto sales",
+      "wedding and event vendors",
+      "personal trainers",
+      "barbers and salon owners"
+    ],
+    "communities": [
+      "Quora",
+      "BiggerPockets",
+      "ContractorTalk",
+      "HVAC-Talk",
+      "Plumbing Zone",
+      "Indie Hackers",
+      "Product Hunt",
+      "public Facebook groups for realtors/contractors/sales"
+    ],
+    "partner_types": [
+      "real-estate brokerages",
+      "business coaches",
+      "sales trainers",
+      "print shops",
+      "CRM tools",
+      "chambers of commerce",
+      "BNI chapters",
+      "industry associations",
+      "conference organisers",
+      "niche newsletters",
+      "co-working spaces"
+    ],
+    "directories": [
+      "Product Hunt",
+      "AlternativeTo",
+      "G2",
+      "Capterra",
+      "GetApp",
+      "Software Advice",
+      "SaaSHub",
+      "Slant",
+      "TrustRadius"
+    ]
   }
 }

@@ -10,12 +10,14 @@ import { ORG, firstName } from "@/lib/agent-org";
 // or the budget cap closes it. The big banner + per-agent "next run in …"
 // make on/off unmistakable. Rows wrap downward — nothing ever cuts off.
 
-type Settings = { agent_id: string; enabled: boolean; paused: boolean; output_cap: number; usage_cap_tokens?: number; schedule: string | null };
+type Settings = { agent_id: string; enabled: boolean; paused: boolean; output_cap: number; usage_cap_tokens?: number; schedule: string | null; schedule_source?: "default" | "playbook" | "owner" };
+type Playbook = { agent_id: string; cadence: string | null; summary: string | null; best_practices: string[] | null; pitfalls: string[] | null; channels: string[] | null; researched_at: string };
+type ChoiceOption = { label?: string; headline?: string; content?: string; why_this?: string; payload?: Record<string, unknown> };
 type RunRow = { id: string; agent_id: string; status: string; started_at: string; finished_at: string | null; output_count: number; usage_usd: number; usage_tokens?: number; summary: string | null; trigger: string };
 type UsageWindow = { utilization: number; resets_at: string | null } | null;
 type PlanUsage = { source: "live" | "snapshot" | "none"; five_hour?: UsageWindow; seven_day?: UsageWindow; captured_at?: string };
 type Item = { id: string; agent_id: string; item_type: string; platform: string | null; target: string | null; target_url: string | null; title: string; content: string | null; context: string | null; status: string; payload: Record<string, unknown> | null; created_at: string };
-type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_tokens?: number; digest_email: string; auto_pause_at: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean; connectors?: Record<string, boolean>; tokensBy?: Record<string, number> };
+type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_tokens?: number; digest_email: string; auto_pause_at: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean; connectors?: Record<string, boolean>; tokensBy?: Record<string, number>; playbooks?: Playbook[]; brainReady?: boolean };
 
 /** 12,345 → "12.3k", 1,234,567 → "1.23M". */
 function fmtTok(n: number | undefined | null): string {
@@ -44,12 +46,19 @@ const AGENT_NAMES: Record<string, string> = Object.fromEntries(
   Object.values(ORG).filter((p) => p.agent_id).map((p) => [p.agent_id!, `${p.emoji} ${p.name} · ${p.role}`]),
 );
 const AGENT_ROLE: Record<string, string> = {
-  outreach: "finds people + drafts your messages", prospects: "builds your prospect CSVs",
-  seo: "keeps the site rankable", blog: "writes posts for your review",
-  social: "a few videos & captions a day", mentions: "drafts replies to live threads",
+  outreach: "finds live conversations + drafts your replies", prospects: "Instagram bios with Linktree/HiHello/LinkMe → DM drafts",
+  seo: "keeps the site rankable", blog: "two full posts a day — you pick one, it goes live",
+  social: "today's posts, two takes each; asks Vince for video", mentions: "Reddit threads about us — two replies each",
   influencer: "scouts creators + drafts pitches", bugwatch: "turns errors into draft fixes",
   security: "vulns, leaks, headers", perf: "keeps everything fast",
   flowcheck: "walks the user journeys end-to-end", manager: "runs the company, reports to you",
+  ads: "campaign briefs — created PAUSED, never spends",
+  video: "makes every video & still the team asks for (Higgsfield)", email: "newsletter + lifecycle emails, two takes each",
+  cro: "one page, one fix a day — copy you can paste", competitors: "watches Blinq, HiHello & co. every 6h; flags price/feature changes",
+  industry: "realtors, plumbers, HVAC… first-message drafts", forums: "Quora, FB groups, BiggerPockets — two replies each",
+  partners: "brokerages, coaches, print shops — pitch drafts", listings: "Product Hunt, G2, Capterra, roundups — listings + pitches",
+  reviews: "App Store & G2 reviews — reply drafts + review asks", support: "help articles that stop the tickets",
+  retention: "onboarding nudges + win-back copy",
 };
 // HAND-MAINTAINED, and org.json will not remind you. An agent added to
 // org.json and to agent_settings still renders NOWHERE until its id is in this
@@ -58,7 +67,9 @@ const AGENT_ROLE: Record<string, string> = {
 // now fails if the two ever disagree again.
 const TEAMS: { id: string; label: string; blurb: string; agents: string[]; lead?: string }[] = [
   { id: "manager", label: "🧠 Atlas — Chief of Staff", blurb: "Runs the company, reads everything, reports to you.", agents: ["manager"] },
-  { id: "marketing", label: "📣 Maya's Marketing team", blurb: "SEO, content, outreach — fills your queue with work to approve.", agents: ["seo", "blog", "social", "ads", "outreach", "prospects", "mentions", "influencer"], lead: "maya" },
+  { id: "marketing", label: "📣 Maya's Marketing team", blurb: "SEO, blog, social, video, email, ads, the website, and the competitor watch.", agents: ["seo", "blog", "social", "video", "email", "ads", "cro", "competitors"], lead: "maya" },
+  { id: "growth", label: "🚀 Sasha's Growth & Outreach team", blurb: "Finds people and communities, drafts every first message — you send.", agents: ["outreach", "prospects", "industry", "mentions", "forums", "influencer", "partners", "listings"], lead: "sasha" },
+  { id: "success", label: "💛 Nina's Customer Success team", blurb: "Reviews, help content, onboarding and win-back — keeps the people we win.", agents: ["reviews", "support", "retention"], lead: "nina" },
   { id: "protection", label: "🛠️ Rex's Engineering team", blurb: "Speed, bugs, breaches, broken flows — watches the product around the clock.", agents: ["perf", "flowcheck", "security", "bugwatch"], lead: "rex" },
 ];
 const TYPE_LABEL: Record<string, string> = {
@@ -66,7 +77,16 @@ const TYPE_LABEL: Record<string, string> = {
   video_script: "Video script", blog_post: "Blog post", seo_report: "SEO report", security_finding: "Security finding",
   perf_report: "Speed report", flow_finding: "Flow finding", digest: "Report", generic: "Post draft",
   ad_campaign: "Ad campaign",
+  choice: "Pick A or B", social_post: "Social post", image_brief: "Image brief", email_draft: "Email", site_change: "Website change",
+  competitor_update: "Competitor update", competitor_found: "New competitor", prospect_dm: "Instagram DM", industry_outreach: "Industry outreach",
+  forum_reply: "Forum reply", partner_pitch: "Partner pitch", listing_submission: "Directory listing", roundup_pitch: "Roundup pitch",
+  review_reply: "Review reply", review_ask: "Review ask", review_trend: "Review trend", help_article: "Help article", kb_finding: "Page contradiction",
+  retention_copy: "Retention copy",
 };
+
+// Person-facing drafts with no connector: Approve copies the text, the owner
+// pastes and sends. Every kind here is a message to a real human.
+const COPY_KINDS = new Set(["outreach_draft", "reply_draft", "influencer", "generic", "social_post", "email_draft", "prospect_dm", "industry_outreach", "forum_reply", "partner_pitch", "roundup_pitch", "review_reply", "review_ask", "listing_submission", "retention_copy", "site_change", "help_article", "kb_finding", "competitor_update", "image_brief"]);
 
 function ago(iso: string | null) {
   if (!iso) return "—";
@@ -98,6 +118,8 @@ const DEFAULT_SCHEDULES: Record<string, string> = {
   outreach: "every@8h", prospects: "daily@07:30", seo: "every@8h", blog: "daily@09:30",
   social: "every@8h", mentions: "every@8h", influencer: "daily@12:00", ads: "daily@10:00",
   manager: "daily@12:00,17:00",
+  video: "daily@08:00", email: "daily@08:30", cro: "daily@11:00", competitors: "every@6h", industry: "daily@07:00",
+  forums: "every@8h", partners: "daily@09:00", listings: "daily@13:00", reviews: "every@8h", support: "daily@14:00", retention: "daily@15:00",
 };
 // The watch. Owner order 2026-09-03: these four have NO schedule and no "next
 // check" — they watch continuously while the office is open and their Active
@@ -118,8 +140,18 @@ function nextRunText(rawSchedule: string | null, agentId: string, now: number): 
   let target: number | null = null;
   const every = schedule.match(/^every@(\d{1,2})h$/);
   if (every) { const n = Number(every[1]); const nextH = (Math.floor(h / n) + 1) * n; target = (nextH % 24) * 60; if (nextH >= 24) target += 24 * 60; if (h % n === 0 && m < 30) return "running window now"; }
-  const daily = schedule.match(/^daily@(\d{1,2}):(\d{2})$/);
-  if (daily) { target = Number(daily[1]) * 60 + Number(daily[2]); if (target <= minsNow) target += 24 * 60; }
+  // daily@HH:MM[,HH:MM] and weekly@mon,wed@HH:MM (the playbook grammar): the
+  // next listed time today, else the first time on the next listed day.
+  const timed = schedule.match(/^(?:daily|weekly@([a-z,]+))@((?:\d{1,2}:\d{2})(?:,\d{1,2}:\d{2})*)$/);
+  if (timed) {
+    const times = timed[2].split(",").map((t) => { const [hh, mm] = t.split(":"); return Number(hh) * 60 + Number(mm); }).sort((a, b) => a - b);
+    const days = timed[1] ? timed[1].split(",") : null;
+    const wd = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+    const todayIdx = wd.indexOf(new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" }).format(new Date(now)).toLowerCase());
+    const runsOn = (offset: number) => !days || days.includes(wd[(todayIdx + offset) % 7]);
+    if (runsOn(0)) { const t = times.find((x) => x > minsNow); if (t !== undefined) target = t; }
+    if (target === null) for (let d = 1; d <= 7 && target === null; d++) if (runsOn(d)) target = times[0] + d * 24 * 60;
+  }
   if (target === null) return null;
   const diff = target - minsNow;
   if (diff <= 0) return "running window now";
@@ -143,7 +175,23 @@ const CADENCES: [string, string][] = [
   ["daily@12:00", "daily · noon ET"],
   ["daily@17:30", "daily · 5:30 PM ET"],
   ["daily@12:00,17:00", "twice daily · noon + 5 PM ET"],
+  ["weekly@mon,wed,fri@09:30", "Mon · Wed · Fri · 9:30 AM ET"],
+  ["weekly@tue,thu@09:30", "Tue · Thu · 9:30 AM ET"],
+  ["weekly@mon@09:30", "once a week · Mon 9:30 AM ET"],
 ];
+/** Plain words for any schedule string, including ones a playbook wrote. */
+function cadenceText(schedule: string | null | undefined): string {
+  if (!schedule) return "default rhythm";
+  const known = CADENCES.find(([v]) => v === schedule)?.[1];
+  if (known) return known;
+  const every = schedule.match(/^every@(\d{1,2})h$/);
+  if (every) return `every ${every[1]} hours`;
+  const daily = schedule.match(/^daily@(.+)$/);
+  if (daily) return `daily · ${daily[1].split(",").join(" + ")} ET`;
+  const weekly = schedule.match(/^weekly@([a-z,]+)@(.+)$/);
+  if (weekly) return `${weekly[1].split(",").map((d) => d[0].toUpperCase() + d.slice(1)).join(" · ")} · ${weekly[2]} ET`;
+  return schedule;
+}
 
 type Msg = { id: string; from_id: string; to_id: string; kind: string; body: string; run_id: string | null; created_at: string };
 type View = "agents" | "chart" | "comms" | "queue" | "history" | "settings";
@@ -152,7 +200,7 @@ const TOUR: TourStep[] = [
   { title: "Welcome to Agent Flow", body: "Your workforce. Press Start to OPEN the office — nothing runs yet; every team waits at rest. Wake a team and its agents start working on their own rhythms — a few pieces of content a day, watchdogs every few hours — until you Rest the team, press Pause, your auto-stop time hits, or the monthly token budget stops it. Nothing is ever sent to another platform without you." },
   { view: "agents", target: "master", title: "The one switch", body: "Green Start = the office is OPEN — but every team starts at rest, so nothing runs until you wake a team below. Press Pause and everything stops at its next safe checkpoint. The banner beside it always tells you which state you're in." },
   { view: "agents", target: "autostop", title: "Auto-stop — your closing time", body: "Optional clock-out: 'stop at 5 PM' or 'stop in 3 hours'. When it hits, the whole system pauses itself until you Start it again." },
-  { view: "agents", target: "team-marketing", title: "Your teams", body: "Atlas is your chief of staff — he runs the company and reports only to you. Maya leads Marketing (Jake on SEO, Nora on the blog, Milo on social, Ava on outreach, Leo on prospects, Zoe on mentions, Ivy on influencers). Rex leads Engineering (Dash on speed, Finn on user flows, Vera on security, Bo on bugs) — their findings arrive with fixes already drafted." },
+  { view: "agents", target: "team-marketing", title: "Your teams", body: "Atlas is your chief of staff — he runs the company and reports only to you. Maya leads Marketing (Jake SEO, Nora blog, Milo social, Vince video, Eli email, Addy ads, Ruby website, Cleo competitor watch). Sasha leads Growth & Outreach (Ava, Leo, Remy, Zoe, Wes, Ivy, Kai, Quinn — every first message to a person, drafted for you). Nina leads Customer Success (Sam reviews, Sol help content, Otto retention). Rex leads Engineering (Dash on speed, Finn on user flows, Vera on security, Bo on bugs) — their findings arrive with fixes already drafted." },
   { view: "chart", target: "orgchart", title: "The org chart", body: "Your company, live. Blue pulse = working right now (the reporting line animates too), red = a problem, gray = benched. Click anyone to read their messages." },
   { view: "comms", target: "comms", title: "Communications", body: "The company chat log. Your orders (👑), dispatches down the chain (Maya → Jake: GO), report-backs (Jake → Maya: Done — 4 items, $0.40), and escalations to Atlas when something fails. Every row is a real event, written the moment it happened." },
   { view: "agents", target: "agentrow", title: "One worker, one row", body: "Each row: what they do, whether they're working right now (a live timer counts), when their next shift starts, and their last result. 'Run once' fires them immediately regardless of schedule; the Active toggle benches them; ▾ log is their full diary." },
@@ -278,12 +326,13 @@ export default function AgentFlowClient() {
     rejected: "Rejected — filed to History. Nothing was deleted or sent.",
     acknowledged: "Approved — filed to History. Reports execute nothing; code fixes ship when you merge their PR.",
     published: "Published — live on swiftcard.me/blog right now.",
+    choose: "Picked — it's now the real item. If a connector is armed it posted; otherwise it's approved and copied for you to send.",
     contacted: "Marked sent — record 'Got a reply' or 'Converted' when it happens.",
     replied: "Recorded the reply 🎯", converted: "Recorded the conversion 🎉", edited: "Saved your version — still pending with your edit.",
   };
-  const act = async (ids: string[], action: string, content?: string) => {
+  const act = async (ids: string[], action: string, content?: string, option?: number) => {
     if (!ids.length) return;
-    const r = await fetch("/api/admin/agents/items", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, action, content }) }).then((x) => x.json()).catch(() => null);
+    const r = await fetch("/api/admin/agents/items", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids, action, content, option }) }).then((x) => x.json()).catch(() => null);
     if (!r?.ok) { say("⚠ That didn't save — try again."); return; }
     const ex: Array<{ detail: string }> = r.executed ?? [];
     const exFail: Array<{ reason: string }> = r.execFailed ?? [];
@@ -317,6 +366,17 @@ export default function AgentFlowClient() {
     try { await navigator.clipboard.writeText(it.content ?? ""); say(`Copied — paste it into ${label}. Marked approved.`); } catch { say("Copy failed — select the text by hand."); }
     act([it.id], "approved");
   };
+  // The brain's A/B card: picking collapses the item into that option and
+  // sends it down the Approve road (connector posts it; blog goes live; the
+  // rest is copied to the clipboard for the owner to paste).
+  const choose = async (it: Item, idx: number) => {
+    const o = (it.payload?.options as ChoiceOption[] | undefined)?.[idx];
+    const kind = String(it.payload?.kind ?? "");
+    if (o?.content && kind !== "blog_post" && kind !== "competitor_update" && kind !== "competitor_found" && kind !== "review_trend") {
+      try { await navigator.clipboard.writeText(o.content); } catch { /* copy is a convenience — the pick still goes through */ }
+    }
+    act([it.id], "choose", undefined, idx);
+  };
   const downloadCsv = (rows: Item[]) => {
     const cols = ["handle", "display_name", "bio", "link_tool", "followers", "niche"];
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -343,7 +403,7 @@ export default function AgentFlowClient() {
 
   const agents = board.settings ?? [];
   const byId = Object.fromEntries(agents.map((s) => [s.agent_id, s]));
-  const pendingItems = items.filter((i) => i.status === "pending");
+  const pendingItems = items.filter((i) => i.status === "pending" && i.item_type !== "choice"); // A/B cards are picked one by one, never in bulk
   const pendingProspects = pendingItems.filter((i) => i.item_type === "prospect");
   const monthTokens = Object.values(board.tokensBy ?? {}).reduce((t, n) => t + n, 0);
   const restingTeamNames = TEAMS.filter((t) => t.lead && t.agents.every((a) => byId[a]?.paused)).map((t) => firstName(t.lead!));
@@ -358,9 +418,11 @@ export default function AgentFlowClient() {
   const lastDigest = (board.recentRuns ?? []).find((r) => r.agent_id === "manager" && r.status === "success");
   const step = tourStep !== null ? TOUR[tourStep] : null;
 
+  const playbookOf: Record<string, Playbook> = Object.fromEntries((board.playbooks ?? []).map((pb) => [pb.agent_id, pb]));
   const AgentRow = ({ id, isFirst }: { id: string; isFirst: boolean }) => {
     const s = byId[id]; if (!s) return null;
     const r = board.latestRuns[id];
+    const pb = playbookOf[id];
     const running = r?.status === "running";
     const problem = r?.status === "failed";
     const next = open && s.enabled && !s.paused ? nextRunText(s.schedule, id, now) : null;
@@ -398,9 +460,28 @@ export default function AgentFlowClient() {
           {(board.tokensBy?.[id] ?? 0) > 0 && <span className="ml-1.5 text-gray-600">· {fmtTok(board.tokensBy![id])} tok this month</span>}
           {(board.pendingBy[id] ?? 0) > 0 && <button onClick={() => { setView("queue"); setFilterAgent(id); setFilterStatus("pending"); setFilterType(""); }} className="ml-1.5 text-blue-400 hover:underline">{board.pendingBy[id]} waiting for you →</button>}
           {(running || problem) && r?.summary && <p className={`mt-0.5 truncate ${running ? "text-blue-300" : "text-red-400/80"}`}>{running ? "⋯ " : ""}{r.summary}</p>}
+          {/* The brain: what this agent researched about its own job, and the
+              rhythm it chose — unless the owner set one by hand, which wins. */}
+          {!CONTINUOUS.has(id) && (pb || s.schedule_source === "owner") && (
+            <p className="mt-0.5 text-[11px] text-gray-600 truncate" title={pb?.summary ?? undefined}>
+              {s.schedule_source === "owner" ? <span className="text-amber-500/80">rhythm set by you · {cadenceText(s.schedule)}</span>
+                : s.schedule_source === "playbook" ? <span className="text-violet-400/80">rhythm from playbook · {cadenceText(s.schedule)}</span>
+                : <span>playbook researched {ago(pb.researched_at)}</span>}
+              {pb?.summary && <span className="text-gray-700"> · {pb.summary}</span>}
+            </p>
+          )}
         </div>
         {expanded === id && (
           <div className="mt-2 border-t border-gray-800 pt-2 space-y-1">
+            {pb && (
+              <details className="text-[11.5px] text-gray-400 mb-1.5">
+                <summary className="cursor-pointer text-violet-300/90">📖 Playbook — how {firstName(id)} decided to do this job (researched {ago(pb.researched_at)})</summary>
+                {pb.summary && <p className="mt-1 text-gray-300">{pb.summary}</p>}
+                {!!pb.best_practices?.length && <ul className="mt-1 list-disc pl-4 space-y-0.5">{pb.best_practices.map((b, i) => <li key={i}>{b}</li>)}</ul>}
+                {!!pb.pitfalls?.length && <p className="mt-1 text-gray-500">Avoids: {pb.pitfalls.join(" · ")}</p>}
+                {!!pb.channels?.length && <p className="mt-0.5 text-gray-600">Channels: {pb.channels.join(", ")}</p>}
+              </details>
+            )}
             {(runsByAgent[id] ?? []).length === 0 && <p className="text-gray-600 text-xs">No runs yet.</p>}
             {(runsByAgent[id] ?? []).slice(0, 10).map((rr) => (
               <div key={rr.id} className="flex flex-wrap items-baseline gap-x-2 text-[11.5px] min-w-0">
@@ -707,16 +788,37 @@ export default function AgentFlowClient() {
                           <button onClick={() => setEditing(null)} className="text-xs text-gray-500 px-2">Cancel</button>
                         </div>
                       </div>
+                    ) : it.item_type === "choice" && Array.isArray(it.payload?.options) ? (
+                      /* Two finished options side by side — the owner picks one
+                         and that one posts (owner order 2026-09-08). */
+                      <div className="mt-2 grid gap-2 md:grid-cols-2">
+                        {(it.payload!.options as ChoiceOption[]).slice(0, 2).map((o, oi) => (
+                          <div key={oi} className="rounded-lg border border-gray-800/80 bg-gray-950/60 p-3 flex flex-col min-w-0">
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-violet-300">Option {o.label ?? (oi === 0 ? "A" : "B")}{o.headline ? <span className="text-gray-300 normal-case tracking-normal"> — {o.headline}</span> : null}</p>
+                            {o.why_this && <p className="text-[11px] text-gray-500 mt-0.5">{o.why_this}</p>}
+                            <pre className="mt-2 text-gray-300 text-[13px] whitespace-pre-wrap font-sans max-h-72 overflow-y-auto flex-1">{o.content}</pre>
+                            {it.status === "pending" && (
+                              <button onClick={() => choose(it, oi)} title={`This option becomes the real item and goes out: ${String(it.payload?.kind) === "blog_post" ? "live on the blog now" : "posted by a connector if one is armed, otherwise approved + copied for you to send"}.`} className="mt-2 text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-full self-start whitespace-nowrap">✓ Pick {o.label ?? (oi === 0 ? "A" : "B")}{String(it.payload?.kind) === "blog_post" ? " & publish" : ""}</button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     ) : (
                       it.content && <pre className="mt-2 text-gray-300 text-[13px] whitespace-pre-wrap font-sans bg-gray-950/60 border border-gray-800/60 rounded-lg p-3 max-h-64 overflow-y-auto">{it.content}</pre>
                     )}
+                    {it.item_type !== "choice" && it.payload?.chosen ? <p className="mt-1 text-[10px] text-violet-400/80">you picked option {String(it.payload.chosen)} of two</p> : null}
                   </div>
-                  {it.status === "pending" && editing !== it.id && (
+                  {it.status === "pending" && editing !== it.id && it.item_type === "choice" && (
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                      <button onClick={() => act([it.id], "rejected")} title="Neither option — filed to History; the agent tries a different angle next time" className="text-xs text-red-400 hover:text-red-300 px-3 py-1">Neither</button>
+                    </div>
+                  )}
+                  {it.status === "pending" && editing !== it.id && it.item_type !== "choice" && (
                     <div className="flex flex-col gap-1.5 shrink-0">
                       {connReady && (
                         <button onClick={() => act([it.id], "approved")} title="Approve = it happens: this posts/sends immediately, as you." className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-full whitespace-nowrap">✓ Approve &amp; {conn!.label}</button>
                       )}
-                      {!connReady && (it.item_type === "outreach_draft" || it.item_type === "reply_draft" || it.item_type === "influencer" || it.item_type === "generic") && (
+                      {!connReady && COPY_KINDS.has(it.item_type) && (
                         <button onClick={() => copyApprove(it, "the platform")} title="Copies to your clipboard and marks it approved. YOU paste and send." className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Approve &amp; Copy</button>
                       )}
                       {!connReady && it.item_type === "video_script" && <button onClick={() => copyApprove(it, "Higgsfield")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Copy to Higgsfield</button>}
@@ -740,7 +842,7 @@ export default function AgentFlowClient() {
                           <a href={String((it.payload as Record<string, unknown>).pr_url)} target="_blank" rel="noreferrer" className="text-xs bg-blue-800 hover:bg-blue-700 text-white px-3 py-1.5 rounded-full text-center whitespace-nowrap">{(it.payload as Record<string, unknown>).fix_shipped ? "Shipped ✓ — view PR" : "View the fix (PR)"}</a>
                         </>
                       )}
-                      {(it.item_type === "outreach_draft" || it.item_type === "reply_draft" || it.item_type === "influencer" || it.item_type === "video_script" || it.item_type === "blog_post" || it.item_type === "generic") && (
+                      {(COPY_KINDS.has(it.item_type) || it.item_type === "video_script" || it.item_type === "blog_post") && (
                         <button onClick={() => { setEditing(it.id); setEditText(it.content ?? ""); }} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full whitespace-nowrap">Edit</button>
                       )}
                       <button onClick={() => act([it.id], "rejected")} title="Not useful — filed to History; nothing deleted or sent" className="text-xs text-red-400 hover:text-red-300 px-3 py-1">Reject</button>
@@ -749,8 +851,9 @@ export default function AgentFlowClient() {
                   {it.status === "approved" && (
                     <div className="flex flex-col gap-1.5 shrink-0">
                       {it.item_type === "blog_post" && <button onClick={() => act([it.id], "published")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Publish</button>}
-                      {(it.item_type === "outreach_draft" || it.item_type === "reply_draft" || it.item_type === "influencer") && (
+                      {COPY_KINDS.has(it.item_type) && it.item_type !== "generic" && (
                         <>
+                          <button onClick={async () => { try { await navigator.clipboard.writeText(it.content ?? ""); say("Copied."); } catch { say("Copy failed — select the text by hand."); } }} className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full whitespace-nowrap">Copy</button>
                           <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Mark sent</button>
                           <button onClick={() => act([it.id], "replied")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Got a reply</button>
                           <button onClick={() => act([it.id], "converted")} className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Converted 🎉</button>

@@ -24,7 +24,17 @@ export async function POST(req: NextRequest) {
   // A watchdog has no cadence to set — ignore any schedule aimed at one rather
   // than writing a value that nothing reads (owner order 2026-09-03).
   if (body.schedule !== undefined && !isContinuous(body.agent_id)) patch.schedule = body.schedule || null;
-  await admin.from("agent_settings").update(patch).eq("agent_id", body.agent_id);
+  // The owner's hand outranks the agent's playbook: a schedule he sets is
+  // never overwritten by research; clearing it hands the rhythm back to the
+  // playbook (which writes 'playbook') or config ('default').
+  if ("schedule" in patch) patch.schedule_source = patch.schedule ? "owner" : "default";
+  const { error } = await admin.from("agent_settings").update(patch).eq("agent_id", body.agent_id);
+  // Before supabase/agent-brain.sql runs the column does not exist; keep the
+  // rest of the settings write working rather than failing the whole request.
+  if (error && "schedule_source" in patch) {
+    delete patch.schedule_source;
+    await admin.from("agent_settings").update(patch).eq("agent_id", body.agent_id);
+  }
   // Ticking a watchdog Active is the go signal: start watching NOW, not at the
   // next backstop tick.
   if (body.enabled === true && isContinuous(body.agent_id)) await armWatchdogLoop("active_toggle");

@@ -10,6 +10,16 @@ card with lead capture", "linktree alternative with analytics". Different job,
 same site. Do not duplicate a topic Nora already covered — check the existing
 slugs listed below before choosing.
 
+## Today's research, before writing
+
+- Your playbook (built weekly): what makes a search-landing page rank and
+  convert for a small SaaS in 2026 — verify against current guidance and
+  real SERPs, not memory — and how many such pages a week is worth adding.
+- Research TODAY's keyword: read the live results for the candidates, note
+  where they are thin or outdated, and check what competitors changed
+  (intel). Then hand the owner TWO options: two different keywords, or the
+  same keyword with two different page angles — each a complete page.
+
 ## Pick the keyword
 
 Choose ONE keyword from the CENTRAL CONFIG `keywords` list that has no existing

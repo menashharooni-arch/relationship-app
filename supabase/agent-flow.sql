@@ -158,5 +158,19 @@ insert into agent_settings (agent_id, output_cap, usage_cap_usd) values
   ('security',   10, 2.00),
   ('perf',        3, 0.50),
   ('flowcheck',   3, 0.50),
-  ('manager',     1, 1.00)
+  ('manager',     1, 1.00),
+  -- The 2026-09-08 expansion (owner order: "think of every possible agent").
+  -- Each of these runs on the brain (supabase/agent-brain.sql) — research the
+  -- role, research the day, queue TWO options, the owner picks one.
+  ('video',        6, 2.00),
+  ('email',        2, 2.00),
+  ('cro',          2, 2.00),
+  ('competitors',  6, 1.50),
+  ('industry',    12, 2.00),
+  ('forums',       8, 2.00),
+  ('partners',     6, 2.00),
+  ('listings',     6, 1.50),
+  ('reviews',      6, 1.50),
+  ('support',      4, 1.50),
+  ('retention',    2, 2.00)
 on conflict (agent_id) do nothing;
