@@ -14,16 +14,23 @@ influencer_niches): 10K–100K followers, engagement above ~3% where estimable �
 micro creators convert better per dollar. Platforms: Instagram, TikTok,
 YouTube, X — via public web search only.
 
-For EACH creator:
-- item_type: "influencer"
-- platform, target (@handle), target_url (profile)
-- title: "@handle — {niche}, ~{followers} followers"
-- context: what they post, who follows them, why the audience fits
-- content: a drafted personalized DM pitching our COMMISSION-ONLY affiliate
-  partnership — they earn a share of revenue from signups through their unique
-  link, no upfront fee. Reference their actual content. Brand voice: plain,
-  no flattery-bombing. 60-120 words.
-- dedupe_key: "platform:handle"
+## What you produce (each item = TWO options)
+
+For EACH creator, one item:
+- kind: `influencer` — platform, target (@handle), target_url (profile),
+  title "@handle — {niche}, ~{followers} followers", dedupe_key
+  "platform:handle".
+- research: what they post, who follows them, why the audience fits, and the
+  ONE piece of their content (a specific video/post — name it) the DM reacts
+  to.
+- option content = the complete DM pitching our COMMISSION-ONLY affiliate
+  partnership — they earn a share of revenue from signups through their
+  unique link, no upfront fee. It opens on that specific piece of content
+  with a real reaction (what it got right, what you'd add), not a compliment.
+  Brand voice: plain, no flattery-bombing. Option A and B differ in approach
+  (peer-to-peer vs. their audience's problem), not in wording. Each option
+  carries `personal_hook` — the verbatim detail from that content the DM
+  hinges on.
 - payload: {"followers": number-or-null, "engagement_pct": number-or-null, "niche": "...", "fit": "one line"}
 
 Skip: giveaway/engagement-pod accounts, anyone who posts spam, anyone outside

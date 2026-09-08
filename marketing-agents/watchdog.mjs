@@ -92,6 +92,11 @@ async function tick() {
   // Active takes effect within one tick, not at some next scheduled boundary.
   const sys = (await sb("GET", "agent_system", { params: "limit=1" }))[0];
   if (!sys) { console.log("agent_system row missing — standing down."); return "stop"; }
+  // Housekeeping runs even with the office closed: the chat answers while
+  // paused (a direct run skips the gates), so a stuck turn still needs its
+  // retry, and a dead run still needs closing. The hourly backstop is enough.
+  await sweepChatOrders().catch((e) => console.log(`${stamp()} chat sweep error: ${String(e?.message ?? e).slice(0, 160)}`));
+  await sweepStaleRuns().catch((e) => console.log(`${stamp()} stale-run sweep error: ${String(e?.message ?? e).slice(0, 160)}`));
   if (sys.paused) { console.log(`${stamp()} office closed (Pause All) — watchdogs standing down.`); return "stop"; }
   if (sys.auto_pause_at && new Date(sys.auto_pause_at).getTime() <= Date.now()) {
     console.log(`${stamp()} auto-stop reached — watchdogs standing down.`); return "stop";
@@ -138,7 +143,6 @@ async function tick() {
   }
 
   await dispatchScheduled();
-  await sweepChatOrders().catch((e) => console.log(`${stamp()} chat sweep error: ${String(e?.message ?? e).slice(0, 160)}`));
 
   // Resolve submitted creative jobs into the shared pool. Nothing else in the
   // system has a reliable clock, and a generation job that is never polled is
@@ -192,6 +196,27 @@ async function dispatchScheduled() {
  * minutes (a dead run) is retried the same way. After an hour it is marked
  * failed and the room is told, so a silence is never mistaken for an answer.
  */
+/**
+ * A run row is written "running" at start and "success/failed" by the runner
+ * at the end. A worker that GitHub cancels or times out never writes the end,
+ * so the row stays "running" forever — the tab shows the agent as working,
+ * the scheduler thinks it ran, and the next due shift is skipped. Every run
+ * has a hard 25-minute CLI timeout, so anything still "running" after 45
+ * minutes is dead: close it as failed and say why. (Zoe's 2026-09-02 shift sat
+ * "running" for six days.)
+ */
+async function sweepStaleRuns() {
+  const cutoff = new Date(Date.now() - 45 * 60_000).toISOString();
+  const rows = await sb("GET", "agent_runs", { params: `status=eq.running&started_at=lt.${cutoff}&select=id,agent_id,started_at&limit=40` });
+  for (const r of rows ?? []) {
+    await sb("PATCH", "agent_runs", { params: `id=eq.${r.id}&status=eq.running`, body: {
+      status: "failed", finished_at: new Date().toISOString(),
+      error: "The run never finished — the worker was cancelled or timed out before it could report back. Closed by the watchdog.",
+    } });
+    console.log(`${stamp()} closed stale run ${r.id} (${r.agent_id}, started ${r.started_at})`);
+  }
+}
+
 const CHAT_WORKFLOW = "agent-chat.yml";
 async function sweepChatOrders() {
   const now = Date.now();

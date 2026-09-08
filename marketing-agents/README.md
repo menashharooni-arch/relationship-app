@@ -22,6 +22,13 @@ Every LLM agent works the same way:
    `choice` item carrying option A and option B, each complete and swaying
    the reader towards SwiftCard. Person-facing copy goes through the AI-tell
    filter first; a robotic option is dropped, not queued.
+   **Personal, not generic** (owner order 2026-09-08): an agent that writes
+   to ONE person — Zoe (Reddit), Wes (forums), Leo (Instagram bios), Ava,
+   Ivy, Kai, Remy, Sam — must name the `personal_hook`, the verbatim detail
+   from that person's post/bio/review the draft hinges on, and the draft must
+   actually use it (`isPersonal`). No hook, or a draft that never touches it,
+   is dropped like an AI tell. Nora's posts are held to the same bar: no
+   generic titles, a real number / verified price / trade scene in every post.
 4. **You pick, it goes.** In the Queue you press **Pick A** or **Pick B**
    (or Neither). The item becomes that option and takes the same road as
    Approve: a connected platform posts it, a blog post goes live, everything
@@ -33,7 +40,11 @@ fix. The receiving agent answers the request in its next run and the answer
 carries the `request_id`.
 
 Schema for all of it: `supabase/agent-brain.sql` (run once, after
-`agent-flow.sql`).
+`agent-flow.sql`). Until it has been run, agents skip role research (no
+tokens spent, the run says so in its notes) and work from their briefs. An
+agent added to `config.json` after the seed gets its `agent_settings` row
+created automatically — by the tab on first load and by the runner on first
+run — starting rested, so a new agent is never invisible or uncontrollable.
 
 ## The company (org.json)
 

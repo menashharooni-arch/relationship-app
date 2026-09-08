@@ -17,7 +17,6 @@ const instructions = readFileSync(new URL("./agents/blog.md", import.meta.url), 
 // candidates. Nora may pick one, or something better she found today.
 const SEED_TOPICS = [
   "Best digital business card: Blinq vs. SwiftCard vs. HiHello",
-  "Why you should have a digital business card",
   "SwiftCard vs Blinq", "SwiftCard vs Popl", "SwiftCard vs HiHello", "SwiftCard vs Mobilo", "SwiftCard vs Wave",
   "Best digital business card for realtors", "Best digital business card for contractors",
   "Best digital business card for consultants", "Best digital business card for sales teams",
@@ -62,7 +61,8 @@ await safeMain("blog", async (run) => {
     `\n---\nHOW YOU WORK TODAY (the brain):
 1. RESEARCH what to write TODAY: search what our audience (realtors, contractors, sales people, consultants, small businesses) is asking right now about business cards, networking, follow-up and lead capture; what is ranking for those queries and where it is thin; anything seasonal for this date; anything competitors just changed (intel above). Pick the ONE best post for today and the ONE best alternative — genuinely different topics or angles, not one topic reworded.
 2. WRITE BOTH POSTS IN FULL, each following the writing instructions below exactly (structure, length, verified competitor claims, internal links, CTA). Each must sway the reader towards trying SwiftCard without reading as an ad.
-3. The owner picks one and it goes live. Never a third, never a stub.`,
+3. SPECIFIC, NEVER GENERIC (owner order 2026-09-08 — he rejected "Why You Should Have a Digital Business Card"): a title must say who it is for or what exact situation or comparison it settles ("Realtors: what happens to the card you hand out at an open house", "Popl vs. SwiftCard for a two-person contracting crew"). Every post carries at least three things a reader could not get from a generic article: a real number, a named tool/price you verified today, a concrete scene from that trade. If a paragraph could sit in any competitor's blog unchanged, cut it.
+4. The owner picks one and it goes live. Never a third, never a stub.`,
     "\n---\n" + instructions,
     `\n---\nReturn ONLY a JSON array with exactly ONE element (no prose before or after):
 [{"kind": "blog_post", "title": "<what this choice is about, 6-12 words>", "platform": "blog", "dedupe_key": "blog:<date>:<topic-slug-of-A>",

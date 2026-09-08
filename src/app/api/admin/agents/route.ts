@@ -2,6 +2,21 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { connectorStatus } from "@/lib/agent-execute";
+import agentConfig from "../../../../../marketing-agents/config.json";
+
+// Every agent in config.json gets a settings row, even when the seed in
+// supabase/agent-flow.sql was run before that agent existed — otherwise the
+// agent is simply invisible on the tab (no row → no card, no toggle, no cap),
+// which is how the 2026-09-08 expansion shipped 11 agents nobody could see
+// or control. New rows start rested (paused), like every worker after Start.
+async function seedMissingSettings(admin: ReturnType<typeof getAdminSupabase>, have: Set<string>) {
+  const agents = agentConfig.agents as Record<string, { output_cap?: number; default_schedule?: string | null }>;
+  const missing = Object.keys(agents).filter((id) => !have.has(id));
+  if (!missing.length) return false;
+  const rows = missing.map((id) => ({ agent_id: id, enabled: true, paused: true, output_cap: agents[id].output_cap ?? 6, schedule: agents[id].default_schedule ?? null }));
+  const { error } = await admin.from("agent_settings").upsert(rows, { onConflict: "agent_id", ignoreDuplicates: true });
+  return !error;
+}
 
 // Agent Flow: status board payload. Degrades to {ready:false} until the owner
 // has run supabase/agent-flow.sql (same pattern as the referrals dashboard).
@@ -22,6 +37,10 @@ export async function GET() {
     ]);
     if (settings.error || system.error) {
       return NextResponse.json({ ready: false, message: "Run supabase/agent-flow.sql in the Supabase SQL editor to enable Agent Flow." });
+    }
+    if (await seedMissingSettings(admin, new Set((settings.data ?? []).map((r) => r.agent_id)))) {
+      const again = await admin.from("agent_settings").select("*").order("agent_id");
+      if (!again.error && again.data) settings.data = again.data;
     }
     const latest: Record<string, unknown> = {};
     for (const r of runs.data ?? []) if (!latest[r.agent_id]) latest[r.agent_id] = r;

@@ -117,3 +117,23 @@ alter table agent_requests             enable row level security;
 alter table agent_competitors          enable row level security;
 alter table agent_competitor_snapshots enable row level security;
 alter table media_assets               enable row level security;
+
+-- ── 6. Settings rows for the 2026-09-08 expansion ────────────────────────────
+-- agent-flow.sql seeds these too, but that file was run before these agents
+-- existed. No row = the agent is invisible on the tab and its runs fail. Both
+-- the tab and the runner now self-heal missing rows; this is the same seed for
+-- anyone running SQL by hand. New rows start rested, like every worker after
+-- Start.
+insert into agent_settings (agent_id, enabled, paused, output_cap) values
+  ('video',        true, true, 6),
+  ('email',        true, true, 2),
+  ('cro',          true, true, 2),
+  ('competitors',  true, true, 6),
+  ('industry',     true, true, 12),
+  ('forums',       true, true, 8),
+  ('partners',     true, true, 6),
+  ('listings',     true, true, 6),
+  ('reviews',      true, true, 6),
+  ('support',      true, true, 4),
+  ('retention',    true, true, 2)
+on conflict (agent_id) do nothing;

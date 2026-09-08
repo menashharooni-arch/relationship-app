@@ -88,7 +88,7 @@ describe("brain: two options in, one picked, and it goes out", () => {
 
   it("person-facing options pass the AI-tell filter before they are queued", () => {
     expect(brain).toMatch(/if \(personFacing\)/);
-    expect(runner).toMatch(/queueChoice\(run, it, \{ personFacing: PERSON_FACING\.has\(agentId\) \}\)/);
+    expect(runner).toMatch(/queueChoice\(run, it, \{ personFacing: PERSON_FACING\.has\(agentId\), personal: PERSONAL_AGENTS\.has\(agentId\) \}\)/);
   });
 
   it("choose is admin-gated, one item at a time, and takes the same road as Approve", () => {
@@ -157,5 +157,92 @@ describe("brain: the roster covers every free channel the owner named", () => {
     expect(brain).toMatch(/export async function fileRequest/);
     expect(brain).toMatch(/agent_requests/);
     expect(runner).toMatch(/CAN_REQUEST/);
+  });
+});
+
+// ── Personal, not generic (owner order 2026-09-08) ───────────────────────────
+// "It has to sound human … it can't just be generic. Has to be personal."
+// A phrase filter can't tell a template from a real reply, so every agent that
+// writes to ONE person must quote the detail its draft hinges on, and the
+// draft must use it — or the option is dropped before the owner sees it.
+describe("brain: a message to one person is written to THAT person", () => {
+  const personalIds = ["mentions", "forums", "prospects", "outreach", "influencer", "partners", "industry", "reviews"];
+
+  it("the personal gate exists, is exported, and covers every per-person agent", () => {
+    expect(brain).toMatch(/export function isPersonal\(/);
+    expect(brain).toMatch(/export const PERSONAL_RULES/);
+    const m = brain.match(/export const PERSONAL_AGENTS = new Set\(\[([^\]]+)\]\)/);
+    expect(m).toBeTruthy();
+    const ids = m![1].split(",").map((s) => s.trim().replace(/"/g, ""));
+    for (const id of personalIds) expect(ids, `${id} writes to one person`).toContain(id);
+    for (const id of ids) expect(config.agents[id], `${id} is a real agent`).toBeTruthy();
+  });
+
+  it("the runner and the chat turn both prompt the rule and enforce it on every option", () => {
+    expect(runner).toMatch(/PERSONAL_AGENTS\.has\(agentId\) \? PERSONAL_RULES : ""/);
+    expect(runner).toMatch(/queueChoice\(run, it, \{ personFacing: PERSON_FACING\.has\(agentId\), personal: PERSONAL_AGENTS\.has\(agentId\) \}\)/);
+    expect(runner).toMatch(/isPersonal\(it\.content \?\? ""/); // the legacy single-take shape too
+    const chat = read("marketing-agents/chat-turn.mjs");
+    expect(chat).toMatch(/PERSONAL_AGENTS\.has\(agentId\) \? PERSONAL_RULES : ""/);
+    expect(chat).toMatch(/personal: PERSONAL_AGENTS\.has\(agentId\)/);
+    expect(brain).toMatch(/if \(personal\) \{[\s\S]*?isPersonal\(o\.content, o\.personal_hook/);
+    expect(brain).toMatch(/OPTIONS_JSON_SHAPE[\s\S]*"personal_hook":/);
+  });
+
+  it("the gate itself: no hook, or a draft that never touches its hook, fails; a real reply passes", async () => {
+    const { isPersonal, soundsHuman } = await import("../marketing-agents/lib/brain.mjs");
+    expect(isPersonal("Hey, love what you're doing, ever tried a digital card?", "").ok).toBe(false);
+    expect(isPersonal("Hey, love what you're doing, ever tried a digital card?", "photos").ok).toBe(false);
+    expect(isPersonal("totally agree, paper cards are dead", "the van in the driveway").ok).toBe(false);
+    expect(isPersonal("the van in the driveway shot is the best listing photo i've seen all month — did that get you calls?", "the van in the driveway").ok).toBe(true);
+    // A thread the agent may not answer is flagged, not drafted — no hook needed.
+    expect(brain).toMatch(/\^DO NOT POST\/i\.test\(String\(o\.content\)/);
+    // The cold-DM openers everyone has learned to skip are tells now.
+    for (const s of ["I noticed you use Linktree", "Great post! Quick one", "I'm reaching out because", "Hope you're doing well", "love your content", "I'd love to hear more"]) {
+      expect(soundsHuman(s).ok, `"${s}" must be caught`).toBe(false);
+    }
+    expect(soundsHuman("that open-house QR trick is clever — how many scans did it get?").ok).toBe(true);
+  });
+
+  it("the blog writer is held to the same bar: no generic titles", () => {
+    const blog = read("marketing-agents/agent-blog.mjs");
+    expect(blog).not.toMatch(/"Why you should have a digital business card"/);
+    expect(blog).toMatch(/SPECIFIC, NEVER GENERIC/);
+    expect(read("marketing-agents/agents/blog.md")).toMatch(/## Specific, never generic/);
+  });
+});
+
+// ── Nothing depends on SQL the owner hasn't run yet ──────────────────────────
+describe("brain: missing tables degrade, they don't fail runs or hide agents", () => {
+  it("no playbook table → no research spent, no failed run; a failed save keeps the shift", () => {
+    expect(brain).toMatch(/async function playbookTableMissing/);
+    expect(brain).toMatch(/if \(!existing && \(await playbookTableMissing\(\)\)\)[\s\S]*?return null;/);
+    expect(brain).toMatch(/try \{ await sb\("POST", "agent_playbooks"[\s\S]*?catch \(e\) \{[\s\S]*?return row; \}/);
+  });
+
+  it("an agent added after the seed gets a settings row from the tab AND the runner — rested", () => {
+    const board = read("src/app/api/admin/agents/route.ts");
+    expect(board).toMatch(/async function seedMissingSettings/);
+    expect(board).toMatch(/paused: true, output_cap/);
+    expect(board).toMatch(/ignoreDuplicates: true/);
+    const kit = read("marketing-agents/lib/agentkit.mjs");
+    expect(kit).toMatch(/async function seedSettings\(agentId\)/);
+    expect(kit).toMatch(/enabled: true, paused: true, output_cap/);
+    expect(kit).toMatch(/resolution=ignore-duplicates/);
+    const sql = read("supabase/agent-brain.sql");
+    for (const id of ["video", "email", "cro", "competitors", "industry", "forums", "partners", "listings", "reviews", "support", "retention"]) {
+      expect(sql, `${id} seeded`).toMatch(new RegExp(`\\('${id}',\\s+true, true`));
+    }
+  });
+
+  it("the watchdog closes runs that died mid-flight and keeps the chat moving even while the office is closed", () => {
+    const wd = read("marketing-agents/watchdog.mjs");
+    expect(wd).toMatch(/async function sweepStaleRuns/);
+    expect(wd).toMatch(/status=eq\.running&started_at=lt\./);
+    const sweeps = wd.indexOf("await sweepChatOrders()");
+    const gate = wd.indexOf("if (sys.paused)");
+    expect(sweeps).toBeGreaterThan(0);
+    expect(sweeps, "sweeps run before the pause gate").toBeLessThan(gate);
+    expect(wd.indexOf("await sweepStaleRuns()")).toBeLessThan(gate);
   });
 });

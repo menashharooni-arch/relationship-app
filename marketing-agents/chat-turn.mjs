@@ -23,7 +23,7 @@ import { readFileSync } from "node:fs";
 import { Run, partyOf, snapshotClaudeUsage, standDownIfUsageExhausted, extractJson } from "./lib/agentkit.mjs";
 import {
   askClaude, loadPlaybook, playbookBlock, recentWorkBlock, intelBlock, openRequests, openRequestsBlock,
-  fileRequest, queueChoice, TWO_OPTIONS_RULES, CAN_REQUEST,
+  fileRequest, queueChoice, TWO_OPTIONS_RULES, PERSONAL_RULES, PERSONAL_AGENTS, CAN_REQUEST,
 } from "./lib/brain.mjs";
 import {
   ORG, CONFIG, resolveResponder, teamOf, allWorkers, nameOf, roleOf,
@@ -126,6 +126,7 @@ async function main() {
       ordersBlock(orders),
       capabilitiesBlock(),
       brief ? TWO_OPTIONS_RULES + "\n(For chat: only make items he actually asked for. Every item still carries TWO finished options.)" : "",
+      brief && PERSONAL_AGENTS.has(agentId) ? PERSONAL_RULES : "",
       REPLY_SHAPE,
     ].filter(Boolean).join("\n");
 
@@ -142,7 +143,7 @@ async function main() {
     // 1. Work → the review queue, two options each, same gate as a daily run.
     await run.checkpoint();
     for (const it of (Array.isArray(out.items) ? out.items : []).slice(0, run.settings.output_cap)) {
-      const r = await queueChoice(run, it, { personFacing: PERSON_FACING.has(agentId) });
+      const r = await queueChoice(run, it, { personFacing: PERSON_FACING.has(agentId), personal: PERSONAL_AGENTS.has(agentId) });
       if (r.result === "added") payload.items.push(r.id);
     }
     // 2. Hand-offs to colleagues (closed map).
