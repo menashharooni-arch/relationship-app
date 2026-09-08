@@ -46,3 +46,17 @@ describe("a rejected email send is never silent", () => {
     }
   });
 });
+
+// The recovery email's link must land on the page that consumes the token.
+// The LoginForm's "Forgot password" pointed at /auth/reset-password; the
+// resend button ON that page pointed at /reset-password, which is no page.
+describe("password-reset emails link to the reset page", () => {
+  it("every resetPasswordForEmail call redirects to /auth/reset-password", () => {
+    for (const f of ["src/components/LoginForm.tsx", "src/components/ResetPasswordForm.tsx"]) {
+      const s = code(f);
+      const calls = s.match(/resetPasswordForEmail\([\s\S]*?\}\);/g) ?? [];
+      expect(calls.length, f).toBeGreaterThan(0);
+      for (const c of calls) expect(c, f).toMatch(/redirectTo: `\$\{APP_URL\}\/auth\/reset-password`/);
+    }
+  });
+});

@@ -93,7 +93,10 @@ export default function ResetPasswordForm() {
     if (!target) return;
     setResendState("sending");
     const { error } = await supabase.auth.resetPasswordForEmail(target, {
-      redirectTo: `${APP_URL}/reset-password`,
+      // /auth/reset-password — the route this form lives on. It said
+      // /reset-password, which is no page at all, so the one link a stuck user
+      // asked this form to resend landed on a blank screen (email audit 2026-09-08).
+      redirectTo: `${APP_URL}/auth/reset-password`,
     });
     // Deliberately the same outcome either way: whether an account exists for
     // an address is not something an unauthenticated form should reveal.
