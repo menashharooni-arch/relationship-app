@@ -1,8 +1,39 @@
 # SwiftCard Agent Flow — marketing & monitoring agents
 
-Ten agents, run from GitHub Actions, controlled from **Admin → Website → Agent
-Flow** (swiftcard.me/admin/agent-flow, hello@swiftcard.me only).
-Nothing runs on its own; you press the buttons.
+Twenty-six agents in four teams, run from GitHub Actions, controlled from
+**Admin → Website → Agent Flow** (swiftcard.me/admin/agent-flow,
+hello@swiftcard.me only). Nothing goes out on its own: every agent hands you
+two finished options, you pick one, and that one posts.
+
+## The brain (lib/brain.mjs) — owner order 2026-09-08
+
+Every LLM agent works the same way:
+
+1. **Role research → playbook.** Once a week the agent researches how its
+   job is best done right now (how often to post, what works, what to avoid)
+   and writes an `agent_playbooks` row. The playbook sets the agent's own
+   working rhythm (`agent_settings.schedule`, `schedule_source = 'playbook'`).
+   A rhythm you set by hand in Settings (`'owner'`) is never overridden.
+2. **Today's research.** Each run the agent researches exactly what to make
+   today — what people are asking, what changed, what competitors did (Cleo's
+   intel), what other agents asked for (`agent_requests`) — and never repeats
+   recent work.
+3. **Two options, both finished.** Every piece of work is queued as ONE
+   `choice` item carrying option A and option B, each complete and swaying
+   the reader towards SwiftCard. Person-facing copy goes through the AI-tell
+   filter first; a robotic option is dropped, not queued.
+4. **You pick, it goes.** In the Queue you press **Pick A** or **Pick B**
+   (or Neither). The item becomes that option and takes the same road as
+   Approve: a connected platform posts it, a blog post goes live, everything
+   else lands in Approved with a Copy button.
+
+**Hand-offs**: agents file requests to each other (`fileRequest`). Milo asks
+Vince for a video; Nora asks Vince for a hero image; Sol asks Ruby for a page
+fix. The receiving agent answers the request in its next run and the answer
+carries the `request_id`.
+
+Schema for all of it: `supabase/agent-brain.sql` (run once, after
+`agent-flow.sql`).
 
 ## The company (org.json)
 
@@ -11,13 +42,23 @@ the API routes, and the runners all read:
 
 - **🧠 Atlas — Chief of Staff** (the `manager` agent) — runs the company,
   reports only to the owner.
-- **📣 Maya — Marketing Lead**: Jake (SEO), Nora (Blog), Milo (Social),
-  Ava (Outreach), Leo (Prospects), Zoe (Mentions), Ivy (Influencers).
+- **📣 Maya — Marketing Lead** (what we publish): Jake (SEO pages), Nora
+  (Blog), Milo (Social), Vince (Video & UGC for Higgsfield), Eli (Email &
+  Newsletter), Addy (Paid Ads — never spends), Ruby (Conversion / site
+  copy), Cleo (Competitor Watch — Blinq, HiHello, Popl, Linq… and finds
+  new ones).
+- **🚀 Sasha — Growth & Outreach Lead** (who we talk to): Ava (Outreach
+  Scout), Leo (Link-in-bio Prospecting — Linktree/LinkMe/HiHello in
+  Instagram bios), Remy (Industry Outreach — realtors, plumbers, brokers…),
+  Zoe (Reddit Conversations), Wes (Forums & Q&A), Ivy (Influencer Scout),
+  Kai (Partnerships), Quinn (Directories & Listings).
+- **💛 Nina — Customer Success Lead** (who we keep): Sam (Reviews &
+  Reputation), Sol (Help Content), Otto (Retention & Onboarding).
 - **🛠️ Rex — Engineering Lead**: Dash (Performance), Finn (Flow Check),
-  Vera (Security), Bo (Bug Watch).
+  Vera (Security), Bo (Bug Watch) — the four continuous watchdogs.
 
-Maya and Rex are message parties + chart nodes, not runnable agents — the
-runnable ids in `agent_settings`/`config.json` are unchanged.
+Leads are message parties + chart nodes, not runnable agents — the runnable
+ids live in `agent_settings`/`config.json`.
 
 **Comms** (`agent_messages`, service-role only): the company chat log. Rows
 are written only at real lifecycle moments — the owner's orders (Start/Pause/
@@ -40,6 +81,12 @@ reporting line animates while a worker runs.
 | 5 Social Content | — | **Draft-only** — scripts/captions for Higgsfield + Buffer/Later |
 | 6 Mentions Monitor | Reddit/Quora/forums | **Draft-only** — replies with disclosure; you post |
 | 7 Influencer Scout | IG/TikTok/YT/X | **Draft-only** — DM drafts, commission-only pitch |
+| Vince Video | Higgsfield | **Draft-only** — prompts/scripts; a picked script is submitted to Higgsfield when connected |
+| Eli Email | your ESP | **Draft-only** — subject/preheader/body; you send |
+| Ruby CRO | swiftcard.me | **Draft-only** — one page change at a time (never prices); Rex's Fixer or you apply it |
+| Cleo Competitors | competitor sites + App Store | **Autonomous checks** (hash diff, no tokens when quiet) → two-option response per real change; Monday sweep finds new competitors |
+| Remy / Wes / Kai / Quinn | email, forums, partners, directories | **Draft-only** — copy flow |
+| Sam / Sol / Otto | reviews, help content, lifecycle messages | **Draft-only** — copy flow |
 | 8 Bug Watch | this repo | Autonomous **draft PRs** (the existing `sentry-triage.yml`); never merges. Auto-rollback = existing `deploy-watchdog.yml`, the one fully-autonomous action |
 | 9 Security Watch | repo + live site | Autonomous scans → findings queue; CRITICAL emails immediately; never patches |
 | 10 Manager | agent tables (+ read-only product counts) | Compiles + emails the digest |
@@ -108,11 +155,15 @@ auto-posting API; those stay Approve & Copy.
   at the **next checkpoint**: instantly between items, worst case one in-flight
   LLM call (~1–3 min). Finished items stay; nothing is half-written; the run is
   marked `paused` with a summary of what it completed.
-- **Queue**: filter by agent/type; bulk approve/reject; Approve & Copy puts the
-  draft on your clipboard; prospects export as CSV; blog posts publish live.
-- **Settings**: enable/disable, per-run item + $ caps, monthly system cap
-  (agents refuse to start past it and email you), optional cron schedule (UTC,
-  OFF by default — setting one arms the half-hourly scheduler for that agent).
+- **Queue**: every brain item shows A and B side by side — **Pick A / Pick
+  B** (copies the text to your clipboard for copy-flow kinds) or **Neither**.
+  Two-option items are never bulk-approved. Filter by agent/type; prospects
+  export as CSV; a picked blog post goes live at once.
+- **Settings**: enable/disable, per-run item + token caps, monthly system cap
+  (agents refuse to start past it and email you), and each agent's rhythm.
+  The rhythm line says where it came from: the agent's playbook (violet) or
+  your hand (amber — never overridden). The playbook itself is readable under
+  each agent in the log.
 - **History**: every approve/edit/reject + outcomes (Mark sent → Got a reply →
   Converted) so you can see which agents earn their keep.
 

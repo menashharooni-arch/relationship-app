@@ -10,12 +10,15 @@ export async function GET() {
   try {
     const admin = getAdminSupabase();
     const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
-    const [settings, system, runs, pending, monthRuns] = await Promise.all([
+    const [settings, system, runs, pending, monthRuns, playbooks] = await Promise.all([
       admin.from("agent_settings").select("*").order("agent_id"),
       admin.from("agent_system").select("*").limit(1).single(),
       admin.from("agent_runs").select("*").order("started_at", { ascending: false }).limit(60),
       admin.from("agent_queue_items").select("agent_id, item_type").eq("status", "pending"),
       admin.from("agent_runs").select("agent_id, usage_usd, usage_tokens").gte("started_at", monthStart.toISOString()),
+      // The brain's playbooks (supabase/agent-brain.sql). Missing table = no
+      // playbooks yet, never a broken board.
+      admin.from("agent_playbooks").select("agent_id, cadence, summary, best_practices, pitfalls, channels, researched_at").then((r) => r.data ?? [], () => []),
     ]);
     if (settings.error || system.error) {
       return NextResponse.json({ ready: false, message: "Run supabase/agent-flow.sql in the Supabase SQL editor to enable Agent Flow." });
@@ -37,6 +40,8 @@ export async function GET() {
       pendingBy, pendingTotal: (pending.data ?? []).length, spendBy, tokensBy,
       dispatchConfigured: !!process.env.GITHUB_AGENTS_TOKEN,
       connectors: connectorStatus(),
+      playbooks,
+      brainReady: !(settings.data ?? []).length || (settings.data ?? []).some((r) => "schedule_source" in r),
     });
   } catch {
     return NextResponse.json({ ready: false, message: "Run supabase/agent-flow.sql in the Supabase SQL editor to enable Agent Flow." });

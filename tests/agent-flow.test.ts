@@ -225,20 +225,23 @@ describe("agent flow: person-facing copy is guarded against sounding like AI", (
   it("the runner injects it for every person-facing agent", () => {
     // Addy writes ad copy that real people read, so he carries the doctrine and
     // the tell-filter too (added 2026-09-03 with the paid-ads agent).
-    expect(runner).toMatch(/PERSON_FACING = new Set\(\["outreach", "mentions", "influencer", "social", "ads"\]\)/);
+    // 2026-09-08: every agent whose words reach a real person carries it.
+    expect(runner).toMatch(/PERSON_FACING = new Set\(\["outreach", "prospects", "mentions", "influencer", "social", "ads", "email", "industry", "forums", "partners", "listings", "reviews", "retention", "video"\]\)/);
     expect(runner).toMatch(/HUMAN_VOICE\.md/);
   });
 
   it("drafts with AI tells are DISCARDED, never queued", () => {
-    // The filter is a hard gate the model cannot argue with — sentinel tells:
+    // The filter is a hard gate the model cannot argue with — sentinel tells.
+    // The list lives in the shared brain since 2026-09-08; the runner applies it.
+    const brain = read("marketing-agents/lib/brain.mjs");
     for (const tell of ["finds you well", "came across your", "game.?changer", "delve"])
-      expect(runner, `filter lost the "${tell}" tell`).toContain(tell);
+      expect(brain, `filter lost the "${tell}" tell`).toContain(tell);
     expect(runner).toMatch(/robotic\+\+/);
     expect(runner).toMatch(/DISCARDED for AI-sounding language/);
   });
 
   it("each person-facing agent carries the mandatory final pass", () => {
-    for (const a of ["outreach", "mentions", "influencer", "social"])
+    for (const a of ["outreach", "prospects", "mentions", "influencer", "social", "email", "industry", "forums", "partners", "listings", "reviews", "retention"])
       expect(read(`marketing-agents/agents/${a}.md`), `${a}.md missing its final pass`).toMatch(/HUMAN_VOICE/);
   });
 });
@@ -365,7 +368,7 @@ describe("default rhythms — no schedule-less agents", () => {
       // watch continuously. Everyone else must carry one.
       if (a.continuous) { expect(a.default_schedule, `${id} is a watchdog — no cadence`).toBeUndefined(); continue; }
       // daily@ accepts a comma-separated list of times (Atlas: noon + 5pm ET).
-      expect(a.default_schedule, `${id} needs a default_schedule`).toMatch(/^(every@\d{1,2}h|daily@\d{1,2}:\d{2}(,\d{1,2}:\d{2})*)$/);
+      expect(a.default_schedule, `${id} needs a default_schedule`).toMatch(/^(every@\d{1,2}h|daily@\d{1,2}:\d{2}(,\d{1,2}:\d{2})*|weekly@[a-z,]+@\d{1,2}:\d{2}(,\d{1,2}:\d{2})*)$/);
     }
   });
 

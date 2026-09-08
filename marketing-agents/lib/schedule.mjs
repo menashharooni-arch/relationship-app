@@ -4,6 +4,8 @@
 //   daily@17:30          one time a day
 //   daily@12:00,17:00    several times a day  ← Atlas's midday + end-of-day
 //   every@4h             every N hours, on the hour
+//   weekly@mon,wed@09:00 listed weekdays only (what a playbook writes for
+//                        "a few times a week")
 //
 // THE BUG THIS REPLACES: dispatch used to ask "does NOW fall inside a ±30-minute
 // window around the due time?" That is only correct if the dispatcher actually
@@ -27,11 +29,26 @@ export function nyHourMinute(now = new Date()) {
   };
 }
 
+const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+/** Three-letter weekday in New York, lowercase. */
+export function nyWeekday(now = new Date()) {
+  return new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short" }).format(now).toLowerCase().slice(0, 3);
+}
+
+/** True if the string parses under the schedule grammar above. */
+export function isValidSchedule(schedule) {
+  const s = String(schedule ?? "").trim();
+  return /^every@\d{1,2}h$/.test(s)
+    || /^daily@\d{1,2}:\d{2}(,\d{1,2}:\d{2})*$/.test(s)
+    || /^weekly@(sun|mon|tue|wed|thu|fri|sat)(,(sun|mon|tue|wed|thu|fri|sat))*@\d{1,2}:\d{2}(,\d{1,2}:\d{2})*$/.test(s);
+}
+
 /**
  * Every time this schedule is due TODAY, as minutes past ET midnight, ascending.
  * Returns [] for an unparseable or empty schedule.
  */
-export function dueTimesToday(schedule) {
+export function dueTimesToday(schedule, now = new Date()) {
   if (!schedule) return [];
   const s = String(schedule).trim();
 
@@ -42,6 +59,16 @@ export function dueTimesToday(schedule) {
     const out = [];
     for (let h = 0; h < 24; h += n) out.push(h * 60);
     return out;
+  }
+
+  // weekly@mon,wed,fri@09:30 — the playbook grammar for "a few times a week".
+  // On a day that is not listed there is nothing due, so the clocks skip it.
+  const weekly = s.match(/^weekly@([a-z,]+)@(.+)$/i);
+  if (weekly) {
+    const days = weekly[1].toLowerCase().split(",").map((d) => d.trim().slice(0, 3)).filter(Boolean);
+    if (!days.every((d) => WEEKDAYS.includes(d))) return [];
+    if (!days.includes(nyWeekday(now))) return [];
+    return dueTimesToday(`daily@${weekly[2]}`, now);
   }
 
   const daily = s.match(/^daily@(.+)$/);
@@ -72,7 +99,7 @@ export function dueTimesToday(schedule) {
  * would be stale and confusing. Late is fine; wrong-day late is not.
  */
 export function isDue(schedule, lastRunAt, now = new Date(), graceMin = 180) {
-  const times = dueTimesToday(schedule);
+  const times = dueTimesToday(schedule, now);
   if (!times.length) return false;
   const { h, m } = nyHourMinute(now);
   const minsNow = h * 60 + m;
@@ -105,7 +132,7 @@ export function etDayStamp(d = new Date()) {
 
 /** Which of today's due times this dispatch is FOR — lets a report label itself. */
 export function currentSlot(schedule, now = new Date()) {
-  const times = dueTimesToday(schedule);
+  const times = dueTimesToday(schedule, now);
   const { h, m } = nyHourMinute(now);
   const minsNow = h * 60 + m;
   const passed = times.filter((t) => t <= minsNow);

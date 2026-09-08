@@ -2,8 +2,12 @@
 // Usage: node marketing-agents/run-agent.mjs <agent_id>
 //
 // Loads marketing-agents/agents/<agent_id>.md (the agent's instructions), runs
-// Claude Code CLI headless with ONLY research tools (WebSearch/WebFetch/Read),
-// parses the JSON items the agent returns, and queues them for review.
+// Claude Code CLI headless with ONLY research tools (WebSearch/WebFetch),
+// parses the JSON the agent returns, and queues it for the owner's review.
+//
+// Every agent runs on the BRAIN (lib/brain.mjs, owner order 2026-09-08):
+//   playbook (research the role, weekly) → research today → TWO complete
+//   options per item → the owner picks one → it posts.
 //
 // STRUCTURALLY DRAFT-ONLY for third-party platforms: the CLI gets no Bash, no
 // git, no gh, no posting API of any kind — its entire output is text parsed by
@@ -12,48 +16,30 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { safeMain, parseClaudeJson, extractJson, standDownIfUsageExhausted, standDownForUsage, sb } from "./lib/agentkit.mjs";
+import {
+  ensurePlaybook, playbookBlock, recentWorkBlock, intelBlock, openRequests, openRequestsBlock,
+  TWO_OPTIONS_RULES, OPTIONS_JSON_SHAPE, queueChoice, soundsHuman, fileRequest,
+} from "./lib/brain.mjs";
 
 const agentId = process.argv[2];
 if (!agentId) { console.error("usage: run-agent.mjs <agent_id>"); process.exit(2); }
 
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
+const org = JSON.parse(readFileSync(new URL("./org.json", import.meta.url), "utf8"));
 const voice = readFileSync(new URL("./BRAND_VOICE.md", import.meta.url), "utf8");
 const instructions = readFileSync(new URL(`./agents/${agentId}.md`, import.meta.url), "utf8");
+const roleOf = (id) => Object.values(org.parties).find((p) => p.agent_id === id)?.role ?? id;
 
 // Agents that write TO real people also get the human-voice doctrine, and
-// their output passes the tell-filter below before anything reaches the queue.
-const PERSON_FACING = new Set(["outreach", "mentions", "influencer", "social", "ads"]);
+// their output passes the tell-filter (lib/brain.mjs) before anything reaches
+// the queue. A draft containing a high-precision AI-tell phrase is DISCARDED
+// (counted in the run summary) rather than queued — the owner's rule is that
+// robotic-sounding copy must never reach a real person, and a filter the model
+// can't argue with beats an instruction it might drift from.
+const PERSON_FACING = new Set(["outreach", "prospects", "mentions", "influencer", "social", "ads", "email", "industry", "forums", "partners", "listings", "reviews", "retention", "video"]);
 const humanVoice = PERSON_FACING.has(agentId)
   ? "\n---\n" + readFileSync(new URL("./HUMAN_VOICE.md", import.meta.url), "utf8")
   : "";
-
-// Hard filter: high-precision AI-tell phrases. A draft containing one is
-// DISCARDED (counted in the run summary) rather than queued — the owner's
-// rule is that robotic-sounding copy must never reach a real person, and a
-// filter the model can't argue with beats an instruction it might drift from.
-const AI_TELLS = [
-  /i hope this (message |email )?finds you well/i,
-  /i came across your/i,
-  /i couldn'?t help but notice/i,
-  /just wanted to reach out/i,
-  /i'?d love to (connect|chat|hop on)/i,
-  /feel free to/i,
-  /as someone who/i,
-  /really resonated/i,
-  /hope (that|this) helps!/i,
-  /game.?changer/i, /seamless/i, /streamline/i, /leverage/i, /elevate your/i,
-  /unlock (the|your)/i, /delve/i, /navigat(e|ing) the .{0,20}landscape/i,
-  /in today'?s fast.?paced/i, /it'?s worth noting/i,
-  /^(additionally|moreover|furthermore),/im,
-  /not only .{3,60} but also/i,
-  /best regards/i,
-  /🚀|✨/u,
-];
-function soundsHuman(text) {
-  if (!text) return { ok: true };
-  for (const re of AI_TELLS) { const m = text.match(re); if (m) return { ok: false, tell: m[0] }; }
-  return { ok: true };
-}
 
 /**
  * What the site already publishes, for agents whose job is to fill gaps rather
@@ -68,8 +54,8 @@ async function creativePoolBlock(id) {
     const assets = await readyAssets({ limit: 25 });
     if (!assets.length) {
       return id === "ads"
-        ? "\n---\nREADY CREATIVE POOL: EMPTY. Nothing has been rendered yet. Either build an angle around a NEW creative request to Milo, or return []."
-        : "";
+        ? "\n---\nREADY CREATIVE POOL: EMPTY. Nothing has been rendered yet. Either build an angle around a NEW creative request to Vince (see requests below), or return []."
+        : "\n---\nREADY CREATIVE POOL: EMPTY. Ask Vince for what you need (see requests below) and post text-first meanwhile.";
     }
     const lines = assets.map((a) => `- id ${a.id} · ${a.kind} · "${a.concept ?? "untitled"}" · ${a.url}`);
     return `\n---\nREADY CREATIVE POOL (already rendered and paid for — reuse these before requesting anything new):\n${lines.join("\n")}`;
@@ -97,13 +83,31 @@ async function existingPagesBlock(id) {
   }
 }
 
+// Agents that may ask a colleague for something (creative from Vince, a data
+// pull, a rewrite). The runner files the request; the colleague answers it on
+// their next shift. The set is closed so a prompt cannot invent a recipient.
+const CAN_REQUEST = { social: ["video"], ads: ["video"], blog: ["video"], email: ["video"], partners: ["video"], listings: ["video"], cro: ["video"], support: ["cro"] };
+
 await safeMain(agentId, async (run) => {
   await standDownIfUsageExhausted(run);
-  await run.note("Researching…");
+
+  // 1. The playbook — research the role first (weekly), then work from it.
+  const playbook = await ensurePlaybook(run, instructions, { role: roleOf(agentId), defaultCadence: config.agents[agentId]?.default_schedule ?? null });
+  if (run.finished) return; // stood down mid-playbook
+
+  await run.checkpoint();
+  await run.note("Researching today's work…");
+  const requests = await openRequests(agentId);
+  const canAsk = CAN_REQUEST[agentId] ?? [];
   const prompt = [
     voice,
     humanVoice,
     "\n---\nCENTRAL CONFIG (target lists):\n" + JSON.stringify(config.targets, null, 1),
+    `\n---\nTODAY: ${new Date().toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long", year: "numeric", month: "long", day: "numeric" })} (US Eastern).`,
+    playbookBlock(playbook),
+    await recentWorkBlock(agentId),
+    await intelBlock(),
+    openRequestsBlock(requests),
     // Jake must not write a second page for a keyword the site already covers —
     // two thin pages competing for one query is worse than one good page
     // (Google picks one and dilutes both). Handing him the live slug list is
@@ -113,12 +117,12 @@ await safeMain(agentId, async (run) => {
     // Paid and organic draw from ONE rendered pool, so a concept is paid for
     // once and the two channels stay visually identical.
     await creativePoolBlock(agentId),
+    canAsk.length ? `\n---\nYOU MAY ASK A COLLEAGUE: add a top-level "requests": [{"to": "${canAsk.join("|")}", "kind": "video|image|copy", "brief": "<exactly what you need, one paragraph>"}] to any item that needs it. They answer on their next shift; do not wait for them — the item you queue today must stand on its own.` : "",
     `\n---\nOUTPUT CAP for this run: at most ${run.settings.output_cap} items. Quality over volume — fewer, better items always win.`,
+    TWO_OPTIONS_RULES,
     "\n---\n" + instructions,
-    `\n---\nReturn ONLY a JSON array of items (no prose before or after), each:
-{"item_type": "...", "title": "...", "content": "...", "context": "...", "platform": "...", "target": "...", "target_url": "...", "dedupe_key": "...", "payload": { }}
-item_type and the field meanings are defined in the instructions above. dedupe_key must be a stable identifier (platform:handle or the thread URL) so the same person/thread is never surfaced twice across runs. If you found nothing good enough, return [].`,
-  ].join("\n");
+    "\n---\n" + OPTIONS_JSON_SHAPE,
+  ].filter(Boolean).join("\n");
 
   await run.checkpoint();
   const t0 = Date.now();
@@ -149,24 +153,49 @@ item_type and the field meanings are defined in the instructions above. dedupe_k
 
   const { text, costUsd, tokens } = parseClaudeJson(stdout);
   run.addUsage(costUsd, tokens);
-  await run.note(`Research done in ${Math.round((Date.now() - t0) / 1000)}s ($${Number(costUsd).toFixed(2)}). Queuing items…`);
+  await run.note(`Research done in ${Math.round((Date.now() - t0) / 1000)}s ($${Number(costUsd).toFixed(2)}). Queuing options…`);
   await run.checkpoint();
 
   let items;
   try { items = extractJson(text); } catch { throw new Error("agent returned no parseable JSON items; raw output length " + text.length); }
   if (!Array.isArray(items)) items = [items];
 
-  let added = 0, dup = 0, robotic = 0;
+  let added = 0, dup = 0, robotic = 0, single = 0, asked = 0;
   for (const it of items) {
-    if (!it?.item_type || !it?.title) continue;
-    if (PERSON_FACING.has(agentId)) {
-      const check = soundsHuman(it.content ?? "");
-      if (!check.ok) { robotic++; console.log(`discarded (AI tell "${check.tell}"): ${it.title}`); continue; }
+    if (!it?.title) continue;
+    // Legacy single-take shape (no options) still passes the tell gate, so an
+    // agent that ignored the brain cannot slip a robotic draft through.
+    if (!Array.isArray(it.options)) {
+      if (!it.item_type) continue;
+      if (PERSON_FACING.has(agentId)) {
+        const check = soundsHuman(it.content ?? "");
+        if (!check.ok) { robotic++; console.log(`discarded (AI tell "${check.tell}"): ${it.title}`); continue; }
+      }
+      single++;
+      const { result } = await run.addItem(it);
+      if (result === "added") added++;
+      if (result === "duplicate") dup++;
+      if (result === "cap") break;
+      continue;
     }
-    const { result } = await run.addItem(it);
-    if (result === "added") added++;
-    if (result === "duplicate") dup++;
-    if (result === "cap") break;
+    const out = await queueChoice(run, it, { personFacing: PERSON_FACING.has(agentId) });
+    robotic += out.robotic ?? 0;
+    if (out.result === "added") {
+      added++;
+      for (const r of Array.isArray(it.requests) ? it.requests.slice(0, 2) : []) {
+        if (!canAsk.includes(r?.to)) continue;
+        if (await fileRequest({ from_agent: agentId, to_agent: r.to, kind: r.kind, brief: r.brief, for_item: out.id })) asked++;
+      }
+    }
+    if (out.result === "duplicate") dup++;
+    if (out.result === "cap") break;
   }
-  await run.finish("success", `${added} new item(s) queued (${dup} duplicate(s) skipped${robotic ? `, ${robotic} DISCARDED for AI-sounding language` : ""}, ${items.length} candidates). Spend $${run.usageUsd.toFixed(2)}.`);
+  const notes = [
+    `${dup} duplicate(s) skipped`,
+    robotic ? `${robotic} option(s) DISCARDED for AI-sounding language` : null,
+    single ? `${single} came without two options` : null,
+    asked ? `${asked} request(s) filed with colleagues` : null,
+    `${items.length} candidates`,
+  ].filter(Boolean).join(", ");
+  await run.finish("success", `${added} new item(s) queued, each with two options to pick from (${notes}). Spend $${run.usageUsd.toFixed(2)}.`);
 });
