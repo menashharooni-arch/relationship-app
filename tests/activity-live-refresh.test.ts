@@ -40,23 +40,17 @@ describe("one refresh both feeds behind the panel", () => {
 });
 
 describe("every action that writes to the panel refreshes it", () => {
-  it("sharing your card", () => {
-    // The reported bug. The button reports success from the route, and the
-    // route logs before it answers, so the row exists by the time this runs.
-    expect(ui()).toMatch(/onSent=\{refreshActivity\}/);
+  it("sharing your card writes nothing, so it refreshes nothing", () => {
+    // 2026-09-08: every Share option now hands off to the owner's own phone
+    // (Messages / Mail / the share sheet), pre-addressed to the contact. None
+    // of them can tell us whether the owner pressed send, so none of them
+    // writes a row — and a refresh here would read back a thread nothing was
+    // added to. The old server-sent path (and its onSent) is gone.
+    expect(ui()).not.toMatch(/onSent=/);
     const btn = read("src/components/ShareMyInfoButton.tsx");
-    expect(btn).toMatch(/onSent\?\.\(\)/);
-  });
-
-  it("only after a send the SERVER accepted", () => {
-    // Refreshing on a failed send would fetch a thread nothing was added to,
-    // and refreshing the phone-share path would fetch for a send that is
-    // deliberately never logged.
-    const btn = read("src/components/ShareMyInfoButton.tsx");
-    const okBranch = btn.match(/if \(res\.ok\) \{[\s\S]*?\n      \} else \{/)?.[0] ?? "";
-    expect(okBranch).toMatch(/onSent\?\.\(\)/);
-    const phoneShare = btn.match(/async function sharePhone\(\)[\s\S]*?\n  \}/)?.[0] ?? "";
-    expect(phoneShare).not.toMatch(/onSent/);
+    expect(btn).not.toMatch(/onSent/);
+    expect(btn).not.toMatch(/share-card/);
+    expect(btn).not.toMatch(/fetch\(/);
   });
 
 });
