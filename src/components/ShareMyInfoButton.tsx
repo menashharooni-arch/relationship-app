@@ -9,8 +9,18 @@
 //                       message already written; the owner just presses send.
 //   • Share by email  — opens Mail addressed to THIS contact with the subject,
 //                       the message and the owner's signature already written.
-//   • Share by both   — the text first; when the owner comes back the button
-//                       reads "Now email →" and opens the email.
+//   • Share by both   — SENT BY US, both channels at once, through the same
+//                       Twilio number and Resend sender the automations use
+//                       (POST /api/leads/share-card, channel "both").
+//
+// "Both" is the one option that does NOT hand off to the owner's phone, and it
+// cannot be: one tap can open one app. The old version opened Messages and then
+// waited for the owner to come back and tap "Now email →", which on iOS meant
+// the second half was usually never sent — leaving the owner believing they had
+// shared by both when only the text had gone (owner report, 2026-09-09). A
+// channel that silently drops half its messages is worse than one that says
+// plainly who it is from, so "both" now goes through our own senders and
+// reports exactly what was delivered.
 //   • Share from my phone — the OS share sheet with the bare card link, for
 //                       WhatsApp / AirDrop / anything else. Not pre-addressed:
 //                       navigator.share has no recipient field.
@@ -48,6 +58,9 @@ export type CardSigner = {
   company: string | null;
   phone: string | null;
   email: string | null;
+  /** True when this card is switched off. A dark card's page 404s and its link
+   *  previews as the generic SwiftCard brand image — so it must never be sent. */
+  offline?: boolean;
 };
 
 type Props = {
@@ -58,6 +71,12 @@ type Props = {
   /** Card slug the contact belongs to — the link every option hands over. */
   cardOwner: string | null;
   signer: CardSigner | null;
+  /** The contact's row id. "Share by both" sends server-side and needs it;
+   *  without one that option is unavailable and the hand-offs still work. */
+  leadId?: string | null;
+  /** Called after a server-side send so the caller can refresh the thread —
+   *  "both" writes two real rows into Activity & Messages. */
+  onSent?: () => void;
 };
 
 type Action = "sms" | "email" | "both" | "phone";
@@ -110,12 +129,20 @@ export function mailtoHref(email: string, subject: string, body: string): string
   return `mailto:${encodeURIComponent(email.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, signer }: Props) {
+export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, signer, leadId, onSent }: Props) {
   const [open, setOpen] = useState(false);
-  // "emailNext" is the second half of "Share by both": the text has been
-  // handed off, and the button now offers the email.
-  const [state, setState] = useState<"idle" | "copied" | "emailNext">("idle");
+  const [state, setState] = useState<"idle" | "copied" | "sending" | "sent" | "partial" | "error">("idle");
+  // What to say after a server-side send — "Texted and emailed", or the honest
+  // half of it. Never a generic success: the whole point of this rewrite is
+  // that the owner is told which channels actually went.
+  const [note, setNote] = useState<string>("");
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Double-tap guard. `state` cannot do this job: React batches state updates,
+  // so two taps in the same tick both read "idle" and both fire. A ref is
+  // written synchronously and is already true when the second tap reads it.
+  // The server enforces the same thing independently (one share per contact
+  // per minute) — this stops the request, that stops the send.
+  const sending = useRef(false);
 
   // Close the picker on outside click / Escape.
   useEffect(() => {
@@ -132,10 +159,11 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
     };
   }, [open]);
 
-  // The "Now email →" offer should not sit there forever if the owner moves on.
+  // Clear the result badge after it has been read. An error stays longer than
+  // a success — it asks something of the owner.
   useEffect(() => {
-    if (state !== "emailNext") return;
-    const t = setTimeout(() => setState("idle"), 90_000);
+    if (state !== "sent" && state !== "partial" && state !== "error") return;
+    const t = setTimeout(() => { setState("idle"); setNote(""); }, state === "sent" ? 4000 : 8000);
     return () => clearTimeout(t);
   }, [state]);
 
@@ -147,10 +175,20 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
   const cardUrl = cardOwner ? `${APP_URL}/${cardOwner}?shared=1` : null;
   const ownerName = signer?.name?.trim() || "SwiftCard user";
 
+  // ── A dark card must never leave the building ─────────────────────────────
+  // The contact belongs to whichever card captured it, and that card may since
+  // have been switched off (an office removal does this, and so does the owner).
+  // An offline card 404s — "Couldn't find that card" — and its link preview
+  // falls back to the generic SwiftCard brand image with no name, headshot or
+  // logo. Reported 2026-09-08 as "the preview is missing my headshot"; the
+  // preview was fine, the card was off. Sending it costs the owner the
+  // introduction, so every path below refuses and says why.
+  const isDark = signer?.offline === true;
+
   // Open the contact's thread in Messages, message already written. Nothing
   // is awaited first: the navigation must ride on the tap itself.
   function openText() {
-    if (!phone || !cardUrl) return;
+    if (!phone || !cardUrl || isDark) return;
     warmSharePreview(cardUrl);
     window.location.assign(smsHref(phone, shareTextBody({ firstName, ownerName, cardUrl })));
   }
@@ -158,7 +196,7 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
   // Open a new email to the contact in the owner's mail app — subject, message
   // and signature already written.
   function openEmail() {
-    if (!email || !cardUrl) return;
+    if (!email || !cardUrl || isDark) return;
     warmSharePreview(cardUrl);
     const { subject, body } = shareEmail({ firstName, signer, ownerName, cardUrl });
     window.location.assign(mailtoHref(email, subject, body));
@@ -176,12 +214,57 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
     openEmail();
   }
 
-  // Two apps cannot open from one tap. The text goes first; the button then
-  // turns into the email offer for when the owner is back.
-  function shareBoth() {
+  // Send BOTH through our own senders, in one request. No app opens; the
+  // contact gets a text and an email from the same infrastructure the
+  // automations use, and both are written to Activity & Messages.
+  async function shareBoth() {
+    if (!leadId || isDark || sending.current) return;
+    sending.current = true;
     setOpen(false);
-    openText();
-    setState("emailNext");
+    setState("sending");
+    setNote("");
+    try {
+      const res = await fetch("/api/leads/share-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, channel: "both" }),
+      });
+      const d = (await res.json().catch(() => ({}))) as {
+        ok?: boolean; sent?: string[]; skipped?: string[]; smsDeclined?: boolean;
+        sms?: string; email?: string; error?: string; message?: string;
+      };
+      if (!res.ok || !d.ok) {
+        // The server's own wording where it has any — it knows whether this was
+        // an opt-out, a missing channel or a provider failure.
+        setState("error");
+        setNote(d.message || d.error || "Couldn't send. Please try again.");
+        return;
+      }
+      const sent = d.sent ?? [];
+      const both = sent.includes("sms") && sent.includes("email");
+      onSent?.();
+      if (both) {
+        setState("sent");
+        setNote(`Texted and emailed ${firstName}`);
+        return;
+      }
+      // Exactly one went. Say which, and why the other did not — a partial
+      // share reported as a success is the failure this feature was built to
+      // stop happening.
+      const why = (ch: "sms" | "email") =>
+        d.smsDeclined && ch === "sms" ? "they haven't opted in to texts"
+          : (d.skipped ?? []).includes(ch) ? `no ${ch === "sms" ? "phone number" : "email address"} on file`
+          : d[ch] === "opted_out" ? `they opted out of ${ch === "sms" ? "texts" : "emails"}`
+          : d[ch] === "not_configured" ? `${ch === "sms" ? "texting" : "email"} isn't switched on`
+          : `the ${ch === "sms" ? "text" : "email"} didn't go through`;
+      setState("partial");
+      setNote(sent.includes("email") ? `Emailed ${firstName} — no text: ${why("sms")}` : `Texted ${firstName} — no email: ${why("email")}`);
+    } catch {
+      setState("error");
+      setNote("Couldn't reach SwiftCard. Check your connection and try again.");
+    } finally {
+      sending.current = false;
+    }
   }
 
   // Hand the card link to the device's own share sheet. Nothing is sent by us
@@ -189,7 +272,7 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
   // never learn whether they went through with it.
   async function sharePhone() {
     setOpen(false);
-    if (!cardOwner) return;
+    if (!cardOwner || isDark) return;
     const url = `${APP_URL}/${cardOwner}?shared=1`;
     warmSharePreview(url);
 
@@ -217,19 +300,25 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
     }
   }
 
+  // One reason, shown on every option, so the owner learns the cause once
+  // instead of finding four separately-broken buttons.
+  const darkHint = "This card is turned off — bring it back online in Settings → My Cards";
   const OPTIONS: { action: Action; label: string; enabled: boolean; hint: string }[] = [
-    { action: "email", label: "Share by email", enabled: hasEmail && !!cardUrl, hint: hasEmail ? `Opens an email to ${firstName}, ready to send` : "No email on this contact" },
-    { action: "sms", label: "Share by text", enabled: hasPhone && !!cardUrl, hint: hasPhone ? `Opens a text to ${firstName}, ready to send` : "No phone on this contact" },
-    { action: "both", label: "Share by both", enabled: hasPhone && hasEmail && !!cardUrl, hint: hasPhone && hasEmail ? "The text first, then the email" : "Needs both a phone and an email" },
+    { action: "email", label: "Share by email", enabled: !isDark && hasEmail && !!cardUrl, hint: isDark ? darkHint : hasEmail ? `Opens an email to ${firstName}, ready to send` : "No email on this contact" },
+    { action: "sms", label: "Share by text", enabled: !isDark && hasPhone && !!cardUrl, hint: isDark ? darkHint : hasPhone ? `Opens a text to ${firstName}, ready to send` : "No phone on this contact" },
+    // Sent by SwiftCard, not handed to an app — so the hint says so plainly.
+    // The owner should never be surprised about which number a text came from.
+    { action: "both", label: "Share by both", enabled: !isDark && hasPhone && hasEmail && !!cardUrl && !!leadId && state !== "sending", hint: isDark ? darkHint : !leadId ? "Open this contact to share by both" : hasPhone && hasEmail ? "Texts and emails them now, from SwiftCard" : "Needs both a phone and an email" },
     // Enabled regardless of what channels the CONTACT has — this shares from
     // the owner's own phone, so it only needs a card link to hand over.
-    { action: "phone", label: "Share from my phone", enabled: !!cardOwner, hint: cardOwner ? "Opens your phone's share sheet" : "No card linked to this contact" },
+    { action: "phone", label: "Share from my phone", enabled: !isDark && !!cardOwner, hint: isDark ? darkHint : cardOwner ? "Opens your phone's share sheet" : "No card linked to this contact" },
   ];
 
   const run = (action: Action) => {
+    if (isDark) return;
     if (action === "sms") shareText();
     else if (action === "email") shareEmailNow();
-    else if (action === "both") shareBoth();
+    else if (action === "both") void shareBoth();
     else sharePhone();
   };
 
@@ -237,20 +326,34 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
     <div ref={wrapRef} className="relative shrink-0">
       <button
         type="button"
-        onClick={() => (state === "emailNext" ? shareEmailNow() : state === "idle" && setOpen((v) => !v))}
+        // Disabled while a send is in flight — the ref above is what actually
+        // prevents a second send; this is what tells the owner why.
+        disabled={state === "sending"}
+        onClick={() => state === "idle" && setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        title={state === "emailNext" ? `Now open the email to ${firstName}` : `Share your contact information with ${firstName}`}
+        aria-busy={state === "sending"}
+        title={note || `Share your contact information with ${firstName}`}
         className={`flex items-center justify-center gap-1.5 text-sm font-semibold py-2.5 px-4 rounded-xl transition-colors ${
-          state === "copied"
+          state === "copied" || state === "sent"
             ? "bg-emerald-600/20 border border-emerald-600/50 text-emerald-300"
-            : "bg-blue-600 hover:bg-blue-500 text-white"
+            : state === "partial"
+            ? "bg-amber-600/20 border border-amber-600/50 text-amber-300"
+            : state === "error"
+            ? "bg-red-600/20 border border-red-600/50 text-red-300"
+            : "bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-70"
         }`}
       >
         {state === "copied" ? (
           <>Link copied!</>
-        ) : state === "emailNext" ? (
-          <>Now email →</>
+        ) : state === "sending" ? (
+          <>Sending…</>
+        ) : state === "sent" ? (
+          <>Sent ✓</>
+        ) : state === "partial" ? (
+          <>Partly sent</>
+        ) : state === "error" ? (
+          <>Didn&apos;t send</>
         ) : (
           <>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
@@ -288,6 +391,21 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
           ))}
         </div>
       )}
+
+      {/* The outcome in words. The button face has room for two ("Partly
+          sent"), and "partly" without "which part" is not an answer — this is
+          where the owner reads what actually reached the contact. aria-live so
+          a screen reader announces it: the send is asynchronous, so there is no
+          focus change to carry the news. */}
+      <p
+        role="status"
+        aria-live="polite"
+        className={`absolute right-0 top-full mt-1.5 z-20 w-64 text-right text-[11px] leading-snug ${
+          note ? "" : "sr-only"
+        } ${state === "error" ? "text-red-300" : state === "partial" ? "text-amber-300" : "text-emerald-300"}`}
+      >
+        {note}
+      </p>
     </div>
   );
 }

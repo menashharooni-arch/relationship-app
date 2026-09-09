@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
   const admin = getAdminSupabase();
   const { data: lead } = await admin
     .from("leads")
-    .select("id, name, phone, email, card_owner")
+    .select("id, name, phone, email, card_owner, tags")
     .eq("id", leadId)
     .maybeSingle();
   if (!lead) return NextResponse.json({ error: "Contact not found" }, { status: 404 });
@@ -89,13 +89,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const wantsSms = channel === "sms" || channel === "both";
-  const wantsEmail = channel === "email" || channel === "both";
-  if (wantsSms && !lead.phone) {
+  // "Stop texting me" outranks a Share. The other two send routes
+  // (/api/sms/send, /api/leads/[id]/message) both veto on this tag; this one
+  // checked only the platform STOP list, so a contact the owner had switched
+  // texts off for could still be texted from here. The tag is the owner's own
+  // record of consent and has to bind every sender equally.
+  const declinedSms = ((lead.tags as string[] | null) ?? []).includes("sms-paused");
+
+  const askedSms = channel === "sms" || channel === "both";
+  const askedEmail = channel === "email" || channel === "both";
+  // A single-channel Share is a specific instruction: if it cannot be honoured,
+  // say so rather than quietly sending something else.
+  if (channel === "sms" && !lead.phone) {
     return NextResponse.json({ error: "This contact has no phone number." }, { status: 400 });
   }
-  if (wantsEmail && !lead.email) {
+  if (channel === "email" && !lead.email) {
     return NextResponse.json({ error: "This contact has no email address." }, { status: 400 });
+  }
+  if (channel === "sms" && declinedSms) {
+    return NextResponse.json(
+      { error: "sms_declined", message: "This contact didn't opt in to texts. You can still email them." },
+      { status: 409 },
+    );
+  }
+  // "Both" is a best-effort instruction, not two strict ones. A contact missing
+  // a channel — or who has switched texts off — still gets the other, and the
+  // response names exactly what went and what was skipped. Failing the whole
+  // share because one half was unavailable would send nothing at all.
+  const wantsSms = askedSms && !!lead.phone && !declinedSms;
+  const wantsEmail = askedEmail && !!lead.email;
+  if (!wantsSms && !wantsEmail) {
+    return NextResponse.json(
+      { error: declinedSms ? "sms_declined" : "no_contact", message: declinedSms ? "This contact didn't opt in to texts and has no email address." : "This contact has no phone number or email address." },
+      { status: declinedSms ? 409 : 400 },
+    );
   }
 
   // Sender identity mirrors the automations: the CARD the contact belongs to
@@ -132,6 +159,9 @@ export async function POST(req: NextRequest) {
     if (meta) await warmSharePreviewServer(shareImageUrl(APP_URL, lead.card_owner as string, meta));
   } catch { /* best effort */ }
 
+  // What the caller ASKED for, not what we managed to attempt — the difference
+  // between the two is exactly what makes a share partial.
+  const askedChannelCount = (askedSms ? 1 : 0) + (askedEmail ? 1 : 0);
   const results: { sms?: SendResult | "opted_out"; email?: SendResult | "opted_out" } = {};
 
   // ── Text ──────────────────────────────────────────────────────────────────
@@ -252,6 +282,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Couldn't send. Please try again." }, { status: 502 });
   }
 
-  // Partial success on "both" still reports what went out.
-  return NextResponse.json({ ok: true, sent, ...results });
+  // Partial success on "both" still reports what went out. `skipped` names the
+  // channels that were asked for but never attempted (no number, no address, or
+  // texts switched off) so the UI can say "emailed — no phone on this contact"
+  // instead of claiming both went, which is the bug this shape exists to stop.
+  const skipped: string[] = [];
+  if (askedSms && !wantsSms) skipped.push("sms");
+  if (askedEmail && !wantsEmail) skipped.push("email");
+  return NextResponse.json({
+    ok: true,
+    sent,
+    skipped,
+    partial: sent.length < askedChannelCount,
+    smsDeclined: askedSms && declinedSms,
+    ...results,
+  });
 }

@@ -68,7 +68,7 @@ export const contactsDocs = defineDocs([
   },
   {
     id: "share-your-card-with-a-contact",
-    title: "Sharing your card with a contact from your own phone",
+    title: "Sharing your card with a contact",
     audience: ["user"],
     triggers: [
       "share my card", "share button", "send my card", "send my contact information",
@@ -77,9 +77,9 @@ export const contactsDocs = defineDocs([
       "who is the email from", "via swiftcard", "went to spam", "spam folder",
     ],
     answer:
-      "The Share button on an open contact has four options, and every one of them uses your own phone — nothing is sent by SwiftCard. \"Share by text\" opens Messages already addressed to that contact with the message and your card link written; you just press send. \"Share by email\" opens your mail app already addressed to them with the subject, the message and your signature (your name, title, company, phone and email) written. \"Share by both\" does the text first, then the Share button turns into \"Now email →\" — tap it when you're back and the email opens. \"Share from my phone\" opens the phone's share sheet with just the card link, for WhatsApp, AirDrop or anything else.",
+      "The Share button on an open contact has four options. Three of them use your own phone: \"Share by text\" opens Messages already addressed to that contact with the message and your card link written, so you just press send; \"Share by email\" opens your mail app already addressed to them with the subject, the message and your signature written; \"Share from my phone\" opens the phone's share sheet with just the card link, for WhatsApp, AirDrop or anything else. \"Share by both\" is different — SwiftCard sends the text and the email for you, straight away, without opening any app. The button shows \"Sending…\", then tells you what went: \"Texted and emailed them\", or exactly which one went and why the other didn't.",
     detail:
-      "Because the text and email leave from your own number and mailbox, they arrive from you — there is no \"via SwiftCard\" line and nothing for a spam filter to object to. The card link sits on its own last line of the text so iMessage shows a preview of your card. The email is plain text (a mail app can't be handed a picture), so the signature is your details as text; the recipient sees your actual card when they open the link. Your mail app will also add its own signature underneath if you have one set. An option is greyed out when the contact has no phone or no email on file — add it under \"CONTACT INFO\" first. Since the message goes out from your phone, SwiftCard can't see whether you pressed send, so a share does not appear in the contact's Conversation tab.",
+      "Text and email leave from your own number and mailbox, so they arrive from you — no \"via SwiftCard\" line, and nothing for a spam filter to object to. Those two don't appear in the contact's Conversation tab, because SwiftCard can't see whether you pressed send. \"Share by both\" does show up there, one entry for the text and one for the email, because we sent them: the text comes from the SwiftCard number and ends with \"Reply STOP to opt out\", and the email comes from your name with your card underneath. It works this way because a phone can only open one app per tap — the old version opened Messages and asked you to come back for the email, and the email half usually never got sent. \"Share by both\" is greyed out unless the contact has both a phone and an email; if you've switched texts off for someone, they get the email only and the button says so. Tapping twice can't send twice.",
   },
   {
     id: "follow-up-automations",
