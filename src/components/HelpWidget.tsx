@@ -150,7 +150,7 @@ export default function HelpWidget({ floating = false, area = "app" }: { floatin
               </div>
               <div>
                 <p className="text-white text-sm font-semibold leading-none">{isAdmin ? "Admin Help" : "SwiftCard Help"}</p>
-                <p className="text-gray-500 text-[11px] mt-0.5">{isAdmin ? "Ask about your admin console" : "Ask anything about the app"}</p>
+                <p className="text-gray-500 text-[0.6875rem] mt-0.5">{isAdmin ? "Ask about your admin console" : "Ask anything about the app"}</p>
               </div>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="text-gray-500 hover:text-white text-xl leading-none">
@@ -180,7 +180,7 @@ export default function HelpWidget({ floating = false, area = "app" }: { floatin
                     key={s}
                     type="button"
                     onClick={() => send(s)}
-                    className="text-[11px] text-gray-300 bg-gray-800/60 hover:bg-gray-700 border border-gray-700 rounded-full px-2.5 py-1 transition-colors"
+                    className="text-[0.6875rem] text-gray-300 bg-gray-800/60 hover:bg-gray-700 border border-gray-700 rounded-full px-2.5 py-1 transition-colors"
                   >
                     {s}
                   </button>

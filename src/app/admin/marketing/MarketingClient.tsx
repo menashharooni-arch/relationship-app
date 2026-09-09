@@ -239,7 +239,7 @@ export default function MarketingClient() {
                 Add these records in <b>Namecheap → Domain List → swiftcard.me → Advanced DNS</b>, then click the button above. (Tap any value to copy.)
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full text-[11px]">
+                <table className="w-full text-[0.6875rem]">
                   <thead>
                     <tr className="text-amber-200/60 text-left">
                       <th className="py-1 pr-3 font-medium">Type</th>
@@ -308,7 +308,7 @@ export default function MarketingClient() {
                 <option value="office">Office only{counts ? ` (${counts.office})` : ""}</option>
               </select>
               {counts && (
-                <p className="text-gray-600 text-[11px] mt-1">
+                <p className="text-gray-600 text-[0.6875rem] mt-1">
                   ≈ {recipientCount} recipients{optedOut ? ` · ${optedOut} opted out of marketing` : ""}
                 </p>
               )}
@@ -422,7 +422,7 @@ export default function MarketingClient() {
               <button
                 onClick={openPromoLog}
                 title="Every code ever created — what it was, when it was sent, and how long it was active"
-                className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-lg px-2.5 py-1 transition-colors"
+                className="flex items-center gap-1.5 text-[0.6875rem] font-semibold text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-lg px-2.5 py-1 transition-colors"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l3.5 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -439,7 +439,7 @@ export default function MarketingClient() {
                     <div className="min-w-0">
                       <span className="font-mono font-bold text-white bg-gray-800 px-2 py-0.5 rounded">{p.code}</span>
                       <span
-                        className={`ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${p.stripe_coupon_id ? "bg-emerald-900/50 text-emerald-300" : "bg-gray-800 text-gray-500"}`}
+                        className={`ml-2 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${p.stripe_coupon_id ? "bg-emerald-900/50 text-emerald-300" : "bg-gray-800 text-gray-500"}`}
                         title={p.stripe_coupon_id ? "Redeemable at Stripe checkout" : "Not linked to Stripe — won't work at checkout"}
                       >
                         {p.stripe_coupon_id ? "Stripe ✓" : "no Stripe"}
@@ -517,11 +517,11 @@ export default function MarketingClient() {
                       <div key={c.id} className="rounded-xl border border-gray-800 bg-gray-950/60 p-4">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-mono font-bold text-white bg-gray-800 px-2 py-0.5 rounded text-xs">{c.code}</span>
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${statusCls}`}>{status}</span>
+                          <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${statusCls}`}>{status}</span>
                           <span className="text-green-400 text-xs font-semibold">{promoLabel(c)}</span>
                           {c.description && <span className="text-gray-500 text-xs">· {c.description}</span>}
                         </div>
-                        <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-[11px]">
+                        <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-[0.6875rem]">
                           <div>
                             <p className="text-gray-600">Created</p>
                             <p className="text-gray-300">{fmt(c.created_at)}</p>
@@ -549,7 +549,7 @@ export default function MarketingClient() {
                     );
                   })}
                   {logUntagged > 0 && (
-                    <p className="text-gray-600 text-[11px] pt-1">
+                    <p className="text-gray-600 text-[0.6875rem] pt-1">
                       + {logUntagged} older promo email{logUntagged === 1 ? "" : "s"} sent before per-code tracking (not tied to a specific code).
                     </p>
                   )}

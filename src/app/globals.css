@@ -533,7 +533,24 @@ body {
 
 .rd-display { letter-spacing: -0.035em; line-height: 0.98; font-weight: 640; }
 .rd-h2 { letter-spacing: -0.03em; line-height: 1.03; font-weight: 640; }
+/* THE section kicker for the whole marketing site. There used to be five
+   hand-rolled versions of this one label — .8125rem/.14em/#4DA8F5 on the
+   product pages, .6875rem/.25em/brand on the cream landing pages,
+   .6875rem/.18em/slate-500 on Why SwiftCard and the legal pages, and a
+   text-xs/tracking-wider/slate-400 variant under "Keep exploring" — while this
+   class, already used by the nav and the footer, sat unused by every page.
+   Colour and margin stay utilities; only the type scale is fixed here, so one
+   kicker size now runs across every marketing surface. */
 .rd-eyebrow { font-size: .74rem; font-weight: 650; letter-spacing: .16em; text-transform: uppercase; }
+/* The dark-section kicker colour, tokenised — it was an inline #4DA8F5 literal
+   repeated at four call sites. */
+.rd-eyebrow-accent { color: var(--rd-cyan); }
+
+/* Disclosure rows (FAQ accordions) draw their own "+" affordance, so the UA
+   marker must go. Tailwind's `list-none` covers Chrome, Firefox and Safari 16+;
+   this is the pseudo-element older WebKit still needs, and it is harmless
+   everywhere else. Without it those browsers show a triangle AND a plus. */
+summary.list-none::-webkit-details-marker { display: none; }
 .rd-aurora-text {
   background: var(--rd-aurora); -webkit-background-clip: text; background-clip: text;
   color: transparent; background-size: 160% 160%;
@@ -788,6 +805,103 @@ body {
 @keyframes sc-orbit-spin { to { --sc-orbit: 360deg; } }
 @media (prefers-reduced-motion: reduce) {
   .sc-btn-orbit::after { animation: none; opacity: 0.45; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Apple Accessibility Nutrition Labels
+   The iOS app is a WKWebView on this origin (capacitor.config server.url), so
+   VoiceOver, Voice Control, Larger Text, Reduced Motion and focus behaviour are
+   all decided here, not in Swift. Measured by scripts/qa-a11y.mjs.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── A visible keyboard focus indicator that cannot be switched off ─────────
+   82 controls carry Tailwind's `focus:outline-none`; 16 of them replaced it
+   with nothing, so tabbing through the app — the ONLY way to drive it on a Mac
+   without a mouse, and how Full Keyboard Access works on iOS — moved an
+   invisible cursor. `.sc-input:focus` did style a border, but a 1px colour
+   change is both a weak indicator and a colour-only one.
+
+   Written UNLAYERED on purpose. Tailwind v4 puts utilities in @layer utilities,
+   and an unlayered rule beats every layered rule regardless of specificity — the
+   same mechanism the input font-size floor above relies on. So this wins over
+   `focus:outline-none` without !important and without touching 82 call sites.
+
+   :focus-visible, not :focus — a mouse click still shows nothing, so there is
+   no visual change for pointer users. Keyboard and assistive tech get the ring.
+   `outline` (not box-shadow/border) never affects layout, so nothing reflows. */
+:is(
+  a[href], button, input, select, textarea, summary,
+  [tabindex]:not([tabindex="-1"]),
+  [role="button"], [role="switch"], [role="tab"], [role="link"], [role="menuitem"]
+):focus-visible {
+  outline: 3px solid #1D4ED8;
+  outline-offset: 2px;
+}
+/* On the dark app chrome the brand blue is too close to the surface to read. */
+html:not([data-sc-theme="light"]) .sc-app :is(
+  a[href], button, input, select, textarea, summary,
+  [tabindex]:not([tabindex="-1"]),
+  [role="button"], [role="switch"], [role="tab"], [role="link"], [role="menuitem"]
+):focus-visible {
+  outline-color: #93C5FD;
+}
+/* Windows High Contrast / forced colours: let the OS draw it. */
+@media (forced-colors: active) {
+  :is(a[href], button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 3px solid Highlight;
+  }
+}
+
+/* ── Reduced Motion: a catch-all, not a list ────────────────────────────────
+   The blocks above name specific classes, which means every new animation is
+   opted IN to motion by default and someone has to remember to opt it out.
+   The audit found 11 still moving on the homepage alone (rd-btn transforms,
+   reveal transitions, image fades). This inverts it: under `reduce`, nothing
+   animates or transitions unless it explicitly asks to.
+
+   Deliberately NOT `transition: none`: colour and opacity transitions are not
+   vestibular triggers, and killing them makes the UI feel broken. What goes is
+   MOVEMENT — transform, translate, scale, rotate — plus looping animations.
+   Anything that genuinely needs motion under reduce can opt back in with
+   .sc-motion-ok. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: color, background-color, border-color, fill, stroke, opacity, box-shadow !important;
+    transition-duration: 120ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* A transform already applied stays; it just never animates. */
+  *:hover, *:focus, *:active { transition-property: color, background-color, border-color, fill, stroke, opacity, box-shadow !important; }
+  .sc-motion-ok, .sc-motion-ok * {
+    animation-duration: revert !important;
+    animation-iteration-count: revert !important;
+    transition-property: revert !important;
+    transition-duration: revert !important;
+  }
+}
+
+/* ── Larger Text (Dynamic Type) ─────────────────────────────────────────────
+   Every text size in the app is rem (1006 px values were converted 2026-09-09),
+   so scaling the root scales the whole UI. --sc-text-scale is set by the native
+   shell from UIApplication.preferredContentSizeCategory (see MainViewController
+   + src/lib/dynamic-type.ts); on the web it stays 1 and nothing changes.
+
+   Clamped at 2x: past that the phone layouts stop being usable, and Apple's
+   label asks for support up to the accessibility sizes, not to infinity.
+
+   NOT scaled, deliberately: the card templates and the wallet pass. A business
+   card is fixed geometry — the same markup is rendered to a PNG, an Apple
+   Wallet pass and an OG image at exact pixel sizes, so its text must stay put
+   or every one of those outputs breaks. The brand lockup is exempt for the
+   same reason a logo is exempt from text scaling. */
+:root { --sc-text-scale: 1; }
+html {
+  /* clamp, not a raw multiply: the native side already limits the scale, but a
+     stray value must never be able to shrink the UI to nothing or blow it past
+     the point the phone layouts survive. */
+  font-size: calc(16px * clamp(0.85, var(--sc-text-scale), 2));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

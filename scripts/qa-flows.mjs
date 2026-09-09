@@ -1,0 +1,550 @@
+// node scripts/qa-flows.mjs      env: BASE=<url>  OUT=<dir>  ONLY=<flow name>  KEEP=1
+//
+// The interaction half of the QA sweep. scripts/qa-sweep.mjs LOADS every screen
+// and looks for what is visibly wrong; this one USES the app and looks for what
+// is wrong only once you touch it:
+//
+//   • a form that says "Saved ✓" and did not save
+//   • a value that does not survive a reload
+//   • a double-tapped Save that writes twice
+//   • a required field that submits empty
+//   • a wrong password that leaves the button spinning forever
+//   • back/forward landing on an error or a stale screen
+//
+// Seeds its own Pro account, drives it, deletes it. Never touches an account it
+// did not create. Exits non-zero when a flow fails, so CI can gate on it.
+import { chromium } from "playwright";
+import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+
+const ROOT = new URL("..", import.meta.url).pathname;
+const BASE = process.env.BASE || "http://localhost:3111";
+const OUT = process.env.OUT || "qa-flows-out";
+mkdirSync(OUT, { recursive: true });
+
+const env = readFileSync(`${ROOT}/.env.local`, "utf8");
+const g = (k) => (env.match(new RegExp("^" + k + "=(.*)$", "m")) || [])[1]?.trim().replace(/^["']|["']$/g, "");
+const SB = g("NEXT_PUBLIC_SUPABASE_URL"), SVC = g("SUPABASE_SERVICE_ROLE_KEY");
+const adm = (p, i) => fetch(SB + p, { ...i, headers: { apikey: SVC, Authorization: "Bearer " + SVC, "Content-Type": "application/json", ...(i?.headers ?? {}) } });
+
+const stamp = Date.now().toString().slice(-8);
+const password = `Qa!aA1${stamp}x`;
+const email = `qa-flows-${stamp}@swiftcard-test.invalid`;
+const uname = `qa-flows-${stamp}`;
+let userId = null, cardId = null, browser;
+/** Accounts a flow seeded for itself; torn down alongside the main one. */
+const extraUsers = [];
+
+const failures = [];
+const fail = (flow, detail) => { failures.push({ flow, detail }); console.log(`  ✗ ${flow}: ${detail}`); };
+const pass = (flow, detail = "") => console.log(`  ✓ ${flow}${detail ? " — " + detail : ""}`);
+
+async function seed() {
+  const u = await (await adm("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email, password, email_confirm: true }) })).json();
+  if (!u.id) throw new Error("no user id: " + JSON.stringify(u).slice(0, 200));
+  userId = u.id;
+  await adm("/rest/v1/profiles", {
+    method: "POST", headers: { Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify({ id: u.id, username: uname, name: "Dana Ellis", email, plan: "pro", customization: { _aiConsent: "accepted" } }),
+  });
+  const c = await (await adm("/rest/v1/cards", {
+    method: "POST", headers: { Prefer: "return=representation" },
+    body: JSON.stringify({
+      user_id: u.id, username: uname, name: "Dana Ellis", title: "Principal Broker",
+      company: "Northbeam Group", email, phone: "(415) 555-0192", template: "modern-bold",
+    }),
+  })).json();
+  cardId = c?.[0]?.id;
+  if (!cardId) throw new Error("no card: " + JSON.stringify(c).slice(0, 200));
+}
+
+// Signed-in browser state, captured ONCE. Signing in per flow tripped
+// Supabase's per-IP auth rate limit around the third flow and every later one
+// timed out on the redirect — a harness artifact that looked exactly like a
+// broken login. One sign-in, reused, is also what a real session looks like.
+let storageState = null;
+
+async function newPage({ signedIn = true } = {}) {
+  const ctx = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    ...(signedIn && storageState ? { storageState } : {}),
+  });
+  const page = await ctx.newPage();
+  page.on("pageerror", (e) => fail("js-error", `${page.url().replace(BASE, "")} — ${e.message.split("\n")[0].slice(0, 140)}`));
+  return { ctx, page };
+}
+
+/**
+ * Put a value in a field and make sure REACT has it, not just the DOM.
+ *
+ * page.fill() sets .value and fires one input event. Land that event in the
+ * window before React has hydrated and the controlled component never sees it:
+ * the box shows the text, the state behind it is still "", and the submit goes
+ * out empty — which is how a run of this harness once made a perfectly good
+ * sign-in form answer "missing email or phone". A human typing keystroke by
+ * keystroke never hits it (verified); only an instant programmatic fill does.
+ * So: settle first, then fill, then read it back and retry once.
+ */
+async function typeInto(page, selector, value) {
+  await page.waitForSelector(selector, { timeout: 30000 });
+  await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  await page.fill(selector, value);
+  await page.waitForTimeout(250);
+  if ((await page.inputValue(selector)) !== value) {
+    await page.waitForTimeout(600);
+    await page.fill(selector, value);
+  }
+}
+
+async function signInOnce() {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await typeInto(page, "#auth-email", email);
+  await typeInto(page, "#auth-password", password);
+  await page.click('button[type="submit"]');
+  await page.waitForURL(/dashboard|onboarding|welcome/, { timeout: 45000 });
+  await page.waitForTimeout(2500);
+  storageState = await ctx.storageState();
+  await ctx.close();
+}
+
+/** With the session already in the context, "login" is just landing on a page. */
+async function login(page) {
+  if (!/\/(dashboard|contacts|share|settings|profile|cards)/.test(page.url())) {
+    await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+  }
+  await page.waitForTimeout(1200);
+  if (/\/login/.test(page.url())) throw new Error("session did not carry into the context");
+}
+
+async function dismissOverlays(page) {
+  for (const label of ["Allow", "Not now", "Skip tour", "Skip", "Got it", "Maybe later", "Done"]) {
+    const b = page.locator(`button:has-text("${label}")`).first();
+    if (await b.isVisible().catch(() => false)) { await b.click().catch(() => {}); await page.waitForTimeout(300); }
+  }
+}
+
+/** Count writes the page makes to our own API while `fn` runs. */
+async function countWrites(page, match, fn) {
+  const seen = [];
+  const on = (r) => {
+    const m = r.method();
+    if (m === "GET" || m === "HEAD" || m === "OPTIONS") return;
+    const u = r.url().replace(BASE, "");
+    if (u.startsWith(match)) seen.push(`${m} ${u}`);
+  };
+  page.on("request", on);
+  try { await fn(); } finally { page.off("request", on); }
+  return seen;
+}
+
+const FLOWS = {};
+
+// ── A. Card edit: it saves, it saves ONCE, and it survives a reload ──────────
+FLOWS["card-edit-persistence"] = async () => {
+  const { ctx, page } = await newPage();
+  try {
+    await login(page);
+    await dismissOverlays(page);
+    await page.goto(`${BASE}/cards/${cardId}/edit`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector('input[placeholder="John Smith"]', { timeout: 30000 });
+
+    const marker = `Edited ${stamp}`;
+    await page.fill('input[placeholder="John Smith"]', marker);
+    await page.fill('input[placeholder="Sales Director"]', `Title ${stamp}`);
+    await page.fill('input[placeholder="Acme Corp"]', `Company ${stamp}`);
+
+    // Double-tap Save. Exactly one write must reach the API.
+    const save = page.locator('button:has-text("Save changes")').first();
+    const writes = await countWrites(page, "/api/cards", async () => {
+      await save.click();
+      await save.click({ force: true, timeout: 2000 }).catch(() => {}); // disabled after the first — that IS the guard
+      await page.waitForTimeout(3000);
+    });
+    const patches = writes.filter((w) => w.includes(`/api/cards/${cardId}`));
+    if (patches.length === 0) fail("card-edit-persistence", "Save sent no request to /api/cards");
+    else if (patches.length > 1) fail("card-edit-persistence", `double-tap wrote ${patches.length}×: ${patches.join(", ")}`);
+    else pass("card-edit double-submit guard", "1 write");
+
+    await page.waitForURL(/\/dashboard/, { timeout: 20000 }).catch(() => {});
+    await page.waitForTimeout(1500);
+
+    // Reload the editor from scratch: the values must be the ones we typed.
+    await page.goto(`${BASE}/cards/${cardId}/edit`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector('input[placeholder="John Smith"]', { timeout: 30000 });
+    await page.waitForTimeout(1200);
+    const back = await page.inputValue('input[placeholder="John Smith"]');
+    if (back !== marker) fail("card-edit-persistence", `after reload name is "${back}", expected "${marker}"`);
+    else pass("card-edit persistence", "name survived a reload");
+
+    // And the server agrees — not just the client cache.
+    const row = await (await adm(`/rest/v1/cards?id=eq.${cardId}&select=name,title,company`)).json();
+    if (row?.[0]?.name !== marker) fail("card-edit-persistence", `DB name is "${row?.[0]?.name}", expected "${marker}"`);
+    else pass("card-edit persistence", "DB row matches");
+    await page.screenshot({ path: `${OUT}/card-edit-after-reload.png` }).catch(() => {});
+  } finally { await ctx.close(); }
+};
+
+// ── B. Required field: an empty name must not save silently ─────────────────
+FLOWS["card-edit-validation"] = async () => {
+  const { ctx, page } = await newPage();
+  try {
+    await login(page);
+    await dismissOverlays(page);
+    await page.goto(`${BASE}/cards/${cardId}/edit`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector('input[placeholder="John Smith"]', { timeout: 30000 });
+    const before = await page.inputValue('input[placeholder="John Smith"]');
+
+    await page.fill('input[placeholder="John Smith"]', "");
+    await page.locator('button:has-text("Save changes")').first().click();
+    await page.waitForTimeout(3000);
+
+    const row = await (await adm(`/rest/v1/cards?id=eq.${cardId}&select=name`)).json();
+    const nameNow = row?.[0]?.name ?? "";
+    if (!nameNow.trim()) fail("card-edit-validation", "a blank required Full name was saved — the card now has no name");
+    else pass("card-edit validation", `blank name rejected (still "${nameNow}")`);
+    if (nameNow !== before) {
+      // Not necessarily a bug (a server-side default is legitimate) — but say so.
+      console.log(`    note: name changed from "${before}" to "${nameNow}" on the blank save`);
+    }
+    await page.screenshot({ path: `${OUT}/card-edit-blank-name.png` }).catch(() => {});
+  } finally { await ctx.close(); }
+};
+
+// ── C. Profile form: Saved ✓ has to mean saved ───────────────────────────────
+FLOWS["profile-persistence"] = async () => {
+  const { ctx, page } = await newPage();
+  try {
+    await login(page);
+    await dismissOverlays(page);
+    await page.goto(`${BASE}/profile`, { waitUntil: "domcontentloaded" });
+    const bio = page.locator('textarea[placeholder^="A short bio"]').first();
+    if (!(await bio.isVisible().catch(() => false))) { console.log("  – profile bio field not present, skipping"); return; }
+    const marker = `Bio marker ${stamp}`;
+    await bio.fill(marker);
+    const submit = page.locator('button[type="submit"]:has-text("Save Changes")').first();
+    const writes = await countWrites(page, "/api/profile", async () => {
+      await submit.click();
+      await submit.click({ force: true, timeout: 2000 }).catch(() => {});
+      await page.waitForTimeout(3500);
+    });
+    if (writes.length > 1) fail("profile-persistence", `double-tap wrote ${writes.length}×`);
+    else pass("profile double-submit guard", `${writes.length} write`);
+
+    const label = (await submit.innerText().catch(() => "")).trim();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1800);
+    const back = await page.locator('textarea[placeholder^="A short bio"]').first().inputValue().catch(() => "");
+    if (back !== marker) fail("profile-persistence", `button said "${label}" but after reload the bio is "${back.slice(0, 40)}", expected "${marker}"`);
+    else pass("profile persistence", "bio survived a reload");
+    await page.screenshot({ path: `${OUT}/profile-after-reload.png` }).catch(() => {});
+  } finally { await ctx.close(); }
+};
+
+// ── D. Flow settings: same contract ─────────────────────────────────────────
+FLOWS["flow-settings-persistence"] = async () => {
+  const { ctx, page } = await newPage();
+  try {
+    await login(page);
+    await dismissOverlays(page);
+    // The automation note lives on /profile (SettingsShell on /settings/flows
+    // renders one section at a time and does not include this form).
+    await page.goto(`${BASE}/profile`, { waitUntil: "domcontentloaded" });
+    const cta = page.locator('textarea[placeholder^="e.g. Book a call"]').first();
+    if (!(await cta.isVisible().catch(() => false))) { console.log("  – flow CTA field not present, skipping"); return; }
+    const marker = `Book me ${stamp}`;
+    await cta.fill(marker);
+    const submit = page.locator('button:has-text("Save Settings")').first();
+    await submit.click();
+    await page.waitForTimeout(3000);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1800);
+    const back = await page.locator('textarea[placeholder^="e.g. Book a call"]').first().inputValue().catch(() => "");
+    if (back !== marker) fail("flow-settings-persistence", `after reload the CTA is "${back.slice(0, 40)}", expected "${marker}"`);
+    else pass("flow-settings persistence", "CTA survived a reload");
+  } finally { await ctx.close(); }
+};
+
+// ── E. Add contact: it lands in the list AND in the database ────────────────
+FLOWS["add-contact"] = async () => {
+  const { ctx, page } = await newPage();
+  try {
+    await login(page);
+    await dismissOverlays(page);
+    await page.goto(`${BASE}/contacts`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1500);
+    const opener = page.locator('button:has-text("Add contact")').first();
+    if (!(await opener.isVisible().catch(() => false))) { console.log("  – Add contact button not visible, skipping"); return; }
+    await opener.click();
+    await page.waitForTimeout(900);
+    const nameField = page.locator('input[placeholder="Sarah Williams"]').first();
+    if (!(await nameField.isVisible().catch(() => false))) { fail("add-contact", "the Add contact modal did not open"); return; }
+
+    const who = `QA Contact ${stamp}`;
+    await nameField.fill(who);
+    await page.fill('input[placeholder="sarah@example.com"]', `contact-${stamp}@swiftcard-test.invalid`);
+    const submit = page.locator('button[type="submit"]:has-text("Add contact")').first();
+    const writes = await countWrites(page, "/api/", async () => {
+      await submit.click();
+      await submit.click({ force: true, timeout: 2000 }).catch(() => {});
+      await page.waitForTimeout(3500);
+    });
+    const leadWrites = writes.filter((w) => /\/api\/(leads|contacts)/.test(w));
+    if (leadWrites.length > 1) fail("add-contact", `double-tap wrote ${leadWrites.length}×: ${leadWrites.join(", ")}`);
+    else pass("add-contact double-submit guard", `${leadWrites.length} write`);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2000);
+    const shown = await page.locator(`text=${who}`).count();
+    const rows = await (await adm(`/rest/v1/leads?card_owner=eq.${uname}&select=id,name`)).json();
+    const inDb = Array.isArray(rows) && rows.some((r) => r.name === who);
+    if (!inDb) fail("add-contact", "the contact was not written to the database");
+    else if (!shown) fail("add-contact", "the contact is in the database but does not appear in the list after a reload");
+    else pass("add-contact", "saved and listed");
+    await page.screenshot({ path: `${OUT}/contacts-after-add.png` }).catch(() => {});
+  } finally { await ctx.close(); }
+};
+
+// ── F. A wrong password must say so, not spin forever ───────────────────────
+FLOWS["login-failure"] = async () => {
+  const { ctx, page } = await newPage({ signedIn: false });
+  try {
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await typeInto(page, "#auth-email", email);
+    await typeInto(page, "#auth-password", "definitely-not-the-password");
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(6000);
+    const label = (await page.locator('button[type="submit"]').first().innerText().catch(() => "")).trim();
+    const body = await page.locator("body").innerText();
+    // Supabase rate-limits sign-ins per IP. A run that trips it gets a real,
+    // correct error message that simply is not the wrong-password one — which
+    // is not a product failure, so say so instead of crying wolf.
+    if (/missing email or phone/i.test(body)) {
+      fail("login-failure", "the sign-in went out with an EMPTY email — the typed value never reached React state");
+      return;
+    }
+    if (/rate limit|too many requests/i.test(body)) {
+      console.log("  – sign-in rate limited by the auth provider, cannot assert the rejection copy");
+      return;
+    }
+    const stuck = label === "…" || /Signing/i.test(label);
+    const said = /invalid|incorrect|wrong|could ?n.t|couldn.t|not match|try again/i.test(body);
+    if (stuck) fail("login-failure", `submit button still reads "${label}" 6s after a rejected sign-in`);
+    else if (!said) fail("login-failure", `a rejected sign-in showed no error message (button: "${label}"; page said: ${JSON.stringify(body.replace(/\s+/g, " ").slice(0, 240))})`);
+    else pass("login-failure", "rejected with a message, button reset");
+    if (page.url().includes("/dashboard")) fail("login-failure", "a WRONG password reached the dashboard");
+    await page.screenshot({ path: `${OUT}/login-wrong-password.png` }).catch(() => {});
+  } finally { await ctx.close(); }
+};
+
+// ── G. Browser back/forward must not strand you ─────────────────────────────
+FLOWS["history"] = async () => {
+  const { ctx, page } = await newPage();
+  try {
+    await login(page);
+    await dismissOverlays(page);
+    for (const p of ["/contacts", "/share", "/settings/flows"]) {
+      await page.goto(BASE + p, { waitUntil: "domcontentloaded" });
+      await page.waitForTimeout(900);
+    }
+    for (const step of ["goBack", "goBack", "goForward"]) {
+      await page[step]({ waitUntil: "domcontentloaded" }).catch(() => {});
+      await page.waitForTimeout(1400);
+      const body = await page.locator("body").innerText();
+      if (/Application error|Something went wrong|This page could not be found/i.test(body)) {
+        fail("history", `${step} landed on an error page at ${page.url().replace(BASE, "")}`);
+      }
+      if (body.trim().length < 40) fail("history", `${step} landed on a blank page at ${page.url().replace(BASE, "")}`);
+    }
+    pass("history", "back/forward stayed on real pages");
+  } finally { await ctx.close(); }
+};
+
+// ── H. Signed out means signed out ──────────────────────────────────────────
+FLOWS["sign-out"] = async () => {
+  // Reuses the shared session rather than signing in again — a second real
+  // sign-in is what tripped the provider's rate limit. Signing out only kills
+  // this context's copy of the cookies, so the shared state stays usable; it
+  // runs last regardless.
+  const { ctx, page } = await newPage();
+  try {
+    await login(page);
+    await dismissOverlays(page);
+    await page.goto(`${BASE}/settings/flows`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1200);
+    let out = page.locator('button:has-text("Sign out"), a:has-text("Sign out")').first();
+    if (!(await out.isVisible().catch(() => false))) {
+      // SettingsShell shows one section at a time; Sign out lives under Security.
+      const sec = page.locator('button:has-text("Security"), a:has-text("Security")').first();
+      if (await sec.isVisible().catch(() => false)) { await sec.click().catch(() => {}); await page.waitForTimeout(1200); }
+      out = page.locator('button:has-text("Sign out"), a:has-text("Sign out")').first();
+    }
+    if (!(await out.isVisible().catch(() => false))) { fail("sign-out", "no Sign out control anywhere on /settings/flows"); return; }
+    await out.click();
+    await page.waitForTimeout(4000);
+    // Going back must NOT reveal the signed-in dashboard.
+    await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1500);
+    if (!/\/login/.test(page.url())) fail("sign-out", `after signing out, /dashboard served ${page.url().replace(BASE, "")} instead of the login wall`);
+    else pass("sign-out", "the login wall holds after signing out");
+  } finally { await ctx.close(); }
+};
+
+// ── I. A brand-new account with nothing in it ───────────────────────────────
+// The most common first experience there is, and the one with the least data
+// to render — so the one where an empty state is most likely to be a crash, a
+// blank panel, or a control that does nothing.
+FLOWS["empty-account"] = async () => {
+  const e2 = `qa-empty-${stamp}@swiftcard-test.invalid`;
+  const u2 = `qa-empty-${stamp}`;
+  const created = await (await adm("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email: e2, password, email_confirm: true }) })).json();
+  if (!created.id) { fail("empty-account", "could not seed the empty account"); return; }
+  extraUsers.push({ id: created.id, uname: u2 });
+  await adm("/rest/v1/profiles", {
+    method: "POST", headers: { Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify({ id: created.id, username: u2, name: "New Person", email: e2, plan: "free", customization: { _aiConsent: "accepted" } }),
+  });
+  // No card, no contacts, no views — deliberately.
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await ctx.newPage();
+  page.on("pageerror", (err) => fail("empty-account", `js-error on ${page.url().replace(BASE, "")} — ${err.message.split("\n")[0].slice(0, 140)}`));
+  try {
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await typeInto(page, "#auth-email", e2);
+    await typeInto(page, "#auth-password", password);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/dashboard|onboarding|welcome/, { timeout: 45000 }).catch(() => {});
+    await page.waitForTimeout(2500);
+    await dismissOverlays(page);
+    for (const path of ["/dashboard", "/contacts", "/share"]) {
+      await page.goto(BASE + path, { waitUntil: "domcontentloaded" }).catch(() => {});
+      await page.waitForTimeout(1800);
+      const body = await page.locator("body").innerText();
+      if (/Application error|Something went wrong|This page could not be found/i.test(body)) {
+        fail("empty-account", `${path} shows an error page with no data`);
+      } else if (body.trim().length < 60) {
+        fail("empty-account", `${path} rendered an all but blank page (${body.trim().length} chars) with no data`);
+      }
+      // An empty screen still has to offer the next step.
+      const actions = await page.locator("button:visible, a[href]:visible").count();
+      if (actions < 3) fail("empty-account", `${path} offers only ${actions} control(s) — a dead end for a new account`);
+      await page.screenshot({ path: `${OUT}/empty${path.replace(/\//g, "-")}.png` }).catch(() => {});
+    }
+    pass("empty-account", "dashboard, contacts and links all render with nothing in the account");
+  } finally { await ctx.close(); }
+};
+
+// ── J. Mobile tab bar: every tab goes where it says ─────────────────────────
+FLOWS["mobile-tabs"] = async () => {
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
+    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+    ...(storageState ? { storageState } : {}),
+  });
+  const page = await ctx.newPage();
+  page.on("pageerror", (e) => fail("mobile-tabs", `js-error — ${e.message.split("\n")[0].slice(0, 140)}`));
+  try {
+    await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(2000);
+    await dismissOverlays(page);
+    const bar = page.locator(".sc-tabbar").first();
+    if (!(await bar.isVisible().catch(() => false))) { fail("mobile-tabs", "no tab bar on /dashboard at 390px"); return; }
+    for (const [label, expect] of [["Contacts", "/contacts"], ["Links", "/share"], ["Settings", "/settings"], ["Home", "/dashboard"]]) {
+      const tab = page.locator(`.sc-tabbar a:has-text("${label}")`).first();
+      if (!(await tab.isVisible().catch(() => false))) { fail("mobile-tabs", `no "${label}" tab in the bar`); continue; }
+      // Next.js's dev indicator is a fixed widget in the bottom-left corner —
+      // exactly on top of the Home tab — so in `next dev` the leftmost tab is
+      // unclickable for reasons that have nothing to do with the product. It
+      // does not exist in a production build. Report what is really in the way
+      // rather than blaming the tab.
+      const blocker = await tab.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        if (!hit || hit === el || el.contains(hit)) return null;
+        return hit.closest("nextjs-portal") || hit.tagName === "NEXTJS-PORTAL"
+          ? "dev-overlay"
+          : `${hit.tagName.toLowerCase()}${typeof hit.className === "string" && hit.className.trim() ? "." + hit.className.trim().split(/\s+/).slice(0, 2).join(".") : ""}`;
+      }).catch(() => null);
+      if (blocker === "dev-overlay") {
+        console.log(`  – "${label}" sits under the Next.js dev indicator; not a product defect, skipping (run against a production build to cover it)`);
+        continue;
+      }
+      if (blocker) { fail("mobile-tabs", `"${label}" is covered by ${blocker}`); continue; }
+      await tab.click().catch((e) => fail("mobile-tabs", `"${label}" would not click — ${e.message.split("\n")[0]}`));
+      await page.waitForTimeout(2200);
+      const url = page.url().replace(BASE, "");
+      if (!url.startsWith(expect)) fail("mobile-tabs", `"${label}" landed on ${url}, expected ${expect}`);
+      const body = await page.locator("body").innerText();
+      if (/Application error|Something went wrong/i.test(body)) fail("mobile-tabs", `"${label}" landed on an error page`);
+    }
+    // The bar must not sit on top of the page's own content at the very bottom.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(700);
+    const clash = await page.evaluate(() => {
+      const bar = document.querySelector(".sc-tabbar");
+      if (!bar) return null;
+      const top = bar.getBoundingClientRect().top;
+      let lowest = 0, worst = "";
+      for (const el of document.querySelectorAll("body *")) {
+        if (el.closest(".sc-tabbar") || el.children.length || !(el.textContent || "").trim()) continue;
+        const cs = getComputedStyle(el);
+        if (cs.position === "fixed" || cs.position === "sticky" || cs.visibility === "hidden" || cs.display === "none") continue;
+        const r = el.getBoundingClientRect();
+        if (r.height === 0 || r.width === 0) continue;
+        if (r.bottom > lowest) { lowest = r.bottom; worst = (el.textContent || "").trim().slice(0, 40); }
+      }
+      return lowest > top + 2 ? { lowest: Math.round(lowest), top: Math.round(top), worst } : null;
+    });
+    if (clash) fail("mobile-tabs", `content ends under the tab bar: "${clash.worst}" bottom=${clash.lowest} > bar top=${clash.top}`);
+    await page.screenshot({ path: `${OUT}/mobile-tabs-bottom.png` }).catch(() => {});
+    pass("mobile-tabs", "every tab navigates and nothing hides under the bar");
+  } finally { await ctx.close(); }
+};
+
+const ONLY = process.env.ONLY || "";
+try {
+  console.log("seeding…");
+  await seed();
+  console.log(`seeded ${uname} (${userId})`);
+  browser = await chromium.launch();
+  await signInOnce();
+  // sign-out revokes the refresh token server-side, which kills the shared
+  // storageState for every context — so it runs after everything that needs it.
+  const order = Object.keys(FLOWS).sort((a, b) => (a === "sign-out") - (b === "sign-out"));
+  for (const name of order) {
+    const fn = FLOWS[name];
+    if (ONLY && ONLY !== name) continue;
+    console.log(`\n▸ ${name}`);
+    try { await fn(); } catch (e) { fail(name, "threw — " + e.message.split("\n")[0].slice(0, 160)); }
+  }
+} catch (e) {
+  console.error("FAILED:", e.stack?.split("\n").slice(0, 4).join(" | "));
+  fail("harness", e.message.split("\n")[0]);
+} finally {
+  if (browser) await browser.close().catch(() => {});
+  if (process.env.KEEP) {
+    console.log("\nKEEP=1 — leaving", userId);
+  } else if (userId) {
+    try {
+      for (const x of extraUsers) {
+        await adm(`/rest/v1/leads?card_owner=eq.${x.uname}`, { method: "DELETE" });
+        await adm(`/rest/v1/notifications?user_id=eq.${x.id}`, { method: "DELETE" });
+        await adm(`/rest/v1/cards?user_id=eq.${x.id}`, { method: "DELETE" });
+        await adm(`/rest/v1/profiles?id=eq.${x.id}`, { method: "DELETE" });
+        await adm(`/auth/v1/admin/users/${x.id}`, { method: "DELETE" });
+      }
+      await adm(`/rest/v1/card_views?username=in.(${uname},${uname}__links)`, { method: "DELETE" });
+      await adm(`/rest/v1/card_events?username=in.(${uname},${uname}__links)`, { method: "DELETE" });
+      await adm(`/rest/v1/leads?card_owner=eq.${uname}`, { method: "DELETE" });
+      await adm(`/rest/v1/notifications?user_id=eq.${userId}`, { method: "DELETE" });
+      await adm(`/rest/v1/cards?user_id=eq.${userId}`, { method: "DELETE" });
+      await adm(`/rest/v1/profiles?id=eq.${userId}`, { method: "DELETE" });
+      await adm(`/auth/v1/admin/users/${userId}`, { method: "DELETE" });
+      console.log("\ncleaned up", userId);
+    } catch (e) { console.error("  CLEANUP FAILED — remove manually:", userId, e.message); }
+  }
+  writeFileSync(`${OUT}/failures.json`, JSON.stringify(failures, null, 2));
+  console.log(`\n${failures.length} failure(s)${failures.length ? " → " + OUT + "/failures.json" : ""}`);
+  process.exit(failures.length ? 1 : 0);
+}

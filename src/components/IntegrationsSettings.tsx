@@ -485,7 +485,7 @@ function TokenCard({
               />
             </div>
           )}
-          <p className="text-slate-400 text-[11px] leading-relaxed">{help}</p>
+          <p className="text-slate-400 text-[0.6875rem] leading-relaxed">{help}</p>
           {connected && (
             <button onClick={() => { setShowForm(false); setError(null); }} className="text-slate-400 hover:text-slate-600 text-xs font-medium transition-colors">
               Cancel

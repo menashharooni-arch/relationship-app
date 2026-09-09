@@ -238,13 +238,13 @@ export default function NotificationsPanel({
               )}
               {/* Clock-dependent text — a minute tick between SSR and hydration
                   makes the strings differ (React #418). Cosmetic, so suppress. */}
-              <p suppressHydrationWarning className="text-gray-600 text-[11px] mt-1">{timeAgo(n.created_at)}</p>
+              <p suppressHydrationWarning className="text-gray-600 text-[0.6875rem] mt-1">{timeAgo(n.created_at)}</p>
             </div>
             <button
               onClick={() => setRead(n.id, !n.read)}
               title={n.read ? "Mark as unread" : "Mark as read"}
               aria-label={n.read ? "Mark as unread" : "Mark as read"}
-              className={`shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-lg border transition-colors ${
+              className={`shrink-0 text-[0.6875rem] font-medium px-2.5 py-1 rounded-lg border transition-colors ${
                 n.read
                   ? "border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500"
                   : "border-blue-700 bg-blue-600/15 text-blue-300 hover:bg-blue-600/25"

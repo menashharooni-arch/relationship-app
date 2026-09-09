@@ -316,7 +316,6 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
     <div className="rd-dark2">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <ScrollProgress />
-      <div className="sc-scroll-progress" />
       <ScrollReveal />
       <SiteNav />
 
@@ -337,7 +336,7 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
                 <Link href={`/cards/new?src=${src}`} className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
                 <NativeHidden><Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link></NativeHidden>
               </div>
-              <p className="text-white/40 text-[13px] mt-5" data-reveal>Free to start · No app for them to download · Live in 60 seconds</p>
+              <p className="text-white/40 text-[0.8125rem] mt-5" data-reveal>Free to start · No app for them to download · Live in 60 seconds</p>
             </div>
             <div data-reveal="scale">
               {/* This profession's OWN SwiftCard, exactly as the product renders
@@ -359,8 +358,8 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
             <div className="mt-10 grid sm:grid-cols-3 gap-4">
               {v.pains.map((p, i) => (
                 <div key={p.t} className="rd-card-l p-6" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
-                  <p className="text-slate-900 font-semibold text-[16px]">{p.t}</p>
-                  <p className="text-slate-500 text-[14px] mt-1.5 leading-relaxed">{p.d}</p>
+                  <p className="text-slate-900 font-semibold text-[1rem]">{p.t}</p>
+                  <p className="text-slate-500 text-[0.875rem] mt-1.5 leading-relaxed">{p.d}</p>
                 </div>
               ))}
             </div>
@@ -372,7 +371,7 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
           <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(70% 90% at 15% 0%, rgba(93,107,255,0.18), transparent 60%)" }} />
           <div className="relative max-w-5xl mx-auto px-5 sm:px-6">
             <div className="max-w-2xl" data-reveal>
-              <p className="text-[13px] font-semibold tracking-[0.14em] uppercase" style={{ color: "#4DA8F5" }}>Built for the way you work</p>
+              <p className="rd-eyebrow rd-eyebrow-accent">Built for the way you work</p>
               <h2 className="rd-h2 text-white text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">One card, everywhere {v.audience} win business.</h2>
             </div>
             <div className="mt-12 grid md:grid-cols-3 gap-4">
@@ -381,8 +380,8 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--rd-aurora)" }}>
                     <svg viewBox="0 0 20 20" className="w-4.5 h-4.5 text-white" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                   </div>
-                  <p className="text-white font-semibold text-[16px]">{s.t}</p>
-                  <p className="text-white/55 text-[14px] mt-1.5 leading-relaxed">{s.d}</p>
+                  <p className="text-white font-semibold text-[1rem]">{s.t}</p>
+                  <p className="text-white/55 text-[0.875rem] mt-1.5 leading-relaxed">{s.d}</p>
                 </div>
               ))}
             </div>
@@ -396,11 +395,14 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
             <div className="mt-10 flex flex-col gap-3">
               {v.faq.map((f, i) => (
                 <details key={f.q} className="rd-card-l group px-6 py-5" data-reveal style={{ transitionDelay: `${i * 50}ms` }}>
-                  <summary className="cursor-pointer list-none flex items-center justify-between gap-4">
-                    <span className="text-slate-900 font-semibold text-[15.5px]">{f.q}</span>
-                    <span className="text-slate-400 text-xl leading-none transition-transform group-open:rotate-45 shrink-0">+</span>
+                  {/* Same hit-area fix as site/FaqAccordion: the negative
+                      margins cancel the padding, so the row looks identical and
+                      all of it is clickable. */}
+                  <summary className="cursor-pointer list-none flex items-center justify-between gap-4 -mx-6 -my-5 px-6 py-5">
+                    <span className="text-slate-900 font-semibold text-[0.96875rem]">{f.q}</span>
+                    <span aria-hidden="true" className="text-slate-500 text-xl leading-none transition-transform group-open:rotate-45 shrink-0">+</span>
                   </summary>
-                  <p className="text-slate-500 text-[14.5px] mt-3 leading-relaxed">{f.a}</p>
+                  <p className="text-slate-500 text-[0.90625rem] mt-3 leading-relaxed">{f.a}</p>
                 </details>
               ))}
             </div>

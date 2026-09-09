@@ -30,9 +30,9 @@ function duration(sec: number) {
 function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-      <p className="text-gray-500 text-[11px] font-medium uppercase tracking-wide">{label}</p>
+      <p className="text-gray-500 text-[0.6875rem] font-medium uppercase tracking-wide">{label}</p>
       <p className="text-white text-2xl font-bold tabular-nums mt-1">{value}</p>
-      {sub && <p className="text-gray-500 text-[11px] mt-0.5">{sub}</p>}
+      {sub && <p className="text-gray-500 text-[0.6875rem] mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -49,9 +49,9 @@ function DualChart({ series }: { series: Data["daily"] }) {
             <div className="absolute bottom-0 w-full rounded-t-sm" style={{ height: `${(s.visitors / max) * 100}%`, minHeight: s.visitors ? 3 : 0, background: "#3b82f6" }} />
           </div>
           <div className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 z-10 hidden group-hover:block whitespace-nowrap rounded-md bg-slate-800 px-2 py-1 text-center shadow-lg ring-1 ring-black/20">
-            <span suppressHydrationWarning className="block text-[10px] text-slate-400">{new Date(s.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-            <span className="block text-[11px] font-bold text-white tabular-nums">{fmt(s.views)} views</span>
-            <span className="block text-[11px] font-semibold text-blue-300 tabular-nums">{fmt(s.visitors)} visitors</span>
+            <span suppressHydrationWarning className="block text-[0.625rem] text-slate-400">{new Date(s.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+            <span className="block text-[0.6875rem] font-bold text-white tabular-nums">{fmt(s.views)} views</span>
+            <span className="block text-[0.6875rem] font-semibold text-blue-300 tabular-nums">{fmt(s.visitors)} visitors</span>
           </div>
         </div>
       ))}
@@ -140,7 +140,7 @@ export default function WebsiteAnalyticsClient({ initialInternalDevice }: { init
           <p className="text-sm text-white font-medium">
             {internalDevice ? "This device is excluded from analytics" : "This device is counted in analytics"}
           </p>
-          <p className="text-gray-500 text-[11px] mt-0.5">
+          <p className="text-gray-500 text-[0.6875rem] mt-0.5">
             Turn this on wherever you and your partner browse the site, so your own visits don&apos;t inflate the numbers.
           </p>
         </div>
@@ -174,7 +174,7 @@ export default function WebsiteAnalyticsClient({ initialInternalDevice }: { init
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6">
             <div className="flex items-center justify-between mb-3">
               <p className="text-white font-semibold text-sm">Last 30 days</p>
-              <div className="flex items-center gap-4 text-[11px]">
+              <div className="flex items-center gap-4 text-[0.6875rem]">
                 <span className="flex items-center gap-1.5 text-gray-400"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#3b82f6" }} /> Unique visitors</span>
                 <span className="flex items-center gap-1.5 text-gray-400"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#1e3a8a" }} /> Pageviews</span>
               </div>
@@ -189,7 +189,7 @@ export default function WebsiteAnalyticsClient({ initialInternalDevice }: { init
           </div>
 
           {data.capHit && (
-            <p className="text-amber-500/70 text-[11px] mt-4">Charts reflect the most recent 50,000 pageviews (window is busier than that).</p>
+            <p className="text-amber-500/70 text-[0.6875rem] mt-4">Charts reflect the most recent 50,000 pageviews (window is busier than that).</p>
           )}
         </>
       )}

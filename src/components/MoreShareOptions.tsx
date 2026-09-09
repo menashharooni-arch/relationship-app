@@ -52,8 +52,8 @@ export default function MoreShareOptions({ url, walletUsername }: { url: string;
 
             {/* Copy link */}
             <div className="flex items-center gap-1.5 mb-1.5">
-              <p className="text-gray-500 text-[11px] uppercase tracking-wide">Card link</p>
-              <span className="text-gray-600 text-[11px] normal-case tracking-normal">· you can put this link in your bio</span>
+              <p className="text-gray-500 text-[0.6875rem] uppercase tracking-wide">Card link</p>
+              <span className="text-gray-600 text-[0.6875rem] normal-case tracking-normal">· you can put this link in your bio</span>
             </div>
             <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5 mb-5">
               <svg viewBox="0 0 16 16" fill="#3b82f6" className="w-3.5 h-3.5 shrink-0"><path d="M8 0C3.58 0 0 3.58 0 8s3.58 8 8 8 8-3.58 8-8S12.42 0 8 0zm1 11.93V13H7v-1.07A6.003 6.003 0 012.07 7H4v-.5h-.93A6.003 6.003 0 017 1.07V2h2v1.07A6.003 6.003 0 0113.93 6.5H12V7h1.93A6.003 6.003 0 019 11.93z" /></svg>
@@ -84,7 +84,7 @@ export default function MoreShareOptions({ url, walletUsername }: { url: string;
                   <QRDownloadButton url={qrUrl} compact />
                 </div>
                 <div className="hidden lg:block">
-                  <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">QR code</p>
+                  <p className="text-gray-500 text-[0.6875rem] uppercase tracking-wide mb-2">QR code</p>
                   <QRCard url={qrUrl} />
                   <div className="mt-3">
                     <QRDownloadButton url={qrUrl} compact />
@@ -93,7 +93,7 @@ export default function MoreShareOptions({ url, walletUsername }: { url: string;
               </>
             ) : (
               <>
-                <p className="text-gray-500 text-[11px] uppercase tracking-wide mb-2">QR code</p>
+                <p className="text-gray-500 text-[0.6875rem] uppercase tracking-wide mb-2">QR code</p>
                 <QRCard url={qrUrl} />
                 <div className="mt-3">
                   <QRDownloadButton url={qrUrl} compact />
@@ -105,8 +105,8 @@ export default function MoreShareOptions({ url, walletUsername }: { url: string;
                 card. Writes directly on Android Chrome; everywhere else the
                 component hands over the link + a free NFC-app path. */}
             <div className="flex items-center gap-1.5 mt-5 mb-2">
-              <p className="text-gray-500 text-[11px] uppercase tracking-wide">NFC card</p>
-              <span className="text-gray-600 text-[11px] normal-case tracking-normal">· tap any phone to open your card</span>
+              <p className="text-gray-500 text-[0.6875rem] uppercase tracking-wide">NFC card</p>
+              <span className="text-gray-600 text-[0.6875rem] normal-case tracking-normal">· tap any phone to open your card</span>
             </div>
             <NFCWriter url={url} />
 
@@ -117,8 +117,8 @@ export default function MoreShareOptions({ url, walletUsername }: { url: string;
             {walletUsername && (
               <>
                 <div className="flex items-center gap-1.5 mt-5 mb-2">
-                  <p className="text-gray-500 text-[11px] uppercase tracking-wide">Apple Wallet</p>
-                  <span className="text-gray-600 text-[11px] normal-case tracking-normal">· keep your card on your phone to scan</span>
+                  <p className="text-gray-500 text-[0.6875rem] uppercase tracking-wide">Apple Wallet</p>
+                  <span className="text-gray-600 text-[0.6875rem] normal-case tracking-normal">· keep your card on your phone to scan</span>
                 </div>
                 <AddToWalletButton username={walletUsername} />
               </>

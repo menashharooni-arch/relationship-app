@@ -88,17 +88,22 @@ export default function MobileNav({ showAdmin = false }: { showAdmin?: boolean }
         {tabs.map(({ href, tour, label, icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
           // Admin gets the console's purple so it reads as a separate area.
-          const activeColor = href === "/office/admin" ? "#a855f7" : "#3b82f6";
+          // Darker than the old #3b82f6 / #a855f7: on the LIGHT tab bar
+          // (rgba(250,247,242)) those measured 3.44:1 and 3.6:1 — under the
+          // 4.5:1 AA floor for this 10px label. These clear it on the light bar
+          // and stay legible on the dark one.
+          const activeColor = href === "/office/admin" ? "#7E22CE" : "#1D4ED8";
           return (
             <Link
               key={href}
               href={withCard(href)}
               data-tour={tour}
-              className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-0"
+              aria-current={active ? "page" : undefined}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-0 ${active ? "font-bold" : ""}`}
               style={{ color: active ? activeColor : "#6b7280" }}
             >
               {icon}
-              <span className="text-[10px] font-semibold">{label}</span>
+              <span className="text-[0.625rem] font-semibold">{label}</span>
             </Link>
           );
         })}

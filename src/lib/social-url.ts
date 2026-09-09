@@ -28,6 +28,17 @@ export function socialUrl(platform: string, raw?: string | null): string | null 
   }
 
   let handle = v.replace(/^@+/, "").trim();
+  // Strip a leading slash before anything else. Selecting the PATH out of the
+  // address bar — "/in/johndoe" instead of "linkedin.com/in/johndoe" — is an
+  // ordinary way to copy "your LinkedIn", and it contains neither "://" nor a
+  // dot, so normalizeSocial stores it untouched. The switch below then pastes
+  // it after its own prefix and built https://linkedin.com/in//in/johndoe: a
+  // button that looks correct in the editor and 404s for every visitor.
+  handle = handle.replace(/^\/+/, "");
+  // The site name typed without its ".com" ("linkedin/in/johndoe") lands the
+  // same way. Drop a leading platform-name segment so what follows is the
+  // handle the rules below expect.
+  handle = handle.replace(new RegExp(`^${platform}/+`, "i"), "");
   if (!handle) return null;
   // A spaced value is a person's/page's NAME, not a handle. LinkedIn (and
   // Facebook) default handles are the hyphenated name — "John Doe" →
@@ -89,6 +100,25 @@ export function normalizeSocial(raw: string, platform: string): string {
     return v;
   }
   return v.startsWith("@") ? v : `@${v.replace(/^@/, "")}`;
+}
+
+/**
+ * The destination a social field will actually open, written the way a person
+ * reads a link (no scheme). `null` when the value cannot produce a link at all.
+ *
+ * WHY THIS EXISTS: the editor showed an "Open link" button but never said WHERE
+ * it went, so the only way to discover that a handle was wrong was to click
+ * through to a 404 — which nobody does while filling in a form. Reported
+ * 2026-09-08 as "LinkedIn isn't working for some users": the link had been
+ * built from a value that looked fine in the box. Printing the resolved
+ * destination under the field makes a wrong entry visible at the moment it is
+ * typed, and it also exposes the GUESSES — "John Doe" quietly becomes
+ * linkedin.com/in/john-doe, which is right often enough to ship and wrong often
+ * enough that the owner should see it.
+ */
+export function socialDestination(platform: string, raw?: string | null): string | null {
+  const url = socialUrl(platform, raw);
+  return url ? url.replace(/^https?:\/\//i, "") : null;
 }
 
 // For these URL-style networks, show the exact format to copy so the link works.

@@ -17,7 +17,7 @@ export function Field({
 }: { label: string; prefix?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label className="block">
-      <span className="block text-white/55 text-[12px] font-medium mb-1.5">{label}</span>
+      <span className="block text-white/55 text-[0.75rem] font-medium mb-1.5">{label}</span>
       <div className="relative">
         {prefix && <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 text-sm">{prefix}</span>}
         <input className={inputCls} style={prefix ? { paddingLeft: 26 } : undefined} {...props} />
@@ -29,7 +29,7 @@ export function Field({
 export function TextArea({ label, ...props }: { label: string } & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <label className="block">
-      <span className="block text-white/55 text-[12px] font-medium mb-1.5">{label}</span>
+      <span className="block text-white/55 text-[0.75rem] font-medium mb-1.5">{label}</span>
       <textarea className={`${inputCls} resize-none`} rows={3} {...props} />
     </label>
   );
@@ -95,8 +95,8 @@ export function LinkButtons({
 
   return (
     <div>
-      <span className="block text-white/55 text-[12px] font-medium mb-1">{label}</span>
-      <p className="text-white/35 text-[11px] mb-2 leading-snug">{hint}</p>
+      <span className="block text-white/55 text-[0.75rem] font-medium mb-1">{label}</span>
+      <p className="text-white/35 text-[0.6875rem] mb-2 leading-snug">{hint}</p>
 
       {links.length > 0 && (
         <div className="space-y-1.5 mb-2.5">
@@ -104,7 +104,7 @@ export function LinkButtons({
             <div key={`${l.label}-${i}`} className="flex items-center gap-2 rounded-xl bg-[#15171F] border border-white/10 px-3 py-2">
               <span className="min-w-0 flex-1">
                 <span className="block text-white text-sm truncate">{l.label}</span>
-                <span className="block text-white/40 text-[11px] truncate">{l.url}</span>
+                <span className="block text-white/40 text-[0.6875rem] truncate">{l.url}</span>
               </span>
               <button
                 type="button"

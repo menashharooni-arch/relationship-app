@@ -126,8 +126,12 @@ const GUARDS: Guard[] = [
   { file: "src/app/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
   { file: "src/app/products/[slug]/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
   { file: "src/app/testimonials/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
-  { file: "src/app/compare/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
-  { file: "src/app/privacy/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
+  // The cream pages (legal, company, blog, /compare, the SEO landing pages) no
+  // longer each hand-roll their footer — SiteFooterMini is the one copy, so its
+  // Pricing link is the one that has to stay gated. /compare keeps its own
+  // guard because it also drops the price ROWS from the comparison table.
+  { file: "src/components/site/SiteFooterMini.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
+  { file: "src/app/compare/page.tsx", patterns: [/row\.pricing \? <NativeHidden/] },
 ];
 
 describe("native suppression guards are present at each site", () => {

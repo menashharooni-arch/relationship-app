@@ -98,7 +98,7 @@ export default function GuestGateModal() {
           </a>
         </div>
 
-        <p className="mt-3 text-center text-[11px] leading-relaxed text-gray-500">
+        <p className="mt-3 text-center text-[0.6875rem] leading-relaxed text-gray-500">
           By creating an account you agree to our{" "}
           <Link href="/terms" className="underline hover:text-gray-300">Terms</Link> and{" "}
           <Link href="/privacy" className="underline hover:text-gray-300">Privacy Policy</Link>.

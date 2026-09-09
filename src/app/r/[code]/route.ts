@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { REF_COOKIE, SRC_COOKIE, COOKIE_MAX_AGE } from "@/lib/referral";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-
 // Referral link: swiftcard.me/r/CODE → remember the code + redirect to signup.
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const clean = (code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
 
@@ -38,8 +36,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cod
   const res = NextResponse.redirect(
     // ?ref=1 drives the "your friend gave you a free month" headline. Only
     // promise that when there is a referrer to honour it.
-    `${APP_URL}/login?mode=signup${resolved ? "&ref=1" : ""}`,
+    //
+    // Resolved against the REQUEST, not NEXT_PUBLIC_APP_URL: identical on
+    // production, but on a preview deploy or a dev box the build-time constant
+    // sent the visitor to production — discarding the referral code and source
+    // cookies set just below, since a Set-Cookie only reaches the origin that
+    // sent it. That is the referrer losing credit, silently, in exactly the
+    // environments used to test the referral link.
+    new URL(`/login?mode=signup${resolved ? "&ref=1" : ""}`, req.url),
   );
+
+  // Same guard as /join: a prefetched <Link> must not spend a referral. No
+  // in-app link points here today (these arrive as a friend's shared URL, a
+  // real navigation), but the cookie write and the referral lookup above are
+  // both things a prefetch has no business triggering.
+  if (req.headers.get("next-router-prefetch") === "1") return res;
 
   if (resolved) {
     const opts = { maxAge: COOKIE_MAX_AGE, httpOnly: true, sameSite: "lax" as const, path: "/", secure: true };

@@ -62,10 +62,10 @@ function isHex(v?: string): v is string {
   return !!v && /^#[0-9a-fA-F]{6}$/.test(v);
 }
 
-const rowLabel = "text-[11px] font-semibold text-gray-300 uppercase tracking-wide";
+const rowLabel = "text-[0.6875rem] font-semibold text-gray-300 uppercase tracking-wide";
 
 function ProTag() {
-  return <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-blue-600 text-white leading-none">PRO</span>;
+  return <span className="text-[0.5rem] font-bold px-1 py-0.5 rounded-full bg-blue-600 text-white leading-none">PRO</span>;
 }
 
 function SwatchRow({
@@ -101,11 +101,12 @@ function SwatchRow({
         />
       ))}
       <label
-        className={`flex items-center gap-1 text-[10px] text-gray-600 ml-0.5 ${customLocked ? "opacity-50 pointer-events-none select-none" : "cursor-pointer"}`}
+        className={`flex items-center gap-1 text-[0.625rem] text-gray-600 ml-0.5 ${customLocked ? "opacity-50 pointer-events-none select-none" : "cursor-pointer"}`}
         aria-disabled={customLocked}
       >
         custom{customLocked && <ProTag />}
         <input
+          aria-label="Accent colour"
           type="color"
           value={isHex(value) ? value : fallbackHex}
           onChange={(e) => onPick(e.target.value)}
@@ -116,7 +117,7 @@ function SwatchRow({
       <button
         type="button"
         onClick={() => onPick(undefined)}
-        className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+        className={`text-[0.625rem] px-2 py-1 rounded-lg border transition-colors ${
           value === undefined ? "border-blue-600 text-blue-700 font-semibold" : "border-gray-400 text-gray-600 hover:text-gray-900"
         }`}
       >
@@ -173,12 +174,12 @@ function LookPicker({
                 previews its typography in one line. */}
             <span className="flex items-center gap-1.5">
               <span className="w-4 h-4 rounded-full shrink-0" style={{ background: l.text, opacity: 0.25 }} />
-              <span className="text-[12px] font-extrabold leading-none truncate" style={{ color: l.text }}>{l.name}</span>
+              <span className="text-[0.75rem] font-extrabold leading-none truncate" style={{ color: l.text }}>{l.name}</span>
             </span>
             <span className="mt-1.5 block h-1 w-2/3 rounded-full" style={{ background: l.text, opacity: 0.18 }} />
             <span className="mt-2 block h-[14px] w-full rounded-full" style={{ background: l.accent }} />
             <span className="mt-2 flex items-center gap-1.5 min-h-[11px]">
-              {l.aura && <span className="text-[9px] leading-none" style={{ color: l.text, opacity: 0.55 }}>your photo, blurred</span>}
+              {l.aura && <span className="text-[0.5625rem] leading-none" style={{ color: l.text, opacity: 0.55 }}>your photo, blurred</span>}
               {proLocked && <ProTag />}
             </span>
           </button>
@@ -220,7 +221,7 @@ function IconStyleControls({
         {["#0A66C2", "#E4405F", "#FF0000"].map((brand) => (
           <span
             key={brand}
-            className="w-9 h-9 flex items-center justify-center text-[13px] font-bold"
+            className="w-9 h-9 flex items-center justify-center text-[0.8125rem] font-bold"
             style={{ ...chipStyle(brand), borderRadius: radius(shape) }}
           >
             in
@@ -236,7 +237,7 @@ function IconStyleControls({
               type="button"
               disabled={locked}
               onClick={() => onChange({ linkIconShape: o.id === "circle" ? undefined : o.id })}
-              className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border text-[11px] font-semibold transition-colors disabled:opacity-40 ${
+              className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border text-[0.6875rem] font-semibold transition-colors disabled:opacity-40 ${
                 active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
               }`}
             >
@@ -256,7 +257,7 @@ function IconStyleControls({
               disabled={locked}
               onClick={() => onChange({ linkIconFill: o.id === "brand" ? undefined : o.id })}
               title={o.hint}
-              className={`px-2 py-2 rounded-lg border text-[11px] font-semibold transition-colors disabled:opacity-40 ${
+              className={`px-2 py-2 rounded-lg border text-[0.6875rem] font-semibold transition-colors disabled:opacity-40 ${
                 active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
               }`}
             >
@@ -340,7 +341,7 @@ function HeroImageUpload({
             type="button"
             disabled={busy}
             onClick={() => fileRef.current?.click()}
-            className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/40 text-[11px] font-semibold text-gray-300 hover:border-gray-600 transition-colors disabled:opacity-50"
+            className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/40 text-[0.6875rem] font-semibold text-gray-300 hover:border-gray-600 transition-colors disabled:opacity-50"
           >
             {busy ? "Uploading…" : url ? "Replace photo" : "Choose photo"}
           </button>
@@ -348,15 +349,15 @@ function HeroImageUpload({
             <button
               type="button"
               onClick={() => onChange({ linkHeroImage: undefined })}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 hover:text-gray-300 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-[0.6875rem] font-semibold text-gray-500 hover:text-gray-300 transition-colors"
             >
               Remove
             </button>
           )}
         </div>
       </div>
-      {error && <p className="text-[10px] text-red-400 mt-1.5 leading-snug">{error}</p>}
-      {!url && !error && <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">Until you upload one, the header uses Auto.</p>}
+      {error && <p className="text-[0.625rem] text-red-400 mt-1.5 leading-snug">{error}</p>}
+      {!url && !error && <p className="text-[0.625rem] text-gray-500 mt-1.5 leading-snug">Until you upload one, the header uses Auto.</p>}
     </div>
   );
 }
@@ -374,20 +375,20 @@ export function SwiftLinkStyleControls({
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-5">
       <div>
         <p className={`${rowLabel} mb-0.5`}>Look</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">One tap sets the whole page — background, text, and button color, composed to read well together.</p>
+        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">One tap sets the whole page — background, text, and button color, composed to read well together.</p>
         {/* Picking a Look also clears the fine-tune background/text overrides:
             they'd win over the Look at render time, so a stale custom color
             would make every Look "not work" until the user found and reset it. */}
         <LookPicker value={value.linkLook} onPick={(v) => onChange({ linkLook: v, linkBgColor: undefined, linkTextColor: undefined, linkButtonColor: undefined })} locked={locked} />
         {locked && (
-          <p className="text-[10px] text-gray-500 mt-2 leading-snug">Paper and Onyx are included free — the rest of the library comes with Pro.</p>
+          <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">Paper and Onyx are included free — the rest of the library comes with Pro.</p>
         )}
       </div>
 
       <div className="border-t border-gray-800 pt-4">
         {/* Every plan — structural, like the Look picker, so never disabled. */}
         <p className={`${rowLabel} mb-0.5`}>Page header</p>
-        <p className="text-[10px] text-gray-500 mb-2 leading-snug">How your photo sits at the top — a full cover, or a compact circle that leaves more room for your links.</p>
+        <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">How your photo sits at the top — a full cover, or a compact circle that leaves more room for your links.</p>
         <div className="grid grid-cols-2 gap-1.5">
           {HERO_STYLES.map((o) => {
             const active = normalizeHeroStyle(value.linkHeroStyle) === o.id;
@@ -397,7 +398,7 @@ export function SwiftLinkStyleControls({
                 type="button"
                 title={o.hint}
                 onClick={() => onChange({ linkHeroStyle: o.id === "cover" ? undefined : o.id })}
-                className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[11px] font-semibold text-left transition-colors ${
+                className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[0.6875rem] font-semibold text-left transition-colors ${
                   active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
                 }`}
               >
@@ -422,7 +423,7 @@ export function SwiftLinkStyleControls({
         {/* What the header shows — hidden for "No header" (nothing to show). */}
         {normalizeHeroStyle(value.linkHeroStyle) !== "none" && (
           <div className="mt-2.5">
-            <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Header shows — Auto uses your headshot, else your logo, else initials. Or upload a photo just for the header.</p>
+            <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Header shows — Auto uses your headshot, else your logo, else initials. Or upload a photo just for the header.</p>
             <div className="grid grid-cols-3 gap-1.5">
               {HERO_CONTENTS.map((o) => {
                 const active = normalizeHeroContent(value.linkHeroContent) === o.id;
@@ -432,7 +433,7 @@ export function SwiftLinkStyleControls({
                     type="button"
                     title={o.hint}
                     onClick={() => onChange({ linkHeroContent: o.id === "auto" ? undefined : o.id })}
-                    className={`px-1 py-2 rounded-lg border text-[11px] font-semibold transition-colors ${
+                    className={`px-1 py-2 rounded-lg border text-[0.6875rem] font-semibold transition-colors ${
                       active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
                     }`}
                   >
@@ -450,7 +451,7 @@ export function SwiftLinkStyleControls({
 
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Social icons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-        <p className="text-[10px] text-gray-500 mb-2 leading-snug">The shape and color of your social chips.</p>
+        <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">The shape and color of your social chips.</p>
         <IconStyleControls
           look={getLook(value.linkLook)}
           shape={normalizeIconShape(value.linkIconShape)}
@@ -463,10 +464,10 @@ export function SwiftLinkStyleControls({
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>
           Link buttons
-          <span className="ml-1.5 text-[10px] font-normal normal-case tracking-normal text-gray-500 align-middle">only for Compact style</span>
+          <span className="ml-1.5 text-[0.625rem] font-normal normal-case tracking-normal text-gray-500 align-middle">only for Compact style</span>
           {locked && <span className="ml-1.5 align-middle"><ProTag /></span>}
         </p>
-        <p className="text-[10px] text-gray-500 mb-2 leading-snug">Only has an effect if some of your additional links show as Compact rows — links set to Featured or Grid (in Socials) always keep their image previews.</p>
+        <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">Only has an effect if some of your additional links show as Compact rows — links set to Featured or Grid (in Socials) always keep their image previews.</p>
         <div className="grid grid-cols-3 gap-1.5">
           {BUTTON_STYLES.map((o) => {
             const active = normalizeButtonStyle(value.linkButtonStyle) === o.id;
@@ -477,7 +478,7 @@ export function SwiftLinkStyleControls({
                 disabled={locked}
                 title={o.hint}
                 onClick={() => onChange({ linkButtonStyle: o.id === "tile" ? undefined : o.id })}
-                className={`flex flex-col items-center gap-1.5 px-2 py-2 rounded-lg border text-[11px] font-semibold transition-colors disabled:opacity-40 ${
+                className={`flex flex-col items-center gap-1.5 px-2 py-2 rounded-lg border text-[0.6875rem] font-semibold transition-colors disabled:opacity-40 ${
                   active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
                 }`}
               >
@@ -496,7 +497,7 @@ export function SwiftLinkStyleControls({
         </div>
         {normalizeButtonStyle(value.linkButtonStyle) !== "tile" && (
           <div className="mt-2.5">
-            <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Button color — leave Default to use your Look&apos;s accent.</p>
+            <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color — leave Default to use your Look&apos;s accent.</p>
             <SwatchRow
               presets={["#1D4ED8", "#111827", "#A8433C", "#0F766E", "#7C3AED", "#B91C1C"]}
               value={value.linkButtonColor}
@@ -510,7 +511,7 @@ export function SwiftLinkStyleControls({
 
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">The surface behind your photo, bio, socials and links.</p>
+        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">The surface behind your photo, bio, socials and links.</p>
         <SwatchRow
           presets={BG_PRESETS}
           value={value.linkBgColor}
@@ -522,7 +523,7 @@ export function SwiftLinkStyleControls({
 
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Text color</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Your name, bio and link labels.</p>
+        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Your name, bio and link labels.</p>
         <SwatchRow
           presets={TEXT_PRESETS}
           value={value.linkTextColor}
@@ -534,7 +535,7 @@ export function SwiftLinkStyleControls({
 
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Font</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Sets the typeface across your Swift Links page.</p>
+        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Sets the typeface across your Swift Links page.</p>
         <div className="grid grid-cols-2 gap-1.5">
           {[{ label: "Default", value: undefined as string | undefined }, ...CARD_FONT_OPTIONS].map((o) => {
             const active = value.linkFontFamily === o.value || (value.linkFontFamily == null && o.value == null);

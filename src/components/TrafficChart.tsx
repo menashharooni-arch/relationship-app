@@ -51,7 +51,7 @@ export default function TrafficChart({
   return (
     <div className="mt-4">
       {split && (
-        <div className="mb-2 flex items-center gap-4 text-[10px] text-gray-500">
+        <div className="mb-2 flex items-center gap-4 text-[0.625rem] text-gray-500">
           <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: CARD }} />SwiftCard</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: LINKS }} />Swift Links</span>
         </div>
@@ -102,15 +102,15 @@ export default function TrafficChart({
                   className="pointer-events-none absolute -top-10 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md px-2 py-1 text-center shadow-lg ring-1 ring-black/20"
                   style={{ backgroundColor: "#1e293b" }}
                 >
-                  <span className="block text-[11px] font-bold tabular-nums" style={{ color: "#ffffff" }}>
+                  <span className="block text-[0.6875rem] font-bold tabular-nums" style={{ color: "#ffffff" }}>
                     {b.count} view{b.count !== 1 ? "s" : ""}
                   </span>
                   {split && (
-                    <span className="block text-[10px] tabular-nums" style={{ color: "#cbd5e1" }}>
+                    <span className="block text-[0.625rem] tabular-nums" style={{ color: "#cbd5e1" }}>
                       <span style={{ color: CARD }}>●</span> {card} SwiftCard · <span style={{ color: LINKS }}>●</span> {links} Swift Links
                     </span>
                   )}
-                  <span className="block text-[10px]" style={{ color: "#cbd5e1" }}>{fmtTip(b.ts)}</span>
+                  <span className="block text-[0.625rem]" style={{ color: "#cbd5e1" }}>{fmtTip(b.ts)}</span>
                 </div>
               )}
             </div>
@@ -122,7 +122,7 @@ export default function TrafficChart({
       <div className="h-px w-full bg-gray-800" />
 
       {/* time axis */}
-      <div className="relative mt-1 h-3.5 text-[10px] text-gray-500">
+      <div className="relative mt-1 h-3.5 text-[0.625rem] text-gray-500">
         {tickIdxs.map((idx) => {
           const isFirst = idx === 0;
           const isLast = idx === n - 1;

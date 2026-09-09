@@ -129,7 +129,7 @@ function formatDateOnly(iso: string) {
 function SourceBadge({ source }: { source: string | null }) {
   if (!source || source === "direct_link") return null;
   return (
-    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300 shrink-0">
+    <span className="text-[0.625rem] font-semibold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300 shrink-0">
       {getSourceLabel(source)}
     </span>
   );
@@ -160,18 +160,18 @@ function outDeliveryLabel(status: string | null | undefined): { text: string; to
 function FlowBadge({ sequence }: { sequence: Lead["follow_up_sequence"] }) {
   const seq = sequence ?? [];
   if (seq.length === 0) {
-    return <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-600">no flow</span>;
+    return <span className="text-[0.625rem] px-2 py-0.5 rounded-full bg-gray-800 text-gray-600">no flow</span>;
   }
   const done = seq.every((s) => !!s.sent_at);
   if (done) {
     return (
-      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-800/40">
+      <span className="text-[0.625rem] font-semibold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-400 border border-emerald-800/40">
         flow done
       </span>
     );
   }
   return (
-    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-900/50 text-amber-300 border border-amber-800/40">
+    <span className="text-[0.625rem] font-semibold px-2 py-0.5 rounded-full bg-amber-900/50 text-amber-300 border border-amber-800/40">
       mid-flow
     </span>
   );
@@ -885,12 +885,12 @@ export default function ContactsClient({
             {lead.company && <p className="text-gray-400 text-xs truncate">{lead.company}</p>}
             <p className="text-gray-500 text-xs truncate">{lead.email || lead.phone}</p>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <p suppressHydrationWarning className="text-gray-700 text-[10px]">{formatShort(lead.created_at)}</p>
+              <p suppressHydrationWarning className="text-gray-700 text-[0.625rem]">{formatShort(lead.created_at)}</p>
               {lead.card_owner && userCards.length > 1 && (
-                <span className="text-[10px] text-gray-600">/{lead.card_owner}</span>
+                <span className="text-[0.625rem] text-gray-600">/{lead.card_owner}</span>
               )}
               {isOverdue && (
-                <span className="text-[10px] font-semibold text-amber-400">follow-up due</span>
+                <span className="text-[0.625rem] font-semibold text-amber-400">follow-up due</span>
               )}
             </div>
           </div>
@@ -961,6 +961,7 @@ export default function ContactsClient({
             />
           </div>
           <select
+            aria-label="Sort contacts"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             className="bg-gray-900 border border-gray-700 text-gray-300 rounded-xl px-3 py-2 text-xs focus:outline-none w-full"
@@ -987,7 +988,7 @@ export default function ContactsClient({
                       OVER them instead of under — the header appeared to sit
                       behind the list. Scoped to this scroll container; it does
                       not interact with the page nav (z-30) above it. */}
-                  <div className="px-4 py-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-widest bg-gray-950 sticky top-0 z-10">
+                  <div className="px-4 py-1.5 text-[0.6875rem] font-bold text-gray-600 uppercase tracking-widest bg-gray-950 sticky top-0 z-10">
                     {letter}
                   </div>
                   {grouped[letter].map((lead) => renderLeadItem(lead))}
@@ -1060,7 +1061,7 @@ export default function ContactsClient({
                       flow badge next to it. Nothing here is tappable, so no
                       touch target is lost. */}
                   {selected.source && selected.source !== "direct_link" && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300">
+                    <span className="text-[0.625rem] font-semibold px-2 py-0.5 rounded-full bg-blue-950 text-blue-300">
                       {getSourceLabel(selected.source)}
                     </span>
                   )}
@@ -1160,11 +1161,11 @@ export default function ContactsClient({
             {/* Contact info */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6 space-y-3">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Contact Info</p>
+                <p className="text-[0.6875rem] font-bold text-gray-600 uppercase tracking-widest">Contact Info</p>
                 {!editingContact && (
                   <button
                     onClick={() => { setContactDraft({ name: selected.name ?? "", company: selected.company ?? "", email: selected.email ?? "", phone: selected.phone ?? "" }); setContactSaveStatus("idle"); setEditingContact(true); }}
-                    className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
+                    className="text-[0.6875rem] text-gray-500 hover:text-gray-300 transition-colors"
                   >
                     Edit
                   </button>
@@ -1286,7 +1287,7 @@ export default function ContactsClient({
 
             {/* Notes & Context */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 space-y-4">
-              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Notes &amp; Context</p>
+              <p className="text-[0.6875rem] font-bold text-gray-600 uppercase tracking-widest">Notes &amp; Context</p>
 
               {/* Notes */}
               <div className="flex gap-3">
@@ -1294,7 +1295,7 @@ export default function ContactsClient({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                 </svg>
                 <div className="flex-1">
-                  <p className="text-[11px] font-semibold text-gray-500 mb-1">Notes</p>
+                  <p className="text-[0.6875rem] font-semibold text-gray-500 mb-1">Notes</p>
                   {editingNotes ? (
                     <div className="space-y-2">
                       <textarea
@@ -1318,7 +1319,7 @@ export default function ContactsClient({
                       </p>
                       <button
                         onClick={() => { setNotesText(selected.notes ?? ""); setEditingNotes(true); }}
-                        className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors shrink-0"
+                        className="text-[0.6875rem] text-gray-600 hover:text-gray-400 transition-colors shrink-0"
                       >
                         Edit
                       </button>
@@ -1333,7 +1334,7 @@ export default function ContactsClient({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                 </svg>
                 <div className="flex-1">
-                  <p className="text-[11px] font-semibold text-gray-500 mb-1">Where did you meet?</p>
+                  <p className="text-[0.6875rem] font-semibold text-gray-500 mb-1">Where did you meet?</p>
                   {editingWhereMet ? (
                     <div className="space-y-2">
                       <input
@@ -1365,7 +1366,7 @@ export default function ContactsClient({
                       </p>
                       <button
                         onClick={() => { setWhereMetText(selected.where_met ?? ""); setEditingWhereMet(true); }}
-                        className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors shrink-0"
+                        className="text-[0.6875rem] text-gray-600 hover:text-gray-400 transition-colors shrink-0"
                       >
                         Edit
                       </button>
@@ -1383,7 +1384,7 @@ export default function ContactsClient({
                 a channel's automation so a fresh one can be submitted, restarting
                 from submit time. */}
             <div data-tour="contact-automations" className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-              <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Follow-up Automations</p>
+              <p className="text-[0.6875rem] font-bold text-gray-600 uppercase tracking-widest">Follow-up Automations</p>
               <p className="text-gray-600 text-xs mt-0.5 mb-3">Set up Email and Text separately — run one or both.</p>
 
               {/* Deliberately louder than a footnote (owner request): people
@@ -1420,7 +1421,7 @@ export default function ContactsClient({
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-gray-100">{label} automation</p>
-                          <p className="text-gray-600 text-[11px] mt-0.5">
+                          <p className="text-gray-600 text-[0.6875rem] mt-0.5">
                             {!can ? `No ${ch === "email" ? "email" : "phone"} on file for this contact`
                               : running && chPaused ? `Off — remaining ${noun} won't send. Switch on to resume.`
                               : running ? `On · ${presetName} · auto-sending ${noun}`
@@ -1464,15 +1465,15 @@ export default function ContactsClient({
                               >
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm font-semibold text-gray-100">{SEQ_PRESETS[p].label}</span>
-                                  {draftPreset === p && <span className="text-[10px] text-gray-400 font-semibold">Selected</span>}
+                                  {draftPreset === p && <span className="text-[0.625rem] text-gray-400 font-semibold">Selected</span>}
                                 </div>
-                                <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{SEQ_PRESETS[p].desc}</p>
+                                <p className="text-gray-500 text-[0.6875rem] mt-0.5 leading-relaxed">{SEQ_PRESETS[p].desc}</p>
                               </button>
                             ))}
                           </div>
 
                           {draftError && !draftLoading && (
-                            <p className="text-[12px] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2 mb-3">⚠ {draftError}</p>
+                            <p className="text-[0.75rem] text-amber-400 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2 mb-3">⚠ {draftError}</p>
                           )}
 
                           {draftLoading && (
@@ -1487,12 +1488,12 @@ export default function ContactsClient({
 
                           {!draftLoading && draftItems && draftItems.length > 0 && (
                             <div className="space-y-3">
-                              <p className="text-[11px] text-amber-400">● Draft — edit any message, then Submit to activate.</p>
+                              <p className="text-[0.6875rem] text-amber-400">● Draft — edit any message, then Submit to activate.</p>
                               {draftItems.map((it, i) => (
                                 <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3">
                                   {/* Native-only "AI draft" tag; renders null (no DOM) on web. */}
                                   <AiDraftTag />
-                                  <p className="text-[11px] font-semibold text-gray-400 mb-1.5">{stepLabel(it.day, it.time)}</p>
+                                  <p className="text-[0.6875rem] font-semibold text-gray-400 mb-1.5">{stepLabel(it.day, it.time)}</p>
                                   {ch === "email" && (
                                     <input
                                       type="text"
@@ -1531,29 +1532,29 @@ export default function ContactsClient({
                       {/* ACTIVE / PAUSED — submitted summary: preset + messages + when they send */}
                       {!isDrafting && running && (
                         <div className="mt-3 pt-3 border-t border-gray-800">
-                          <p className={`text-[11px] font-semibold mb-2 ${!chPaused ? (ch === "sms" ? "text-emerald-400" : "text-blue-400") : "text-amber-400"}`}>
+                          <p className={`text-[0.6875rem] font-semibold mb-2 ${!chPaused ? (ch === "sms" ? "text-emerald-400" : "text-blue-400") : "text-amber-400"}`}>
                             {!chPaused ? `● On — ${presetName}` : `⏸ Off — ${presetName}`} · {activeItems.length} {noun}
                           </p>
                           <div className="space-y-2">
                             {activeItems.map((it, i) => (
                               <div key={i} className="bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2">
                                 <div className="flex items-center justify-between gap-2 mb-1">
-                                  <span suppressHydrationWarning className="text-[10px] font-semibold text-gray-500">
+                                  <span suppressHydrationWarning className="text-[0.625rem] font-semibold text-gray-500">
                                     {it.sent_at ? `Sent ${formatShort(it.sent_at)}` : `Sends ${sendWhen(it.anchor ?? selected.created_at, it.day)}`}
                                   </span>
                                   {it.sent_at
-                                    ? <span className="text-[10px] text-emerald-400 shrink-0">✓</span>
+                                    ? <span className="text-[0.625rem] text-emerald-400 shrink-0">✓</span>
                                     : chPaused
-                                    ? <span className="text-[10px] text-amber-500/90 shrink-0">paused</span>
-                                    : <span className="text-[10px] text-gray-600 shrink-0">scheduled</span>}
+                                    ? <span className="text-[0.625rem] text-amber-500/90 shrink-0">paused</span>
+                                    : <span className="text-[0.625rem] text-gray-600 shrink-0">scheduled</span>}
                                 </div>
-                                {ch === "email" && it.subject && <p className="text-[11px] text-gray-400 font-medium truncate">Subject: {it.subject}</p>}
+                                {ch === "email" && it.subject && <p className="text-[0.6875rem] text-gray-400 font-medium truncate">Subject: {it.subject}</p>}
                                 <p className="text-gray-300 text-xs leading-relaxed whitespace-pre-wrap">{it.message}</p>
                               </div>
                             ))}
                           </div>
                           <div className="flex items-center justify-between gap-2 mt-2">
-                            <p className="text-gray-600 text-[10px]">
+                            <p className="text-gray-600 text-[0.625rem]">
                               {chPaused
                                 ? "Off — nothing sends. Switch on to resume, or reset to start over."
                                 : `Switch off above to pause ${ch === "sms" ? "texts" : "emails"} anytime.`}
@@ -1563,7 +1564,7 @@ export default function ContactsClient({
                             {chPaused && (
                               <button
                                 onClick={() => resetChannel(ch)}
-                                className="text-[11px] font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-2.5 py-1 rounded-full transition-colors shrink-0"
+                                className="text-[0.6875rem] font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-2.5 py-1 rounded-full transition-colors shrink-0"
                                 title={`Clear this ${word} automation and set up a new one`}
                               >
                                 Reset ↺
@@ -1606,8 +1607,8 @@ export default function ContactsClient({
             {/* Activity & messages — read-only log of what this contact did and what was auto-sent */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest">Activity &amp; Messages</p>
-                <span className="text-[10px] text-gray-600">Auto-tracked · read-only</span>
+                <p className="text-[0.6875rem] font-bold text-gray-600 uppercase tracking-widest">Activity &amp; Messages</p>
+                <span className="text-[0.625rem] text-gray-600">Auto-tracked · read-only</span>
               </div>
 
               {loadingEvents ? (
@@ -1637,14 +1638,14 @@ export default function ContactsClient({
                         const isSms = it.channel === "sms";
                         return (
                           <div key={it.key} className="flex flex-col items-end">
-                            {/* text-[13px], same as the event lines — the feed
+                            {/* text-[0.8125rem], same as the event lines — the feed
                                 used to mix 14px bubbles with 13px events and
                                 the whole card read oversized on a phone
                                 (owner call 2026-08-11: uniform sizes). */}
-                            <div className={`max-w-[85%] text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-[13px] whitespace-pre-wrap break-words leading-relaxed ${isSms ? "bg-emerald-600" : "bg-blue-600"}`}>
+                            <div className={`max-w-[85%] text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-[0.8125rem] whitespace-pre-wrap break-words leading-relaxed ${isSms ? "bg-emerald-600" : "bg-blue-600"}`}>
                               {it.body}
                             </div>
-                            <span className="text-gray-600 text-[10px] mt-1 pr-1 flex items-center gap-1.5">
+                            <span className="text-gray-600 text-[0.625rem] mt-1 pr-1 flex items-center gap-1.5">
                               <span className={`px-1.5 py-px rounded font-semibold ${isSms ? "bg-emerald-900/50 text-emerald-300" : "bg-blue-900/50 text-blue-300"}`}>
                                 {isSms ? "Text" : "Email"}
                               </span>
@@ -1670,10 +1671,10 @@ export default function ContactsClient({
                                 replies both routinely contain — blows past
                                 max-w-[85%]. break-words is what actually holds
                                 the bubble to its width. */}
-                            <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[13px] whitespace-pre-wrap break-words leading-relaxed">
+                            <div className="max-w-[85%] bg-gray-800 text-gray-200 rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[0.8125rem] whitespace-pre-wrap break-words leading-relaxed">
                               {it.body}
                             </div>
-                            <span suppressHydrationWarning className="text-gray-600 text-[10px] mt-1 pl-1">{formatShort(it.at)}</span>
+                            <span suppressHydrationWarning className="text-gray-600 text-[0.625rem] mt-1 pl-1">{formatShort(it.at)}</span>
                           </div>
                         );
                       }
@@ -1693,13 +1694,13 @@ export default function ContactsClient({
                             {/* break-words stays: an email-shaped contact name
                                 is one unbreakable token, and nothing else
                                 makes a spaceless string wrap. */}
-                            <p className="text-gray-300 text-[13px] leading-snug break-words">
+                            <p className="text-gray-300 text-[0.8125rem] leading-snug break-words">
                               {it.text}
                               {it.source && it.source !== "direct_link" && (
-                                <span className="text-[10px] text-blue-400 whitespace-nowrap"> · via {getSourceLabel(it.source)}</span>
+                                <span className="text-[0.625rem] text-blue-400 whitespace-nowrap"> · via {getSourceLabel(it.source)}</span>
                               )}
                             </p>
-                            <p suppressHydrationWarning className="text-gray-600 text-[10px] mt-0.5">{formatShort(it.at)}</p>
+                            <p suppressHydrationWarning className="text-gray-600 text-[0.625rem] mt-0.5">{formatShort(it.at)}</p>
                           </div>
                         </div>
                       );

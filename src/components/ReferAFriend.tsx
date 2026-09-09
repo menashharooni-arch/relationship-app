@@ -114,7 +114,7 @@ export default function ReferAFriend({ progress }: { progress: Progress | null }
                   return <span key={i} className={`w-6 h-1.5 rounded-full ${filled ? "bg-blue-500" : "bg-gray-700"}`} />;
                 })}
               </div>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[0.6875rem] text-gray-500">
                 {p.capReached
                   ? "You've earned all 3 referral months — thanks for spreading the word!"
                   : p.claimable > 0
@@ -124,13 +124,13 @@ export default function ReferAFriend({ progress }: { progress: Progress | null }
             </div>
             <div className="text-right shrink-0">
               <p className="text-white font-bold text-sm tabular-nums">{p.monthsClaimed}/{cap}</p>
-              <p className="text-[10px] text-gray-600">months earned</p>
+              <p className="text-[0.625rem] text-gray-600">months earned</p>
             </div>
           </div>
 
           {/* The link + share/copy */}
           <div className="bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5 mb-2">
-            <p className="text-blue-400 text-[12px] font-mono break-all">{link.replace(/^https?:\/\//, "")}</p>
+            <p className="text-blue-400 text-[0.75rem] font-mono break-all">{link.replace(/^https?:\/\//, "")}</p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button

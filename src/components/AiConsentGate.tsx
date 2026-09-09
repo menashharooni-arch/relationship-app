@@ -85,18 +85,18 @@ export default function AiConsentGate({
           {copy.title}
         </p>
 
-        <p className="mt-3 text-[13px] font-semibold text-gray-300">What gets sent</p>
+        <p className="mt-3 text-[0.8125rem] font-semibold text-gray-300">What gets sent</p>
         <ul className="mt-1.5 space-y-1.5">
           {copy.what.map((item) => (
-            <li key={item} className="flex gap-2 text-[13px] leading-snug text-gray-400">
+            <li key={item} className="flex gap-2 text-[0.8125rem] leading-snug text-gray-400">
               <span aria-hidden className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-gray-600" />
               {item}
             </li>
           ))}
         </ul>
 
-        <p className="mt-4 text-[13px] leading-relaxed text-gray-300">{copy.who}</p>
-        <p className="mt-2 text-[13px] leading-relaxed text-gray-500">{copy.control}</p>
+        <p className="mt-4 text-[0.8125rem] leading-relaxed text-gray-300">{copy.who}</p>
+        <p className="mt-2 text-[0.8125rem] leading-relaxed text-gray-500">{copy.control}</p>
 
         <div className="mt-5 flex flex-col gap-2">
           <button
@@ -130,7 +130,7 @@ export function AiDraftTag() {
   const native = useIsNativeApp();
   if (!native) return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-300">
+    <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[0.5625rem] font-bold uppercase tracking-wide text-blue-300">
       AI draft
     </span>
   );

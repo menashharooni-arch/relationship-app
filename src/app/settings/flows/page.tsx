@@ -440,7 +440,7 @@ export default async function FlowSettingsPage({
         <div data-tour="settings-account">
           <ManageAccount isPro={isPro} plan={profile.plan ?? "free"} email={user.email ?? ""} isOfficeOwner={!!officeCtx?.isOwner} />
           <p className="mt-6">
-            <Link href="/privacy" className="text-gray-600 hover:text-gray-400 text-[11px] underline">Privacy Policy</Link>
+            <Link href="/privacy" className="text-gray-600 hover:text-gray-400 text-[0.6875rem] underline">Privacy Policy</Link>
           </p>
         </div>
       ),
@@ -496,7 +496,7 @@ export default async function FlowSettingsPage({
 
       <div className="max-w-4xl mx-auto pt-20">
         <div className="mb-8">
-          <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
+          <p className="text-[0.6875rem] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
           <h1 className="text-2xl font-bold text-white">Settings</h1>
           <p className="text-gray-500 text-sm mt-1">{user.email}</p>
         </div>

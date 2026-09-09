@@ -607,7 +607,7 @@ export default async function DashboardPage({
             the whole thing moves from under My Cards to the sticky right column,
             and the control under the card flips there too. At sm: a 768px tablet
             got the desktop caption sitting above the mobile QR button. */}
-        <p className="hidden lg:block text-gray-600 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share.</p>
+        <p className="hidden lg:block text-gray-600 text-[0.6875rem] mb-3 leading-relaxed">Exactly what people get when you share.</p>
         {/* previewUrl powers the NATIVE path ONLY: in the iOS shell WKWebView
             can't save a generated PNG data URL, so DownloadCardButton shares
             this link via the native share sheet instead of dead-tapping.
@@ -673,9 +673,9 @@ export default async function DashboardPage({
               <span className="font-bold text-white text-sm tracking-tight hidden sm:block">SwiftCard</span>
             </Link>
             {isEnterprise ? (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-600 text-white">Office</span>
+              <span className="text-[0.625rem] font-bold px-2 py-0.5 rounded-full bg-purple-600 text-white">Office</span>
             ) : (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
+              <span className={`text-[0.625rem] font-bold px-2 py-0.5 rounded-full ${isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
                 {isPro ? "Pro" : "Free"}
               </span>
             )}
@@ -783,7 +783,7 @@ export default async function DashboardPage({
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Open your live card in a new tab"
-                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-gray-300 text-[11px] sm:text-xs font-semibold hover:border-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
+                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-gray-300 text-[0.6875rem] sm:text-xs font-semibold hover:border-gray-500 hover:text-white hover:bg-gray-800 transition-colors"
                 >
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true">
                     <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -794,7 +794,7 @@ export default async function DashboardPage({
                 {canAddCard && (
                   <Link
                     href="/cards/new?add=1"
-                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-blue-400 text-[11px] sm:text-xs font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
+                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-blue-400 text-[0.6875rem] sm:text-xs font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
                   >
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true">
                       <path d="M10 4a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 0110 4z" />
@@ -952,14 +952,14 @@ export default async function DashboardPage({
                   </PlanGate>
                 ) : topLocations.length > 0 ? (
                   <div className="space-y-2">
-                    <p className="text-gray-500 text-[11px] mb-1">Top locations · all time</p>
+                    <p className="text-gray-500 text-[0.6875rem] mb-1">Top locations · all time</p>
                     {topLocations.map((loc) => (
                       <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
                           <p className="text-gray-100 text-sm font-semibold truncate">{loc.location}</p>
-                          <p className="text-white text-sm font-bold tabular-nums shrink-0">{loc.total.toLocaleString("en-US")} <span className="text-gray-500 font-medium text-[11px]">views</span></p>
+                          <p className="text-white text-sm font-bold tabular-nums shrink-0">{loc.total.toLocaleString("en-US")} <span className="text-gray-500 font-medium text-[0.6875rem]">views</span></p>
                         </div>
-                        <div className="flex items-center gap-4 text-[11px]">
+                        <div className="flex items-center gap-4 text-[0.6875rem]">
                           <span className="text-gray-500">SwiftCard <span className="text-gray-200 font-semibold tabular-nums">{loc.card.toLocaleString("en-US")}</span></span>
                           <span className="text-gray-500">Swift Links <span className="text-gray-200 font-semibold tabular-nums">{loc.link.toLocaleString("en-US")}</span></span>
                         </div>
@@ -969,7 +969,7 @@ export default async function DashboardPage({
                 ) : (
                   <div className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-6 text-center">
                     <p className="text-gray-400 text-sm">No location data yet</p>
-                    <p className="text-gray-600 text-[11px] mt-1">Cities appear here as people view your card and links.</p>
+                    <p className="text-gray-600 text-[0.6875rem] mt-1">Cities appear here as people view your card and links.</p>
                   </div>
                 )
               ) : (
@@ -993,7 +993,7 @@ export default async function DashboardPage({
                       tells an owner "5 people, and two of them came back",
                       which raw totals can't. Only shown once there's data. */}
                   {windowTotalRows > 0 && (
-                    <div className="flex items-center gap-4 mt-2 text-[11px]">
+                    <div className="flex items-center gap-4 mt-2 text-[0.6875rem]">
                       <span className="text-gray-500">Unique viewers <span className="text-gray-200 font-semibold tabular-nums">{uniqueViewers.toLocaleString("en-US")}</span></span>
                       <span className="text-gray-500">Repeat views <span className="text-gray-200 font-semibold tabular-nums">{repeatViews.toLocaleString("en-US")}</span></span>
                     </div>
@@ -1011,7 +1011,7 @@ export default async function DashboardPage({
                 </div>
               )}
               {/* Basic stats (every plan): contacts captured + best day */}
-              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[11px]">
+              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[0.6875rem]">
                 <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{visibleLeads.length}</span></span>
                 {bestDay && bestDay.views > 0 ? (
                   <span className="text-gray-500">Best day <span className="text-gray-200 font-semibold">{new Date(bestDay.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span> · {bestDay.views.toLocaleString("en-US")}</span>
@@ -1117,7 +1117,7 @@ export default async function DashboardPage({
                         href={cardUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block text-center text-gray-500 hover:text-gray-300 text-[11px] py-1 transition-colors"
+                        className="block text-center text-gray-500 hover:text-gray-300 text-[0.6875rem] py-1 transition-colors"
                       >
                         See how it looks to them ↗
                       </a>

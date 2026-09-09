@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
+import SiteFooterMini from "@/components/site/SiteFooterMini";
+import FaqAccordion from "@/components/site/FaqAccordion";
 import ScrollProgress from "@/components/ScrollProgress";
 import ScrollReveal from "@/components/ScrollReveal";
 import NativeHidden from "@/components/NativeHidden";
@@ -59,7 +60,7 @@ export default function LinkInBioPage() {
       <SiteNav />
 
       <section className="text-center px-6 pt-28 pb-10">
-        <p className="text-[11px] font-bold tracking-[0.25em] text-brand uppercase mb-4">Swift Links</p>
+        <p className="rd-eyebrow text-brand mb-4">Swift Links</p>
         <h1 className="text-4xl font-bold text-slate-900 mb-4 max-w-2xl mx-auto">The link in bio that reports back</h1>
         <p className="text-slate-500 text-lg max-w-xl mx-auto">
           Most bio links are a dead end — visitors tap through and vanish. Swift Links counts every visit, names its source, and lets visitors leave their contact info on the way.
@@ -75,8 +76,8 @@ export default function LinkInBioPage() {
         <div className="grid sm:grid-cols-2 gap-4">
           {FEATURES.map((f) => (
             <div key={f.t} className="rounded-2xl border border-warm-border bg-white p-6 shadow-sm">
-              <p className="text-slate-900 font-semibold text-[15px]">{f.t}</p>
-              <p className="text-slate-500 text-[13.5px] mt-1.5 leading-relaxed">{f.d}</p>
+              <p className="text-slate-900 font-semibold text-[0.9375rem]">{f.t}</p>
+              <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{f.d}</p>
             </div>
           ))}
         </div>
@@ -87,50 +88,24 @@ export default function LinkInBioPage() {
         </NativeHidden>
       </section>
 
-      <section className="max-w-2xl mx-auto w-full px-6 pb-14">
-        <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">Common questions</h2>
-        <div className="flex flex-col gap-3">
-          {FAQ.map((f) => (
-            <details key={f.q} className="group rounded-2xl border border-warm-border bg-white px-6 py-5 shadow-sm">
-              <summary className="cursor-pointer list-none flex items-center justify-between gap-4">
-                <span className="text-slate-900 font-semibold text-[15px]">{f.q}</span>
-                <span className="text-slate-400 text-xl leading-none transition-transform group-open:rotate-45 shrink-0">+</span>
-              </summary>
-              <p className="text-slate-500 text-[14px] mt-3 leading-relaxed">{f.a}</p>
-            </details>
-          ))}
-        </div>
-        <div className="mt-10 text-center">
-          <Link href={`/cards/new?src=${SRC}`} className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block">
-            Get your Swift Links page →
-          </Link>
-        </div>
-      </section>
+      <FaqAccordion items={FAQ}>
+        <Link href={`/cards/new?src=${SRC}`} className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block">
+          Get your Swift Links page →
+        </Link>
+      </FaqAccordion>
 
       <section className="max-w-2xl mx-auto w-full px-6 pb-16 text-center">
-        <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-3">Keep exploring</p>
+        <p className="rd-eyebrow text-slate-600 mb-3">Keep exploring</p>
         <div className="flex flex-wrap justify-center gap-2">
-          <Link href="/products/swiftlinks" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Swift Links product tour</Link>
-          <Link href="/compare/linktree-alternative" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Linktree alternative</Link>
-          <Link href="/business-card-view-tracking" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>
-          <Link href="/products/analytics" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Dashboard &amp; analytics</Link>
-          <Link href="/templates" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card designs</Link>
+          <Link href="/products/swiftlinks" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Swift Links product tour</Link>
+          <Link href="/compare/linktree-alternative" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Linktree alternative</Link>
+          <Link href="/business-card-view-tracking" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>
+          <Link href="/products/analytics" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Dashboard &amp; analytics</Link>
+          <Link href="/templates" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card designs</Link>
         </div>
       </section>
 
-      <footer className="border-t border-warm-border py-10 px-6 bg-cream mt-auto">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <SwiftCardLogo size={24} />
-          <div className="flex items-center gap-6 text-sm text-slate-500">
-            <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
-            <NativeHidden><Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
-            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
-            <Link href="/terms" className="hover:text-slate-900 transition-colors">Terms</Link>
-          </div>
-          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY</p>
-        </div>
-      </footer>
+      <SiteFooterMini />
     </main>
   );
 }

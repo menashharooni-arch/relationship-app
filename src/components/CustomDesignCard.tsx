@@ -36,9 +36,9 @@ export default function CustomDesignCard({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-white">
             Custom design
-            <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
+            <span className="ml-1.5 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
           </p>
-          <p className="text-[11px] leading-snug mt-0.5 text-gray-400">
+          <p className="text-[0.6875rem] leading-snug mt-0.5 text-gray-400">
             Eight looks you can&apos;t pick as a template — or photograph the card you already have and we&apos;ll rebuild it. Then show, hide, reorder and resize anything on it.
           </p>
         </div>
@@ -56,7 +56,7 @@ export default function CustomDesignCard({
           feature="custom-designer"
           nativeCopy="Pro feature — The custom card designer is only available on the Pro plan"
         >
-          <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
+          <Link href="/upgrade" className="block text-center text-[0.6875rem] text-blue-400 hover:text-blue-300 mt-2">
             Make it unmistakably yours — unlock the custom designer with Pro →
           </Link>
         </PlanGate>

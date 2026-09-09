@@ -45,7 +45,7 @@ const INFO: { title: string; desc: string; icon: React.ReactNode }[] = [
 ];
 
 const inputCls =
-  "w-full rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[14.5px] text-white placeholder-white/30 outline-none transition-colors focus:border-blue-400/70 focus:bg-white/[0.08]";
+  "w-full rounded-xl border border-white/12 bg-white/[0.06] px-4 py-3 text-[0.90625rem] text-white placeholder-white/30 outline-none transition-colors focus:border-blue-400/70 focus:bg-white/[0.08]";
 
 const REPORT_TOPIC = "Report a public card";
 
@@ -135,8 +135,8 @@ export default function ContactPage() {
                       {it.icon}
                     </span>
                     <span>
-                      <span className="block text-white font-semibold text-[15px]">{it.title}</span>
-                      <span className="block text-white/50 text-[13.5px] mt-0.5 leading-relaxed">{it.desc}</span>
+                      <span className="block text-white font-semibold text-[0.9375rem]">{it.title}</span>
+                      <span className="block text-white/50 text-[0.84375rem] mt-0.5 leading-relaxed">{it.desc}</span>
                     </span>
                   </div>
                 ))}
@@ -153,7 +153,7 @@ export default function ContactPage() {
                     </svg>
                   </div>
                   <h2 className="text-white font-bold text-2xl mb-2">Message sent!</h2>
-                  <p className="text-white/55 text-[14.5px] mb-7">Thanks for reaching out — we&apos;ll get back to you within 24 hours.</p>
+                  <p className="text-white/55 text-[0.90625rem] mb-7">Thanks for reaching out — we&apos;ll get back to you within 24 hours.</p>
                   <button
                     onClick={() => { setStatus("idle"); setForm({ name: "", email: "", topic: TOPICS[0], message: "" }); }}
                     className="rd-btn rd-btn-ghost-d"
@@ -165,12 +165,12 @@ export default function ContactPage() {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
                     <h2 className="text-white font-bold text-xl">Send us a message</h2>
-                    <p className="text-white/45 text-[13.5px] mt-1">Fill this in and it lands straight in our inbox.</p>
+                    <p className="text-white/45 text-[0.84375rem] mt-1">Fill this in and it lands straight in our inbox.</p>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="ct-name" className="block text-[13px] font-medium text-white/70 mb-1.5">Your name</label>
+                      <label htmlFor="ct-name" className="block text-[0.8125rem] font-medium text-white/70 mb-1.5">Your name</label>
                       <input
                         id="ct-name"
                         type="text"
@@ -183,7 +183,7 @@ export default function ContactPage() {
                       />
                     </div>
                     <div>
-                      <label htmlFor="ct-email" className="block text-[13px] font-medium text-white/70 mb-1.5">Email address</label>
+                      <label htmlFor="ct-email" className="block text-[0.8125rem] font-medium text-white/70 mb-1.5">Email address</label>
                       <input
                         id="ct-email"
                         type="email"
@@ -198,7 +198,7 @@ export default function ContactPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="ct-topic" className="block text-[13px] font-medium text-white/70 mb-1.5">What&apos;s this about?</label>
+                    <label htmlFor="ct-topic" className="block text-[0.8125rem] font-medium text-white/70 mb-1.5">What&apos;s this about?</label>
                     <select
                       id="ct-topic"
                       value={form.topic}
@@ -217,7 +217,7 @@ export default function ContactPage() {
                   </div>
 
                   <div>
-                    <label htmlFor="ct-message" className="block text-[13px] font-medium text-white/70 mb-1.5">Message</label>
+                    <label htmlFor="ct-message" className="block text-[0.8125rem] font-medium text-white/70 mb-1.5">Message</label>
                     <textarea
                       id="ct-message"
                       required
@@ -230,7 +230,7 @@ export default function ContactPage() {
                   </div>
 
                   {status === "error" && (
-                    <p className="text-[13px] text-red-400 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-2.5">
+                    <p className="text-[0.8125rem] text-red-400 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-2.5">
                       Your message didn&apos;t go through. Please try again in a minute.
                     </p>
                   )}
@@ -238,7 +238,7 @@ export default function ContactPage() {
                   <button type="submit" disabled={status === "loading"} className="rd-btn rd-btn-aurora rd-btn-lg w-full disabled:opacity-60">
                     {status === "loading" ? "Sending…" : "Send message"}
                   </button>
-                  <p className="text-white/35 text-[12px] text-center">We only use your email to reply — nothing else.</p>
+                  <p className="text-white/35 text-[0.75rem] text-center">We only use your email to reply — nothing else.</p>
                 </form>
               )}
             </div>

@@ -101,7 +101,7 @@ export default function EmployeeAnalyticsTable({ employees, range }: { employees
                       onClick={() => toggleSort(c.key)}
                       title={c.hint}
                       aria-label={`Sort by ${c.label}`}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-300 transition-colors"
+                      className="flex items-center gap-1 text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-300 transition-colors"
                     >
                       {c.label}
                       {sortKey === c.key && <span aria-hidden="true">{sortDir === "desc" ? "↓" : "↑"}</span>}

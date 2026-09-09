@@ -135,8 +135,18 @@ export default function TemplatesPage() {
                 className="w-full text-left group outline-none"
                 onClick={() => handleSelect(tmpl.id)}
                 aria-pressed={isSelected}
+                // Same reason as site/TemplateGallery: the preview is a real
+                // card with real contact links, so it must not be a nest of
+                // controls inside this one. One button, one name.
+                aria-label={`Choose the ${tmpl.name} template`}
               >
                 <div
+                  // inert, not aria-hidden: the preview holds real tel:/mailto:
+                  // links, and aria-hidden over focusable content is its own
+                  // violation. inert takes them out of BOTH the a11y tree and
+                  // the tab order, which is what "this is a picture of a card"
+                  // actually means.
+                  inert
                   className="rounded-2xl transition-all duration-200"
                   style={{
                     outline: isSelected ? "3px solid #3b82f6" : "2px solid transparent",
@@ -164,7 +174,7 @@ export default function TemplatesPage() {
                   {tmpl.bestFor.map((tag) => (
                     <span
                       key={tag}
-                      className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                      className="text-[0.625rem] font-medium px-2 py-0.5 rounded-full"
                       style={{ background: "#111827", color: "#6b7280" }}
                     >
                       {tag}

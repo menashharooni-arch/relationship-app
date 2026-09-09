@@ -130,7 +130,7 @@ export default function ManageCards({
               <p className="text-white text-sm font-medium truncate">
                 {label}
                 {card.is_offline === true && (
-                  <span className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-wide text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
+                  <span className="ml-2 align-middle text-[0.625rem] font-semibold uppercase tracking-wide text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5">
                     Offline
                   </span>
                 )}
@@ -184,7 +184,7 @@ export default function ManageCards({
               <p className="text-white text-xs font-semibold">
                 Delete &ldquo;{label}&rdquo; <span className="text-gray-400 font-normal">/{card.username}</span>?
               </p>
-              <p className="text-gray-400 text-[11px] leading-relaxed mt-1">
+              <p className="text-gray-400 text-[0.6875rem] leading-relaxed mt-1">
                 This also permanently deletes every contact this card captured, along with their
                 message and reminder history. It can&apos;t be undone. To keep them,{" "}
                 <Link href="/contacts" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">

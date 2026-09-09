@@ -305,14 +305,14 @@ function MiniLinks({ persona }: { persona: Persona }) {
             <span className="shrink-0 mt-1.5"><Verified /></span>
           </div>
           {/* No @handle line — the live page dropped it (owner order 2026-08-26). */}
-          <p className="text-[13px] font-medium mt-2" style={{ color: text, opacity: 0.6 }}>{persona.subtitle}</p>
+          <p className="text-[0.8125rem] font-medium mt-2" style={{ color: text, opacity: 0.6 }}>{persona.subtitle}</p>
           <p className="text-sm leading-relaxed mt-3 max-w-[340px] mx-auto" style={{ color: text, opacity: 0.75 }}>{persona.bio}</p>
 
           {/* The REAL brand icon row */}
           <SocialIcons socials={persona.socials} mode={L.mode} accent={L.accent} accentText={L.accentText} />
 
           {/* Connect — the page's hero action */}
-          <div className="w-full mt-6 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-[15px]" style={{ background: L.accent, color: L.accentText }}>
+          <div className="w-full mt-6 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-[0.9375rem]" style={{ background: L.accent, color: L.accentText }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
             </svg>
@@ -330,7 +330,7 @@ function MiniLinks({ persona }: { persona: Persona }) {
                 </div>
                 <div className="absolute inset-x-0 bottom-0 h-[70%]" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }} />
                 <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
-                  <span className="font-semibold text-center leading-[1.3] text-[16px]" style={{ color: "#ffffff", textShadow: "0 1px 8px rgba(0,0,0,0.6)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  <span className="font-semibold text-center leading-[1.3] text-[1rem]" style={{ color: "#ffffff", textShadow: "0 1px 8px rgba(0,0,0,0.6)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                     {label}
                   </span>
                 </span>
@@ -341,7 +341,7 @@ function MiniLinks({ persona }: { persona: Persona }) {
 
           {/* Made-with footer, every real profile carries it */}
           <div className="flex justify-center mt-6">
-            <span className="flex items-center gap-2 text-[13px] opacity-50" style={{ color: text }}>
+            <span className="flex items-center gap-2 text-[0.8125rem] opacity-50" style={{ color: text }}>
               <span className="shrink-0 rounded-[4px] overflow-hidden flex"><SwiftCardIcon size={16} /></span>
               <span>Made with <span className="underline underline-offset-2">swiftcard.me</span></span>
             </span>
@@ -366,16 +366,16 @@ function MiniSignature({ persona }: { persona: Persona }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={persona.data.photoUrl} alt="" className="w-[22px] h-[22px] rounded-full object-cover shrink-0" />
           ) : (
-            <span className="w-[22px] h-[22px] rounded-full grid place-items-center text-[8px] font-black text-white shrink-0" style={{ background: persona.accent }}>
+            <span className="w-[22px] h-[22px] rounded-full grid place-items-center text-[0.5rem] font-black text-white shrink-0" style={{ background: persona.accent }}>
               {persona.data.initials}
             </span>
           )}
           <span className="min-w-0">
-            <span className="block text-[9.5px] font-bold text-slate-900 leading-tight truncate">{persona.data.name}</span>
-            <span className="block text-[8px] text-slate-400 leading-tight truncate">to me · 9:41 AM</span>
+            <span className="block text-[0.59375rem] font-bold text-slate-900 leading-tight truncate">{persona.data.name}</span>
+            <span className="block text-[0.5rem] text-slate-400 leading-tight truncate">to me · 9:41 AM</span>
           </span>
         </div>
-        <p className="mt-1.5 text-[9px] font-semibold text-slate-700 truncate">{persona.subject}</p>
+        <p className="mt-1.5 text-[0.5625rem] font-semibold text-slate-700 truncate">{persona.subject}</p>
       </div>
       {/* body + sign-off */}
       <div className="px-3.5 pt-2.5">
@@ -384,14 +384,14 @@ function MiniSignature({ persona }: { persona: Persona }) {
           <div className="h-[5px] w-10/12 rounded-full bg-slate-200/80" />
           <div className="h-[5px] w-6/12 rounded-full bg-slate-200/80" />
         </div>
-        <p className="mt-2.5 text-[10px] text-slate-600 leading-snug">{persona.signoff}</p>
-        <p className="text-[11px] font-bold text-slate-900 leading-snug">{first}</p>
+        <p className="mt-2.5 text-[0.625rem] text-slate-600 leading-snug">{persona.signoff}</p>
+        <p className="text-[0.6875rem] font-bold text-slate-900 leading-snug">{first}</p>
         <div className="mt-2 rounded-lg overflow-hidden ring-1 ring-slate-200">
           <CardScaler>
             <Template data={persona.data} />
           </CardScaler>
         </div>
-        <p className="mt-1.5 pb-3 text-[7.5px] text-slate-400 text-center">Swift Signature · tap to open card</p>
+        <p className="mt-1.5 pb-3 text-[0.46875rem] text-slate-400 text-center">Swift Signature · tap to open card</p>
       </div>
     </div>
   );
@@ -408,7 +408,7 @@ const PHONE_NATURAL_H = 876;
 const PHONE_SCALE = 0.66;
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <p className="text-slate-900 font-bold text-[15px] tracking-tight">{children}</p>;
+  return <p className="text-slate-900 font-bold text-[0.9375rem] tracking-tight">{children}</p>;
 }
 
 /** CENTER — the SwiftCard link, as a visitor opens it on their phone. */
@@ -423,7 +423,7 @@ function PhoneCard({ persona }: { persona: Persona }) {
     >
       {/* status strip */}
       <div className="flex items-center justify-between px-5 pt-2.5 pb-1" aria-hidden="true">
-        <span className="text-[9px] font-semibold text-slate-700">9:41</span>
+        <span className="text-[0.5625rem] font-semibold text-slate-700">9:41</span>
         <span className="flex items-center gap-1">
           <span className="w-3 h-[7px] rounded-[2px] border border-slate-500/70 relative"><span className="absolute inset-[1px] right-[3px] bg-slate-600 rounded-[1px]" /></span>
         </span>
@@ -467,18 +467,18 @@ function PhoneCard({ persona }: { persona: Persona }) {
           <div className="w-full max-w-sm rounded-2xl p-4 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
             <div className="flex items-center justify-between gap-3 mb-2.5">
               <SectionHeading>Swift Links</SectionHeading>
-              <span className="shrink-0 text-[11px] font-medium text-slate-500 rounded-full px-2.5 py-1 bg-[#FAF7F2]" style={{ boxShadow: "inset 0 0 0 1px #EFE9E1" }}>
+              <span className="shrink-0 text-[0.6875rem] font-medium text-slate-500 rounded-full px-2.5 py-1 bg-[#FAF7F2]" style={{ boxShadow: "inset 0 0 0 1px #EFE9E1" }}>
                 View Swift Link page →
               </span>
             </div>
-            <p className="text-slate-600 text-[13px] leading-[1.6]">{persona.bio}</p>
+            <p className="text-slate-600 text-[0.8125rem] leading-[1.6]">{persona.bio}</p>
             <div className="h-px bg-[#EFE9E1] my-3" />
             <div className="flex flex-col gap-2.5">
               <span className="inline-flex self-start items-center gap-2 max-w-full h-10 rounded-full pl-1.5 pr-3 bg-white" style={{ boxShadow: "inset 0 0 0 1px #E7E0D7, 0 1px 2px rgba(15,23,42,0.04)" }}>
-                <span className="shrink-0 w-7 h-7 rounded-full bg-white grid place-items-center overflow-hidden text-[11px] font-bold text-slate-500" style={{ boxShadow: "inset 0 0 0 1px #EDE6DC" }}>
+                <span className="shrink-0 w-7 h-7 rounded-full bg-white grid place-items-center overflow-hidden text-[0.6875rem] font-bold text-slate-500" style={{ boxShadow: "inset 0 0 0 1px #EDE6DC" }}>
                   {domain.charAt(0).toUpperCase()}
                 </span>
-                <span className="truncate lowercase font-medium text-[12.5px] tracking-[-0.004em] text-[#334155]">{domain}</span>
+                <span className="truncate lowercase font-medium text-[0.78125rem] tracking-[-0.004em] text-[#334155]">{domain}</span>
               </span>
               <div className="flex flex-wrap items-center gap-1.5">
                 {persona.socials.map((so) => (
@@ -521,7 +521,7 @@ function Stage({ persona, entered, preload }: { persona: Persona; entered: boole
       <div className="absolute top-0 left-[350px] -translate-x-1/2 z-40">
         <span
           key={persona.key + "-tag"}
-          className={`sc-hs-fade inline-block rounded-full bg-white/90 backdrop-blur px-3.5 py-1 text-[11px] font-bold text-slate-700 shadow-sm border border-slate-200/70 ${entered ? "" : "sc-hs-hidden"}`}
+          className={`sc-hs-fade inline-block rounded-full bg-white/90 backdrop-blur px-3.5 py-1 text-[0.6875rem] font-bold text-slate-700 shadow-sm border border-slate-200/70 ${entered ? "" : "sc-hs-hidden"}`}
         >
           {persona.job}
         </span>

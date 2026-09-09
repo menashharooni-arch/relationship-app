@@ -64,7 +64,7 @@ export default function DemoSwiftLinks({ compact = true }: { compact?: boolean }
     <>
       <div className="flex items-center justify-between gap-3 mb-3">
         {/* Plain bold heading, matching the real page's SectionHeading. */}
-        <p className={`text-slate-900 font-bold tracking-tight whitespace-nowrap ${compact ? "text-[13px]" : "text-[15px]"}`}>Swift Links</p>
+        <p className={`text-slate-900 font-bold tracking-tight whitespace-nowrap ${compact ? "text-[0.8125rem]" : "text-[0.9375rem]"}`}>Swift Links</p>
         {/* The card page's warm ghost chip. A span, not a link: everything in
             these mockups is display-only, and a chip that looks clickable and
             does nothing is worse than one that never invited the tap. Hover
@@ -79,14 +79,14 @@ export default function DemoSwiftLinks({ compact = true }: { compact?: boolean }
             chip's position, weight and colour are what carry the design here;
             SignatureDemo renders at true scale and keeps the full wording. */}
         <span
-          className={`shrink-0 whitespace-nowrap font-medium text-slate-500 rounded-full bg-[#FAF7F2] ${compact ? "text-[10px] px-2 py-[3px]" : "text-[11px] px-2.5 py-1"}`}
+          className={`shrink-0 whitespace-nowrap font-medium text-slate-500 rounded-full bg-[#FAF7F2] ${compact ? "text-[0.625rem] px-2 py-[3px]" : "text-[0.6875rem] px-2.5 py-1"}`}
           style={{ boxShadow: "inset 0 0 0 1px #EFE9E1" }}
         >
           {compact ? "View page →" : "View Swift Link page →"}
         </span>
       </div>
 
-      <p className={`text-slate-600 leading-[1.6] ${compact ? "text-[12px]" : "text-[13px]"}`}>{BIO}</p>
+      <p className={`text-slate-600 leading-[1.6] ${compact ? "text-[0.75rem]" : "text-[0.8125rem]"}`}>{BIO}</p>
 
       <div className={compact ? "my-3" : "my-4"}>{RULE}</div>
 

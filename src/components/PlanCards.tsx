@@ -95,7 +95,7 @@ export default function PlanCards({
           <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-400 text-sm mb-1">/ month</span></div>
           <p className="text-slate-500 text-sm mb-6 mt-2">{PLAN_DESCRIPTIONS.free}</p>
           <ul className="space-y-2.5 mb-7 flex-1">
-            {PLAN_FEATURES.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-slate-600"><Check />{f}</li>))}
+            {PLAN_FEATURES.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-slate-600"><Check />{f}</li>))}
           </ul>
           <button onClick={onFree} disabled={disabled} className="w-full text-center font-bold py-3.5 rounded-full text-sm bg-slate-900 hover:bg-slate-800 text-white transition-colors disabled:opacity-50">
             {busy === "free" ? "Setting up…" : freeLabel}
@@ -115,7 +115,7 @@ export default function PlanCards({
             <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: annual ? "translateX(22px)" : "translateX(2px)" }} />
           </button>
           <span className={`text-sm font-medium transition-colors ${annual ? "text-white" : "text-white/40"}`}>
-            Annual <span className="ml-1 text-[10px] font-black text-emerald-300 bg-emerald-400/15 px-1.5 py-0.5 rounded-full">SAVE 10%</span>
+            Annual <span className="ml-1 text-[0.625rem] font-black text-emerald-300 bg-emerald-400/15 px-1.5 py-0.5 rounded-full">SAVE 10%</span>
           </span>
         </div>
       </div>
@@ -132,7 +132,7 @@ export default function PlanCards({
           <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-400 text-sm mb-1">/ month</span></div>
           <p className="text-slate-500 text-sm mb-6 mt-2">{PLAN_DESCRIPTIONS.free}</p>
           <ul className="space-y-2.5 mb-7 flex-1">
-            {PLAN_FEATURES.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-slate-600"><Check />{f}</li>))}
+            {PLAN_FEATURES.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-slate-600"><Check />{f}</li>))}
           </ul>
           <button onClick={onFree} disabled={disabled} className="w-full text-center font-bold py-3.5 rounded-full text-sm bg-slate-900 hover:bg-slate-800 text-white transition-colors disabled:opacity-50">
             {busy === "free" ? "Setting up…" : freeLabel}
@@ -142,7 +142,7 @@ export default function PlanCards({
         {/* Pro — highlighted, glistening */}
         <div className={`${isMobile && mobileTier !== "pro" ? "hidden" : ""} relative rounded-[28px] p-7 flex flex-col overflow-hidden`} style={{ background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
           <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
-          <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
+          <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[0.6875rem] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
           <div className="relative z-[2] flex flex-col flex-1">
             <p className="text-[1.35rem] font-extrabold tracking-tight text-black mb-3">Pro</p>
             {/* "Free for your first 14 days, then $X" — owner-approved
@@ -154,7 +154,7 @@ export default function PlanCards({
             )}
             <p className="text-white/80 text-sm mb-6 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
             <ul className="space-y-2.5 mb-7 flex-1">
-              {PLAN_FEATURES.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
+              {PLAN_FEATURES.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-white"><Check pro />{f}</li>))}
             </ul>
             <button onClick={() => onPaid("pro", annual, 1)} disabled={disabled} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
               {busy === "pro" ? "Loading…" : "Start free →"}
@@ -163,7 +163,7 @@ export default function PlanCards({
                 carries the offer itself. "for new customers" is load-bearing —
                 checkout only grants a trial to customers with no prior Stripe
                 subscription (pinned by copy-truth.test.ts). */}
-            <p className="text-white/70 text-[11px] text-center mt-2.5 leading-relaxed">
+            <p className="text-white/70 text-[0.6875rem] text-center mt-2.5 leading-relaxed">
               {TRIAL_DAYS} days free for new customers · card required · renews automatically
             </p>
           </div>
@@ -176,7 +176,7 @@ export default function PlanCards({
           <div className="mb-1">
             <div className="flex items-end gap-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">${annual ? formatCents(perMonthCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS)) : formatCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}</span><span className="text-slate-400 text-sm mb-1">/ mo per user</span></div>
             <p className="text-blue-600 text-xs font-semibold mt-1.5">Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}</p>
-            <p className="text-slate-800 font-bold text-[13px] mt-1">{seats} users → {annual
+            <p className="text-slate-800 font-bold text-[0.8125rem] mt-1">{seats} users → {annual
               ? `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS, seats))}/yr`
               : `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, seats))}/mo`}</p>
           </div>
@@ -197,7 +197,7 @@ export default function PlanCards({
             </div>
           </div>
           <ul className="space-y-2.5 mb-7 flex-1">
-            {PLAN_FEATURES.office.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-slate-600"><Check />{f}</li>))}
+            {PLAN_FEATURES.office.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-slate-600"><Check />{f}</li>))}
           </ul>
           <button onClick={() => onPaid("office", annual, seats)} disabled={disabled} className="w-full font-bold py-3.5 px-3 rounded-full text-sm leading-tight bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors break-words">
             {busy === "office" ? "Loading…" : `Get Office · ${annual
@@ -238,13 +238,13 @@ function NativePro({
   return (
     <div className="relative rounded-[28px] p-7 flex flex-col overflow-hidden" style={{ background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
       <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
-      <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
+      <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[0.6875rem] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
       <div className="relative z-[2] flex flex-col flex-1">
         <p className="text-[1.35rem] font-extrabold tracking-tight text-black mb-3">Pro</p>
         {price ? <ProTrialPrice price={price} period="month" /> : null}
         <p className="text-white/80 text-sm mb-6 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
         <ul className="space-y-2.5 mb-7 flex-1">
-          {features.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check pro />{f}</li>))}
+          {features.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-white"><Check pro />{f}</li>))}
         </ul>
         <IapSubscribeButton
           className="!w-full !py-3.5 !text-sm !bg-white !text-[#2450d8]"
@@ -253,7 +253,7 @@ function NativePro({
           onPurchased={onPurchased}
           onNeedsAccount={onNeedsAccount}
         />
-        <p className="text-white/70 text-[11px] text-center mt-2.5 leading-relaxed">
+        <p className="text-white/70 text-[0.6875rem] text-center mt-2.5 leading-relaxed">
           {TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account
         </p>
       </div>

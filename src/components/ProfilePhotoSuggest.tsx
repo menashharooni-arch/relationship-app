@@ -216,7 +216,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
     }
   }
 
-  const linkBtn = "inline-flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors";
+  const linkBtn = "inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 transition-colors";
 
   return (
     <div className="mt-2">
@@ -236,7 +236,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
               discover it via the button above, so this nudge is mobile-only.
               Guests see it too — their Connect button routes through signup. */}
           {linkedinEnabled && (
-            <p className="lg:hidden text-[11px] text-gray-500 mt-1">
+            <p className="lg:hidden text-[0.6875rem] text-gray-500 mt-1">
               Tip: connect your LinkedIn and we&apos;ll pull your photo from there automatically.
             </p>
           )}
@@ -244,7 +244,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
       )}
 
       {applied && state.kind === "idle" && (
-        <p className="text-[11px] text-emerald-400 mt-1">
+        <p className="text-[0.6875rem] text-emerald-400 mt-1">
           Headshot added — it&apos;s saved when you save your card. Not right? Upload your own above.
         </p>
       )}
@@ -259,9 +259,9 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
       {state.kind === "applying" && <p className="text-xs text-gray-500">Adding your photo…</p>}
 
       {state.kind === "error" && (
-        <p className="text-[11px] text-gray-500 mt-1">
+        <p className="text-[0.6875rem] text-gray-500 mt-1">
           {state.message}{" "}
-          <button type="button" onClick={suggest} className="text-blue-400 hover:text-blue-300">Retry</button>
+          <button type="button" onClick={suggest} className="text-blue-700 hover:text-blue-800">Retry</button>
         </p>
       )}
 
@@ -269,7 +269,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
         <div className="mt-1.5 rounded-xl border border-gray-700/60 bg-gray-800/40 p-3">
           {state.candidates.length > 0 ? (
             <>
-              <p className="text-[11px] text-gray-400 mb-2.5">
+              <p className="text-[0.6875rem] text-gray-400 mb-2.5">
                 {state.candidates.length === 1 ? "We found this photo — it's only used if you choose it:" : "We found these photos — pick one, or upload your own above:"}
               </p>
               <div className="flex flex-wrap gap-3 mb-1.5">
@@ -283,21 +283,21 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={c.photoUrl} alt={c.label} className="w-16 h-16 rounded-full object-cover bg-gray-900" />
-                    <span className="text-[10px] text-gray-400 group-hover:text-white transition-colors">{c.label}</span>
-                    <span className="text-[10px] font-semibold text-blue-400">Use this photo</span>
+                    <span className="text-[0.625rem] text-gray-400 group-hover:text-white transition-colors">{c.label}</span>
+                    <span className="text-[0.625rem] font-semibold text-blue-400">Use this photo</span>
                   </button>
                 ))}
               </div>
             </>
           ) : (
-            <p className="text-[11px] text-gray-400 mb-2">
+            <p className="text-[0.6875rem] text-gray-400 mb-2">
               {guest ? "No photo found for that email." : "No photo found on your Google account or Gravatar."}
             </p>
           )}
 
           {state.linkedin === "connect" && (
             <div className="mt-1 pt-2 border-t border-gray-800 flex items-center gap-3 flex-wrap">
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[0.6875rem] text-gray-500">
                 Also on LinkedIn? Connect to import your profile photo:
               </p>
               <a
@@ -311,7 +311,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
           )}
           {state.linkedin === "reconnect" && (
             <div className="mt-1 pt-2 border-t border-gray-800 flex items-center gap-3 flex-wrap">
-              <p className="text-[11px] text-amber-300/90">Your LinkedIn permission expired.</p>
+              <p className="text-[0.6875rem] text-amber-300/90">Your LinkedIn permission expired.</p>
               <a
                 href={connectUrl}
                 onClick={(e) => { e.preventDefault(); void openLinkedInConnect(connectUrl); }}
@@ -322,13 +322,13 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
             </div>
           )}
           {state.linkedin === "none" && (
-            <p className="mt-1 pt-2 border-t border-gray-800 text-[11px] text-gray-500">
+            <p className="mt-1 pt-2 border-t border-gray-800 text-[0.6875rem] text-gray-500">
               Your LinkedIn profile has no photo we can import.
             </p>
           )}
 
           <div className="mt-2">
-            <button type="button" onClick={() => setState({ kind: "idle" })} className="text-[11px] text-gray-500 hover:text-gray-300">
+            <button type="button" onClick={() => setState({ kind: "idle" })} className="text-[0.6875rem] text-gray-500 hover:text-gray-300">
               Cancel
             </button>
           </div>

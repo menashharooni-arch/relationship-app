@@ -51,7 +51,7 @@ export default async function OfficeCardDetailPage({ params }: { params: Promise
         <StatTile label="Leads captured" value={stats.leads} />
       </div>
 
-      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Details</p>
+      <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-2">Details</p>
       <div className="bg-gray-900 border border-gray-800 rounded-2xl divide-y divide-gray-800 mb-6">
         {([
           ["Owner", card.ownerName || card.ownerEmail || "—"],

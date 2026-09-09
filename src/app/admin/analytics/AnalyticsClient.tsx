@@ -25,7 +25,7 @@ function Kpi({ label, value, sub, accent }: { label: string; value: string | num
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>
       <p className="text-gray-400 text-xs mt-0.5">{label}</p>
-      {sub && <p className="text-gray-600 text-[11px] mt-0.5">{sub}</p>}
+      {sub && <p className="text-gray-600 text-[0.6875rem] mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -37,7 +37,7 @@ function BarChart({ series, color = "#3b82f6" }: { series: { date: string; count
       {series.map((s) => (
         <div key={s.date} className="flex-1 group relative flex flex-col justify-end">
           <div className="rounded-t-sm transition-colors" style={{ height: `${(s.count / max) * 100}%`, minHeight: s.count ? 3 : 0, background: color }} />
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap z-10">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-gray-800 text-white text-[0.625rem] px-1.5 py-0.5 rounded whitespace-nowrap z-10">
             {new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}: {s.count}
           </div>
         </div>
@@ -117,7 +117,7 @@ export default function AnalyticsClient() {
                   <span>30d <span className="text-white font-semibold">{a.accounts.d30}</span></span>
                 </div>
               </div>
-              <p className="text-gray-600 text-[11px] mb-4">Signups per day — your growth curve. A flat stretch means marketing needs a push.</p>
+              <p className="text-gray-600 text-[0.6875rem] mb-4">Signups per day — your growth curve. A flat stretch means marketing needs a push.</p>
               <BarChart series={a.accounts.series} color="#3b82f6" />
             </div>
 
@@ -125,13 +125,13 @@ export default function AnalyticsClient() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
                 <p className="text-white font-semibold text-sm mb-1">Plan mix</p>
-                <p className="text-gray-600 text-[11px] mb-4">How many users sit on each plan — Free is your upgrade pipeline.</p>
+                <p className="text-gray-600 text-[0.6875rem] mb-4">How many users sit on each plan — Free is your upgrade pipeline.</p>
                 <Bars rows={[["Free", a.plans.free], ["Pro", a.plans.pro], ["Office", a.plans.office]]} color="#8b5cf6" />
                 <div className="grid grid-cols-3 gap-2 mt-4">
                   {[["Free", a.plans.free, "#6b7280"], ["Pro", a.plans.pro, "#60a5fa"], ["Office", a.plans.office, "#c084fc"]].map(([l, n, c]) => (
                     <div key={l as string} className="bg-gray-800/40 rounded-xl px-3 py-2.5 text-center">
                       <p className="text-lg font-bold tabular-nums" style={{ color: c as string }}>{(n as number).toLocaleString()}</p>
-                      <p className="text-gray-500 text-[11px]">{l as string}</p>
+                      <p className="text-gray-500 text-[0.6875rem]">{l as string}</p>
                     </div>
                   ))}
                 </div>
@@ -139,7 +139,7 @@ export default function AnalyticsClient() {
 
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
                 <p className="text-white font-semibold text-sm mb-1">Where contacts come from <span className="text-gray-600 font-normal">· last 30d</span></p>
-                <p className="text-gray-600 text-[11px] mb-4">Across ALL users: how people reached a card before sharing their info (QR scan, card link, bio link…).</p>
+                <p className="text-gray-600 text-[0.6875rem] mb-4">Across ALL users: how people reached a card before sharing their info (QR scan, card link, bio link…).</p>
                 <Bars rows={a.leads.bySource} color="#22c55e" labeler={getSourceLabel} />
               </div>
             </div>
@@ -153,7 +153,7 @@ export default function AnalyticsClient() {
                   <span>7d <span className="text-white font-semibold">{a.leads.d7}</span></span>
                 </div>
               </div>
-              <p className="text-gray-600 text-[11px] mb-4">New contacts landing in users&apos; CRMs per day — the clearest signal the product is delivering value.</p>
+              <p className="text-gray-600 text-[0.6875rem] mb-4">New contacts landing in users&apos; CRMs per day — the clearest signal the product is delivering value.</p>
               <BarChart series={a.leads.series} color="#22c55e" />
             </div>
 
@@ -169,7 +169,7 @@ export default function AnalyticsClient() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
                 <p className="text-white font-semibold text-sm mb-1">Top cards by contacts</p>
-                <p className="text-gray-600 text-[11px] mb-3">The cards capturing the most contacts — your power users. Great candidates for testimonials and referrals.</p>
+                <p className="text-gray-600 text-[0.6875rem] mb-3">The cards capturing the most contacts — your power users. Great candidates for testimonials and referrals.</p>
                 {a.topCards.length === 0 ? <p className="text-gray-600 text-xs">No contacts yet.</p> : (
                   <div className="divide-y divide-gray-800/60">
                     {a.topCards.map((c, i) => (
@@ -187,17 +187,17 @@ export default function AnalyticsClient() {
 
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
                 <p className="text-white font-semibold text-sm mb-1">Latest signups</p>
-                <p className="text-gray-600 text-[11px] mb-3">The most recent accounts — click through in Users to see any of them in detail.</p>
+                <p className="text-gray-600 text-[0.6875rem] mb-3">The most recent accounts — click through in Users to see any of them in detail.</p>
                 <div className="divide-y divide-gray-800/60">
                   {a.accounts.recent.map((u) => (
                     <div key={u.username} className="flex items-center justify-between py-2 text-sm">
                       <span className="min-w-0">
                         <span className="text-white truncate block max-w-[180px]">{u.name || u.username}</span>
-                        <span className="text-gray-600 text-[11px] truncate block max-w-[180px]">{u.email}</span>
+                        <span className="text-gray-600 text-[0.6875rem] truncate block max-w-[180px]">{u.email}</span>
                       </span>
                       <span className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: (PLAN_COLOR[u.plan === "enterprise" ? "office" : u.plan] ?? "#6b7280") + "22", color: PLAN_COLOR[u.plan === "enterprise" ? "office" : u.plan] ?? "#9ca3af" }}>{PLAN_LABEL[u.plan] ?? "Free"}</span>
-                        <span className="text-gray-600 text-[11px]">{new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                        <span className="text-[0.625rem] font-bold px-2 py-0.5 rounded-full" style={{ background: (PLAN_COLOR[u.plan === "enterprise" ? "office" : u.plan] ?? "#6b7280") + "22", color: PLAN_COLOR[u.plan === "enterprise" ? "office" : u.plan] ?? "#9ca3af" }}>{PLAN_LABEL[u.plan] ?? "Free"}</span>
+                        <span className="text-gray-600 text-[0.6875rem]">{new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                       </span>
                     </div>
                   ))}
@@ -208,7 +208,7 @@ export default function AnalyticsClient() {
             {/* Acquisition — where signups come from and which sources convert to paid */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
               <p className="text-white font-semibold text-sm mb-1">Acquisition — where signups come from</p>
-              <p className="text-gray-600 text-[11px] mb-4">Use the paid-conversion column to decide where marketing money works hardest.</p>
+              <p className="text-gray-600 text-[0.6875rem] mb-4">Use the paid-conversion column to decide where marketing money works hardest.</p>
               {a.acquisition.length === 0 ? (
                 <p className="text-gray-600 text-xs">No signups yet.</p>
               ) : (
@@ -239,7 +239,7 @@ export default function AnalyticsClient() {
               )}
             </div>
 
-            <p className="text-gray-600 text-[11px] text-center">Referral & fraud analytics live in <Link href="/admin/referrals" className="text-blue-400 hover:text-blue-300">Referrals</Link>. Est. MRR uses list prices; excludes discounts &amp; Office seat counts.</p>
+            <p className="text-gray-600 text-[0.6875rem] text-center">Referral & fraud analytics live in <Link href="/admin/referrals" className="text-blue-400 hover:text-blue-300">Referrals</Link>. Est. MRR uses list prices; excludes discounts &amp; Office seat counts.</p>
           </div>
         )}
     </div>

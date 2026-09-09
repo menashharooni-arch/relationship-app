@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
+import SiteFooterMini from "@/components/site/SiteFooterMini";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 
 // ── The SwiftCard blog ───────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ export default async function BlogIndexPage() {
     <main className="min-h-screen bg-cream flex flex-col">
       <SiteNav />
       <section className="text-center px-6 pt-28 pb-10">
-        <p className="text-[11px] font-bold tracking-[0.25em] text-brand uppercase mb-4">Blog</p>
+        <p className="rd-eyebrow text-brand mb-4">Blog</p>
         <h1 className="text-4xl font-bold text-slate-900 mb-4">The SwiftCard blog</h1>
         <p className="text-slate-500 text-lg max-w-xl mx-auto">Digital business cards, lead capture, and following up — written plainly, compared honestly.</p>
       </section>
@@ -44,25 +44,14 @@ export default async function BlogIndexPage() {
         <div className="flex flex-col gap-3">
           {posts.map((p) => (
             <Link key={p.slug} href={`/blog/${p.slug}`} className="rounded-2xl border border-warm-border bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-slate-900 font-semibold text-[17px]">{p.title}</p>
+              <p className="text-slate-900 font-semibold text-[1.0625rem]">{p.title}</p>
               <p className="text-slate-500 text-sm mt-1.5 leading-relaxed">{p.description}</p>
-              {p.published_at && <p className="text-slate-400 text-xs mt-2">{new Date(p.published_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>}
+              {p.published_at && <p className="text-slate-500 text-xs mt-2">{new Date(p.published_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>}
             </Link>
           ))}
         </div>
       </section>
-      <footer className="border-t border-warm-border py-10 px-6 bg-cream mt-auto">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <SwiftCardLogo size={24} />
-          <div className="flex items-center gap-6 text-sm text-slate-500">
-            <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
-            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
-            <Link href="/terms" className="hover:text-slate-900 transition-colors">Terms</Link>
-          </div>
-          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY</p>
-        </div>
-      </footer>
+      <SiteFooterMini />
     </main>
   );
 }

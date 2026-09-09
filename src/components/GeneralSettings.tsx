@@ -60,11 +60,11 @@ export default function GeneralSettings({ email, cardCount, plan, isPro, default
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-gray-500 text-xs shrink-0">Plan</span>
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${plan === "enterprise" ? "bg-purple-600 text-white" : isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
+            <span className={`text-[0.6875rem] font-bold px-2 py-0.5 rounded-full ${plan === "enterprise" ? "bg-purple-600 text-white" : isPro ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>
               {planLabel}
             </span>
           </div>
-          <p className="text-gray-600 text-[11px] pt-2">Manage your subscription in the Billing section below.</p>
+          <p className="text-gray-600 text-[0.6875rem] pt-2">Manage your subscription in the Billing section below.</p>
         </div>
       )}
     </div>

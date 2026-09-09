@@ -78,7 +78,7 @@ function Section({ n, title, desc, children }: {
   return (
     <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
       <div className="flex items-start gap-3 mb-4">
-        <span className="w-5 h-5 rounded-full bg-purple-500/15 text-purple-300 text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5" aria-hidden="true">
+        <span className="w-5 h-5 rounded-full bg-purple-500/15 text-purple-300 text-[0.6875rem] font-bold flex items-center justify-center shrink-0 mt-0.5" aria-hidden="true">
           {n}
         </span>
         <div>
@@ -192,7 +192,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
                   Main phone number <span className="text-gray-600 font-normal">(optional)</span>
                 </label>
                 <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" className={inputCls} />
-                <p className="text-[11px] text-gray-600 mt-1">Shows as &quot;Office&quot; on every card, next to each person&apos;s own number.</p>
+                <p className="text-[0.6875rem] text-gray-600 mt-1">Shows as &quot;Office&quot; on every card, next to each person&apos;s own number.</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">
@@ -222,12 +222,12 @@ export default function OfficeBranding({ office }: { office: Brand }) {
           information) so mobile sees it right away. On desktop this becomes
           the sticky right-hand column via explicit grid placement below. */}
       <aside className="lg:col-start-2 lg:[grid-row:1/-1] lg:sticky lg:top-24">
-        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</p>
+        <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</p>
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3">
           <div className="rounded-xl overflow-hidden">
             <InertPreview><CardScaler><Preview data={previewData} /></CardScaler></InertPreview>
           </div>
-          <p className="text-[11px] text-gray-600 mt-2.5 leading-snug">
+          <p className="text-[0.6875rem] text-gray-600 mt-2.5 leading-snug">
             An example teammate. Their name, photo, title, phone and email are theirs — everything else is what you set here.
           </p>
         </div>
@@ -258,7 +258,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
                 system everywhere. Writes offices.brand_design on save. */}
             <TemplateStyleControls value={design} onChange={patchDesign} template={template} />
           </div>
-          <p className="text-[11px] text-gray-600 mt-3">
+          <p className="text-[0.6875rem] text-gray-600 mt-3">
             Use the lock below to decide whether every team card must match this design.
           </p>
         </Section>
@@ -266,18 +266,18 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         {/* 3 ── What team members can edit ──────────────────────────────── */}
         <Section n={3} title="What team members can edit" desc="Everything else is locked to what you set above.">
           <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3.5 mb-4">
-            <p className="text-[11px] font-semibold text-gray-400 mb-2">Each person fills in only:</p>
+            <p className="text-[0.6875rem] font-semibold text-gray-400 mb-2">Each person fills in only:</p>
             <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
               {["Their name", "Their photo", "Their job title", "Their phone", "Their email"].map((t) => (
-                <li key={t} className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                <li key={t} className="flex items-center gap-1.5 text-[0.6875rem] text-gray-400">
                   <span className="text-green-400" aria-hidden="true">✓</span>{t}
                 </li>
               ))}
             </ul>
-            <p className="text-[11px] font-semibold text-gray-400 mt-3 mb-2">They can never change:</p>
+            <p className="text-[0.6875rem] font-semibold text-gray-400 mt-3 mb-2">They can never change:</p>
             <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
               {["Company logo", "Company name", "Website", "Office phone", "Fax number", "Address"].map((t) => (
-                <li key={t} className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                <li key={t} className="flex items-center gap-1.5 text-[0.6875rem] text-gray-500">
                   <span className="text-gray-600" aria-hidden="true">🔒</span>{t}
                 </li>
               ))}
@@ -293,7 +293,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
             />
             <span>
               Keep every card matching
-              <span className="block text-[11px] text-gray-600 mt-0.5">
+              <span className="block text-[0.6875rem] text-gray-600 mt-0.5">
                 Recommended. Uncheck only if you want each person to pick their own style.
               </span>
             </span>

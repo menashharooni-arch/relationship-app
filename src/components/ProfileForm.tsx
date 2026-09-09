@@ -203,13 +203,13 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 mb-2 shadow-sm">
-        <p className="text-xs text-slate-400">Card URL</p>
+        <p className="text-xs text-slate-600">Card URL</p>
         <p className="text-[#1D4ED8] text-sm">swiftcard.me/{profile.username}</p>
       </div>
 
       {/* Photo + Logo uploads */}
       <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 space-y-4 shadow-sm">
-        <p className="text-xs text-slate-500 font-medium">Photos & Logo</p>
+        <p className="text-xs text-slate-600 font-medium">Photos & Logo</p>
         <div>
           <ImageUpload
             field="photo"
@@ -238,10 +238,14 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
         </div>
       </div>
 
+      {/* htmlFor/id, not just proximity: a <label> that names no control is not
+          a label — VoiceOver announced these as bare edit fields and Voice
+          Control had nothing to match "tap Job title" against. */}
       {mainFields.map((f) => (
         <div key={f.name}>
-          <label className="text-xs text-slate-500 block mb-1">{f.label}</label>
+          <label htmlFor={`profile-${f.name}`} className="text-xs text-slate-600 block mb-1">{f.label}</label>
           <input
+            id={`profile-${f.name}`}
             name={f.name}
             type={f.type || "text"}
             required={f.required}
@@ -253,12 +257,13 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
       ))}
 
       <div className="h-px bg-slate-200 my-2" />
-      <p className="text-xs text-slate-500 font-medium">Social links</p>
+      <p className="text-xs text-slate-600 font-medium">Social links</p>
 
       {socialFields.map((f) => (
         <div key={f.name}>
-          <label className="text-xs text-slate-500 block mb-1">{f.label}</label>
+          <label htmlFor={`profile-${f.name}`} className="text-xs text-slate-600 block mb-1">{f.label}</label>
           <input
+            id={`profile-${f.name}`}
             name={f.name}
             type="text"
             placeholder="@yourhandle or paste URL"
@@ -286,9 +291,9 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
 
       {/* About / bio */}
       <div className="h-px bg-slate-200 my-2" />
-      <p className="text-xs text-slate-500 font-medium">About section (optional)</p>
+      <p className="text-xs text-slate-600 font-medium">About section (optional)</p>
       <div>
-        <label className="text-xs text-slate-500 block mb-1">About you or your business</label>
+        <label className="text-xs text-slate-600 block mb-1">About you or your business</label>
         <textarea
           placeholder="A short bio, what you do, or your services. This appears on your public card."
           value={customization.about ?? ""}
@@ -301,9 +306,9 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
       {/* Action Links (Link-in-bio) */}
       <div className="h-px bg-slate-200 my-2" />
       <div className="flex items-center justify-between mb-1">
-        <p className="text-xs text-slate-500 font-medium">Action links</p>
+        <p className="text-xs text-slate-600 font-medium">Action links</p>
       </div>
-      <p className="text-[11px] text-slate-400 mb-3">Add buttons to your card — Book a call, View portfolio, Leave a review, and more.</p>
+      <p className="text-[0.6875rem] text-slate-600 mb-3">Add buttons to your card — Book a call, View portfolio, Leave a review, and more.</p>
 
       {links.length > 0 && (
         <div className="space-y-2 mb-3">
@@ -312,12 +317,12 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
               <span className="text-base shrink-0">{link.emoji}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-slate-900 text-xs font-semibold truncate">{link.label}</p>
-                <p className="text-slate-400 text-[10px] truncate">{link.url}</p>
+                <p className="text-slate-600 text-[0.625rem] truncate">{link.url}</p>
               </div>
               <button
                 type="button"
                 onClick={() => removeLink(i)}
-                className="text-slate-400 hover:text-red-500 transition-colors text-lg leading-none shrink-0"
+                className="text-slate-600 hover:text-red-500 transition-colors text-lg leading-none shrink-0"
                 title="Remove"
               >
                 ×
@@ -329,7 +334,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
 
       {addingLink ? (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-          <p className="text-xs text-slate-500 font-medium">Quick picks</p>
+          <p className="text-xs text-slate-600 font-medium">Quick picks</p>
           <div className="flex flex-wrap gap-2">
             {LINK_PRESETS.map((p) => (
               <button
@@ -393,7 +398,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
           feature="swift-links-cap"
           nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan"
         >
-          <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 leading-relaxed">
+          <p className="text-[0.6875rem] text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 leading-relaxed">
             Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <Link href="/upgrade" className="text-[#1D4ED8] font-semibold hover:underline">Upgrade to Pro</Link> to access unlimited additional links.
           </p>
         </PlanGate>
@@ -401,7 +406,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
         <button
           type="button"
           onClick={() => setAddingLink(true)}
-          className="w-full border border-dashed border-slate-300 text-slate-500 hover:border-[#1D4ED8] hover:text-[#1D4ED8] text-xs font-medium py-2.5 rounded-xl transition-colors"
+          className="w-full border border-dashed border-slate-400 text-slate-600 hover:border-[#1D4ED8] hover:text-[#1D4ED8] text-xs font-medium py-2.5 rounded-xl transition-colors"
         >
           + Add link
         </button>
@@ -410,10 +415,10 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
       {/* Testimonials */}
       <div className="h-px bg-slate-200 my-2" />
       <div className="flex items-center justify-between mb-1">
-        <p className="text-xs text-slate-500 font-medium">Testimonials</p>
-        <span className="text-[10px] text-slate-400">{testimonials.length} added</span>
+        <p className="text-xs text-slate-600 font-medium">Testimonials</p>
+        <span className="text-[0.625rem] text-slate-600">{testimonials.length} added</span>
       </div>
-      <p className="text-[11px] text-slate-400 mb-3">Social proof from clients or customers, shown on your card.</p>
+      <p className="text-[0.6875rem] text-slate-600 mb-3">Social proof from clients or customers, shown on your card.</p>
 
       {testimonials.length > 0 && (
         <div className="space-y-2 mb-3">
@@ -421,12 +426,12 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
             <div key={i} className="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
               <div className="flex-1 min-w-0">
                 <p className="text-slate-900 text-xs font-semibold">{t.name}</p>
-                <p className="text-slate-500 text-[11px] mt-0.5 leading-snug">&ldquo;{t.text}&rdquo;</p>
+                <p className="text-slate-500 text-[0.6875rem] mt-0.5 leading-snug">&ldquo;{t.text}&rdquo;</p>
               </div>
               <button
                 type="button"
                 onClick={() => setTestimonials((prev) => prev.filter((_, idx) => idx !== i))}
-                className="text-slate-400 hover:text-red-500 transition-colors text-lg leading-none shrink-0 mt-0.5"
+                className="text-slate-600 hover:text-red-500 transition-colors text-lg leading-none shrink-0 mt-0.5"
                 title="Remove"
               >
                 ×
@@ -479,7 +484,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
         <button
           type="button"
           onClick={() => setAddingTestimonial(true)}
-          className="w-full border border-dashed border-slate-300 text-slate-500 hover:border-[#1D4ED8] hover:text-[#1D4ED8] text-xs font-medium py-2.5 rounded-xl transition-colors"
+          className="w-full border border-dashed border-slate-400 text-slate-600 hover:border-[#1D4ED8] hover:text-[#1D4ED8] text-xs font-medium py-2.5 rounded-xl transition-colors"
         >
           + Add testimonial
         </button>
@@ -487,7 +492,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
 
       {/* Template picker */}
       <div className="h-px bg-slate-200 my-2" />
-      <p className="text-xs text-slate-500 font-medium">Card design</p>
+      <p className="text-xs text-slate-600 font-medium">Card design</p>
 
       {/* Live preview — withoutSocials so it matches the PUBLISHED card, which
           strips the social row. Without it this preview promised a row of social
@@ -502,6 +507,14 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
             key={id}
             type="button"
             onClick={() => setTemplate(id)}
+            // Same shape as the marketing gallery: the preview is a real card
+            // with real contact links, so the button announced as a container
+            // of other controls (axe: nested-interactive). One named button.
+            // The "★ Most Popular" ribbon is the only visible text left outside
+            // the inert preview, so the name must contain it or Voice Control's
+            // "tap Most Popular" finds nothing.
+            aria-label={id === "photo-first" ? `${label} template — most popular` : `${label} template`}
+            aria-pressed={template === id}
             className="relative text-left rounded-xl border-2 transition-all"
             style={{
               borderColor: template === id ? "#1D4ED8" : "#e2e8f0",
@@ -509,11 +522,12 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
             }}
           >
             {id === "photo-first" && (
-              <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap text-[8.5px] font-bold uppercase tracking-wide text-white px-2 py-0.5 rounded-full shadow-sm" style={{ background: "#1D4ED8" }}>
+              <span className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap text-[0.53125rem] font-bold uppercase tracking-wide text-white px-2 py-0.5 rounded-full shadow-sm" style={{ background: "#1D4ED8" }}>
                 ★ Most Popular
               </span>
             )}
-            <div className="rounded-[10px] overflow-hidden">
+            {/* inert: the preview is a rendered card, not a set of controls. */}
+            <div inert className="rounded-[10px] overflow-hidden">
             <div className="w-full pointer-events-none" style={{ transform: "scale(0.85)", transformOrigin: "top left", width: "117%", height: "auto" }}>
               <Component data={SAMPLE_DATA} />
             </div>
@@ -528,7 +542,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
                 {tags.map((tag) => (
                   <span
                     key={tag}
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                    className="text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full"
                     style={{
                       background: template === id ? "#EBF0FF" : "#f1f5f9",
                       color: template === id ? "#1D4ED8" : "#94a3b8",
@@ -548,15 +562,16 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
       {isPro ? (
         <div className="bg-white border border-slate-200 rounded-2xl px-4 py-4 space-y-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-slate-500 font-medium">Accent color</p>
+            <p className="text-xs text-slate-600 font-medium">Accent color</p>
             <div className="flex items-center gap-2">
               <input
                 type="color"
+                aria-label="Accent colour"
                 value={customization.accentColor ?? "#2563eb"}
                 onChange={(e) => setCustomization((c) => ({ ...c, accentColor: e.target.value }))}
                 className="w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white"
               />
-              <span className="text-xs text-slate-400 font-mono">{customization.accentColor ?? "#2563eb"}</span>
+              <span className="text-xs text-slate-600 font-mono">{customization.accentColor ?? "#2563eb"}</span>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -577,7 +592,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
               <button
                 type="button"
                 onClick={() => setCustomization((prev) => ({ ...prev, accentColor: undefined }))}
-                className="text-xs text-slate-400 hover:text-slate-600 px-2"
+                className="text-xs text-slate-600 hover:text-slate-600 px-2"
               >
                 Reset
               </button>
@@ -611,8 +626,8 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
           nativeCopy="Pro feature — Customization is only available on the Pro plan"
         >
           <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 text-center">
-            <p className="text-xs text-slate-500 font-medium">Accent color & font</p>
-            <p className="text-xs text-slate-400 mt-1">Make it unmistakably yours — unlock the custom designer with Pro.</p>
+            <p className="text-xs text-slate-600 font-medium">Accent color & font</p>
+            <p className="text-xs text-slate-600 mt-1">Make it unmistakably yours — unlock the custom designer with Pro.</p>
             <Link href="/upgrade" className="inline-block mt-2 text-xs font-semibold text-[#1D4ED8] hover:underline">Upgrade to Pro →</Link>
           </div>
         </PlanGate>

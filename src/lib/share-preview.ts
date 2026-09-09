@@ -62,9 +62,34 @@ function onThisPage(cardUrl: string): boolean {
   }
 }
 
+/**
+ * Is this a link we can actually warm from here?
+ *
+ * A cross-origin warm cannot work, ever: CORS blocks reading the body, so
+ * ogImageFromHtml never sees a tag and the image — the only thing worth
+ * warming — is never fetched. All the request does is cost a round trip.
+ *
+ * It also had a second, louder cost. The marketing demos hand ShareButton a
+ * hardcoded `https://swiftcard.me/alexmorgan`, so every load of the homepage,
+ * /preview and /products/* from a dev box or a preview deploy fetched a real
+ * production card page and logged a CORS error to the console for it. Local
+ * work should not generate production traffic.
+ *
+ * On production these URLs are same-origin, so nothing about the real warm
+ * path changes.
+ */
+function sameOrigin(cardUrl: string): boolean {
+  try {
+    return new URL(cardUrl, window.location.href).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
 export function warmSharePreview(cardUrl: string): void {
   if (typeof window === "undefined" || typeof fetch !== "function") return;
   const clean = cardUrl.split("#")[0];
+  if (!sameOrigin(clean)) return;
   void (async () => {
     try {
       const ctrl = new AbortController();

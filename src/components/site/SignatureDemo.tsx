@@ -93,7 +93,7 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
             {/* Save contact — plain bold heading, like the live page (the
                 numbered badges were removed in the 2026-08-19 redesign). */}
             <div className={PANEL} style={panelStyle}>
-              <p className="text-slate-900 font-bold text-[15px] tracking-tight">Save {FIRST}&apos;s contact</p>
+              <p className="text-slate-900 font-bold text-[0.9375rem] tracking-tight">Save {FIRST}&apos;s contact</p>
               <p className="text-slate-500 text-xs mt-1 mb-4">One tap adds them to your phone contacts — no app needed.</p>
               <div style={showOnly}>
                 <SaveContactButton person={PERSON} username="alexmorgan" source="signature_demo" cardOwner="alexmorgan" ownerFirstName={FIRST} suppressTracking />
@@ -102,7 +102,7 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
 
             {/* Share your info */}
             <div className={PANEL} style={panelStyle}>
-              <p className="text-slate-900 font-bold text-[15px] tracking-tight mb-4">Share your info with {FIRST}</p>
+              <p className="text-slate-900 font-bold text-[0.9375rem] tracking-tight mb-4">Share your info with {FIRST}</p>
               <div style={showOnly}>
                 {/* Blank form — a faithful copy of the real LeadCaptureForm, empty. */}
                 <div className="w-full space-y-3">
@@ -134,13 +134,13 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
                 below the button is truthful here. */}
             <div className={PANEL} style={panelStyle}>
               <ShareButton url={CARD_URL} text={`Connect with ${FIRST} — save their contact instantly.`} label="Share this card" />
-              <span className="block text-center text-slate-400 text-[11px] mt-3">Create your card · swiftcard.me</span>
+              <span className="block text-center text-slate-400 text-[0.6875rem] mt-3">Create your card · swiftcard.me</span>
             </div>
 
             {/* The attribution badge, worded exactly as SwiftLinkProfile now
                 renders it — a marketing mock of a real surface has to say what
                 that surface says. */}
-            <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
+            <span className="flex items-center gap-1.5 text-slate-400 text-[0.6875rem]">
               <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
               Made with SwiftCard
             </span>
@@ -158,15 +158,15 @@ export default function SignatureDemo() {
     <div>
       {/* Works everywhere */}
       <div className="flex flex-wrap items-center justify-center gap-2.5 mb-5" data-reveal="fade">
-        <span className="text-slate-500 text-[15px] font-medium">Works on all platforms —</span>
+        <span className="text-slate-500 text-[0.9375rem] font-medium">Works on all platforms —</span>
         {["Gmail", "Outlook", "Yahoo", "Hotmail", "Apple Mail"].map((p) => (
-          <span key={p} className="rd-pill rd-pill-l text-[13px]">{p}</span>
+          <span key={p} className="rd-pill rd-pill-l text-[0.8125rem]">{p}</span>
         ))}
-        <span className="text-slate-500 text-[15px] font-medium">all of it.</span>
+        <span className="text-slate-500 text-[0.9375rem] font-medium">all of it.</span>
       </div>
 
       {/* Click hint — on top of the email box */}
-      <p className="text-center text-[15px] font-semibold mb-4 flex items-center justify-center gap-1.5" style={{ color: "#2563EB" }} data-reveal="fade">
+      <p className="text-center text-[0.9375rem] font-semibold mb-4 flex items-center justify-center gap-1.5" style={{ color: "#2563EB" }} data-reveal="fade">
         Click the signature and see what happens
         <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 5v14M12 19l-4-4M12 19l4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </p>
@@ -175,14 +175,14 @@ export default function SignatureDemo() {
       <div className="rd-card-l overflow-hidden max-w-3xl mx-auto" data-reveal="scale">
         <div className="flex items-center gap-2 px-4 h-11 border-b border-slate-100 bg-slate-50">
           <span className="w-3 h-3 rounded-full bg-[#ff5f57]" /><span className="w-3 h-3 rounded-full bg-[#febc2e]" /><span className="w-3 h-3 rounded-full bg-[#28c840]" />
-          <span className="ml-3 text-[12px] text-slate-400 font-medium">New Message</span>
+          <span className="ml-3 text-[0.75rem] text-slate-400 font-medium">New Message</span>
         </div>
         <div className="p-6 sm:p-8 text-slate-700">
-          <div className="text-[13px] space-y-1.5 pb-3 border-b border-slate-100">
+          <div className="text-[0.8125rem] space-y-1.5 pb-3 border-b border-slate-100">
             <p><span className="text-slate-400">To:</span> sarah@acme.com</p>
             <p><span className="text-slate-400">Subject:</span> Great connecting today</p>
           </div>
-          <div className="pt-5 text-[14.5px] leading-relaxed space-y-3">
+          <div className="pt-5 text-[0.90625rem] leading-relaxed space-y-3">
             <p>Hi Sarah,</p>
             <p>Really enjoyed chatting earlier. My details are in my signature below — feel free to reach out anytime.</p>
             <p>Best,</p>
@@ -190,14 +190,14 @@ export default function SignatureDemo() {
 
           {/* signature */}
           <div className="mt-5 pt-5 border-t border-slate-100">
-            <p className="text-[14px] text-slate-900 mb-2"><strong>Alex Morgan</strong> <span className="text-slate-500">| Coastline Realty</span></p>
+            <p className="text-[0.875rem] text-slate-900 mb-2"><strong>Alex Morgan</strong> <span className="text-slate-500">| Coastline Realty</span></p>
             <div className="relative w-[300px] max-w-full transition-transform hover:-translate-y-0.5">
               <div className="rounded-2xl overflow-hidden shadow-[0_10px_30px_-14px_rgba(8,10,18,0.4)]" style={{ pointerEvents: "none", background: "#FAF7F2" }}>
                 <CardScaler><PhotoFirst data={CARD_DATA} /></CardScaler>
               </div>
               <button onClick={() => setOpen(true)} aria-label="Open Alex Morgan's SwiftCard" className="absolute inset-0 z-10 rounded-2xl cursor-pointer" />
             </div>
-            <button onClick={() => setOpen(true)} className="inline-block mt-2 text-[14px] font-bold no-underline" style={{ color: "#2563eb" }}>Contact me →</button>
+            <button onClick={() => setOpen(true)} className="inline-block mt-2 text-[0.875rem] font-bold no-underline" style={{ color: "#2563eb" }}>Contact me →</button>
           </div>
         </div>
       </div>

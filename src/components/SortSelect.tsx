@@ -9,6 +9,9 @@ export default function SortSelect({ value }: { value: string }) {
 
   return (
     <select
+      // Its meaning comes from the list beside it, so on its own VoiceOver read
+      // "pop-up button" with no name and Voice Control had nothing to say.
+      aria-label="Sort contacts"
       defaultValue={value}
       onChange={onChange}
       className="text-xs bg-gray-900 border border-gray-700 text-gray-400 rounded-lg px-2 py-1.5 focus:outline-none cursor-pointer"

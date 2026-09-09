@@ -42,7 +42,7 @@ export default function ProTrialPrice({
         <span className="text-white/70 text-sm">for your first {TRIAL_DAYS} days</span>
       </div>
       <p className="text-white/70 text-sm mt-2">
-        then <span className="text-black font-extrabold text-[17px]">{price}</span> / {period} · cancel anytime
+        then <span className="text-black font-extrabold text-[1.0625rem]">{price}</span> / {period} · cancel anytime
       </p>
       {note && <p className="text-white/60 text-xs mt-1">{note}</p>}
     </div>

@@ -107,14 +107,14 @@ function HeroCardMockup() {
                 without this the avatar's overlap paints UNDER the band. */}
             <div className="relative w-11 h-11 -mt-5 rounded-full p-[2px] bg-gradient-to-tr from-blue-600 via-fuchsia-500 to-amber-400 shadow-md">
               <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-                <span className="text-[10px] font-black bg-gradient-to-r from-blue-700 to-sky-500 bg-clip-text text-transparent">YOU</span>
+                <span className="text-[0.625rem] font-black bg-gradient-to-r from-blue-700 to-sky-500 bg-clip-text text-transparent">YOU</span>
               </div>
             </div>
-            <p className="mt-1.5 text-[11px] font-extrabold text-slate-900 leading-tight tracking-tight">Your Name</p>
-            <p className="text-[8.5px] text-slate-400 font-medium">Your Business</p>
+            <p className="mt-1.5 text-[0.6875rem] font-extrabold text-slate-900 leading-tight tracking-tight">Your Name</p>
+            <p className="text-[0.53125rem] text-slate-400 font-medium">Your Business</p>
             <div className="mt-2.5 flex items-center justify-between">
               <div className="h-[15px] px-2 rounded-full bg-blue-600 flex items-center">
-                <span className="text-[7px] font-bold text-white tracking-wide">Save Contact</span>
+                <span className="text-[0.4375rem] font-bold text-white tracking-wide">Save Contact</span>
               </div>
               {/* mini QR */}
               <svg viewBox="0 0 14 14" className="w-[18px] h-[18px] text-slate-800">
@@ -243,8 +243,8 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
         </div>
 
         <div className="px-6 pt-4 pb-5 text-center">
-          <p className="text-slate-900 text-[21px] font-extrabold leading-tight tracking-tight">{copy.title}</p>
-          <p className="text-slate-500 text-[13.5px] mt-1.5 leading-snug max-w-[300px] mx-auto">{copy.sub}</p>
+          <p className="text-slate-900 text-[1.3125rem] font-extrabold leading-tight tracking-tight">{copy.title}</p>
+          <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-snug max-w-[300px] mx-auto">{copy.sub}</p>
 
           <a
             href={`/cards/new?src=${encodeURIComponent(source)}`}
@@ -252,7 +252,7 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
             // page may still carry a leftover mini-builder sketch / guest draft
             // from an earlier visit. Wipe it so the builder always opens fresh.
             onClick={() => { trackNudge(cardUsername, "nudge_cta_click", source); resetGuestFlow(); }}
-            className="relative overflow-hidden mt-4 flex items-center justify-center gap-1.5 w-full py-3.5 rounded-full text-[15px] font-bold text-white bg-gradient-to-r from-blue-700 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
+            className="relative overflow-hidden mt-4 flex items-center justify-center gap-1.5 w-full py-3.5 rounded-full text-[0.9375rem] font-bold text-white bg-gradient-to-r from-blue-700 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
             style={{ boxShadow: "0 10px 26px -6px rgba(37,99,235,0.55)" }}
           >
             <span className="sc-shine pointer-events-none absolute inset-0" />
@@ -263,7 +263,7 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
           {/* Trust row — answers the hesitation at the exact moment it happens.
               flex-wrap + gap (no literal dot separators) so it wraps cleanly to
               two centered lines on narrow phones instead of clipping. */}
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-2.5 text-[11px] text-slate-400">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-2.5 text-[0.6875rem] text-slate-400">
             <span className="flex items-center gap-1 whitespace-nowrap">
               <svg viewBox="0 0 20 20" fill="#16a34a" className="w-3 h-3 shrink-0"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd"/></svg>
               100% free to start

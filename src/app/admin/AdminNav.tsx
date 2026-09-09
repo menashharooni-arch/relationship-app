@@ -34,7 +34,7 @@ export default function AdminNav() {
           <Link
             key={l.href}
             href={l.href}
-            className={`px-3 py-2 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${
+            className={`px-3 py-2 text-[0.8125rem] font-medium whitespace-nowrap border-b-2 transition-colors ${
               active
                 ? "border-blue-500 text-white"
                 : "border-transparent text-gray-500 hover:text-gray-300"
@@ -42,7 +42,7 @@ export default function AdminNav() {
           >
             {l.label}
             {l.label === "Agent Flow" && pending > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center min-w-[17px] h-[17px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-bold align-middle">{pending > 99 ? "99+" : pending}</span>
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[17px] h-[17px] px-1 rounded-full bg-blue-600 text-white text-[0.625rem] font-bold align-middle">{pending > 99 ? "99+" : pending}</span>
             )}
           </Link>
         );

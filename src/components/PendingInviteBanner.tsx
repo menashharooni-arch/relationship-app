@@ -14,7 +14,7 @@ export default function PendingInviteBanner({ officeName, token, primary = false
   if (primary) {
     return (
       <div data-testid="pending-invite" className="w-full max-w-sm bg-gray-900 border border-purple-500/30 rounded-2xl p-6 text-center">
-        <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-purple-300 mb-2">Team invitation</p>
+        <p className="text-[0.625rem] font-bold tracking-[0.2em] uppercase text-purple-300 mb-2">Team invitation</p>
         <h1 className="text-2xl font-bold text-white mb-2">You&apos;re invited to {officeName}</h1>
         <p className="text-gray-400 text-sm mb-6">Join to create your company card — it arrives already branded with the team look.</p>
         <Link href={href} className="block w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 rounded-full text-sm transition-colors">

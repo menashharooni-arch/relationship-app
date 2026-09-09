@@ -363,7 +363,7 @@ export default function SaveContactButton({
           blurb's original white pill would have vanished. */}
       {saved && (
         <div className="mt-1.5 flex flex-col items-center gap-2.5">
-          <p className="text-center text-[11px]" style={{ color: "#94a3b8" }}>
+          <p className="text-center text-[0.6875rem]" style={{ color: "#94a3b8" }}>
             Save — then tap &ldquo;Create New Contact&rdquo;
           </p>
           <MadeWithSwiftCard

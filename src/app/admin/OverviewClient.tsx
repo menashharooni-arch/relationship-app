@@ -24,7 +24,7 @@ function Stat({ label, value, sub }: { label: string; value: string | number; su
     <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4">
       <p className="text-2xl font-bold tabular-nums">{typeof value === "number" ? value.toLocaleString() : value}</p>
       <p className="text-gray-400 text-xs mt-0.5">{label}</p>
-      {sub && <p className="text-gray-600 text-[10px] mt-0.5">{sub}</p>}
+      {sub && <p className="text-gray-600 text-[0.625rem] mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -71,7 +71,7 @@ export default function OverviewClient() {
           <p className="text-white font-semibold text-sm">Plan mix</p>
           <Link href="/admin/users" className="text-xs text-blue-400 hover:text-blue-300">Manage users →</Link>
         </div>
-        <p className="text-gray-600 text-[11px] mb-3">How your user base splits across Free, Pro, and Office — the bar is everyone, in proportion.</p>
+        <p className="text-gray-600 text-[0.6875rem] mb-3">How your user base splits across Free, Pro, and Office — the bar is everyone, in proportion.</p>
         <div className="flex h-3 rounded-full overflow-hidden bg-gray-800 mb-3">
           <div style={{ width: `${(plans.free / planTotal) * 100}%`, background: PLAN_COLORS.free }} />
           <div style={{ width: `${(plans.pro / planTotal) * 100}%`, background: PLAN_COLORS.pro }} />
@@ -91,7 +91,7 @@ export default function OverviewClient() {
             <p className="text-white font-semibold text-sm">Where signups come from</p>
             <Link href="/admin/analytics" className="text-xs text-blue-400 hover:text-blue-300">Full analytics →</Link>
           </div>
-          <p className="text-gray-600 text-[11px] mb-3">How each new account found SwiftCard, with the share that later went paid — tells you which channel is worth pushing.</p>
+          <p className="text-gray-600 text-[0.6875rem] mb-3">How each new account found SwiftCard, with the share that later went paid — tells you which channel is worth pushing.</p>
           {data.acquisition.length === 0 ? (
             <p className="text-gray-500 text-xs">No signups yet.</p>
           ) : (
@@ -116,7 +116,7 @@ export default function OverviewClient() {
         {/* Recent signups with source */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
           <p className="text-white font-semibold text-sm mb-1">Recent signups</p>
-          <p className="text-gray-600 text-[11px] mb-3">The newest accounts and the plan they&apos;re on right now.</p>
+          <p className="text-gray-600 text-[0.6875rem] mb-3">The newest accounts and the plan they&apos;re on right now.</p>
           {data.accounts.recent.length === 0 ? (
             <p className="text-gray-500 text-xs">No signups yet.</p>
           ) : (
@@ -125,13 +125,13 @@ export default function OverviewClient() {
                 <div key={i} className="flex items-center justify-between py-1.5 text-xs gap-2">
                   <div className="min-w-0">
                     <p className="text-white truncate">{r.name || r.email || r.username}</p>
-                    <p className="text-gray-600 text-[10px] truncate">{r.email}</p>
+                    <p className="text-gray-600 text-[0.625rem] truncate">{r.email}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#1f2937", color: PLAN_COLORS[r.plan ?? "free"] ?? "#6b7280" }}>
+                    <span className="text-[0.625rem] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#1f2937", color: PLAN_COLORS[r.plan ?? "free"] ?? "#6b7280" }}>
                       {r.plan === "enterprise" ? "office" : r.plan || "free"}
                     </span>
-                    <span className="text-gray-600 text-[10px]">{new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                    <span className="text-gray-600 text-[0.625rem]">{new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                   </div>
                 </div>
               ))}
@@ -158,7 +158,7 @@ export default function OverviewClient() {
         ].map((c) => (
           <Link key={c.href} href={c.href} className="bg-gray-900 border border-gray-800 hover:border-gray-600 rounded-2xl px-4 py-4 transition-colors group">
             <p className="text-white font-semibold text-sm group-hover:text-blue-300 transition-colors">{c.title} →</p>
-            <p className="text-gray-500 text-[11px] mt-1 leading-snug">{c.sub}</p>
+            <p className="text-gray-500 text-[0.6875rem] mt-1 leading-snug">{c.sub}</p>
           </Link>
         ))}
       </div>

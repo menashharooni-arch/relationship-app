@@ -54,9 +54,9 @@ export default function CardActionLinks({ links }: { links: CardLink[] }) {
             className="shrink-0 w-7 h-7 rounded-[8px] bg-[#FAF7F2] grid place-items-center overflow-hidden transition-shadow duration-150 group-hover:shadow-[inset_0_0_0_1px_#BFD2FA]"
             style={{ boxShadow: "inset 0 0 0 1px #EDE6DC" }}
           >
-            {l.emoji ? <span className="text-[13px] leading-none">{l.emoji}</span> : <LinkMark url={l.url} size={14} />}
+            {l.emoji ? <span className="text-[0.8125rem] leading-none">{l.emoji}</span> : <LinkMark url={l.url} size={14} />}
           </span>
-          <span className="min-w-0 flex-1 truncate text-[14px] font-medium tracking-[-0.006em] text-[#1E293B]">
+          <span className="min-w-0 flex-1 truncate text-[0.875rem] font-medium tracking-[-0.006em] text-[#1E293B]">
             {l.label}
           </span>
           <svg

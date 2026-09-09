@@ -51,7 +51,7 @@ const TEMPLATES: Record<string, React.ComponentType<{ data: CardData }>> = {
 // as a form wizard, and the page now guides with hierarchy instead — the card
 // as the hero object, then plain bold headings on ambient-tinted surfaces.
 function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <p className="text-slate-900 font-bold text-[15px] tracking-tight">{children}</p>;
+  return <p className="text-slate-900 font-bold text-[0.9375rem] tracking-tight">{children}</p>;
 }
 
 export async function generateMetadata({
@@ -456,14 +456,14 @@ export default async function CardPage({
                 blue-50: a cool tint fights the cream page. */}
             <a
               href={`/links/${profile.username}`}
-              className="shrink-0 text-[11px] font-medium text-slate-500 rounded-full px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#EDE7DE] hover:text-slate-700 transition-colors"
+              className="shrink-0 text-[0.6875rem] font-medium text-slate-500 rounded-full px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#EDE7DE] hover:text-slate-700 transition-colors"
               style={{ boxShadow: "inset 0 0 0 1px #EFE9E1" }}
             >
               View Swift Link page →
             </a>
           </div>
           {bio && (
-            <p className="text-slate-600 text-[13px] leading-[1.6] whitespace-pre-wrap [text-wrap:pretty]">{bio}</p>
+            <p className="text-slate-600 text-[0.8125rem] leading-[1.6] whitespace-pre-wrap [text-wrap:pretty]">{bio}</p>
           )}
           {bio && (connectLinks.length > 0 || actionLinks.length > 0) && (
             <div className="h-px bg-[#EFE9E1] my-4" />

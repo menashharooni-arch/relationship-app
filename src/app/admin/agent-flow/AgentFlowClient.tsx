@@ -501,16 +501,16 @@ export default function AgentFlowClient() {
         {/* line 1 — identity + controls; wraps downward, never clips */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 min-w-0">
           <p className="text-white text-sm font-semibold">{AGENT_NAMES[id]}</p>
-          {running ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-900/50 text-blue-300 animate-pulse">Working · {r ? dur(r.started_at, null, now) : ""}</span>
-            : problem ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">Problem</span>
-            : !s.enabled ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">Benched</span>
-            : s.paused ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-sky-950/60 text-sky-300/80">Resting</span>
-            : open && CONTINUOUS.has(id) ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-300">🟢 Watching · live</span>
-            : open && next ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-400">On duty · {id === "manager" ? "evening report" : "next check"} {next}</span>
-            : <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">{open ? "On duty" : "Waiting for Start"}</span>}
+          {running ? <span className="text-[0.6875rem] font-bold px-2 py-0.5 rounded-full bg-blue-900/50 text-blue-300 animate-pulse">Working · {r ? dur(r.started_at, null, now) : ""}</span>
+            : problem ? <span className="text-[0.6875rem] font-bold px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">Problem</span>
+            : !s.enabled ? <span className="text-[0.6875rem] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">Benched</span>
+            : s.paused ? <span className="text-[0.6875rem] font-bold px-2 py-0.5 rounded-full bg-sky-950/60 text-sky-300/80">Resting</span>
+            : open && CONTINUOUS.has(id) ? <span className="text-[0.6875rem] font-bold px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-300">🟢 Watching · live</span>
+            : open && next ? <span className="text-[0.6875rem] font-bold px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-400">On duty · {id === "manager" ? "evening report" : "next check"} {next}</span>
+            : <span className="text-[0.6875rem] font-bold px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">{open ? "On duty" : "Waiting for Start"}</span>}
           <div className="flex items-center gap-1.5 ml-auto">
             <button onClick={() => control("run", id)} disabled={busy || !s.enabled} className="text-xs bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-full whitespace-nowrap transition-colors">Run once</button>
-            <label className="flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer whitespace-nowrap" title="Off = benched: skipped by team wakes and the schedule — the one per-agent switch">
+            <label className="flex items-center gap-1 text-[0.6875rem] text-gray-500 cursor-pointer whitespace-nowrap" title="Off = benched: skipped by team wakes and the schedule — the one per-agent switch">
               <input type="checkbox" checked={s.enabled} onChange={async (e) => {
                 const on = e.target.checked;
                 await saveSetting({ agent_id: id, enabled: on }, on ? (open && !s.paused ? "Back on the roster — starting a run now." : "Back on the roster.") : "Benched — everything else keeps running.");
@@ -533,7 +533,7 @@ export default function AgentFlowClient() {
           {/* The brain: what this agent researched about its own job, and the
               rhythm it chose — unless the owner set one by hand, which wins. */}
           {!CONTINUOUS.has(id) && (pb || s.schedule_source === "owner") && (
-            <p className="mt-0.5 text-[11px] text-gray-600 truncate" title={pb?.summary ?? undefined}>
+            <p className="mt-0.5 text-[0.6875rem] text-gray-600 truncate" title={pb?.summary ?? undefined}>
               {s.schedule_source === "owner" ? <span className="text-amber-500/80">rhythm set by you · {cadenceText(s.schedule)}</span>
                 : s.schedule_source === "playbook" ? <span className="text-violet-400/80">rhythm from playbook · {cadenceText(s.schedule)}</span>
                 : <span>playbook researched {ago(pb.researched_at)}</span>}
@@ -544,7 +544,7 @@ export default function AgentFlowClient() {
         {expanded === id && (
           <div className="mt-2 border-t border-gray-800 pt-2 space-y-1">
             {pb && (
-              <details className="text-[11.5px] text-gray-400 mb-1.5">
+              <details className="text-[0.71875rem] text-gray-400 mb-1.5">
                 <summary className="cursor-pointer text-violet-300/90">📖 Playbook — how {firstName(id)} decided to do this job (researched {ago(pb.researched_at)})</summary>
                 {pb.summary && <p className="mt-1 text-gray-300">{pb.summary}</p>}
                 {!!pb.best_practices?.length && <ul className="mt-1 list-disc pl-4 space-y-0.5">{pb.best_practices.map((b, i) => <li key={i}>{b}</li>)}</ul>}
@@ -554,7 +554,7 @@ export default function AgentFlowClient() {
             )}
             {(runsByAgent[id] ?? []).length === 0 && <p className="text-gray-600 text-xs">No runs yet.</p>}
             {(runsByAgent[id] ?? []).slice(0, 10).map((rr) => (
-              <div key={rr.id} className="flex flex-wrap items-baseline gap-x-2 text-[11.5px] min-w-0">
+              <div key={rr.id} className="flex flex-wrap items-baseline gap-x-2 text-[0.71875rem] min-w-0">
                 <span className="text-gray-600 tabular-nums shrink-0">{new Date(rr.started_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
                 <span className={rr.status === "failed" ? "text-red-400 font-semibold" : rr.status === "success" ? "text-emerald-500" : "text-amber-400"}>{rr.status === "success" ? "done" : rr.status}</span>
                 <span className="text-gray-500 whitespace-nowrap">{dur(rr.started_at, rr.finished_at)} · {rr.output_count} item(s) · {fmtTok(rr.usage_tokens)} tok</span>
@@ -588,24 +588,24 @@ export default function AgentFlowClient() {
           ) : (
             <p className="text-gray-400 text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gray-600 shrink-0" />{autoStopHit ? "AUTO-STOPPED — your clock-out time passed. Start to reopen." : "PAUSED — nothing runs until you press Start"}</p>
           )}
-          <p className="text-gray-600 text-[11px] mt-0.5">{fmtTok(monthTokens)} tokens used this month{capPct >= 85 ? " ⚠ near the budget cap" : ""} · stops by itself at the auto-stop time or the {fmtTok(monthlyCapTokens)}-token monthly budget. {board.pendingTotal > 0 ? `${board.pendingTotal} item(s) waiting for you.` : "Queue is clear."}</p>
+          <p className="text-gray-600 text-[0.6875rem] mt-0.5">{fmtTok(monthTokens)} tokens used this month{capPct >= 85 ? " ⚠ near the budget cap" : ""} · stops by itself at the auto-stop time or the {fmtTok(monthlyCapTokens)}-token monthly budget. {board.pendingTotal > 0 ? `${board.pendingTotal} item(s) waiting for you.` : "Queue is clear."}</p>
         </div>
         {/* Claude-plan usage meter — the agents run on the owner's Claude account */}
         <div data-aftour="usage" className="flex flex-col gap-1 min-w-[190px] max-w-[230px]">
           {!planUsage || planUsage.source === "none" ? (
-            <p className="text-[10px] text-gray-600 leading-snug">🧠 Claude usage meter arms after the next agent run (or set CLAUDE_CODE_OAUTH_TOKEN in Vercel for always-live).</p>
+            <p className="text-[0.625rem] text-gray-600 leading-snug">🧠 Claude usage meter arms after the next agent run (or set CLAUDE_CODE_OAUTH_TOKEN in Vercel for always-live).</p>
           ) : (
             <>
               {([["5-hr window", planUsage.five_hour], ["7-day", planUsage.seven_day]] as const).map(([label, w]) => w && (
                 <div key={label} className="flex items-center gap-1.5">
-                  <span className="text-[9px] text-gray-500 w-14 shrink-0 text-right">{label}</span>
+                  <span className="text-[0.5625rem] text-gray-500 w-14 shrink-0 text-right">{label}</span>
                   <div className="flex-1 h-1.5 rounded-full bg-gray-800 overflow-hidden">
                     <div className={`h-full rounded-full ${w.utilization >= 85 ? "bg-red-500" : w.utilization >= 60 ? "bg-amber-400" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, w.utilization)}%` }} />
                   </div>
-                  <span className={`text-[10px] font-bold tabular-nums w-8 ${w.utilization >= 85 ? "text-red-400" : w.utilization >= 60 ? "text-amber-300" : "text-emerald-400"}`}>{Math.round(w.utilization)}%</span>
+                  <span className={`text-[0.625rem] font-bold tabular-nums w-8 ${w.utilization >= 85 ? "text-red-400" : w.utilization >= 60 ? "text-amber-300" : "text-emerald-400"}`}>{Math.round(w.utilization)}%</span>
                 </div>
               ))}
-              <p className="text-[9px] text-gray-600 flex items-center gap-1">
+              <p className="text-[0.5625rem] text-gray-600 flex items-center gap-1">
                 <span>🧠 Claude plan{planUsage.source === "live" ? " · live" : ` · from last run, ${ago(planUsage.captured_at ?? null)}`}{planUsage.five_hour?.resets_at ? ` · resets in ${untilText(planUsage.five_hour.resets_at, now)}` : ""}</span>
                 <button onClick={loadUsage} disabled={usageBusy} className="text-gray-500 hover:text-white disabled:opacity-40 transition-colors" title="Refresh usage now">{usageBusy ? "…" : "↻"}</button>
               </p>
@@ -618,7 +618,7 @@ export default function AgentFlowClient() {
           </button>
           {autoStopOpen && (
             <div className="absolute right-0 z-40 mt-2 w-64 rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl p-3 space-y-1.5">
-              <p className="text-gray-400 text-[11px] leading-snug mb-2">Closing time: when it hits, everything pauses safely until you press Start again.</p>
+              <p className="text-gray-400 text-[0.6875rem] leading-snug mb-2">Closing time: when it hits, everything pauses safely until you press Start again.</p>
               {([["Stop in 1 hour", "in1"], ["Stop in 3 hours", "in3"], ["Stop at 5:00 PM ET", "at17"], ["Stop at 8:00 PM ET", "at20"]] as const).map(([label, kind]) => (
                 <button key={kind} onClick={() => {
                   const iso = kind === "in1" ? new Date(Date.now() + 3600e3).toISOString() : kind === "in3" ? new Date(Date.now() + 3 * 3600e3).toISOString() : etToday(kind === "at17" ? 17 : 20);
@@ -639,10 +639,10 @@ export default function AgentFlowClient() {
         {([["agents", "Agents"], ["chat", "💬 Chat"], ["chart", "Org chart"], ["comms", "Comms"], ["queue", "Review queue"], ["history", "History"], ["settings", "Settings"]] as const).map(([v, label]) => (
           <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${view === v ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>
             {label}{v === "queue" && board.pendingTotal > 0 ? ` (${board.pendingTotal})` : ""}
-            {v === "chat" && chatUnread > 0 && <span className="ml-1.5 inline-block min-w-[18px] px-1 rounded-full bg-sky-500 text-white text-[10px] font-bold text-center align-middle">{chatUnread}</span>}
+            {v === "chat" && chatUnread > 0 && <span className="ml-1.5 inline-block min-w-[18px] px-1 rounded-full bg-sky-500 text-white text-[0.625rem] font-bold text-center align-middle">{chatUnread}</span>}
           </button>
         ))}
-        {view === "queue" && <><button onClick={load} className="text-xs text-gray-400 hover:text-white px-2 py-1.5 transition-colors">{loading ? "↻ updating…" : "↻ Refresh"}</button>{updatedAt && <span className="text-gray-600 text-[10px]">updated {ago(new Date(updatedAt).toISOString())} · auto every 30s</span>}</>}
+        {view === "queue" && <><button onClick={load} className="text-xs text-gray-400 hover:text-white px-2 py-1.5 transition-colors">{loading ? "↻ updating…" : "↻ Refresh"}</button>{updatedAt && <span className="text-gray-600 text-[0.625rem]">updated {ago(new Date(updatedAt).toISOString())} · auto every 30s</span>}</>}
       </div>
 
       {view === "agents" && (
@@ -652,14 +652,14 @@ export default function AgentFlowClient() {
             return (
             <div key={team.id} data-aftour={`team-${team.id}`}>
               <div className="flex flex-wrap items-center gap-2 mb-2">
-                <p className="text-white text-[15px] font-bold">{team.label}</p>
+                <p className="text-white text-[0.9375rem] font-bold">{team.label}</p>
                 <p className="text-gray-600 text-xs">{team.blurb}</p>
                 {team.lead && (
                   <button
                     onClick={() => control(teamResting ? "resume_team" : "pause_team", team.lead)}
                     disabled={busy}
                     title={teamResting ? "Everyone on this team resumes their normal rhythms" : "The whole team stops at its next checkpoint and skips shifts until you wake it — other teams keep working"}
-                    className={`ml-auto text-[11px] font-bold px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${teamResting ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/40" : "bg-gray-900 border-gray-800 text-gray-400 hover:text-gray-200"}`}
+                    className={`ml-auto text-[0.6875rem] font-bold px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors ${teamResting ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/40" : "bg-gray-900 border-gray-800 text-gray-400 hover:text-gray-200"}`}
                   >
                     {teamResting ? "▶ Wake team" : "⏸ Rest team"}
                   </button>
@@ -743,7 +743,7 @@ export default function AgentFlowClient() {
         return (
           <div className="rounded-2xl border border-gray-800 bg-gray-950 overflow-x-auto" data-aftour="orgchart"
             ref={(el) => { if (el && !el.dataset.centered) { el.dataset.centered = "1"; el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; } }}>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-3 text-[11px] text-gray-500">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-3 text-[0.6875rem] text-gray-500">
               <span className="text-white font-bold text-sm">SwiftCard · the company</span>
               <span>✅ {doneToday} run(s) completed today</span>
               <span>🧮 {fmtTok(monthTokens)} tokens this month</span>
@@ -800,7 +800,7 @@ export default function AgentFlowClient() {
               </div>
             )}
             {chat?.ready && !chat.dispatch && <p className="text-amber-400 text-xs">⚠ Chat can&apos;t wake agents yet — GITHUB_AGENTS_TOKEN is not set in Vercel. Messages are saved; agents answer once it is.</p>}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.6875rem] text-gray-500">
               <span>You + every agent, one thread. @ someone and they take a turn — a real run — and answer here.</span>
               {busyOrders > 0 && <span className="text-sky-300">🔵 {busyOrders} turn{busyOrders === 1 ? "" : "s"} in progress</span>}
               <span className="ml-auto">refreshes every 5s</span>
@@ -822,7 +822,7 @@ export default function AgentFlowClient() {
                 const pl = (m.payload ?? {}) as { items?: string[]; fixes?: string[]; delegated?: string[]; requests?: string[]; run_now?: boolean };
                 if (m.kind === "system") return (
                   <div key={m.id} className="text-center">
-                    <span className="inline-block text-[11px] text-gray-500 italic px-3 py-1 rounded-full bg-gray-900 border border-gray-800/80 whitespace-pre-wrap text-left">{m.body}</span>
+                    <span className="inline-block text-[0.6875rem] text-gray-500 italic px-3 py-1 rounded-full bg-gray-900 border border-gray-800/80 whitespace-pre-wrap text-left">{m.body}</span>
                   </div>
                 );
                 return (
@@ -830,15 +830,15 @@ export default function AgentFlowClient() {
                     <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl border px-4 py-2.5 ${mine ? "border-amber-900/50 bg-amber-950/20" : "border-gray-800 bg-gray-900"}`} style={mine ? undefined : { borderLeftColor: p?.color, borderLeftWidth: 3 }}>
                       <div className="flex flex-wrap items-baseline gap-x-2 text-xs">
                         <span className="font-bold text-white whitespace-nowrap">{mine ? "👑 You" : `${p?.emoji ?? "🤖"} ${p?.name ?? m.from_id}`}</span>
-                        {!mine && <span className="text-gray-500 text-[10px]">{p?.role ?? ""}</span>}
-                        <span className="text-gray-600 text-[10px] ml-auto whitespace-nowrap">{ago(m.created_at)}</span>
+                        {!mine && <span className="text-gray-500 text-[0.625rem]">{p?.role ?? ""}</span>}
+                        <span className="text-gray-600 text-[0.625rem] ml-auto whitespace-nowrap">{ago(m.created_at)}</span>
                       </div>
                       {quoted && (
-                        <p className="mt-1 text-[11px] text-gray-500 border-l-2 border-gray-700 pl-2 truncate">↩ {quoted.from_id === "owner" ? "you" : firstName(quoted.from_id)}: {quoted.body.slice(0, 110)}{quoted.body.length > 110 ? "…" : ""}</p>
+                        <p className="mt-1 text-[0.6875rem] text-gray-500 border-l-2 border-gray-700 pl-2 truncate">↩ {quoted.from_id === "owner" ? "you" : firstName(quoted.from_id)}: {quoted.body.slice(0, 110)}{quoted.body.length > 110 ? "…" : ""}</p>
                       )}
-                      <p className="text-gray-200 text-[13px] mt-1 leading-relaxed whitespace-pre-wrap">{renderBody(m.body)}</p>
+                      <p className="text-gray-200 text-[0.8125rem] mt-1 leading-relaxed whitespace-pre-wrap">{renderBody(m.body)}</p>
                       {!mine && (pl.items?.length || pl.fixes?.length || pl.delegated?.length || pl.requests?.length || pl.run_now) ? (
-                        <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                        <div className="mt-2 flex flex-wrap gap-1.5 text-[0.6875rem]">
                           {!!pl.items?.length && <button onClick={() => { setFilterAgent(partyFor(m.from_id)?.agent_id ?? ""); setFilterType(""); setFilterStatus("pending"); setView("queue"); }} className="px-2 py-0.5 rounded-full border border-emerald-800 text-emerald-300 bg-emerald-950/20 hover:bg-emerald-900/30">{pl.items.length} option{pl.items.length === 1 ? "" : "s"} in your queue → open</button>}
                           {!!pl.fixes?.length && <button onClick={() => { setFilterAgent(""); setFilterType(""); setFilterStatus("pending"); setView("queue"); }} className="px-2 py-0.5 rounded-full border border-violet-800 text-violet-300 bg-violet-950/20 hover:bg-violet-900/30">🔧 {pl.fixes.length} fix sent to the Fixer (draft PR) → queue</button>}
                           {!!pl.delegated?.length && <span className="px-2 py-0.5 rounded-full border border-gray-700 text-gray-300">↳ delegated to {pl.delegated.map((d) => firstName(d)).join(", ")}</span>}
@@ -850,7 +850,7 @@ export default function AgentFlowClient() {
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {orders.map((o) => {
                             const op = partyFor(o.responder); const s = STATUS[o.status] ?? STATUS.waiting;
-                            return <span key={o.id} title={o.error ? `${s.label}: ${o.error}` : s.label} className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${s.cls}`}>{op?.emoji} {op?.name ?? o.responder} {s.icon}</span>;
+                            return <span key={o.id} title={o.error ? `${s.label}: ${o.error}` : s.label} className={`text-[0.6875rem] px-2 py-0.5 rounded-full border whitespace-nowrap ${s.cls}`}>{op?.emoji} {op?.name ?? o.responder} {s.icon}</span>;
                           })}
                         </div>
                       )}
@@ -865,9 +865,9 @@ export default function AgentFlowClient() {
               <div className="flex flex-wrap gap-1.5">
                 {["everyone", "atlas", "maya", "sasha", "nina", "rex"].map((h) => {
                   const o = options.find((x) => x.handle === h);
-                  return <button key={h} type="button" onClick={() => addChip(h)} title={o?.label} className="text-[11px] px-2 py-1 rounded-full border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors">{o?.emoji} @{h}</button>;
+                  return <button key={h} type="button" onClick={() => addChip(h)} title={o?.label} className="text-[0.6875rem] px-2 py-1 rounded-full border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 transition-colors">{o?.emoji} @{h}</button>;
                 })}
-                <span className="text-gray-600 text-[10px] self-center ml-1">…or type @ for everyone on the team</span>
+                <span className="text-gray-600 text-[0.625rem] self-center ml-1">…or type @ for everyone on the team</span>
               </div>
               <div className="relative">
                 {suggestions.length > 0 && (
@@ -895,8 +895,8 @@ export default function AgentFlowClient() {
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <button onClick={sendChat} disabled={chatSending || !chatText.trim() || (!!chat && !chat.ready)} className="px-4 py-2 rounded-full bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white text-sm font-bold transition-colors">{chatSending ? "Sending…" : "Send"}</button>
-                <span className="text-gray-500 text-[11px]">Enter sends · Shift+Enter for a new line · no @ = Atlas takes it</span>
-                {everyoneAsked && <span className="text-amber-400 text-[11px]">⚠ @everyone wakes all {options[0].responders.length} agents — that&apos;s {options[0].responders.length} separate runs and the tokens to match.</span>}
+                <span className="text-gray-500 text-[0.6875rem]">Enter sends · Shift+Enter for a new line · no @ = Atlas takes it</span>
+                {everyoneAsked && <span className="text-amber-400 text-[0.6875rem]">⚠ @everyone wakes all {options[0].responders.length} agents — that&apos;s {options[0].responders.length} separate runs and the tokens to match.</span>}
               </div>
             </div>
           </div>
@@ -913,7 +913,7 @@ export default function AgentFlowClient() {
               <option value="">Everyone</option>
               {Object.entries(ORG).filter(([pid]) => pid !== "owner").map(([pid, p]) => <option key={pid} value={pid}>{p.emoji} {p.name} · {p.role}</option>)}
             </select>
-            <span className="text-gray-600 text-[10px] ml-auto">the company chat log — every order, report, and escalation · refreshes every 15s</span>
+            <span className="text-gray-600 text-[0.625rem] ml-auto">the company chat log — every order, report, and escalation · refreshes every 15s</span>
           </div>
           {msgs.length === 0 && (
             <div className="rounded-2xl border border-gray-800 bg-gray-900 p-8 text-center">
@@ -930,10 +930,10 @@ export default function AgentFlowClient() {
                     <span className="font-bold text-white whitespace-nowrap">{from?.emoji} {from?.name ?? m.from_id}</span>
                     <span className="text-gray-600">→</span>
                     <span className="font-bold text-gray-300 whitespace-nowrap">{m.to_id === "all" ? "📢 everyone" : `${to?.emoji} ${to?.name ?? m.to_id}`}</span>
-                    <span className="text-gray-600 text-[10px]">{from?.role ?? ""}{to ? ` → ${to.role}` : ""}</span>
-                    <span className="text-gray-600 text-[10px] ml-auto whitespace-nowrap">{ago(m.created_at)}</span>
+                    <span className="text-gray-600 text-[0.625rem]">{from?.role ?? ""}{to ? ` → ${to.role}` : ""}</span>
+                    <span className="text-gray-600 text-[0.625rem] ml-auto whitespace-nowrap">{ago(m.created_at)}</span>
                   </div>
-                  <p className="text-gray-300 text-[13px] mt-1 leading-relaxed whitespace-pre-wrap">{m.body}</p>
+                  <p className="text-gray-300 text-[0.8125rem] mt-1 leading-relaxed whitespace-pre-wrap">{m.body}</p>
                 </div>
               );
             })}
@@ -981,13 +981,13 @@ export default function AgentFlowClient() {
                   {it.status === "pending" && (
                     <label data-aftour={idx === 0 ? "checkbox" : undefined} className="mt-0.5 flex items-center gap-1 cursor-pointer select-none" title="Tick several items, then approve or reject them all at once">
                       <input type="checkbox" checked={selected.has(it.id)} onChange={(e) => { const n = new Set(selected); if (e.target.checked) n.add(it.id); else n.delete(it.id); setSelected(n); }} className="accent-blue-600 w-4 h-4" />
-                      <span className="text-[9px] text-gray-600 uppercase">select</span>
+                      <span className="text-[0.5625rem] text-gray-600 uppercase">select</span>
                     </label>
                   )}
                   <div className="flex-1 min-w-[220px]">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-blue-400">{AGENT_NAMES[it.agent_id] ?? it.agent_id}</span>
-                      <span className="text-[10px] text-gray-600">{TYPE_LABEL[it.item_type] ?? it.item_type}{it.platform ? ` · ${it.platform}` : ""} · {ago(it.created_at)}</span>
+                      <span className="text-[0.625rem] font-bold uppercase tracking-wide text-blue-400">{AGENT_NAMES[it.agent_id] ?? it.agent_id}</span>
+                      <span className="text-[0.625rem] text-gray-600">{TYPE_LABEL[it.item_type] ?? it.item_type}{it.platform ? ` · ${it.platform}` : ""} · {ago(it.created_at)}</span>
                     </div>
                     <p className="text-white text-sm font-semibold mt-1">{it.title}</p>
                     {it.target_url && <a href={it.target_url} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline break-all">{it.target_url}</a>}
@@ -1006,9 +1006,9 @@ export default function AgentFlowClient() {
                       <div className="mt-2 grid gap-2 md:grid-cols-2">
                         {(it.payload!.options as ChoiceOption[]).slice(0, 2).map((o, oi) => (
                           <div key={oi} className="rounded-lg border border-gray-800/80 bg-gray-950/60 p-3 flex flex-col min-w-0">
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-violet-300">Option {o.label ?? (oi === 0 ? "A" : "B")}{o.headline ? <span className="text-gray-300 normal-case tracking-normal"> — {o.headline}</span> : null}</p>
-                            {o.why_this && <p className="text-[11px] text-gray-500 mt-0.5">{o.why_this}</p>}
-                            <pre className="mt-2 text-gray-300 text-[13px] whitespace-pre-wrap font-sans max-h-72 overflow-y-auto flex-1">{o.content}</pre>
+                            <p className="text-[0.6875rem] font-bold uppercase tracking-wide text-violet-300">Option {o.label ?? (oi === 0 ? "A" : "B")}{o.headline ? <span className="text-gray-300 normal-case tracking-normal"> — {o.headline}</span> : null}</p>
+                            {o.why_this && <p className="text-[0.6875rem] text-gray-500 mt-0.5">{o.why_this}</p>}
+                            <pre className="mt-2 text-gray-300 text-[0.8125rem] whitespace-pre-wrap font-sans max-h-72 overflow-y-auto flex-1">{o.content}</pre>
                             {it.status === "pending" && (
                               <button onClick={() => choose(it, oi)} title={`This option becomes the real item and goes out: ${String(it.payload?.kind) === "blog_post" ? "live on the blog now" : "posted by a connector if one is armed, otherwise approved + copied for you to send"}.`} className="mt-2 text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-full self-start whitespace-nowrap">✓ Pick {o.label ?? (oi === 0 ? "A" : "B")}{String(it.payload?.kind) === "blog_post" ? " & publish" : ""}</button>
                             )}
@@ -1016,9 +1016,9 @@ export default function AgentFlowClient() {
                         ))}
                       </div>
                     ) : (
-                      it.content && <pre className="mt-2 text-gray-300 text-[13px] whitespace-pre-wrap font-sans bg-gray-950/60 border border-gray-800/60 rounded-lg p-3 max-h-64 overflow-y-auto">{it.content}</pre>
+                      it.content && <pre className="mt-2 text-gray-300 text-[0.8125rem] whitespace-pre-wrap font-sans bg-gray-950/60 border border-gray-800/60 rounded-lg p-3 max-h-64 overflow-y-auto">{it.content}</pre>
                     )}
-                    {it.item_type !== "choice" && it.payload?.chosen ? <p className="mt-1 text-[10px] text-violet-400/80">you picked option {String(it.payload.chosen)} of two</p> : null}
+                    {it.item_type !== "choice" && it.payload?.chosen ? <p className="mt-1 text-[0.625rem] text-violet-400/80">you picked option {String(it.payload.chosen)} of two</p> : null}
                   </div>
                   {it.status === "pending" && editing !== it.id && it.item_type === "choice" && (
                     <div className="flex flex-col gap-1.5 shrink-0">
@@ -1040,7 +1040,7 @@ export default function AgentFlowClient() {
                           spend: campaigns are built PAUSED and activated by
                           hand after the budget is read. */}
                       {it.item_type === "ad_campaign" && <button onClick={() => copyApprove(it, "Meta Ads Manager (create it PAUSED)")} title="Copies the brief and marks it approved. Nothing is spent: you create the campaign in Ads Manager, paused, and activate it yourself." className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Copy to Ads Manager</button>}
-                      {conn && !connReady && <span className="text-[10px] text-gray-600 max-w-[160px] leading-snug">⚡ auto-{conn.label} available — connect it in Settings</span>}
+                      {conn && !connReady && <span className="text-[0.625rem] text-gray-600 max-w-[160px] leading-snug">⚡ auto-{conn.label} available — connect it in Settings</span>}
                       {it.item_type === "blog_post" && <button onClick={() => act([it.id], "published")} title="Goes live on swiftcard.me/blog immediately" className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Publish</button>}
                       {it.item_type === "prospect" && <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Mark contacted</button>}
                       {(it.item_type === "security_finding" || it.item_type === "seo_report" || it.item_type === "perf_report" || it.item_type === "flow_finding" || it.item_type === "digest") && (
@@ -1107,8 +1107,8 @@ export default function AgentFlowClient() {
               <span className="text-gray-600 whitespace-nowrap">{AGENT_NAMES[h.agent_queue_items?.agent_id ?? ""] ?? ""} · {ago(h.created_at)}</span>
               {h.item_id && (h.action === "approved" || h.action === "contacted") && (h.agent_queue_items?.item_type === "outreach_draft" || h.agent_queue_items?.item_type === "reply_draft" || h.agent_queue_items?.item_type === "influencer") && h.agent_queue_items?.status !== "converted" && (
                 <span className="flex gap-1">
-                  <button onClick={() => act([h.item_id!], "replied")} className="text-[10px] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded-full whitespace-nowrap">got a reply</button>
-                  <button onClick={() => act([h.item_id!], "converted")} className="text-[10px] bg-emerald-900 hover:bg-emerald-800 text-emerald-300 px-2 py-1 rounded-full whitespace-nowrap">converted 🎉</button>
+                  <button onClick={() => act([h.item_id!], "replied")} className="text-[0.625rem] bg-gray-800 hover:bg-gray-700 text-gray-300 px-2 py-1 rounded-full whitespace-nowrap">got a reply</button>
+                  <button onClick={() => act([h.item_id!], "converted")} className="text-[0.625rem] bg-emerald-900 hover:bg-emerald-800 text-emerald-300 px-2 py-1 rounded-full whitespace-nowrap">converted 🎉</button>
                 </span>
               )}
             </div>
@@ -1135,7 +1135,7 @@ export default function AgentFlowClient() {
                   </div>
                 );
               })}
-              <p className="text-gray-600 text-[11px] pt-1">Instagram, Facebook &amp; X don&apos;t allow personal auto-posting through their public APIs — those stay Approve &amp; Copy. Blog posts already publish themselves via the Publish button.</p>
+              <p className="text-gray-600 text-[0.6875rem] pt-1">Instagram, Facebook &amp; X don&apos;t allow personal auto-posting through their public APIs — those stay Approve &amp; Copy. Blog posts already publish themselves via the Publish button.</p>
             </div>
           </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
@@ -1156,7 +1156,7 @@ export default function AgentFlowClient() {
             <div key={id} className="rounded-xl border border-gray-800 bg-gray-900 p-4 flex flex-wrap items-center gap-x-4 gap-y-2 min-w-0">
               <div className="min-w-[150px]">
                 <p className="text-white text-sm font-semibold">{AGENT_NAMES[id]}</p>
-                <p className="text-[10px] text-gray-600">{AGENT_ROLE[id]}</p>
+                <p className="text-[0.625rem] text-gray-600">{AGENT_ROLE[id]}</p>
               </div>
               <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Off = benched everywhere">
                 <input type="checkbox" checked={s.enabled} onChange={(e) => saveSetting({ agent_id: id, enabled: e.target.checked })} className="accent-blue-600" /> active
@@ -1171,7 +1171,7 @@ export default function AgentFlowClient() {
                   gaps in the watch. Owner order 2026-09-03: they run for as
                   long as the office is open and Active is ticked. */}
               {CONTINUOUS.has(id) ? (
-                <span className="text-[11px] text-emerald-400/90">on watch continuously — no rhythm; the <strong className="font-semibold">active</strong> box is the only switch</span>
+                <span className="text-[0.6875rem] text-emerald-400/90">on watch continuously — no rhythm; the <strong className="font-semibold">active</strong> box is the only switch</span>
               ) : (
                 <label className="flex items-center gap-1.5 text-xs text-gray-400 whitespace-nowrap" title="Their working rhythm while the system is running">
                   rhythm
@@ -1191,9 +1191,9 @@ export default function AgentFlowClient() {
           <div className="absolute inset-0 bg-black/70" onClick={() => setTourStep(null)} />
           {tourRect && <div className="absolute rounded-xl ring-2 ring-blue-400 shadow-[0_0_0_9999px_rgba(0,0,0,0.7)] pointer-events-none transition-all duration-300" style={{ top: tourRect.top, left: tourRect.left, width: tourRect.width, height: tourRect.height }} />}
           <div className="absolute left-1/2 -translate-x-1/2 bottom-6 sm:bottom-10 w-[92vw] max-w-md rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl p-5">
-            <p className="text-blue-400 text-[10px] font-bold uppercase tracking-widest">Tour · {tourStep! + 1} of {TOUR.length}</p>
-            <p className="text-white font-bold text-[15px] mt-1">{step.title}</p>
-            <p className="text-gray-400 text-[13px] mt-1.5 leading-relaxed">{step.body}</p>
+            <p className="text-blue-400 text-[0.625rem] font-bold uppercase tracking-widest">Tour · {tourStep! + 1} of {TOUR.length}</p>
+            <p className="text-white font-bold text-[0.9375rem] mt-1">{step.title}</p>
+            <p className="text-gray-400 text-[0.8125rem] mt-1.5 leading-relaxed">{step.body}</p>
             <div className="flex items-center gap-2 mt-4">
               <button onClick={() => setTourStep(null)} className="text-xs text-gray-500 hover:text-gray-300 px-2 py-2">Skip</button>
               <div className="flex-1" />

@@ -67,7 +67,7 @@ export default function QuickContactList({ leads, card }: { leads: Lead[]; card?
               </div>
               <div className="min-w-0">
                 <p className="text-white text-sm font-semibold truncate group-hover:text-blue-300 transition-colors">{l.name}</p>
-                {l.company && <p className="text-gray-500 text-[11px] truncate">{l.company}</p>}
+                {l.company && <p className="text-gray-500 text-[0.6875rem] truncate">{l.company}</p>}
               </div>
             </Link>
 

@@ -98,7 +98,7 @@ export default function LeadsTable({ leads }: { leads: OfficeLead[] }) {
         </div>
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-          <div className="hidden lg:grid grid-cols-12 gap-3 px-5 py-2.5 border-b border-gray-800 bg-gray-900/60 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+          <div className="hidden lg:grid grid-cols-12 gap-3 px-5 py-2.5 border-b border-gray-800 bg-gray-900/60 text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider">
             <p className="col-span-3">Contact</p>
             <p className="col-span-3">Email &amp; phone</p>
             <p className="col-span-2">Captured by</p>
@@ -121,7 +121,7 @@ export default function LeadsTable({ leads }: { leads: OfficeLead[] }) {
                   <p className="col-span-6 lg:col-span-2 text-xs text-gray-400 truncate">{l.capturedBy}</p>
                   <div className="col-span-6 lg:col-span-2 flex items-center gap-2 flex-wrap">
                     <span
-                      className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                      className={`inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full border ${
                         s.worked
                           ? "bg-green-500/10 text-green-400 border-green-500/20"
                           : "bg-amber-500/10 text-amber-400 border-amber-500/20"
@@ -134,12 +134,12 @@ export default function LeadsTable({ leads }: { leads: OfficeLead[] }) {
                       <button
                         onClick={() => setLeadStatus(l.id, "touch")}
                         disabled={l.pending}
-                        className="text-[10px] font-semibold text-purple-300 hover:text-purple-200 bg-purple-500/10 hover:bg-purple-500/15 px-2 py-0.5 rounded-full transition-colors disabled:opacity-50"
+                        className="text-[0.625rem] font-semibold text-purple-300 hover:text-purple-200 bg-purple-500/10 hover:bg-purple-500/15 px-2 py-0.5 rounded-full transition-colors disabled:opacity-50"
                       >
                         {l.pending ? "…" : "Mark contacted"}
                       </button>
                     )}
-                    {l.failed && <span className="text-[10px] text-red-400">Didn&apos;t save — try again</span>}
+                    {l.failed && <span className="text-[0.625rem] text-red-400">Didn&apos;t save — try again</span>}
                   </div>
                   <p className="col-span-6 lg:col-span-2 text-xs text-gray-600 whitespace-nowrap">
                     {relativeTime(l.created_at)}
@@ -152,7 +152,7 @@ export default function LeadsTable({ leads }: { leads: OfficeLead[] }) {
       )}
 
       {leads.length > 0 && (
-        <p className="text-[11px] text-gray-600 mt-3">
+        <p className="text-[0.6875rem] text-gray-600 mt-3">
           <span className="text-amber-400 font-semibold">New</span> = nobody has followed up yet.{" "}
           <span className="text-green-400 font-semibold">Contacted</span>, <span className="text-green-400 font-semibold">Closed</span> and{" "}
           <span className="text-green-400 font-semibold">Not interested</span> = someone on your team has handled it.

@@ -229,10 +229,10 @@ export default function SwiftLinkProfile({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[11px] font-bold" style={{ color: textColor, opacity: 0.8 }}>{initials}</div>
+                  <div className="w-full h-full flex items-center justify-center text-[0.6875rem] font-bold" style={{ color: textColor, opacity: 0.8 }}>{initials}</div>
                 )}
               </div>
-              <span className="font-bold text-[15px] truncate" style={{ color: textColor }}>{name}</span>
+              <span className="font-bold text-[0.9375rem] truncate" style={{ color: textColor }}>{name}</span>
               {verified && <VerifiedBadge className="w-4 h-4" />}
             </div>
           </div>
@@ -387,7 +387,7 @@ export default function SwiftLinkProfile({
               2026-08-26) — the slug reads as "first-last-company" noise; the
               name above and the subtitle below carry the identity. */}
 
-          {subtitle && <p className="text-[13px] font-medium mt-2" style={{ color: textColor, opacity: 0.6 }}>{subtitle}</p>}
+          {subtitle && <p className="text-[0.8125rem] font-medium mt-2" style={{ color: textColor, opacity: 0.6 }}>{subtitle}</p>}
           {bio && <p className="text-sm leading-relaxed mt-3 max-w-[340px] mx-auto whitespace-pre-wrap" style={{ color: textColor, opacity: 0.75 }}>{bio}</p>}
 
           {/* Social icons — brand-colored, deep-link into apps on mobile */}
@@ -444,7 +444,7 @@ export default function SwiftLinkProfile({
           <div className="flex justify-center mt-5">
             <a
               href={`${appUrl}/?src=badge`}
-              className="flex items-center gap-2 text-[13px] transition-opacity opacity-50 hover:opacity-80"
+              className="flex items-center gap-2 text-[0.8125rem] transition-opacity opacity-50 hover:opacity-80"
               style={{ color: textColor }}
             >
               <span className="shrink-0 rounded-[4px] overflow-hidden flex"><SwiftCardIcon size={16} /></span>

@@ -184,9 +184,9 @@ export default function Home() {
                   { n: "03", t: "You see everything", d: "Every view, save, and location — in a dashboard built to turn moments into relationships." },
                 ].map((s, i) => (
                   <div key={s.n} className="rd-step rd-glass p-6" data-reveal style={{ transitionDelay: `${i * 90}ms` }}>
-                    <span className="rd-step-num rd-aurora-text text-[15px] font-bold tracking-widest">{s.n}</span>
-                    <p className="text-white font-semibold text-[19px] mt-3">{s.t}</p>
-                    <p className="text-white/50 text-[14.5px] mt-2 leading-relaxed">{s.d}</p>
+                    <span className="rd-step-num rd-aurora-text text-[0.9375rem] font-bold tracking-widest">{s.n}</span>
+                    <p className="text-white font-semibold text-[1.1875rem] mt-3">{s.t}</p>
+                    <p className="text-white/50 text-[0.90625rem] mt-2 leading-relaxed">{s.d}</p>
                   </div>
                 ))}
               </div>
@@ -231,7 +231,7 @@ export default function Home() {
                   "Video tiles, section headers, and styled social icons",
                   "Capture leads right from your page",
                 ].map((t) => (
-                  <li key={t} className="flex items-center gap-3 text-white/75 text-[15px]">
+                  <li key={t} className="flex items-center gap-3 text-white/75 text-[0.9375rem]">
                     <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.14)" }}>
                       <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 text-sky-300" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                     </span>
@@ -333,7 +333,7 @@ export default function Home() {
                 "Share sheet — text, email, AirDrop",
                 "An NFC card, a link, or your signature",
               ].map((t) => (
-                <li key={t} className="flex items-center gap-2 text-slate-600 text-[15px] leading-snug">
+                <li key={t} className="flex items-center gap-2 text-slate-600 text-[0.9375rem] leading-snug">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(37,99,235,0.12)" }}>
                     <svg viewBox="0 0 20 20" className="w-3 h-3 text-blue-600" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                   </span>
@@ -364,8 +364,8 @@ export default function Home() {
               </p>
               <div className="mt-6 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 max-w-[440px]" data-reveal="fade">
                 <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="#7CA0FF" strokeWidth={1.8}><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" strokeLinecap="round" /></svg>
-                <p className="text-white/55 text-[13.5px] leading-relaxed">
-                  <span className="font-semibold text-white/85">On the roadmap.</span> Today you can add your card to Apple Wallet and reach it from your Watch. A dedicated native watchOS app is in development — we&apos;ll only ship it once it&apos;s fully approved by Apple.
+                <p className="text-white/55 text-[0.84375rem] leading-relaxed">
+                  <span className="font-semibold text-white/85">On the roadmap.</span>{" "}Today you can add your card to Apple Wallet and reach it from your Watch. A dedicated native watchOS app is in development — we&apos;ll only ship it once it&apos;s fully approved by Apple.
                 </p>
               </div>
             </div>
@@ -394,8 +394,8 @@ export default function Home() {
                   <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style={{ background: "var(--rd-aurora)" }}>
                     <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.9}><path d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0" strokeLinecap="round" /></svg>
                   </div>
-                  <p className="text-slate-900 font-semibold text-[17px]">{f.t}</p>
-                  <p className="text-slate-500 text-[14px] mt-1.5 leading-relaxed">{f.d}</p>
+                  <p className="text-slate-900 font-semibold text-[1.0625rem]">{f.t}</p>
+                  <p className="text-slate-500 text-[0.875rem] mt-1.5 leading-relaxed">{f.d}</p>
                 </div>
               ))}
             </div>
@@ -441,7 +441,7 @@ export default function Home() {
                   disclaimer under the buttons and did no selling. Same words,
                   given an object to sit in so it registers as part of the CTA
                   block rather than fine print beneath it. */}
-              <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-4 py-2 text-[13.5px] text-white/80" data-reveal>
+              <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-4 py-2 text-[0.84375rem] text-white/80" data-reveal>
                 <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white/90 text-[#2450d8]">
                   <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
                     <path d="M11.2 3.3a.6.6 0 011.13 0l1.36 3.66a.6.6 0 00.35.35l3.66 1.36a.6.6 0 010 1.13l-3.66 1.36a.6.6 0 00-.35.35l-1.36 3.66a.6.6 0 01-1.13 0l-1.36-3.66a.6.6 0 00-.35-.35L5.83 9.8a.6.6 0 010-1.13l3.66-1.36a.6.6 0 00.35-.35z" />

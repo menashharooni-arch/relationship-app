@@ -39,7 +39,7 @@ const TUCKED = [
 // iOS-style status bar (dark glyphs for a white screen).
 function StatusBar() {
   return (
-    <div className="flex items-center justify-between px-5 pt-2.5 pb-1 text-[11px] font-semibold text-slate-900">
+    <div className="flex items-center justify-between px-5 pt-2.5 pb-1 text-[0.6875rem] font-semibold text-slate-900">
       <span>9:41</span>
       <div className="flex items-center gap-1">
         <svg viewBox="0 0 18 12" className="w-[15px] h-3" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1" /><rect x="5" y="4.5" width="3" height="7.5" rx="1" /><rect x="10" y="2" width="3" height="10" rx="1" /><rect x="15" y="0" width="3" height="12" rx="1" opacity="0.35" /></svg>
@@ -59,7 +59,7 @@ function Phone({ label, labelClass, children }: { label: string; labelClass: str
           <div className="absolute inset-0 flex flex-col">{children}</div>
         </div>
       </div>
-      <span className={`${labelClass} text-[13px] font-semibold`}>{label}</span>
+      <span className={`${labelClass} text-[0.8125rem] font-semibold`}>{label}</span>
     </div>
   );
 }
@@ -70,7 +70,7 @@ function WalletPhone() {
     <>
       <StatusBar />
       <div className="flex items-center justify-between px-4 pt-3">
-        <h3 className="text-slate-900 text-[26px] font-bold tracking-tight leading-none">Wallet</h3>
+        <h3 className="text-slate-900 text-[1.625rem] font-bold tracking-tight leading-none">Wallet</h3>
         <span className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
           <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.4}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
         </span>
@@ -119,8 +119,8 @@ function WalletPhone() {
                 inside that, digits right-aligned and tabular so they line up
                 card to card. */}
             <div className="flex items-center justify-between px-4 h-[20px] pt-1.5">
-              <span className="text-white/60 text-[11px] font-medium tabular-nums tracking-[0.12em] leading-none">•••• {c.tail}</span>
-              <span className="text-white text-[11px] font-bold italic tracking-tight leading-none">{c.network}</span>
+              <span className="text-white/60 text-[0.6875rem] font-medium tabular-nums tracking-[0.12em] leading-none">•••• {c.tail}</span>
+              <span className="text-white text-[0.6875rem] font-bold italic tracking-tight leading-none">{c.network}</span>
             </div>
           </div>
         ))}
@@ -135,15 +135,15 @@ function AppIcon({ bg, children, label }: { bg: string; children: React.ReactNod
   return (
     <div className="flex flex-col items-center gap-1 shrink-0 w-[46px]">
       <span className="w-[46px] h-[46px] rounded-[11px] flex items-center justify-center text-white shadow-sm" style={{ background: bg }}>{children}</span>
-      <span className="text-slate-600 text-[8.5px] font-medium truncate w-full text-center">{label}</span>
+      <span className="text-slate-600 text-[0.53125rem] font-medium truncate w-full text-center">{label}</span>
     </div>
   );
 }
 function ContactBubble({ initials, name, color }: { initials: string; name: string; color: string }) {
   return (
     <div className="flex flex-col items-center gap-1 shrink-0 w-[46px]">
-      <span className="w-[46px] h-[46px] rounded-full flex items-center justify-center text-white text-[14px] font-semibold shadow-sm" style={{ background: color }}>{initials}</span>
-      <span className="text-slate-600 text-[8.5px] font-medium truncate w-full text-center">{name}</span>
+      <span className="w-[46px] h-[46px] rounded-full flex items-center justify-center text-white text-[0.875rem] font-semibold shadow-sm" style={{ background: color }}>{initials}</span>
+      <span className="text-slate-600 text-[0.53125rem] font-medium truncate w-full text-center">{name}</span>
     </div>
   );
 }
@@ -154,7 +154,7 @@ function SharePhone() {
       <StatusBar />
       {/* the trigger button */}
       <div className="px-4 pt-3">
-        <div className="rounded-full py-2.5 flex items-center justify-center gap-2 text-white text-[12px] font-bold shadow-md" style={{ background: "linear-gradient(to right,#2563eb,#7c3aed)" }}>
+        <div className="rounded-full py-2.5 flex items-center justify-center gap-2 text-white text-[0.75rem] font-bold shadow-md" style={{ background: "linear-gradient(to right,#2563eb,#7c3aed)" }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M12 3v13M8 7l4-4 4 4M5 13v6a2 2 0 002 2h10a2 2 0 002-2v-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
           Share this card
         </div>
@@ -167,12 +167,12 @@ function SharePhone() {
         <div className="w-9 h-1 rounded-full bg-slate-300 mx-auto mb-2.5" />
         {/* preview row */}
         <div className="mx-2.5 mb-3 flex items-center gap-2.5 rounded-2xl bg-white p-2.5 shadow-sm">
-          <span className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shrink-0" style={{ background: "var(--rd-aurora)" }}>AM</span>
+          <span className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[0.6875rem] font-bold shrink-0" style={{ background: "var(--rd-aurora)" }}>AM</span>
           <span className="min-w-0 flex-1">
-            <span className="block text-slate-900 text-[11px] font-bold leading-tight truncate">Alex Morgan&apos;s SwiftCard</span>
-            <span className="block text-slate-400 text-[9px] truncate">swiftcard.me/alexmorgan</span>
+            <span className="block text-slate-900 text-[0.6875rem] font-bold leading-tight truncate">Alex Morgan&apos;s SwiftCard</span>
+            <span className="block text-slate-400 text-[0.5625rem] truncate">swiftcard.me/alexmorgan</span>
           </span>
-          <span className="text-slate-400 text-[10px] font-medium shrink-0">Options ›</span>
+          <span className="text-slate-400 text-[0.625rem] font-medium shrink-0">Options ›</span>
         </div>
         {/* AirDrop / contacts row */}
         <div className="flex gap-2 px-2.5 mb-2.5 overflow-x-auto rd-scrollbar-none">
@@ -182,7 +182,10 @@ function SharePhone() {
           <AppIcon bg="#1f2937" label="AirDrop"><svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 8a8 8 0 000 8M9.5 6a12 12 0 000 12M13 4.5a16 16 0 000 15" strokeLinecap="round" /></svg></AppIcon>
         </div>
         {/* app row */}
-        <div className="flex gap-2 px-2.5 mb-1 overflow-x-auto rd-scrollbar-none">
+        {/* A picture of the iOS share sheet, inside a phone mockup that is
+            already named "Share sheet". Hidden from assistive tech so it is not
+            a second, unreachable scroll region announcing five app names. */}
+        <div aria-hidden="true" className="flex gap-2 px-2.5 mb-1 overflow-x-auto rd-scrollbar-none">
           <AppIcon bg="linear-gradient(180deg,#3ee15a,#12bf3a)" label="Messages"><svg viewBox="0 0 24 24" className="w-[22px] h-[22px]" fill="currentColor"><path d="M12 3C6.5 3 2 6.6 2 11c0 2.2 1.1 4.2 3 5.6V21l3.6-2c1.1.3 2.2.4 3.4.4 5.5 0 10-3.6 10-8.4S17.5 3 12 3z" /></svg></AppIcon>
           <AppIcon bg="linear-gradient(180deg,#3cb0ff,#0a7cff)" label="Mail"><svg viewBox="0 0 24 24" className="w-[21px] h-[21px]" fill="currentColor"><path d="M4 5.5h16A1.5 1.5 0 0121.5 7v.3L12 13.4 2.5 7.3V7A1.5 1.5 0 014 5.5z" /><path d="M2.5 9.2l8.9 5.7c.37.24.86.24 1.23 0l8.87-5.7V17a1.5 1.5 0 01-1.5 1.5H4A1.5 1.5 0 012.5 17V9.2z" /></svg></AppIcon>
           <AppIcon bg="#25D366" label="WhatsApp"><svg viewBox="0 0 24 24" className="w-[22px] h-[22px]" fill="currentColor"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.2-.7-2.7-1.1-4.4-3.9-4.5-4.1-.1-.2-1.1-1.4-1.1-2.7s.7-1.9 1-2.2c.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.5c-.2.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2 1.3 2.3 1.5.2.1.4.1.5-.1l.7-.8c.2-.2.3-.2.6-.1l1.9.9c.3.1.4.2.5.3 0 .2 0 .8-.2 1.4z" /></svg></AppIcon>
@@ -194,7 +197,7 @@ function SharePhone() {
         <div className="mx-2.5 mt-3 rounded-2xl bg-white overflow-hidden">
           {actions.map((label, i) => (
             <div key={label} className={`flex items-center justify-between px-3.5 py-2.5 ${i < actions.length - 1 ? "border-b border-slate-100" : ""}`}>
-              <span className="text-slate-800 text-[11.5px] font-medium">{label}</span>
+              <span className="text-slate-800 text-[0.71875rem] font-medium">{label}</span>
               <span className="w-5 h-5 rounded-md bg-slate-100 flex items-center justify-center text-slate-500">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M8 7h9v9M17 7L7 17" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </span>
@@ -212,7 +215,15 @@ export default function ShareWaysPhones({ light = false }: { light?: boolean }) 
     // snap-x: on a phone only ~1.4 of the two phones fit, so a free scroll
     // stops mid-phone and looks cut off. Snap centers one phone per swipe like
     // a deliberate carousel. Desktop fits both, so snapping never engages.
-    <div className="max-w-full flex gap-6 justify-start sm:justify-center overflow-x-auto snap-x snap-mandatory sm:snap-none rd-scrollbar-none pb-2 px-2">
+    // tabIndex + a name because it scrolls: a region you can only reach by
+    // swiping is unreachable with a keyboard, which is the only way some people
+    // drive this app on a Mac (axe: scrollable-region-focusable).
+    <div
+      tabIndex={0}
+      role="group"
+      aria-label="Ways to share your card — scroll sideways for more"
+      className="max-w-full flex gap-6 justify-start sm:justify-center overflow-x-auto snap-x snap-mandatory sm:snap-none rd-scrollbar-none pb-2 px-2"
+    >
       <Phone label="Apple Wallet" labelClass={labelClass}><WalletPhone /></Phone>
       <Phone label="Share sheet" labelClass={labelClass}><SharePhone /></Phone>
     </div>

@@ -83,7 +83,7 @@ export default function JoinSignIn({ token, inviteEmail }: { token: string; invi
 
       <div className="flex items-center gap-3" role="presentation">
         <span className="h-px flex-1 bg-gray-800" />
-        <span className="text-gray-600 text-[11px]">or</span>
+        <span className="text-gray-600 text-[0.6875rem]">or</span>
         <span className="h-px flex-1 bg-gray-800" />
       </div>
 
@@ -96,7 +96,7 @@ export default function JoinSignIn({ token, inviteEmail }: { token: string; invi
       >
         {status === "sending" ? "Sending…" : `Email me a sign-in link`}
       </button>
-      <p className="text-center text-gray-600 text-[11px]">
+      <p className="text-center text-gray-600 text-[0.6875rem]">
         One tap in that email signs you in — no password to create or remember.
       </p>
     </div>

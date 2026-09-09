@@ -189,8 +189,15 @@ export default function ResetPasswordForm() {
     );
   }
 
+  // method="post" for the same reason as the sign-in form (see LoginForm): a
+  // submit that beats hydration takes the HTML default, and GET would put
+  // whatever is named into the query string. These two inputs carry no name
+  // today, so nothing serializes — but adding one is exactly what LoginForm did
+  // so password managers could bind, and that is what turned the same shape
+  // there into a password in the URL. POST closes it before it can happen.
+  // Pinned by tests/credentials-never-in-url.test.ts.
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} method="post" className="space-y-3">
       <input
         type="password"
         placeholder="New password"

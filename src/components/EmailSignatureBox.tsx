@@ -340,8 +340,12 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       {/* Hidden full-size render of the selected card — captured AS-IS (no font
           scaling, QR kept) so the signature image is a pixel-exact copy of the card.
           html-to-image reads it via the browser engine. */}
+      {/* inert as well as aria-hidden: this is a real card parked offscreen for
+          image capture, and it contains links. aria-hidden alone left them in
+          the tab order — you could Tab into a card nobody can see
+          (axe: aria-hidden-focus). */}
       {mounted && (
-        <div aria-hidden style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
+        <div aria-hidden inert style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
           <div ref={cardRef} style={{ width: NATURAL, background: CARD_BG }}>
             <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
           </div>
@@ -350,11 +354,11 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
 
       <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-4">
         <p className="text-white font-semibold text-sm">Swift Signature</p>
-        <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">
+        <p className="text-gray-500 text-[0.6875rem] mt-1 leading-relaxed">
           Copy your Swift Signature and paste it into your email — a clickable link to your card at the bottom of every message you send.
         </p>
         {changedSinceCopy && (
-          <p className="mt-2 text-[11px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5 leading-relaxed">
+          <p className="mt-2 text-[0.6875rem] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5 leading-relaxed">
             You&apos;ve changed your card design since you last copied your signature. Copy it again and re-paste to refresh it.
           </p>
         )}
@@ -386,18 +390,18 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
             <div className="p-5 overflow-y-auto">
               <p className="text-gray-500 text-xs mb-3">Here&apos;s how it looks at the bottom of an email you send:</p>
               <div className="rounded-xl border border-gray-700/60 bg-white overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-gray-200 text-[12px] text-gray-500 space-y-0.5">
+                <div className="px-4 py-2.5 border-b border-gray-200 text-[0.75rem] text-gray-500 space-y-0.5">
                   <p><span className="text-gray-400">To:</span> sarah@acme.com</p>
                   <p><span className="text-gray-400">Subject:</span> Great connecting today</p>
                 </div>
-                <div className="px-4 py-3 text-[13px] text-gray-800 leading-relaxed">
+                <div className="px-4 py-3 text-[0.8125rem] text-gray-800 leading-relaxed">
                   <p>Hi Sarah,</p>
                   <p className="mt-2">Really enjoyed chatting earlier. My contact info is below in my signature. Let&apos;s keep in touch!</p>
                   <p className="mt-2">Best,</p>
                   <div className="mt-3">
-                    <p className="text-[14px] text-gray-900 mb-1.5"><strong>{name}</strong>{company ? ` | ${company}` : ""}</p>
+                    <p className="text-[0.875rem] text-gray-900 mb-1.5"><strong>{name}</strong>{company ? ` | ${company}` : ""}</p>
                     <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="block w-[300px] max-w-full"><CardPreview src={displaySrc} ready={ready} status={status} onLoad={onLoad} onError={onImgError} /></a>
-                    <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[14px] font-bold text-blue-600 no-underline">Contact me</a>
+                    <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[0.875rem] font-bold text-blue-600 no-underline">Contact me</a>
                   </div>
                 </div>
               </div>
@@ -405,23 +409,23 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                 className="w-full mt-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
                 {status === "working" ? "Generating from your card…" : copied ? "Copied ✓" : "Copy signature"}
               </button>
-              <p className="mt-2 text-[11px] text-gray-500 leading-relaxed text-center">
+              <p className="mt-2 text-[0.6875rem] text-gray-500 leading-relaxed text-center">
                 Changed your card design? Copy again and re-paste — email apps keep showing the old image for about a day otherwise.
               </p>
 
               {/* Concise 3-step directions */}
               <ol className="mt-4 space-y-2.5">
                 <li className="flex gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
-                  <p className="text-gray-300 text-[12px] leading-relaxed">Tap <strong className="text-white">Copy signature</strong> above.</p>
+                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[0.6875rem] font-bold flex items-center justify-center shrink-0">1</span>
+                  <p className="text-gray-300 text-[0.75rem] leading-relaxed">Tap <strong className="text-white">Copy signature</strong> above.</p>
                 </li>
                 <li className="flex gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[11px] font-bold flex items-center justify-center shrink-0">2</span>
-                  <p className="text-gray-300 text-[12px] leading-relaxed">Open your email below and <strong className="text-white">paste</strong> it into your signature settings.</p>
+                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[0.6875rem] font-bold flex items-center justify-center shrink-0">2</span>
+                  <p className="text-gray-300 text-[0.75rem] leading-relaxed">Open your email below and <strong className="text-white">paste</strong> it into your signature settings.</p>
                 </li>
                 <li className="flex gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[11px] font-bold flex items-center justify-center shrink-0">3</span>
-                  <p className="text-gray-300 text-[12px] leading-relaxed">Using a different email? Paste it into that app&apos;s signature settings.</p>
+                  <span className="w-5 h-5 rounded-full bg-gray-800 text-gray-300 text-[0.6875rem] font-bold flex items-center justify-center shrink-0">3</span>
+                  <p className="text-gray-300 text-[0.75rem] leading-relaxed">Using a different email? Paste it into that app&apos;s signature settings.</p>
                 </li>
               </ol>
 
@@ -437,7 +441,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                     href={p.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-[11px] font-semibold py-2 rounded-xl transition-colors"
+                    className="flex items-center justify-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-[0.6875rem] font-semibold py-2 rounded-xl transition-colors"
                   >
                     {p.label}
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 opacity-60"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" /><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" /></svg>

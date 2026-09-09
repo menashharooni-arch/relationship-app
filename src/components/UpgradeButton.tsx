@@ -58,7 +58,7 @@ export default function UpgradeButton({ variant = "banner", placement = "unknown
         >
           {loading ? "Loading…" : `Upgrade to Pro · ${PRO_PRICE} →`}
         </button>
-        <p className="text-center text-blue-400/60 text-[10px] mt-2">Cancel anytime · No contracts</p>
+        <p className="text-center text-blue-400/60 text-[0.625rem] mt-2">Cancel anytime · No contracts</p>
       </div>
     );
   }

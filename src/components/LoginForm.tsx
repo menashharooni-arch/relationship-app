@@ -299,7 +299,21 @@ export default function LoginForm({
       </div>
 
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {/* method="post" is the pre-hydration backstop, not decoration.
+          handleSubmit calls preventDefault, so once React has attached itself
+          this form never navigates — but BEFORE hydration there is no handler,
+          and a submit then (a fast typist on Enter, a password manager that
+          fills and submits, a slow phone, a chunk that failed to load) takes
+          the HTML default. With no method that default is GET, which put the
+          named fields in the query string:
+            /login?email=victim%40example.com&password=SuperSecret123%21
+          — the real password in browser history, in the access log, and in the
+          Referer of every request the page made next. It also looked like a
+          broken sign-in: the page reloaded to a blank form with no error.
+          POST sends the same fields in the body instead, and POST /login
+          renders this same page, so the visible outcome is unchanged.
+          Pinned by tests/credentials-never-in-url.test.ts. */}
+      <form onSubmit={handleSubmit} method="post" className="space-y-4">
         {/* Labelled fields with real autofill hints.
             The inputs were unlabelled, unnamed placeholders with no autoComplete,
             so password managers had nothing to bind to — you had to type your
@@ -422,7 +436,7 @@ export default function LoginForm({
         </button>
 
         {mode === "signup" && (
-          <p className="text-center text-[11px] leading-relaxed text-slate-400">
+          <p className="text-center text-[0.6875rem] leading-relaxed text-slate-400">
             By creating an account you agree to our{" "}
             <Link href="/terms" className="underline hover:text-slate-600">Terms</Link> and{" "}
             <Link href="/privacy" className="underline hover:text-slate-600">Privacy Policy</Link>.

@@ -195,7 +195,7 @@ export default function CheckoutClient() {
         {canceled && (
           <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5">
             <p className="text-amber-300 text-xs font-semibold">Checkout canceled — your selection is saved.</p>
-            <p className="text-amber-200/80 text-[11px] mt-0.5">Pick up right where you left off whenever you&apos;re ready.</p>
+            <p className="text-amber-200/80 text-[0.6875rem] mt-0.5">Pick up right where you left off whenever you&apos;re ready.</p>
           </div>
         )}
 
@@ -234,7 +234,7 @@ export default function CheckoutClient() {
         </dl>
 
         {preview && (
-          <p className="text-gray-500 text-[11px] mt-3 leading-relaxed">
+          <p className="text-gray-500 text-[0.6875rem] mt-3 leading-relaxed">
             {preview.upgrading
               ? `Charged today to the card on file. You're credited for the unused time on ${preview.currentPlan === "office" ? "Office" : "Pro"}, so you only pay the difference — then ${formatUsd(subtotalCents)}/${per} from your next billing date.`
               : `Applied as a credit against your next invoice rather than refunded, then ${formatUsd(subtotalCents)}/${per} from your next billing date.`}
@@ -246,14 +246,14 @@ export default function CheckoutClient() {
             must not appear when trial=0, or we'd be promising a free trial the
             checkout session won't create. */}
         {!preview && plan === "pro" && (
-          <p className="text-gray-500 text-[11px] mt-3 leading-relaxed">
+          <p className="text-gray-500 text-[0.6875rem] mt-3 leading-relaxed">
             {trial
               ? `First-time subscribers start with a ${TRIAL_DAYS}-day free trial. Card required — billing begins automatically after the trial unless you cancel. Taxes, discounts, and any proration are calculated at checkout.`
               : "Billing starts today and renews automatically until you cancel. Taxes, discounts, and any proration are calculated at checkout."}
           </p>
         )}
         {plan === "office" && (
-          <p className="text-gray-500 text-[11px] mt-3 leading-relaxed">
+          <p className="text-gray-500 text-[0.6875rem] mt-3 leading-relaxed">
             Your own card counts as seat 1 — {preview ? "invite the rest of your team from the Admin page." : "after payment, invite the rest of your team from the Office dashboard. Taxes and any discounts are calculated at checkout."}
           </p>
         )}
@@ -276,7 +276,7 @@ export default function CheckoutClient() {
               : (busy ? "Redirecting to secure checkout…" : "Continue to secure payment →")}
         </button>
 
-        <p className="text-center text-gray-500 text-[11px] mt-3 leading-relaxed">
+        <p className="text-center text-gray-500 text-[0.6875rem] mt-3 leading-relaxed">
           By continuing you agree to our{" "}
           <Link href="/terms" className="underline hover:text-gray-300">Terms</Link> and{" "}
           <Link href="/privacy" className="underline hover:text-gray-300">Privacy Policy</Link>
@@ -290,7 +290,7 @@ export default function CheckoutClient() {
         </Link>
       </div>
 
-      <p className="text-center text-gray-600 text-[11px] mt-4">Payments are securely processed by Stripe. We never store your card details.</p>
+      <p className="text-center text-gray-600 text-[0.6875rem] mt-4">Payments are securely processed by Stripe. We never store your card details.</p>
     </div>
   );
 }

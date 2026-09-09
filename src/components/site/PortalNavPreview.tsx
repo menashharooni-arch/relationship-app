@@ -52,7 +52,7 @@ export default function PortalNavPreview({
             <SwiftCardIcon size={28} />
             <span className="font-bold text-white text-sm tracking-tight hidden sm:block">SwiftCard</span>
           </span>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${planClass}`}>{plan}</span>
+          <span className={`text-[0.625rem] font-bold px-2 py-0.5 rounded-full ${planClass}`}>{plan}</span>
         </div>
 
         {/* Centre: the page tabs — the one part that really is interactive.

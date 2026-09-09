@@ -77,7 +77,7 @@ export default function LogoSuggest({ company, email, domain, onConfirm }: Props
         <button
           type="button"
           onClick={find}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 transition-colors"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5">
             <circle cx="11" cy="11" r="7" strokeLinecap="round" />
@@ -88,7 +88,7 @@ export default function LogoSuggest({ company, email, domain, onConfirm }: Props
       )}
 
       {applied && state.kind === "idle" && (
-        <p className="text-[11px] text-emerald-400 mt-1">
+        <p className="text-[0.6875rem] text-emerald-400 mt-1">
           Applied {applied}&apos;s logo. Not right? Upload your own above, or search again.
         </p>
       )}
@@ -98,12 +98,12 @@ export default function LogoSuggest({ company, email, domain, onConfirm }: Props
       )}
 
       {state.kind === "empty" && (
-        <p className="text-[11px] text-gray-500 mt-1">{emptyMessage(state.status)}</p>
+        <p className="text-[0.6875rem] text-gray-500 mt-1">{emptyMessage(state.status)}</p>
       )}
 
       {state.kind === "results" && (
         <div className="mt-1.5 rounded-xl border border-gray-700/60 bg-gray-800/40 p-2.5">
-          <p className="text-[11px] text-gray-400 mb-2">
+          <p className="text-[0.6875rem] text-gray-400 mb-2">
             Pick your company — we&apos;ll use its official logo (you can still upload your own):
           </p>
           <div className="space-y-1">
@@ -127,7 +127,7 @@ export default function LogoSuggest({ company, email, domain, onConfirm }: Props
                 />
                 <span className="min-w-0">
                   <span className="block text-sm text-white truncate">{c.name}</span>
-                  <span className="block text-[11px] text-gray-500 truncate">{c.domain}</span>
+                  <span className="block text-[0.6875rem] text-gray-500 truncate">{c.domain}</span>
                 </span>
               </button>
             ))}
@@ -135,7 +135,7 @@ export default function LogoSuggest({ company, email, domain, onConfirm }: Props
           <button
             type="button"
             onClick={() => setState({ kind: "idle" })}
-            className="text-[11px] text-gray-500 hover:text-gray-300 mt-2"
+            className="text-[0.6875rem] text-gray-500 hover:text-gray-300 mt-2"
           >
             None of these
           </button>

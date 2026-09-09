@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
-import NativeHidden from "@/components/NativeHidden";
+import SiteFooterMini from "@/components/site/SiteFooterMini";
 
 export const metadata: Metadata = {
   title: "SMS Consent Overview — SwiftCard",
@@ -16,10 +15,10 @@ function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
 }
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-slate-600 text-[15px] leading-relaxed mb-3">{children}</p>;
+  return <p className="text-slate-600 text-[0.9375rem] leading-relaxed mb-3">{children}</p>;
 }
 function LI({ children }: { children: React.ReactNode }) {
-  return <li className="text-slate-600 text-[15px] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
+  return <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
 }
 
 export default function SmsConsentPage() {
@@ -43,7 +42,7 @@ export default function SmsConsentPage() {
         <P>
           Every SwiftCard user has a public card page (for example, swiftcard.me/their-name). When a
           visitor wants to share their contact information with that person, they use the{" "}
-          <strong>&quot;Share your info&quot;</strong> form on the card. The SMS consent checkbox and its
+          <strong>&quot;Share your info&quot;</strong>{" "}form on the card. The SMS consent checkbox and its
           disclosure sit directly on that form, immediately next to the submit button — the same block
           appears on every
           variation of the share form across the site (the card&apos;s share form, the post-save
@@ -59,7 +58,7 @@ export default function SmsConsentPage() {
           </LI>
           <LI>
             Immediately next to the submit button, before they submit, they see the SMS consent checkbox
-            and the full disclosure quoted below: the <strong>types of messages</strong> they will receive
+            and the full disclosure quoted below: the <strong>types of messages</strong>{" "}they will receive
             (follow-up texts from that SwiftCard user about their conversation — contact details, replies,
             and any follow-up the user sets up), that message frequency varies, that msg &amp; data rates
             may apply, and that STOP opts out and HELP gets help.
@@ -109,13 +108,13 @@ export default function SmsConsentPage() {
             href="https://swiftcard.me/swift-card-swift-card-inc"
             target="_blank"
             rel="noopener"
-            className="text-brand underline font-semibold text-[15px] break-all"
+            className="text-brand underline font-semibold text-[0.9375rem] break-all"
           >
             swiftcard.me/swift-card-swift-card-inc
           </a>
-          <p className="text-slate-600 text-[15px] leading-relaxed mt-3">
+          <p className="text-slate-600 text-[0.9375rem] leading-relaxed mt-3">
             Scroll to <strong>&quot;Share your info&quot;</strong>. The disclosure quoted below sits
-            directly above the <strong>Share My Info</strong> button, visible before anything is
+            directly above the <strong>Share My Info</strong>{" "}button, visible before anything is
             submitted. This is SwiftCard&apos;s own card on its own platform — every other card on
             the site shows the identical block.
           </p>
@@ -123,17 +122,17 @@ export default function SmsConsentPage() {
 
         <H2>The exact disclosure shown</H2>
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
-          <p className="text-slate-700 text-[14px] leading-relaxed italic">
-            &quot;☐ <strong>Text me follow-ups (optional).</strong> I agree to receive follow-up text
+          <p className="text-slate-700 text-[0.875rem] leading-relaxed italic">
+            &quot;☐ <strong>Text me follow-ups (optional).</strong>{" "}I agree to receive follow-up text
             messages from SwiftCard about my conversation with this SwiftCard user — their contact
             details, replies, and any follow-up messages they set up. Msg frequency varies. Msg &amp;
             data rates may apply. Reply STOP to opt out, HELP for help.&quot;
           </p>
-          <p className="text-slate-600 text-[13px] leading-relaxed mt-3">
+          <p className="text-slate-600 text-[0.8125rem] leading-relaxed mt-3">
             Directly beneath it, outside the checkbox label: &quot;Optional — you can share your info
             without this and still hear back by email. SMS Terms · Privacy&quot;
           </p>
-          <p className="text-slate-600 text-[13px] leading-relaxed mt-3">
+          <p className="text-slate-600 text-[0.8125rem] leading-relaxed mt-3">
             The checkbox renders unticked on every page load. There is no code path that pre-selects it,
             and no code path that blocks form submission when it is left unticked.
           </p>
@@ -160,18 +159,9 @@ export default function SmsConsentPage() {
         </P>
       </div>
 
-      <footer className="border-t border-warm-border py-10 px-6 bg-cream mt-auto">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <SwiftCardLogo size={24} />
-          <div className="flex items-center gap-6 text-sm text-slate-500">
-            <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
-            <NativeHidden><Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
-            <Link href="/sms-terms" className="hover:text-slate-900 transition-colors">SMS Terms</Link>
-            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
-          </div>
-          <p className="text-slate-400 text-xs">SwiftCard is operated by Swift Card Inc · New York, NY</p>
-        </div>
-      </footer>
+      {/* SMS Terms stays in this page's footer specifically — the consent
+          overview exists to point at it, and A2P vetting follows that link. */}
+      <SiteFooterMini extra={[{ label: "SMS Terms", href: "/sms-terms" }]} />
     </main>
   );
 }

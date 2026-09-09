@@ -10,7 +10,7 @@ export default function NativeFeatureNote({ children }: { children: React.ReactN
   const native = useIsNativeApp();
   if (!native) return null;
   return (
-    <p className="text-white/45 text-[13px] mt-4 leading-relaxed max-w-[620px]">
+    <p className="text-white/45 text-[0.8125rem] mt-4 leading-relaxed max-w-[620px]">
       {children}
     </p>
   );

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
-import NativeHidden from "@/components/NativeHidden";
+import SiteFooterMini from "@/components/site/SiteFooterMini";
 
 export const metadata: Metadata = {
   title: "SMS & Messaging Terms — SwiftCard",
@@ -16,10 +15,10 @@ function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
 }
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-slate-600 text-[15px] leading-relaxed mb-3">{children}</p>;
+  return <p className="text-slate-600 text-[0.9375rem] leading-relaxed mb-3">{children}</p>;
 }
 function LI({ children }: { children: React.ReactNode }) {
-  return <li className="text-slate-600 text-[15px] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
+  return <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
 }
 
 export default function SmsTermsPage() {
@@ -41,7 +40,7 @@ export default function SmsTermsPage() {
 
         {/* At-a-glance summary card */}
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
-          <p className="text-[11px] font-bold tracking-[0.18em] uppercase text-slate-500 mb-3">The short version</p>
+          <p className="rd-eyebrow text-slate-600 mb-3">The short version</p>
           <ul>
             <LI><strong>Swift Card Inc is the sender</strong> of every text in this program. We send them from our own registered number, using our own templates, to people who ticked the SMS consent box when sharing their contact information with a SwiftCard user — a card link and follow-ups about that exchange. Our users do not send texts through SwiftCard and do not write the content of an automated one.</LI>
             <LI>SwiftCard does <strong>not</strong> send marketing text blasts of its own, and never texts its own account holders.</LI>
@@ -158,18 +157,7 @@ export default function SmsTermsPage() {
         </P>
       </div>
 
-      <footer className="border-t border-warm-border py-10 px-6 bg-cream mt-auto">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <SwiftCardLogo size={24} />
-          <div className="flex items-center gap-6 text-sm text-slate-500">
-            <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
-            <NativeHidden><Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
-            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
-          </div>
-          <p className="text-slate-400 text-xs">SwiftCard is operated by Swift Card Inc · New York, NY</p>
-        </div>
-      </footer>
+      <SiteFooterMini />
     </main>
   );
 }

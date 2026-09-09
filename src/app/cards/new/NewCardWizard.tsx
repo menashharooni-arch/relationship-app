@@ -28,7 +28,7 @@ import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
-import { socialUrl } from "@/lib/social-url";
+import { socialUrl, socialDestination } from "@/lib/social-url";
 import { cardSlug, prettyCardSlug } from "@/lib/slug";
 import { useGuestDraft, saveDraft, loadDraft } from "@/lib/guest-draft";
 import { resetGuestFlow } from "@/lib/guest-reset";
@@ -104,7 +104,7 @@ export type OrgManaged = {
 // Small "who owns this field" tag shown next to org-controlled values.
 function ManagedTag() {
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-300 bg-purple-500/10 border border-purple-500/25 rounded-full px-2 py-0.5">
+    <span className="inline-flex items-center gap-1 text-[0.625rem] font-semibold text-purple-300 bg-purple-500/10 border border-purple-500/25 rounded-full px-2 py-0.5">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-2.5 h-2.5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
       </svg>
@@ -816,7 +816,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // two viewports can never drift apart.
   const livePreview = (
     <>
-      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
+      <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
       {/* Look-only — design is changed with the controls, never by
           clicking the card itself. See InertPreview. */}
       <InertPreview className="rounded-2xl overflow-hidden border border-gray-800">
@@ -824,7 +824,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
         </CardScaler>
       </InertPreview>
-      <p className="text-gray-600 text-[11px] mt-2 leading-snug">Your card so far — it updates as you fill things in.</p>
+      <p className="text-gray-600 text-[0.6875rem] mt-2 leading-snug">Your card so far — it updates as you fill things in.</p>
     </>
   );
 
@@ -834,7 +834,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // to it.
   const linkPagePreview = (
     <>
-      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+      <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-2">
         Your Swift Links page — this is how it will look
       </p>
       <SwiftLinkLivePreview
@@ -859,7 +859,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       />
       {/* Both Swift Links steps share this preview, so the caption names what
           the step you are on actually changes. */}
-      <p className="text-gray-600 text-[11px] mt-2 leading-snug">
+      <p className="text-gray-600 text-[0.6875rem] mt-2 leading-snug">
         {step === 3
           ? "Your bio, socials and links appear here as you add them."
           : "It updates live as you pick colors and fonts."}
@@ -929,7 +929,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             {[1, 2, 3, 4].map((n) => (
               <div key={n} className="flex items-center gap-2 flex-1">
                 <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 transition-colors"
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[0.6875rem] font-bold shrink-0 transition-colors"
                   style={{ background: step >= n ? "#2563eb" : "#1f2937", color: step >= n ? "#fff" : "#6b7280" }}
                 >
                   {n}
@@ -949,7 +949,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               {/* Say so when we bring a draft back, otherwise a pre-filled form
                   after a reload reads as a glitch rather than a save. */}
               {restored && (
-                <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/20 px-2.5 py-1 text-[11px] font-semibold text-green-400" role="status">
+                <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/20 px-2.5 py-1 text-[0.6875rem] font-semibold text-green-400" role="status">
                   We kept your work from last time
                 </p>
               )}
@@ -1079,6 +1079,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                       </span>
                     ) : (
                       <select
+                        // Its only visible context is the phone field beside it,
+                        // so on its own it announced as an unlabelled select.
+                        aria-label={`Label for phone number ${i + 1}`}
                         value={p.label}
                         onChange={(e) => updatePhone(i, { label: e.target.value as PhoneLabel })}
                         className="bg-gray-900 border border-gray-700 text-gray-200 rounded-xl px-2 py-3 text-sm focus:outline-none focus:border-blue-500 shrink-0"
@@ -1181,7 +1184,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-medium text-gray-400">Swiftlinks bio</label>
-                <span className="text-[10px] font-semibold text-blue-400">Tip: be descriptive</span>
+                <span className="text-[0.625rem] font-semibold text-blue-400">Tip: be descriptive</span>
               </div>
               <textarea
                 value={bio}
@@ -1190,7 +1193,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 placeholder="e.g. Austin realtor helping first-time buyers find their dream home — 10+ years, 200+ closings. Let's talk!"
                 className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
               />
-              <p className="text-gray-600 text-[11px] mt-1">
+              <p className="text-gray-600 text-[0.6875rem] mt-1">
                 Shows at the top of your Swift Links — the first thing visitors read. Say <strong className="text-gray-400">who you help, what you do, and why they should reach out</strong>. Descriptive bios get more taps.
               </p>
             </div>
@@ -1198,7 +1201,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             {/* Social links (website lives on step 1 — it's card information) */}
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1">Social links</p>
-              <p className="text-gray-600 text-[11px] mb-3">Paste a profile URL or type an @handle — we link it automatically.</p>
+              <p className="text-gray-600 text-[0.6875rem] mb-3">Paste a profile URL or type an @handle — we link it automatically.</p>
               <div className="space-y-3">
                 {SOCIALS.map(({ key, label, placeholder }) => {
                   const linked = socials[key].trim().length > 0;
@@ -1208,7 +1211,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                         <label className="block text-xs text-gray-500">{label}</label>
                         {linked && socialUrl(key, socials[key]) && (
                           <a href={socialUrl(key, socials[key])!} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-[10px] font-semibold text-blue-400 hover:text-blue-300">
+                            className="flex items-center gap-1 text-[0.625rem] font-semibold text-blue-400 hover:text-blue-300">
                             <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" /></svg>
                             Open link
                           </a>
@@ -1222,11 +1225,24 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                         onBlur={() => normalizeOnBlur(key)}
                         className={inputCls}
                       />
-                      {SOCIAL_FORMATS[key] && (
-                        <p className="text-gray-600 text-[11px] mt-1">
+                      {/* Say where this will actually go. "Open link" above tells
+                          you nothing until you click it, and nobody clicks it
+                          while typing — so a wrong handle stayed invisible until
+                          a visitor hit the 404. This also surfaces the guesses:
+                          "John Doe" becomes linkedin.com/in/john-doe. */}
+                      {linked && socialDestination(key, socials[key]) ? (
+                        <p className="text-gray-600 text-[0.6875rem] mt-1">
+                          Opens <span className="text-gray-400 font-medium break-all">{socialDestination(key, socials[key])}</span>
+                        </p>
+                      ) : linked ? (
+                        <p className="text-red-400 text-[0.6875rem] mt-1">
+                          This won&rsquo;t open as a link{SOCIAL_FORMATS[key] ? <> — use <span className="font-medium">{SOCIAL_FORMATS[key]}</span></> : null}
+                        </p>
+                      ) : SOCIAL_FORMATS[key] ? (
+                        <p className="text-gray-600 text-[0.6875rem] mt-1">
                           Copy this exact format: <span className="text-gray-400 font-medium">{SOCIAL_FORMATS[key]}</span>
                         </p>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}
@@ -1238,13 +1254,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             {/* Additional links */}
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1">Additional links</p>
-              <p className="text-gray-600 text-[11px] mb-3">Add your links — can be a review page, recent video, listing, etc.</p>
+              <p className="text-gray-600 text-[0.6875rem] mb-3">Add your links — can be a review page, recent video, listing, etc.</p>
               {links.length > 0 && (
                 <div className="space-y-2 mb-2">
                   {links.map((l, i) =>
                     l.kind === "header" ? (
                       <div key={i} className="flex items-center gap-2 bg-gray-900 border border-gray-700 border-dashed rounded-xl px-3 py-2.5">
-                        <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 shrink-0">Section</span>
+                        <span className="text-[0.5625rem] font-bold uppercase tracking-wide text-gray-500 shrink-0">Section</span>
                         <input
                           type="text"
                           value={l.label}
@@ -1259,7 +1275,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                       <div className="flex items-center gap-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
-                          <p className="text-gray-500 text-[10px] truncate">{l.url}</p>
+                          <p className="text-gray-500 text-[0.625rem] truncate">{l.url}</p>
                         </div>
                         <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
                       </div>
@@ -1287,7 +1303,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 <button
                   type="button"
                   onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
-                  className="block mb-2 text-[11px] font-semibold text-gray-400 hover:text-gray-200 transition-colors"
+                  className="block mb-2 text-[0.6875rem] font-semibold text-gray-400 hover:text-gray-200 transition-colors"
                 >
                   + Add a section header
                 </button>
@@ -1297,7 +1313,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   feature="swift-links-cap"
                   nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan"
                 >
-                  <p className="text-[11px] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
+                  <p className="text-[0.6875rem] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
                     Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. <Link href="/upgrade" className="text-blue-400 font-semibold hover:text-blue-300 underline">Upgrade to Pro</Link> to access unlimited additional links.
                   </p>
                 </PlanGate>
@@ -1432,7 +1448,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 <LogoSuggest company={company} email={email} onConfirm={(url) => setLogoUrl(url || null)} />
                 {logoUrl && (
                   <div className="mt-2">
-                    <p className="text-[11px] text-gray-500 mb-1">Logo shape on the card</p>
+                    <p className="text-[0.6875rem] text-gray-500 mb-1">Logo shape on the card</p>
                     <div className="inline-flex items-center bg-gray-800 rounded-lg p-0.5">
                       {([["auto", "Original"], ["circle", "Circle"]] as const).map(([id, label]) => (
                         <button
@@ -1493,7 +1509,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <label className="block text-xs font-medium text-gray-400 mb-2">Choose your design</label>
 
               {!isPro && designUnlocked && (
-                <p className="text-[11px] text-blue-300 bg-blue-950/40 border border-blue-800/40 rounded-lg px-3 py-2 mb-3 leading-relaxed">
+                <p className="text-[0.6875rem] text-blue-300 bg-blue-950/40 border border-blue-800/40 rounded-lg px-3 py-2 mb-3 leading-relaxed">
                   Free preview — try any color, font, or the custom designer. You&apos;ll choose Free or Pro right before your card goes live.
                 </p>
               )}
@@ -1544,7 +1560,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-xs font-medium text-gray-400">
                       Customize colors &amp; font
-                      {!designUnlocked && <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>}
+                      {!designUnlocked && <span className="ml-1.5 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>}
                     </label>
                   </div>
                   <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!designUnlocked} />
@@ -1553,7 +1569,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                       feature="colors-fonts"
                       nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan"
                     >
-                      <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300 mt-2">
+                      <Link href="/upgrade" className="block text-center text-[0.6875rem] text-blue-400 hover:text-blue-300 mt-2">
                         Unlock custom colors &amp; fonts with Pro →
                       </Link>
                     </PlanGate>
@@ -1616,7 +1632,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 feature="colors-fonts"
                 nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan"
               >
-                <Link href="/upgrade" className="block text-center text-[11px] text-blue-400 hover:text-blue-300">
+                <Link href="/upgrade" className="block text-center text-[0.6875rem] text-blue-400 hover:text-blue-300">
                   Unlock custom colors &amp; fonts with Pro →
                 </Link>
               </PlanGate>

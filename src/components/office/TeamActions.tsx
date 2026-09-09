@@ -211,7 +211,7 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
     variant === "link"
       ? "text-sm font-semibold text-purple-400 hover:text-purple-300 transition-colors"
       : variant === "small"
-        ? "text-[11px] font-semibold text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full transition-colors shrink-0"
+        ? "text-[0.6875rem] font-semibold text-white bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-full transition-colors shrink-0"
         : "bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold px-4 py-2 rounded-full transition-colors shrink-0";
 
   return (
@@ -276,14 +276,14 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
                     )}
                   </dl>
                   {seatInfo.nextSeatProrationCents == null && (
-                    <p className="text-gray-600 text-[11px] mb-3">
+                    <p className="text-gray-600 text-[0.6875rem] mb-3">
                       You&apos;ll be charged a smaller, partial amount today for the rest of this billing period.
                     </p>
                   )}
                   {/* Explicit, unmistakable authorization statement directly above
                       the pay button — the exact charge + the new recurring amount,
                       to the card already on file, before any money moves. */}
-                  <p className="text-gray-400 text-[11px] leading-relaxed mb-3">
+                  <p className="text-gray-400 text-[0.6875rem] leading-relaxed mb-3">
                     By continuing, you authorize SwiftCard to charge your card on file{" "}
                     <span className="font-semibold text-white">
                       {seatInfo.nextSeatProrationCents != null ? usd(seatInfo.nextSeatProrationCents) : "the prorated amount"}
@@ -455,9 +455,9 @@ export function InviteRowActions({ memberId, name, email, inviteUrl }: {
     <span className="inline-flex items-center gap-2 flex-wrap justify-end">
       {managing ? (
         <>
-          <span className="text-[11px] text-gray-400">Retract {who}&apos;s invite &amp; free the seat?</span>
+          <span className="text-[0.6875rem] text-gray-400">Retract {who}&apos;s invite &amp; free the seat?</span>
           <button onClick={retract} disabled={busy !== null}
-            className="text-[11px] font-semibold text-red-300 bg-red-500/10 hover:bg-red-500/15 px-2 py-1 rounded-full disabled:opacity-50">
+            className="text-[0.6875rem] font-semibold text-red-300 bg-red-500/10 hover:bg-red-500/15 px-2 py-1 rounded-full disabled:opacity-50">
             {busy === "retract" ? "…" : "Yes, retract"}
           </button>
           {inviteUrl && (
@@ -465,26 +465,26 @@ export function InviteRowActions({ memberId, name, email, inviteUrl }: {
               onClick={() => {
                 try { navigator.clipboard?.writeText(inviteUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* older browsers */ }
               }}
-              className="text-[11px] font-semibold text-gray-400 hover:text-gray-200 px-1.5 py-1 transition-colors"
+              className="text-[0.6875rem] font-semibold text-gray-400 hover:text-gray-200 px-1.5 py-1 transition-colors"
             >
               {copied ? "Copied ✓" : "Copy link"}
             </button>
           )}
-          <button onClick={() => setManaging(false)} className="text-[11px] text-gray-500 hover:text-gray-300 px-1">Keep</button>
+          <button onClick={() => setManaging(false)} className="text-[0.6875rem] text-gray-500 hover:text-gray-300 px-1">Keep</button>
         </>
       ) : (
         <>
           <button onClick={remind} disabled={busy !== null}
-            className="text-[11px] font-semibold text-purple-300 hover:text-purple-200 bg-purple-500/10 hover:bg-purple-500/15 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50">
+            className="text-[0.6875rem] font-semibold text-purple-300 hover:text-purple-200 bg-purple-500/10 hover:bg-purple-500/15 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50">
             {busy === "remind" ? "Sending…" : "Remind"}
           </button>
           <button onClick={() => setManaging(true)} disabled={busy !== null}
-            className="text-[11px] font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50">
+            className="text-[0.6875rem] font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 px-2.5 py-1 rounded-full transition-colors disabled:opacity-50">
             Manage
           </button>
         </>
       )}
-      {note && <span className="text-[11px] text-gray-500 w-full text-right lg:w-auto">{note}</span>}
+      {note && <span className="text-[0.6875rem] text-gray-500 w-full text-right lg:w-auto">{note}</span>}
     </span>
   );
 }

@@ -100,6 +100,11 @@ function Toggle({
         style={{ background: checked ? "#1D4ED8" : "#E4DDD4" }}
         aria-checked={checked}
         role="switch"
+        // The row's heading is the switch's name. Without it VoiceOver read
+        // "switch, on" with no idea what it switches, and Voice Control had
+        // nothing to match "turn on <label>" against.
+        aria-label={label}
+        type="button"
       >
         <span
           className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"

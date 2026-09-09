@@ -127,7 +127,7 @@ export default function SocialLinkIntercept({
           <PlatformIcon label={s.label} />
           <span className="flex flex-col leading-tight min-w-0 flex-1">
             <span>{s.label}</span>
-            {s.sub && <span className="text-[11px] font-normal opacity-70 truncate">{s.sub}</span>}
+            {s.sub && <span className="text-[0.6875rem] font-normal opacity-70 truncate">{s.sub}</span>}
           </span>
           {arrowIcon}
         </a>
@@ -180,7 +180,7 @@ export default function SocialLinkIntercept({
           >
             <LinkMark url={website.href} size={14} />
           </span>
-          <span className="truncate lowercase font-medium text-[12.5px] tracking-[-0.004em] text-[#334155]">
+          <span className="truncate lowercase font-medium text-[0.78125rem] tracking-[-0.004em] text-[#334155]">
             {hostLabel(website.href)}
           </span>
           {socials.length === 0 && (
@@ -214,8 +214,8 @@ export default function SocialLinkIntercept({
             <SharedPlatformIcon label={socials[0].label} className="w-4 h-4 shrink-0" />
           </span>
           <span className="min-w-0 flex-1 flex flex-col">
-            <span className="text-[14px] font-semibold text-slate-900 leading-tight">{socials[0].label}</span>
-            {socials[0].sub && <span className="text-[11px] text-slate-500 truncate">{socials[0].sub}</span>}
+            <span className="text-[0.875rem] font-semibold text-slate-900 leading-tight">{socials[0].label}</span>
+            {socials[0].sub && <span className="text-[0.6875rem] text-slate-500 truncate">{socials[0].sub}</span>}
           </span>
           <span className="text-[#C9BFB2] transition-[transform,color] duration-150 group-hover:text-[#1D4ED8] group-hover:translate-x-0.5">
             {chevron}

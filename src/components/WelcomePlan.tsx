@@ -113,7 +113,7 @@ export default function WelcomePlan({ cardSlug, designConverted = false }: { car
             >
               {loading ? "Redirecting to checkout…" : `Continue to secure checkout →`}
             </button>
-            <p className="mt-3 text-[11px] leading-relaxed text-gray-500">
+            <p className="mt-3 text-[0.6875rem] leading-relaxed text-gray-500">
               {paidIntent.plan === "pro" ? "14 days free, then auto-renews. Cancel anytime. " : ""}
               By continuing you agree to our{" "}
               <Link href="/terms" className="underline hover:text-gray-300">Terms</Link> and{" "}

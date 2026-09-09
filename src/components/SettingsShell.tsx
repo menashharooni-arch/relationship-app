@@ -112,7 +112,7 @@ export default function SettingsShell({
                 <span className={`shrink-0 ${openHere ? "text-blue-400" : "text-gray-600"}`}>{s.icon}</span>
                 <span className="flex-1 min-w-0">
                   <span className={`block text-sm font-semibold ${s.quiet && !openHere ? "text-gray-400" : "text-white"}`}>{s.label}</span>
-                  <span className="block text-gray-500 text-[11px] mt-0.5 truncate">{s.desc}</span>
+                  <span className="block text-gray-500 text-[0.6875rem] mt-0.5 truncate">{s.desc}</span>
                 </span>
                 <svg
                   viewBox="0 0 24 24"

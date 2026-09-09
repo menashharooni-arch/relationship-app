@@ -70,7 +70,7 @@ export function ScopeChooser({
           className="accent-[#1D4ED8]"
         />
         <span className="text-slate-900 text-sm">All cards</span>
-        <span className="text-slate-400 text-[11px]">including any you add later</span>
+        <span className="text-slate-400 text-[0.6875rem]">including any you add later</span>
       </label>
 
       <label className="flex items-center gap-2 cursor-pointer">
@@ -98,11 +98,11 @@ export function ScopeChooser({
               />
               <span className="text-slate-900 text-sm min-w-0 break-words">
                 {cardTitle(c)}{" "}
-                <span className="text-slate-400 text-[11px]">/{c.username}</span>
+                <span className="text-slate-400 text-[0.6875rem]">/{c.username}</span>
               </span>
             </label>
           ))}
-          <p className="text-slate-400 text-[11px] leading-snug pt-1">
+          <p className="text-slate-400 text-[0.6875rem] leading-snug pt-1">
             A card you create later won&apos;t send here until you add it.
           </p>
         </div>
