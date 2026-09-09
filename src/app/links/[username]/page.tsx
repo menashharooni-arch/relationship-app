@@ -133,7 +133,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     facebook?: string;
     snapchat?: string;
     youtube?: string;
-    links?: { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header" }[];
+    links?: { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" } }[];
     // "Social design" — the page's named Look (every plan) + Pro fine-tuning.
     linkLook?: string;
     linkBgColor?: string;

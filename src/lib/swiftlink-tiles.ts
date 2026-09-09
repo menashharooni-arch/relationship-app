@@ -26,13 +26,57 @@ export type TileSize = "featured" | "grid" | "compact";
 /** What a row renders as: a tile size, or a section header. */
 export type TileRender = TileSize | "header";
 
+/** Row treatment for a COMPACT link — "tile" is the stock translucent row. */
+export type RowStyle = "tile" | "solid" | "outline";
+
+/** An uploaded preview for a FEATURED / GRID tile: a photo shown in place
+ *  of the link's og:image, or a short video that autoplays muted as the tile. */
+export type LinkMedia = { url: string; type: "image" | "video" };
+
 export type SizedLink = {
   label: string;
   url: string;
   emoji?: string;
   size?: TileSize;
   kind?: "link" | "header";
+  /** Compact rows only. Absent → the page-wide linkButtonStyle (legacy) → "tile". */
+  rowStyle?: RowStyle;
+  /** Featured/Grid tiles only. Absent → the link's own preview. */
+  media?: LinkMedia;
 };
+
+/** The picker's vocabulary — "Auto" was retired 2026-09-09 (owner order:
+ *  every link is chosen explicitly in Social design). A stored link with no
+ *  size still resolves as before, so old pages don't move. */
+export const TILE_SIZES: { id: TileSize; name: string; hint: string }[] = [
+  { id: "featured", name: "Featured", hint: "Full-width tile with a big preview" },
+  { id: "grid",     name: "Grid",     hint: "Half-width tile, shown in pairs" },
+  { id: "compact",  name: "Compact",  hint: "Slim row — icon, name, arrow" },
+];
+
+/**
+ * The compact row's style for ONE link. Per-link wins; a link that was never
+ * touched in the new per-link picker falls back to the page-wide setting the
+ * old "Link buttons" control wrote, so pages styled before 2026-09-09 render
+ * unchanged.
+ */
+export function resolveRowStyle(link: Pick<SizedLink, "rowStyle">, pageStyle?: string | null): RowStyle {
+  if (link.rowStyle === "solid" || link.rowStyle === "outline" || link.rowStyle === "tile") return link.rowStyle;
+  if (pageStyle === "solid" || pageStyle === "outline") return pageStyle;
+  return "tile";
+}
+
+/**
+ * The uploaded media a tile may show. HTTPS-only: the URL rides in the
+ * client-writable customization blob, so anything else is dropped rather than
+ * rendered. Free never renders tiles, so it never renders media either.
+ */
+export function tileMedia(link: Pick<SizedLink, "media">, paid: boolean): LinkMedia | null {
+  const m = link.media;
+  if (!paid || !m || typeof m.url !== "string" || !/^https:\/\//i.test(m.url)) return null;
+  if (m.type !== "image" && m.type !== "video") return null;
+  return { url: m.url, type: m.type };
+}
 
 /** What one link renders as, given the plan. */
 export function resolveTileSize(link: SizedLink, paid: boolean): TileSize {

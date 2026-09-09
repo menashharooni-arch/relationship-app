@@ -113,11 +113,13 @@ describe("rendering", () => {
 
   it("buttons: solid/outline restyle ONLY compact rows — per-link sizes always win", () => {
     const src = read("src/components/SwiftLinkButtons.tsx");
-    // Owner order 2026-09-01: the row style must COMPOSE with the Socials
-    // tab's auto/featured/grid/compact sizes, never override them (featured/
-    // grid keep their image/video previews). The old force-all-rows behavior
-    // (rowsOnly) must stay gone.
-    expect(src).toMatch(/const variant = buttonStyle === "solid" \|\| buttonStyle === "outline" \? buttonStyle : "compact"/);
+    // Owner order 2026-09-01: the row style must COMPOSE with the per-link
+    // featured/grid/compact sizes, never override them (featured/grid keep
+    // their image/video previews). The old force-all-rows behavior (rowsOnly)
+    // must stay gone. Since 2026-09-09 the style is resolved PER LINK, with
+    // the page-wide `buttonStyle` only as the legacy fallback.
+    expect(src).toMatch(/const pickedRow = resolveRowStyle\(link, buttonStyle\)/);
+    expect(src).toMatch(/const variant = pickedRow === "solid" \|\| pickedRow === "outline" \? pickedRow : "compact"/);
     expect(src).not.toMatch(/rowsOnly/);
     expect(src).toMatch(/buttonColor \? \(isLightHex\(buttonColor\) \? "#111827" : "#FFFFFF"\) : accentText/);
     // Outline/compact labels stay in the page's AA-tested text color.
@@ -137,10 +139,14 @@ describe("both editors edit it", () => {
     expect(src).toContain("Page header");
     expect(src).toContain("Header shows");
     expect(src).toContain("Link buttons");
-    // Header choices are never plan-disabled; button styles are.
+    // Header choices are never plan-disabled; button styles are (the per-link
+    // picker lives in LinkButtonsControls since 2026-09-09).
     expect(src).toMatch(/HERO_STYLES\.map[\s\S]{0,700}onClick/);
     expect(src).toMatch(/HERO_CONTENTS\.map[\s\S]{0,400}onClick/);
-    expect(src).toMatch(/BUTTON_STYLES\.map[\s\S]{0,300}disabled=\{locked\}/);
+    expect(src).toMatch(/<LinkButtonsControls links=\{links\} onChange=\{onLinksChange\} locked=\{locked\}/);
+    const perLink = read("src/components/LinkButtonsControls.tsx");
+    expect(perLink).toMatch(/TILE_SIZES\.map[\s\S]{0,300}disabled=\{locked\}/);
+    expect(perLink).toMatch(/BUTTON_STYLES\.map[\s\S]{0,300}disabled=\{locked\}/);
     // "Header shows" hides for the "No header" layout (nothing to show).
     expect(src).toMatch(/normalizeHeroStyle\(value\.linkHeroStyle\) !== "none" && \(/);
     // A Look pick clears the custom button color along with bg/text.
