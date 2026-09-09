@@ -207,7 +207,11 @@ export async function lynLinkCheck({ openKeys = [] } = {}) {
   if (code) {
     const r = await stable(() => probe(`/r/${encodeURIComponent(code)}`), 2);
     const landed = (() => { try { return new URL(r.url || ""); } catch { return null; } })();
-    if (!r.ok || !landed || landed.host !== SITE_HOST || !/signup/.test(landed.pathname)) {
+    // Signup is a tab on /login (?mode=signup), not its own path — so ask
+    // "did this land on the signup form", not "is 'signup' in the pathname".
+    // The path-only test failed on the real, working destination.
+    const onSignup = landed && (/signup/.test(landed.pathname) || landed.searchParams.get("mode") === "signup");
+    if (!r.ok || !landed || landed.host !== SITE_HOST || !onSignup) {
       findings.push({ key: "link:referral", title: `Referral links (/r/CODE) no longer land on signup (HTTP ${r.status || "no response"})`, detail: `${BASE}/r/${code} ended at ${r.url || "nowhere"} with status ${r.status || "none"}. Every "give a friend a free month" link customers have shared is affected.`, severity: "critical" });
     }
   }
