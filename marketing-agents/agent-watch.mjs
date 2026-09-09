@@ -10,6 +10,7 @@
 //
 // Code-only: no LLM anywhere in this file. $0.00 per run.
 import { appendFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { safeMain, email } from "./lib/agentkit.mjs";
 import { DETECTORS, blindnessFindings } from "./lib/detectors.mjs";
 import { FINDING_ITEM_TYPE } from "./lib/detectors-servicing.mjs";
@@ -39,8 +40,19 @@ await safeMain(agentId, async (run) => {
   const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
   const line = (f) => `${f.severity === "critical" ? "🔴" : "🟠"} ${f.title}\n   ${f.detail}`;
 
+  // Belt and braces against a double-filed report. The loop now wakes an agent
+  // once per cycle rather than once per finding, but a retry, a backstop cron
+  // and the loop can still overlap. Keying the report on WHAT IS WRONG (not on
+  // the minute it ran) means a repeat pass over the same problems collapses
+  // into the one item, while a genuinely different problem set files a new one.
+  // Clean reports key by day, so an all-quiet watch files one tick, not dozens.
+  const signature = findings.length
+    ? createHash("sha1").update(findings.map((f) => f.key).sort().join("|")).digest("hex").slice(0, 16)
+    : `clear:${stamp.slice(0, 10)}`;
+
   const item = await run.addItem({
     item_type: FINDING_ITEM_TYPE[agentId] ?? "generic",
+    dedupe_key: `watchdog:report:${agentId}:${signature}`,
     platform: "site", target: `swiftcard.me ${name.toLowerCase()}`,
     title: findings.length ? `${name}: ${findings.length} problem(s) — ${stamp}` : `${name}: all clear ✓ — ${stamp}`,
     content: [
