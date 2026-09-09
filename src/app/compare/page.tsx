@@ -79,7 +79,7 @@ export default function ComparePage() {
       </section>
 
       <section className="max-w-4xl mx-auto w-full px-6 pb-12">
-        <div className="overflow-x-auto rounded-3xl border border-warm-border bg-white shadow-sm">
+        <div className="relative overflow-x-auto rounded-3xl border border-warm-border bg-white shadow-sm">
           <table className="w-full border-collapse min-w-[640px]">
             <thead>
               <tr className="border-b border-warm-border">

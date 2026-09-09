@@ -76,7 +76,19 @@ const linkedin: Connector = {
 
 // ── Higgsfield: submit the approved script/prompt as a generation job ────────
 // Env: HIGGSFIELD_API_KEY_ID + HIGGSFIELD_API_KEY_SECRET
-//      (optional HIGGSFIELD_ENDPOINT — full model endpoint URL).
+//      (optional HIGGSFIELD_ENDPOINT / HIGGSFIELD_VIDEO_ENDPOINT overrides).
+//
+// TWO endpoints, not one. Verified against the live OpenAPI spec at
+// https://docs.higgsfield.ai/docs/openapi.json on 2026-09-09:
+//  * Soul is IMAGE generation only. Sending a video_script there returned a
+//    still, so Vince's videos would have rendered as one frame.
+//  * The old default carried a "/v2/" segment that does not exist in the spec
+//    (the real path is /higgsfield-ai/soul/standard). Every call would have
+//    404'd the moment a real key was added — the connector had never been run
+//    against live credentials, so nothing surfaced it.
+//  * The dop/* video models are image-TO-video and require an image_url, so
+//    they cannot take a bare script. hailuo-02 standard is text-to-video and
+//    needs only `prompt`, which is what a video_script actually carries.
 const higgsfield: Connector = {
   id: "higgsfield",
   label: "Send to Higgsfield",
@@ -88,7 +100,10 @@ const higgsfield: Connector = {
   run: async (it) => {
     const prompt = (it.content ?? "").trim();
     if (!prompt) return { executed: false, connector: "higgsfield", reason: "empty script" };
-    const endpoint = process.env.HIGGSFIELD_ENDPOINT || "https://api.higgsfield.ai/higgsfield-ai/soul/v2/standard";
+    const isVideo = it.item_type === "video_script";
+    const endpoint = isVideo
+      ? process.env.HIGGSFIELD_VIDEO_ENDPOINT || "https://api.higgsfield.ai/minimax/hailuo-02/standard/text-to-video"
+      : process.env.HIGGSFIELD_ENDPOINT || "https://api.higgsfield.ai/higgsfield-ai/soul/standard";
     const res = await fetch(endpoint, {
       method: "POST",
       headers: {
