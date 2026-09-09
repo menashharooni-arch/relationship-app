@@ -81,7 +81,7 @@ const PERSONAS: Persona[] = [
     subject: "Re: 12 Harbor Lane — Saturday showing",
     data: p({
       name: "Maya Castillo", title: "Realtor®", company: "Harbor & Vine Realty",
-      phone: "(415) 555-0132", email: "maya@harborvine.com", website: "harborvine.com",
+      phone: "(415) 555-0132", email: "maya@example.com", website: "example.com",
       cardUrl: "swiftcard.me/mayacastillo", photoUrl: "/showcase/maya.jpg",
       customization: { accentColor: "#7C3AED" },
     }),
