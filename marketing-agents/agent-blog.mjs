@@ -8,6 +8,7 @@
 import { readFileSync } from "node:fs";
 import { safeMain, sb, extractJson, standDownIfUsageExhausted } from "./lib/agentkit.mjs";
 import { askClaude, ensurePlaybook, playbookBlock, recentWorkBlock, intelBlock, openRequests, openRequestsBlock, ownerChatBlock, queueChoice, fileRequest } from "./lib/brain.mjs";
+import { focusBlock } from "./lib/insights.mjs";
 
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
 const voice = readFileSync(new URL("./BRAND_VOICE.md", import.meta.url), "utf8");
@@ -50,6 +51,7 @@ await safeMain("blog", async (run) => {
   const prompt = [
     voice,
     `\n---\nTODAY: ${new Date().toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long", year: "numeric", month: "long", day: "numeric" })}.`,
+    await focusBlock(),
     playbookBlock(playbook),
     await recentWorkBlock("blog"),
     await intelBlock(),

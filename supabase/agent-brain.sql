@@ -137,3 +137,51 @@ insert into agent_settings (agent_id, enabled, paused, output_cap) values
   ('support',      true, true, 4),
   ('retention',    true, true, 2)
 on conflict (agent_id) do nothing;
+
+-- ── 7. The 2026-09-08 second wave ────────────────────────────────────────────
+-- Theo's strategy team (Ana, Tara, Axel, Gia, Lena, Rae, Piper), Lou for
+-- local, Nina's lifecycle agents (Ollie, Uma, Cass, Pat), and Rex's servicing
+-- watch (Cara, Lyn, Penny, Della, Ren, Dex, Dana, Ash, Pix) plus Cody.
+-- Same rule as §6: rows start rested; the owner wakes teams from the tab.
+insert into agent_settings (agent_id, enabled, paused, output_cap) values
+  ('analyst',        true, true, 3),
+  ('trends',         true, true, 4),
+  ('aso',            true, true, 3),
+  ('geo',            true, true, 3),
+  ('launch',         true, true, 3),
+  ('referral',       true, true, 3),
+  ('pr',             true, true, 6),
+  ('local',          true, true, 6),
+  ('onboarding',     true, true, 3),
+  ('upsell',         true, true, 3),
+  ('churn',          true, true, 3),
+  ('proof',          true, true, 4),
+  ('cards',          true, true, 5),
+  ('links',          true, true, 5),
+  ('payments',       true, true, 5),
+  ('deliverability', true, true, 5),
+  ('renewals',       true, true, 3),
+  ('deps',           true, true, 5),
+  ('data',           true, true, 5),
+  ('appstore',       true, true, 5),
+  ('layout',         true, true, 5),
+  ('compliance',     true, true, 4)
+on conflict (agent_id) do nothing;
+
+-- The owner's one-line focus for the week ("this week: realtors and the
+-- referral program"). Every LLM agent reads it before anything else.
+alter table agent_system add column if not exists weekly_focus text;
+
+-- Cody's memory: the last hash + excerpt of every policy page he watches
+-- (Apple review guidelines, Google OAuth policy, Twilio A2P, GDPR/CCPA…).
+-- Code does the diffing; the model only reads a change that already happened.
+create table if not exists agent_page_snapshots (
+  id          uuid primary key default gen_random_uuid(),
+  source_key  text not null,
+  url         text not null,
+  hash        text not null,
+  excerpt     text,
+  fetched_at  timestamptz not null default now()
+);
+create index if not exists agent_page_snapshots_key_idx on agent_page_snapshots (source_key, fetched_at desc);
+alter table agent_page_snapshots enable row level security;

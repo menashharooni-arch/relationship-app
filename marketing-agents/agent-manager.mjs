@@ -3,8 +3,19 @@
 // numbers into ONE report: a queue item (shown in the tab) and an email.
 import { safeMain, sb, email, fmtTok, DEFAULT_MONTHLY_CAP_TOKENS } from "./lib/agentkit.mjs";
 import { nyHourMinute, etDayStamp } from "./lib/schedule.mjs";
+import { pickRates, pickRateLines, renewalsSoon } from "./lib/insights.mjs";
+import { readFileSync } from "node:fs";
 
-const AGENTS = ["outreach", "prospects", "seo", "blog", "social", "mentions", "influencer", "bugwatch", "security", "perf"];
+// Every runnable agent, grouped by team, straight from the org chart — a new
+// hire is in Atlas's report the day it joins (the old hand list left 20 agents
+// out of the digest).
+const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
+const org = JSON.parse(readFileSync(new URL("./org.json", import.meta.url), "utf8"));
+const AGENTS = Object.keys(config.agents).filter((id) => id !== "manager");
+const TEAMS = Object.entries(org.parties).filter(([, p]) => p.kind === "lead").map(([leadId, lead]) => ({
+  lead, agents: Object.values(org.parties).filter((p) => p.reports_to === leadId && p.agent_id && config.agents[p.agent_id]).map((p) => p.agent_id),
+}));
+const CRITICAL_TYPES = "security_finding,flow_finding,card_finding,payment_finding,delivery_finding,data_finding,renewal_finding,layout_finding,bug_finding";
 
 await safeMain("manager", async (run) => {
   await run.note("Compiling digest…");
@@ -15,8 +26,10 @@ await safeMain("manager", async (run) => {
     sb("GET", "agent_runs", { params: `started_at=gte.${since}&order=started_at.desc` }),
     sb("GET", "agent_queue_items", { params: "status=eq.pending&select=agent_id,item_type" }),
     sb("GET", "agent_runs", { params: `started_at=gte.${monthStart.toISOString()}&select=agent_id,usage_tokens` }),
-    sb("GET", "agent_queue_items", { params: "status=eq.pending&item_type=eq.security_finding&select=title" }),
+    sb("GET", "agent_queue_items", { params: `status=eq.pending&item_type=in.(${CRITICAL_TYPES})&title=like.*🔴*&select=title,agent_id&order=created_at.desc&limit=20` }),
   ]);
+  const rates = await pickRates();
+  const renewals = renewalsSoon().filter((r) => r.due && (new Date(r.due).getTime() - Date.now()) < 45 * 864e5);
   const sys = (await sb("GET", "agent_system", { params: "limit=1" }))[0];
 
   const latest = {}; for (const r of runs ?? []) if (!latest[r.agent_id]) latest[r.agent_id] = r;
@@ -38,17 +51,23 @@ await safeMain("manager", async (run) => {
   const totalPending = Object.values(pendingBy).reduce((s, n) => s + n, 0);
 
   const lines = [];
-  if (criticalItems?.length) lines.push(`🔴 CRITICAL — ${criticalItems.length} security finding(s) pending: ${criticalItems.slice(0, 3).map((c) => c.title).join(" · ")}`);
+  if (criticalItems?.length) lines.push(`🔴 CRITICAL — ${criticalItems.length} open finding(s) from the watch: ${criticalItems.slice(0, 4).map((c) => `${c.agent_id}: ${c.title.replace(/^🔴\s*/, "")}`).join(" · ")}`);
   if (failed.length) lines.push(`🔴 FAILED agents: ${failed.join(", ")}`);
-  lines.push("", "PER AGENT (last 24h):");
-  for (const a of AGENTS) {
-    const r = latest[a];
-    lines.push(`  ${a.padEnd(11)} ${r ? `${r.status.padEnd(8)} ${r.output_count} item(s), ${fmtTok(Number(r.usage_tokens ?? 0))} tok — ${String(r.summary ?? "").slice(0, 90)}` : "did not run"}`);
+  if (renewals.length) lines.push(`📆 RENEWALS due within 45 days: ${renewals.map((r) => `${r.label} (${r.due})`).join(" · ")}`);
+  for (const t of TEAMS) {
+    if (!t.agents.length) continue;
+    lines.push("", `${t.lead.emoji} ${t.lead.name.toUpperCase()}'S TEAM (last 24h):`);
+    for (const a of t.agents) {
+      const r = latest[a];
+      const watch = config.agents[a]?.continuous;
+      lines.push(`  ${a.padEnd(14)} ${r ? `${r.status.padEnd(8)} ${r.output_count} item(s), ${fmtTok(Number(r.usage_tokens ?? 0))} tok — ${String(r.summary ?? "").slice(0, 90)}` : watch ? "on watch (no full pass in 24h)" : "did not run"}`);
+    }
   }
+  lines.push("", "WHAT YOU PICK (14d) — an agent nobody picks from needs a new brief or a rest:", pickRateLines(rates));
   lines.push("", `AWAITING YOUR REVIEW: ${totalPending} item(s) → swiftcard.me/admin/agent-flow`);
   lines.push("", `USAGE this month: ${fmtTok(monthSpend)} of ${fmtTok(Number(sys.monthly_usage_cap_tokens ?? DEFAULT_MONTHLY_CAP_TOKENS))} tokens` , ...AGENTS.filter((a) => spendBy[a]).map((a) => `  ${a}: ${fmtTok(spendBy[a])} tok`));
   lines.push("", "TRENDS (7d):", `  new signups: ${signups7 ?? "?"}`, `  leads captured: ${leads7 ?? "?"}`, `  security findings (24h): ${errors24 ?? 0}`, "  keyword movement / blog traffic: Google Search Console + Admin → Website");
-  if (silent.length) lines.push("", `Not run in 24h (fine if you didn't trigger them): ${silent.join(", ")}`);
+  if (silent.length) lines.push("", `Not run in 24h (fine if you didn't trigger them, or they are weekly): ${silent.join(", ")}`);
 
   const report = lines.join("\n");
   // Atlas files TWO reports a day (owner order 2026-09-03): midday at 12:00 ET

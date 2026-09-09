@@ -1,0 +1,16 @@
+[
+  {
+    "key": "apple-signin-secret",
+    "label": "Sign in with Apple client secret (Services ID me.swiftcard.web)",
+    "due": "2027-02-06",
+    "every_days": 180,
+    "fix": "Run `node scripts/apple-client-secret.mjs` (key C8TWRXCNKA in ~/.swiftcard/keys), paste the new JWT into Supabase → Authentication → Providers → Apple, then move this date forward six months. Sign in with Apple stops working the day it lapses."
+  },
+  {
+    "key": "apple-developer-program",
+    "label": "Apple Developer Program membership (Team NHK8FA2RR2)",
+    "due": null,
+    "note": "Annual $99 renewal. If it lapses the app is removed from the App Store.",
+    "fix": "Renew at developer.apple.com → Membership."
+  }
+]

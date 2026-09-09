@@ -1,5 +1,5 @@
 {
- "_comment": "The company org chart. Every party that can appear in agent_messages lives here: the owner, the chief, the four team leads (Maya marketing, Sasha growth & outreach, Nina customer success, Rex engineering), and each runnable agent (keyed by its agent_settings agent_id). 'reports_to' draws the org chart and routes escalations — a worker's messages go to its lead, a lead escalates to atlas, atlas talks to the owner. Leads are message parties + chart nodes, not runnable agents.",
+ "_comment": "The company org chart. Every party that can appear in agent_messages lives here: the owner, the chief, the five team leads (Maya marketing, Sasha growth & outreach, Nina customer success, Theo strategy & insights, Rex engineering), and each runnable agent (keyed by its agent_settings agent_id). 'reports_to' draws the org chart and routes escalations — a worker's messages go to its lead, a lead escalates to atlas, atlas talks to the owner. Leads are message parties + chart nodes, not runnable agents.",
  "parties": {
   "owner": {
    "name": "Menash",
@@ -255,6 +255,212 @@
    "kind": "worker",
    "reports_to": "rex",
    "agent_id": "perf"
+  },
+  "theo": {
+   "name": "Theo",
+   "role": "Strategy & Insights Lead",
+   "emoji": "🧭",
+   "color": "#22d3ee",
+   "kind": "lead",
+   "reports_to": "atlas"
+  },
+  "ana": {
+   "name": "Ana",
+   "role": "Growth Analyst",
+   "emoji": "📊",
+   "color": "#22d3ee",
+   "kind": "worker",
+   "reports_to": "theo",
+   "agent_id": "analyst"
+  },
+  "tara": {
+   "name": "Tara",
+   "role": "Trends & Calendar",
+   "emoji": "📅",
+   "color": "#22d3ee",
+   "kind": "worker",
+   "reports_to": "theo",
+   "agent_id": "trends"
+  },
+  "axel": {
+   "name": "Axel",
+   "role": "App Store Optimization",
+   "emoji": "📱",
+   "color": "#22d3ee",
+   "kind": "worker",
+   "reports_to": "theo",
+   "agent_id": "aso"
+  },
+  "gia": {
+   "name": "Gia",
+   "role": "AI Search (GEO)",
+   "emoji": "🤖",
+   "color": "#22d3ee",
+   "kind": "worker",
+   "reports_to": "theo",
+   "agent_id": "geo"
+  },
+  "lena": {
+   "name": "Lena",
+   "role": "Launch & Release Notes",
+   "emoji": "🎉",
+   "color": "#22d3ee",
+   "kind": "worker",
+   "reports_to": "theo",
+   "agent_id": "launch"
+  },
+  "rae": {
+   "name": "Rae",
+   "role": "Referral & Virality",
+   "emoji": "🔁",
+   "color": "#22d3ee",
+   "kind": "worker",
+   "reports_to": "theo",
+   "agent_id": "referral"
+  },
+  "piper": {
+   "name": "Piper",
+   "role": "PR & Podcasts",
+   "emoji": "🗞️",
+   "color": "#22d3ee",
+   "kind": "worker",
+   "reports_to": "theo",
+   "agent_id": "pr"
+  },
+  "lou": {
+   "name": "Lou",
+   "role": "Local & Community",
+   "emoji": "📍",
+   "color": "#fb7185",
+   "kind": "worker",
+   "reports_to": "sasha",
+   "agent_id": "local"
+  },
+  "ollie": {
+   "name": "Ollie",
+   "role": "Onboarding & Activation",
+   "emoji": "🌱",
+   "color": "#fbbf24",
+   "kind": "worker",
+   "reports_to": "nina",
+   "agent_id": "onboarding"
+  },
+  "uma": {
+   "name": "Uma",
+   "role": "Free → Pro Upsell",
+   "emoji": "💎",
+   "color": "#fbbf24",
+   "kind": "worker",
+   "reports_to": "nina",
+   "agent_id": "upsell"
+  },
+  "cass": {
+   "name": "Cass",
+   "role": "Churn & Win-back",
+   "emoji": "🔔",
+   "color": "#fbbf24",
+   "kind": "worker",
+   "reports_to": "nina",
+   "agent_id": "churn"
+  },
+  "pat": {
+   "name": "Pat",
+   "role": "Social Proof & Case Studies",
+   "emoji": "🏆",
+   "color": "#fbbf24",
+   "kind": "worker",
+   "reports_to": "nina",
+   "agent_id": "proof"
+  },
+  "cara": {
+   "name": "Cara",
+   "role": "Card Health",
+   "emoji": "🪪",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "cards"
+  },
+  "lyn": {
+   "name": "Lyn",
+   "role": "Link Check",
+   "emoji": "🔗",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "links"
+  },
+  "penny": {
+   "name": "Penny",
+   "role": "Payments Watch",
+   "emoji": "💳",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "payments"
+  },
+  "della": {
+   "name": "Della",
+   "role": "Email & Push Delivery",
+   "emoji": "📬",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "deliverability"
+  },
+  "ren": {
+   "name": "Ren",
+   "role": "Renewals & Expiry",
+   "emoji": "📆",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "renewals"
+  },
+  "dex": {
+   "name": "Dex",
+   "role": "Dependency Audit",
+   "emoji": "📦",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "deps"
+  },
+  "dana": {
+   "name": "Dana",
+   "role": "Data Integrity",
+   "emoji": "🗄️",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "data"
+  },
+  "ash": {
+   "name": "Ash",
+   "role": "App Store Watch",
+   "emoji": "🍎",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "appstore"
+  },
+  "pix": {
+   "name": "Pix",
+   "role": "Layout & Rendering",
+   "emoji": "🖼️",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "layout"
+  },
+  "cody": {
+   "name": "Cody",
+   "role": "Policy & Compliance",
+   "emoji": "⚖️",
+   "color": "#34d399",
+   "kind": "worker",
+   "reports_to": "rex",
+   "agent_id": "compliance"
   }
  }
 }

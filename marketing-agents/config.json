@@ -170,6 +170,160 @@
       "workflow": "agent-retention.yml",
       "output_cap": 2,
       "default_schedule": "daily@15:00"
+    },
+    "analyst": {
+      "name": "Growth Analyst",
+      "mode": "draft_only",
+      "workflow": "agent-analyst.yml",
+      "output_cap": 3,
+      "default_schedule": "weekly@mon@08:00"
+    },
+    "trends": {
+      "name": "Trends & Calendar",
+      "mode": "draft_only",
+      "workflow": "agent-trends.yml",
+      "output_cap": 4,
+      "default_schedule": "daily@06:30"
+    },
+    "aso": {
+      "name": "App Store Optimization",
+      "mode": "draft_only",
+      "workflow": "agent-aso.yml",
+      "output_cap": 3,
+      "default_schedule": "weekly@tue@09:00"
+    },
+    "geo": {
+      "name": "AI Search (GEO)",
+      "mode": "draft_only",
+      "workflow": "agent-geo.yml",
+      "output_cap": 3,
+      "default_schedule": "weekly@wed@09:00"
+    },
+    "launch": {
+      "name": "Launch & Release Notes",
+      "mode": "draft_only",
+      "workflow": "agent-launch.yml",
+      "output_cap": 3,
+      "default_schedule": "weekly@thu@10:00"
+    },
+    "referral": {
+      "name": "Referral & Virality",
+      "mode": "draft_only",
+      "workflow": "agent-referral.yml",
+      "output_cap": 3,
+      "default_schedule": "weekly@tue@11:00"
+    },
+    "pr": {
+      "name": "PR & Podcasts",
+      "mode": "draft_only",
+      "workflow": "agent-pr.yml",
+      "output_cap": 6,
+      "default_schedule": "daily@09:30"
+    },
+    "local": {
+      "name": "Local & Community",
+      "mode": "draft_only",
+      "workflow": "agent-local.yml",
+      "output_cap": 6,
+      "default_schedule": "daily@10:30"
+    },
+    "onboarding": {
+      "name": "Onboarding & Activation",
+      "mode": "draft_only",
+      "workflow": "agent-onboarding.yml",
+      "output_cap": 3,
+      "default_schedule": "daily@08:30"
+    },
+    "upsell": {
+      "name": "Free → Pro Upsell",
+      "mode": "draft_only",
+      "workflow": "agent-upsell.yml",
+      "output_cap": 3,
+      "default_schedule": "daily@11:00"
+    },
+    "churn": {
+      "name": "Churn & Win-back",
+      "mode": "draft_only",
+      "workflow": "agent-churn.yml",
+      "output_cap": 3,
+      "default_schedule": "weekly@mon@09:30"
+    },
+    "proof": {
+      "name": "Social Proof & Case Studies",
+      "mode": "draft_only",
+      "workflow": "agent-proof.yml",
+      "output_cap": 4,
+      "default_schedule": "weekly@wed@10:00"
+    },
+    "cards": {
+      "name": "Card Health",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-cards.yml",
+      "output_cap": 5,
+      "continuous": true
+    },
+    "links": {
+      "name": "Link Check",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-links.yml",
+      "output_cap": 5,
+      "continuous": true
+    },
+    "payments": {
+      "name": "Payments Watch",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-payments.yml",
+      "output_cap": 5,
+      "continuous": true
+    },
+    "deliverability": {
+      "name": "Email & Push Delivery",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-deliverability.yml",
+      "output_cap": 5,
+      "continuous": true
+    },
+    "renewals": {
+      "name": "Renewals & Expiry",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-renewals.yml",
+      "output_cap": 3,
+      "continuous": true
+    },
+    "deps": {
+      "name": "Dependency Audit",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-deps.yml",
+      "output_cap": 5,
+      "continuous": true
+    },
+    "data": {
+      "name": "Data Integrity",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-data.yml",
+      "output_cap": 5,
+      "continuous": true
+    },
+    "appstore": {
+      "name": "App Store Watch",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-appstore.yml",
+      "output_cap": 5,
+      "continuous": true
+    },
+    "layout": {
+      "name": "Layout & Rendering",
+      "mode": "autonomous_drafts",
+      "workflow": "agent-layout.yml",
+      "output_cap": 5,
+      "continuous": true
+    },
+    "compliance": {
+      "name": "Policy & Compliance",
+      "mode": "draft_only",
+      "workflow": "agent-compliance.yml",
+      "output_cap": 4,
+      "default_schedule": "weekly@mon@06:00"
     }
   },
   "blog": {

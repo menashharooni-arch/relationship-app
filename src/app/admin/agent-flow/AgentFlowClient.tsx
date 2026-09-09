@@ -18,7 +18,7 @@ type RunRow = { id: string; agent_id: string; status: string; started_at: string
 type UsageWindow = { utilization: number; resets_at: string | null } | null;
 type PlanUsage = { source: "live" | "snapshot" | "none"; five_hour?: UsageWindow; seven_day?: UsageWindow; captured_at?: string };
 type Item = { id: string; agent_id: string; item_type: string; platform: string | null; target: string | null; target_url: string | null; title: string; content: string | null; context: string | null; status: string; payload: Record<string, unknown> | null; created_at: string };
-type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_tokens?: number; digest_email: string; auto_pause_at: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean; connectors?: Record<string, boolean>; tokensBy?: Record<string, number>; playbooks?: Playbook[]; brainReady?: boolean };
+type Board = { ready: boolean; message?: string; settings: Settings[]; system: { paused: boolean; monthly_usage_cap_tokens?: number; digest_email: string; auto_pause_at: string | null; weekly_focus?: string | null }; latestRuns: Record<string, RunRow>; recentRuns: RunRow[]; pendingBy: Record<string, number>; pendingTotal: number; spendBy: Record<string, number>; dispatchConfigured: boolean; connectors?: Record<string, boolean>; tokensBy?: Record<string, number>; playbooks?: Playbook[]; brainReady?: boolean };
 
 /** 12,345 → "12.3k", 1,234,567 → "1.23M". */
 function fmtTok(n: number | undefined | null): string {
@@ -60,6 +60,20 @@ const AGENT_ROLE: Record<string, string> = {
   partners: "brokerages, coaches, print shops — pitch drafts", listings: "Product Hunt, G2, Capterra, roundups — listings + pitches",
   reviews: "App Store & G2 reviews — reply drafts + review asks", support: "help articles that stop the tickets",
   retention: "onboarding nudges + win-back copy",
+  // Theo's strategy team (2026-09-08)
+  analyst: "Monday growth memo from our own numbers + one experiment", trends: "what's happening this week that we can ride",
+  aso: "App Store keywords, screenshots, what's-new — two takes", geo: "gets SwiftCard cited by ChatGPT, Perplexity & Google AI",
+  launch: "turns shipped work into launch posts + release notes", referral: "share moments + referral plays that make users invite",
+  pr: "press & podcast pitches — personal, never a blast",
+  local: "NYC groups, meetups, chambers — local posts + pitches",
+  onboarding: "who signed up and stalled — the nudge that unsticks them", upsell: "free users getting real value → the upgrade nudge",
+  churn: "why people cancel, and the win-back that fits", proof: "finds happy users, drafts the testimonial ask + case study",
+  // Rex's servicing watch (code-only, $0)
+  cards: "opens real cards, vCards and logos — a broken card is a lost lead", links: "every link, the sitemap, robots, referral redirects",
+  payments: "failed charges, disputes, cancel spikes, a silent webhook", deliverability: "email & push failure rates, welcome email, unsubscribe",
+  renewals: "domain, HTTPS cert, Apple secret — before they expire", deps: "vulnerable packages → draft fix PR",
+  data: "views/signups going silent, orphan cards, RLS leaks", appstore: "listing gone, rating drop, new 1–2★ reviews",
+  layout: "renders every page in a real browser, phone + desktop", compliance: "Apple, Google, Twilio, GDPR policy changes that touch us",
 };
 // HAND-MAINTAINED, and org.json will not remind you. An agent added to
 // org.json and to agent_settings still renders NOWHERE until its id is in this
@@ -69,9 +83,10 @@ const AGENT_ROLE: Record<string, string> = {
 const TEAMS: { id: string; label: string; blurb: string; agents: string[]; lead?: string }[] = [
   { id: "manager", label: "🧠 Atlas — Chief of Staff", blurb: "Runs the company, reads everything, reports to you.", agents: ["manager"] },
   { id: "marketing", label: "📣 Maya's Marketing team", blurb: "SEO, blog, social, video, email, ads, the website, and the competitor watch.", agents: ["seo", "blog", "social", "video", "email", "ads", "cro", "competitors"], lead: "maya" },
-  { id: "growth", label: "🚀 Sasha's Growth & Outreach team", blurb: "Finds people and communities, drafts every first message — you send.", agents: ["outreach", "prospects", "industry", "mentions", "forums", "influencer", "partners", "listings"], lead: "sasha" },
-  { id: "success", label: "💛 Nina's Customer Success team", blurb: "Reviews, help content, onboarding and win-back — keeps the people we win.", agents: ["reviews", "support", "retention"], lead: "nina" },
-  { id: "protection", label: "🛠️ Rex's Engineering team", blurb: "Speed, bugs, breaches, broken flows — watches the product around the clock.", agents: ["perf", "flowcheck", "security", "bugwatch"], lead: "rex" },
+  { id: "growth", label: "🚀 Sasha's Growth & Outreach team", blurb: "Finds people and communities, drafts every first message — you send.", agents: ["outreach", "prospects", "industry", "mentions", "forums", "influencer", "partners", "listings", "local"], lead: "sasha" },
+  { id: "strategy", label: "🧭 Theo's Strategy & Insights team", blurb: "Reads our numbers, the calendar, the App Store and AI search — hands you the plan, the launch, the pitch.", agents: ["analyst", "trends", "aso", "geo", "launch", "referral", "pr"], lead: "theo" },
+  { id: "success", label: "💛 Nina's Customer Success team", blurb: "Reviews, help content, onboarding, upgrade, win-back and social proof — keeps the people we win and makes them fans.", agents: ["reviews", "support", "retention", "onboarding", "upsell", "churn", "proof"], lead: "nina" },
+  { id: "protection", label: "🛠️ Rex's Engineering & Servicing team", blurb: "Speed, bugs, breaches, broken flows, dead cards, dead links, payments, delivery, renewals, layout — watches the product around the clock.", agents: ["perf", "flowcheck", "security", "bugwatch", "cards", "links", "payments", "deliverability", "renewals", "deps", "data", "appstore", "layout", "compliance"], lead: "rex" },
 ];
 const TYPE_LABEL: Record<string, string> = {
   outreach_draft: "Outreach draft", prospect: "Prospect", reply_draft: "Reply draft", influencer: "Influencer pitch",
@@ -83,11 +98,22 @@ const TYPE_LABEL: Record<string, string> = {
   forum_reply: "Forum reply", partner_pitch: "Partner pitch", listing_submission: "Directory listing", roundup_pitch: "Roundup pitch",
   review_reply: "Review reply", review_ask: "Review ask", review_trend: "Review trend", help_article: "Help article", kb_finding: "Page contradiction",
   retention_copy: "Retention copy",
+  // 2026-09-08 second wave
+  growth_memo: "Growth memo", experiment: "Experiment", agent_review: "Team review", calendar_play: "Calendar play", trend_pick: "Trend pick",
+  aso_change: "App Store change", keyword_map: "Keyword map", geo_play: "AI-search play", citation_audit: "AI-citation audit",
+  launch_pack: "Launch pack", positioning_note: "Positioning note", referral_play: "Referral play", share_moment: "Share moment",
+  press_pitch: "Press pitch", podcast_pitch: "Podcast pitch", local_post: "Local post", local_pitch: "Local pitch",
+  onboarding_nudge: "Onboarding nudge", activation_insight: "Activation insight", upgrade_nudge: "Upgrade nudge", paywall_copy: "Paywall copy",
+  churn_insight: "Churn insight", winback: "Win-back", proof_ask: "Testimonial ask", case_study: "Case study", proof_asset: "Proof asset",
+  policy_change: "Policy change",
+  bug_finding: "Bug finding", card_finding: "Card finding", link_finding: "Link finding", payment_finding: "Payment finding",
+  delivery_finding: "Delivery finding", renewal_finding: "Renewal", dependency_finding: "Dependency finding", data_finding: "Data finding",
+  appstore_finding: "App Store finding", layout_finding: "Layout finding",
 };
 
 // Person-facing drafts with no connector: Approve copies the text, the owner
 // pastes and sends. Every kind here is a message to a real human.
-const COPY_KINDS = new Set(["outreach_draft", "reply_draft", "influencer", "generic", "social_post", "email_draft", "prospect_dm", "industry_outreach", "forum_reply", "partner_pitch", "roundup_pitch", "review_reply", "review_ask", "listing_submission", "retention_copy", "site_change", "help_article", "kb_finding", "competitor_update", "image_brief"]);
+const COPY_KINDS = new Set(["outreach_draft", "reply_draft", "influencer", "generic", "social_post", "email_draft", "prospect_dm", "industry_outreach", "forum_reply", "partner_pitch", "roundup_pitch", "review_reply", "review_ask", "listing_submission", "retention_copy", "site_change", "help_article", "kb_finding", "competitor_update", "image_brief", "growth_memo", "experiment", "agent_review", "calendar_play", "trend_pick", "aso_change", "keyword_map", "geo_play", "citation_audit", "launch_pack", "positioning_note", "referral_play", "share_moment", "press_pitch", "podcast_pitch", "local_post", "local_pitch", "onboarding_nudge", "activation_insight", "upgrade_nudge", "paywall_copy", "churn_insight", "winback", "proof_ask", "case_study", "proof_asset", "policy_change"]);
 
 function ago(iso: string | null) {
   if (!iso) return "—";
@@ -121,14 +147,17 @@ const DEFAULT_SCHEDULES: Record<string, string> = {
   manager: "daily@12:00,17:00",
   video: "daily@08:00", email: "daily@08:30", cro: "daily@11:00", competitors: "every@6h", industry: "daily@07:00",
   forums: "every@8h", partners: "daily@09:00", listings: "daily@13:00", reviews: "every@8h", support: "daily@14:00", retention: "daily@15:00",
+  analyst: "weekly@mon@08:00", trends: "daily@06:30", aso: "weekly@tue@09:00", geo: "weekly@wed@09:00", launch: "weekly@thu@10:00",
+  referral: "weekly@tue@11:00", pr: "daily@09:30", local: "daily@10:30", onboarding: "daily@08:30", upsell: "daily@11:00",
+  churn: "weekly@mon@09:30", proof: "weekly@wed@10:00", compliance: "weekly@mon@06:00",
 };
-// The watch. Owner order 2026-09-03: these four have NO schedule and no "next
+// The watch. Owner order 2026-09-03: these have NO schedule and no "next
 // check" — they watch continuously while the office is open and their Active
 // box is ticked, and only the owner stops them. Showing a countdown here was
 // actively misleading: it read as "something is watching" during hours when
 // nothing was. Keep this in step with `continuous: true` in
 // marketing-agents/config.json (tests/agent-flow.test.ts pins the pair).
-const CONTINUOUS = new Set(["flowcheck", "bugwatch", "security", "perf"]);
+const CONTINUOUS = new Set(["flowcheck", "bugwatch", "security", "perf", "cards", "links", "payments", "deliverability", "renewals", "deps", "data", "appstore", "layout"]);
 /** "in ~2h 10m" until this agent's next scheduled run. */
 function nextRunText(rawSchedule: string | null, agentId: string, now: number): string | null {
   // Watchdogs never have a "next run" — they are already running. Returning a
@@ -389,7 +418,7 @@ export default function AgentFlowClient() {
   };
   const saveSetting = async (patch: Record<string, unknown>, note?: string) => {
     const r = await fetch("/api/admin/agents/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).then((x) => x.json()).catch(() => null);
-    say(r?.ok ? (note ?? "Saved — live from the next run.") : "⚠ Couldn't save that.");
+    say(r?.ok ? (note ?? "Saved — live from the next run.") : `⚠ ${r?.error ?? "Couldn't save that."}`);
     load();
   };
   // "✓ Approve & Ship fix" — merges the Fixer's tested draft PR (guardrails
@@ -1108,6 +1137,11 @@ export default function AgentFlowClient() {
               })}
               <p className="text-gray-600 text-[11px] pt-1">Instagram, Facebook &amp; X don&apos;t allow personal auto-posting through their public APIs — those stay Approve &amp; Copy. Blog posts already publish themselves via the Publish button.</p>
             </div>
+          </div>
+          <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+            <p className="text-white text-sm font-semibold">This week&apos;s focus</p>
+            <p className="text-gray-500 text-xs mt-0.5">One line every agent reads before it starts (&quot;realtors and the referral program&quot;, &quot;the 1.0.1 launch&quot;). Leave it empty and they follow their playbooks. Saves when you click away.</p>
+            <textarea rows={2} maxLength={400} defaultValue={board.system.weekly_focus ?? ""} placeholder="e.g. Realtors this week — every post, email and pitch should speak to an agent doing open houses." onBlur={(e) => saveSetting({ system: { weekly_focus: e.target.value.trim() || null } }, "Weekly focus saved — every agent reads it on its next run.")} className="mt-2 w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm" />
           </div>
           <div className="rounded-xl border border-gray-800 bg-gray-900 p-4 flex flex-wrap items-center gap-3">
             <div className="flex-1 min-w-[220px]">

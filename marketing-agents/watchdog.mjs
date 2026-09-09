@@ -25,6 +25,7 @@
 import { readFileSync } from "node:fs";
 import { sb, say } from "./lib/agentkit.mjs";
 import { DETECTORS, blindnessFindings } from "./lib/detectors.mjs";
+import { SERVICING_INTERVAL_MIN, FIXER_ELIGIBLE, FINDING_ITEM_TYPE } from "./lib/detectors-servicing.mjs";
 import { isDue } from "./lib/schedule.mjs";
 import { pollMediaPool } from "./lib/media-pool.mjs";
 
@@ -33,6 +34,22 @@ const TICK_SEC = Number(process.env.WATCHDOG_TICK_SEC || 60);
 const BUDGET_MIN = Number(process.env.WATCHDOG_BUDGET_MIN || 330); // 5h30m; job cap is 6h
 const REPO = process.env.GITHUB_REPOSITORY ?? "menashharooni-arch/relationship-app";
 const WATCHDOGS = Object.keys(DETECTORS).filter((id) => config.agents[id]?.continuous);
+
+// The original four probe on every tick (a down site must be caught within a
+// minute). The servicing bench watches populations — every card, every link,
+// a dependency audit — so each runs at its own interval, always on the first
+// tick after the loop wakes. Not a schedule: the owner's Active toggle is
+// still the only control, and a paused watchdog is skipped regardless.
+const INTERVAL_MS = Object.fromEntries(Object.entries(SERVICING_INTERVAL_MIN).map(([id, m]) => [id, m * 60 * 1000]));
+const lastProbeAt = new Map();
+const probeDue = (id) => Date.now() - (lastProbeAt.get(id) ?? 0) >= (INTERVAL_MS[id] ?? 0);
+
+// Watchdogs with a heavier once-a-day pass in a real browser (their own
+// workflow, agent-<id>.yml). The loop dispatches it when the last such run is
+// older than DEEP_PASS_MS — persistent in agent_runs, so a loop restart cannot
+// double-fire it.
+const DEEP_PASS_MS = { layout: 24 * 60 * 60 * 1000 };
+
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const stamp = () => new Date().toISOString().slice(11, 19);
@@ -64,8 +81,8 @@ async function openFindings(agentId) {
 }
 
 async function recordFinding(agentId, f) {
-  const itemType = agentId === "security" ? "security_finding" : agentId === "perf" ? "perf_finding" : "generic";
-  await sb("POST", "agent_queue_items", {
+  const itemType = FINDING_ITEM_TYPE[agentId] ?? "generic";
+  const [row] = await sb("POST", "agent_queue_items", {
     body: [{
       agent_id: agentId,
       item_type: itemType,
@@ -77,7 +94,25 @@ async function recordFinding(agentId, f) {
       dedupe_key: `watchdog:${f.key}`,
       status: "pending",
     }],
-  });
+    prefer: "return=representation",
+  }) ?? [];
+  return row?.id ?? null;
+}
+
+/**
+ * A code-fixable finding (a dead page, a broken card route, a vulnerable
+ * dependency) goes straight to Fixer, who opens a DRAFT pull request — never
+ * a merge. Everything else (a chargeback, an expiring secret) is the owner's.
+ */
+async function handToFixer(agentId, itemId, f) {
+  if (!FIXER_ELIGIBLE.has(agentId) || !itemId || !process.env.GH_TOKEN) return;
+  if (f.key.startsWith("blind:")) return; // a missing credential is not a code bug
+  const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/agent-fixer.yml/dispatches`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: "application/vnd.github+json" },
+    body: JSON.stringify({ ref: "main", inputs: { item_id: String(itemId) } }),
+  }).catch(() => null);
+  console.log(`  → Fixer asked to draft a PR for item ${itemId} (status ${res?.status ?? "n/a"})`);
 }
 
 async function resolveFinding(item) {
@@ -109,16 +144,20 @@ async function tick() {
   if (!onDuty.length) { console.log(`${stamp()} no watchdog is Active — standing down.`); return "stop"; }
 
   for (const agentId of onDuty) {
+    if (!probeDue(agentId)) continue;
+    lastProbeAt.set(agentId, Date.now());
+    // Open findings go in first so a population detector re-checks what it
+    // already reported, and only closes it when the thing is actually fixed.
+    const open = await openFindings(agentId);
     let findings;
     try {
       // Blindness first: a watchdog missing the credential its eyes need must
       // report THAT, rather than an all-clear it cannot actually vouch for.
-      findings = [...(await blindnessFindings(agentId)), ...(await DETECTORS[agentId]())];
+      findings = [...(await blindnessFindings(agentId)), ...(await DETECTORS[agentId]({ openKeys: [...open.keys()] }))];
     } catch (e) {
       console.log(`${stamp()} ${agentId} probe threw: ${String(e?.message ?? e).slice(0, 200)}`);
       continue;
     }
-    const open = await openFindings(agentId);
     const seen = new Set();
 
     for (const f of findings) {
@@ -126,10 +165,11 @@ async function tick() {
       seen.add(key);
       if (open.has(key)) continue; // already reported and still open — say nothing
       console.log(`${stamp()} ${agentId} NEW ${f.severity}: ${f.title}`);
-      await recordFinding(agentId, f);
+      const itemId = await recordFinding(agentId, f);
       // Tell the owner's comms log immediately, then wake the agent to dig in.
       await say(agentId, "owner", `${f.severity === "critical" ? "🔴" : "🟠"} ${f.title} — ${f.detail.slice(0, 300)}`, { kind: "owner_out" }).catch(() => {});
       await dispatchAgent(agentId, f.title);
+      await handToFixer(agentId, itemId, f);
     }
 
     // Anything previously open that no longer trips is fixed. Close it so the
@@ -143,6 +183,7 @@ async function tick() {
   }
 
   await dispatchScheduled();
+  await dispatchDeepPasses(onDuty);
 
   // Resolve submitted creative jobs into the shared pool. Nothing else in the
   // system has a reliable clock, and a generation job that is never polled is
@@ -152,6 +193,19 @@ async function tick() {
     console.log(`${stamp()} media pool: ${media.ready} ready, ${media.failed} failed, ${media.stillPending} pending`);
   }
   return "continue";
+}
+
+/** Once-a-day browser pass for watchdogs that have one (Pix renders every page). */
+async function dispatchDeepPasses(onDuty) {
+  for (const [agentId, everyMs] of Object.entries(DEEP_PASS_MS)) {
+    if (!onDuty.includes(agentId)) continue;
+    const runs = await sb("GET", "agent_runs", {
+      params: `agent_id=eq.${agentId}&select=started_at&order=started_at.desc&limit=1`,
+    }).catch(() => null);
+    const last = runs?.[0]?.started_at ? new Date(runs[0].started_at).getTime() : 0;
+    if (Date.now() - last < everyMs) continue;
+    await dispatchAgent(agentId, "deep pass in a real browser");
+  }
 }
 
 /**

@@ -1,8 +1,9 @@
-name: "Watchdog loop (Finn · Bo · Vera · Dash — always on)"
+name: "Watchdog loop (Finn · Bo · Vera · Dash + Rex's servicing watch — always on)"
 
 # ── The always-on watch ──────────────────────────────────────────────────────
 #
-# OWNER ORDER (2026-09-03): the four watchdogs have NO schedules. They watch
+# OWNER ORDER (2026-09-03): the watchdogs have NO schedules. (2026-09-08: Cara,
+# Lyn, Penny, Della, Ren, Dex, Dana, Ash and Pix joined the same loop.) They watch
 # continuously while the office is open and their Active box is ticked, and
 # only Menash stops them.
 #
@@ -67,6 +68,8 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          # Dana's RLS probe needs the PUBLIC anon key (it is public by design).
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           set -o pipefail
           node marketing-agents/watchdog.mjs | tee watchdog.log
