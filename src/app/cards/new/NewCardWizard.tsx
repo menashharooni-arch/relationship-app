@@ -41,7 +41,6 @@ import { track } from "@/lib/events";
 import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, LINK_STRUCTURAL_KEYS, convertCustomizationToFreeClosest } from "@/lib/plan";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
-import LinkSizeControl from "@/components/LinkSizeControl";
 import PlanCards from "@/components/PlanCards";
 import GuestGateModal from "@/components/GuestGateModal";
 
@@ -1279,17 +1278,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                         </div>
                         <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
                       </div>
-                      {/* Tile size — same gate as the design controls: unlocked
-                          sessions preview Pro behavior, Free rendering compacts
-                          everything on the live page regardless. */}
-                      {designUnlocked && (
-                        <div className="mt-2 pl-[2px]">
-                          <LinkSizeControl
-                            value={l.size}
-                            onChange={(size) => setLinks((prev) => prev.map((x, xi) => (xi === i ? { ...x, size } : x)))}
-                          />
-                        </div>
-                      )}
+                      {/* How the link LOOKS on the page (Featured / Grid /
+                          Compact, its preview, its row style) is chosen per
+                          link on the Social design step — see LinkButtonsControls. */}
                     </div>
                     ),
                   )}
@@ -1626,7 +1617,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 and filled the screen before you could reach a single colour. */}
             <div className="lg:hidden">{mobileLinkPagePreview}</div>
 
-            <SwiftLinkStyleControls value={linkStyleState} onChange={patchLinkStyle} locked={!designUnlocked} />
+            <SwiftLinkStyleControls value={linkStyleState} onChange={patchLinkStyle} locked={!designUnlocked} links={links} onLinksChange={setLinks} />
             {!isPro && !designUnlocked && (
               <PlanGate
                 feature="colors-fonts"

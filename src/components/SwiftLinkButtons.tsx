@@ -16,7 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { videoThumbnail, videoEmbed } from "@/lib/video";
 import { triggerSignupNudge } from "@/lib/nudge";
-import { layoutTiles, type SizedLink } from "@/lib/swiftlink-tiles";
+import { layoutTiles, resolveRowStyle, tileMedia, type SizedLink } from "@/lib/swiftlink-tiles";
 
 type Preview = { image: string | null; favicon: string | null; title: string | null };
 
@@ -123,13 +123,14 @@ export default function SwiftLinkButtons({
   useEffect(() => {
     links.forEach((link) => {
       if (link.kind === "header") return;
-      const url = videoThumbnail(link.url);
+      const custom = tileMedia(link, paid);
+      const url = custom?.type === "image" ? custom.url : videoThumbnail(link.url);
       if (url && !sampledRef.current.has(url)) { sampledRef.current.add(url); sampleTone(url); }
     });
     Object.values(previews).forEach((pv) => {
       if (pv?.image && !sampledRef.current.has(pv.image)) { sampledRef.current.add(pv.image); sampleTone(pv.image); }
     });
-  }, [links, previews]);
+  }, [links, previews, paid]);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,11 +149,13 @@ export default function SwiftLinkButtons({
 
   const tiles = layoutTiles(links, paid);
   const light = mode === "light";
-  // Row styling COMPOSES with the per-link sizes from the Socials tab: solid/
-  // outline restyle only the COMPACT rows, while featured/grid keep their
-  // rich image/video previews — the whole point of those sizes. (An earlier
-  // cut forced every link into rows, which fought the owner's per-link picks;
-  // owner order 2026-09-01: they must work together.)
+  // Row styling COMPOSES with the per-link sizes: solid/outline restyle only
+  // the COMPACT rows, while featured/grid keep their rich image/video previews
+  // — the whole point of those sizes. (An earlier cut forced every link into
+  // rows, which fought the owner's per-link picks; owner order 2026-09-01:
+  // they must work together.) Since 2026-09-09 the row style is chosen PER
+  // LINK in Social design (link.rowStyle); `buttonStyle` is the page-wide
+  // setting older pages saved, and only fills in for links never touched.
   const btnColor = buttonColor || accent;
   // The Look's accentText is AA-tested against the Look's accent; a CUSTOM
   // color needs its text derived from its own lightness.
@@ -194,7 +197,8 @@ export default function SwiftLinkButtons({
         // color — filled, or bordered. Only compact rows: featured/grid tiles
         // above keep their previews regardless of the row style.
         if (size === "compact") {
-          const variant = buttonStyle === "solid" || buttonStyle === "outline" ? buttonStyle : "compact";
+          const pickedRow = resolveRowStyle(link, buttonStyle);
+          const variant = pickedRow === "solid" || pickedRow === "outline" ? pickedRow : "compact";
           const rowClass =
             variant === "solid"
               ? "shadow-[0_2px_10px_rgba(15,23,42,0.10)]"
@@ -252,7 +256,12 @@ export default function SwiftLinkButtons({
         }
 
         // ── FEATURED / GRID — image tiles ───────────────────────────────────
-        const img = videoThumb || pv?.image || null;
+        // An uploaded photo replaces the link's own preview; an uploaded video
+        // autoplays muted AS the tile (the link still opens on tap). Both are
+        // Pro (tileMedia returns null for Free, which never reaches here anyway).
+        const media = tileMedia(link, paid);
+        const mediaVideo = media?.type === "video" ? media.url : null;
+        const img = media?.type === "image" ? media.url : videoThumb || pv?.image || null;
         // Light-bottomed preview → dark title on a light scrim; anything else
         // (dark image, gradient fallback, unsampleable) → white on dark scrim.
         const lightTile = img ? tileTone[img] === "light" : false;
@@ -261,7 +270,7 @@ export default function SwiftLinkButtons({
 
         // Inline video player — tile swaps to an autoplaying embed (paid only;
         // free never reaches here, every free link is compact).
-        if (isPlaying && embed) {
+        if (isPlaying && embed && !media) {
           return (
             <div key={i} className="relative w-full rounded-[14px] overflow-hidden mb-2.5 bg-black" style={{ aspectRatio: "16/9" }}>
               <iframe
@@ -292,8 +301,19 @@ export default function SwiftLinkButtons({
 
         const inner = (
           <>
-            {/* Image (or branded gradient fallback) */}
-            {img ? (
+            {/* Uploaded video, image, or branded gradient fallback */}
+            {mediaVideo ? (
+              <video
+                src={mediaVideo}
+                className="absolute inset-0 w-full h-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-hidden="true"
+              />
+            ) : img ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
             ) : (
@@ -325,7 +345,7 @@ export default function SwiftLinkButtons({
             />
 
             {/* Favicon circle, top-left (link.me's iconbox) */}
-            {img && (favicon || link.emoji) && (
+            {(img || mediaVideo) && (favicon || link.emoji) && (
               <span className="absolute top-2 left-2 z-[6] w-[30px] h-[30px] rounded-full bg-white/95 shadow flex items-center justify-center">
                 {favicon ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -337,7 +357,7 @@ export default function SwiftLinkButtons({
             )}
 
             {/* Play button for videos */}
-            {videoThumb && (
+            {videoThumb && !media && (
               <span className="absolute inset-0 z-[6] flex items-center justify-center">
                 <span className="w-11 h-11 rounded-full bg-black/55 backdrop-blur-[2px] flex items-center justify-center transition-transform group-hover:scale-110">
                   <svg viewBox="0 0 24 24" fill="#fff" className="w-5 h-5 ml-0.5"><path d="M8 5v14l11-7z" /></svg>
@@ -368,7 +388,7 @@ export default function SwiftLinkButtons({
         );
 
         // Videos play inline; everything else opens the link.
-        if (embed) {
+        if (embed && !media) {
           return (
             <button
               key={i}

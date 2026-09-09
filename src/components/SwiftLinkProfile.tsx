@@ -21,7 +21,7 @@ import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHero
 // Linktree-informed additions — see lib/swiftlink-looks for the vocabulary.
 export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string; iconShape?: string; iconFill?: string; heroStyle?: string; heroContent?: string; heroImage?: string; buttonStyle?: string; buttonColor?: string };
 
-type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header" };
+type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" } };
 
 // Perceived lightness of a hex surface — decides whether neutral chrome
 // (rings, hover wells) should be dark-on-light or light-on-dark when a Pro

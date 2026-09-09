@@ -66,10 +66,13 @@ export async function POST(req: Request) {
   // (with upsert) could traverse out of this user's folder and overwrite another
   // user's file. Only these fields exist, and the extension is derived from
   // the re-encoded content-type below, never from the attacker's filename.
-  // "hero" is the Swift Links header image (customization.linkHeroImage) — it
-  // is ALWAYS deferred (the URL lives in customization, there is no column),
-  // so the DB-write branches below never see it.
-  if (field !== "photo" && field !== "logo" && field !== "hero") return NextResponse.json({ error: "Invalid field" }, { status: 400 });
+  // "hero" is the Swift Links header image (customization.linkHeroImage) and
+  // "link" a per-link tile photo (customization.links[i].media) — both ALWAYS
+  // deferred (the URL lives in customization, there is no column), so the
+  // DB-write branches below never see them. Videos for a link tile do NOT
+  // come through here: they exceed the request-body limit and go straight to
+  // storage via /api/upload/link-video.
+  if (field !== "photo" && field !== "logo" && field !== "hero" && field !== "link") return NextResponse.json({ error: "Invalid field" }, { status: 400 });
   if (!ALLOWED.includes(file.type)) return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
 
@@ -102,7 +105,8 @@ export async function POST(req: Request) {
       const sharp = (await import("sharp")).default;
       // hero fills the 430px-wide cover at up to 2x — 1200 keeps it sharp
       // without storing phone-camera originals.
-      const MAXDIM = field === "photo" ? 1000 : field === "hero" ? 1200 : 800;
+      // A link tile is 1.91:1 at up to 430px wide × 2x — 1200 keeps it sharp.
+      const MAXDIM = field === "photo" ? 1000 : field === "hero" || field === "link" ? 1200 : 800;
       const img = sharp(Buffer.from(arrayBuffer)).rotate().resize(MAXDIM, MAXDIM, { fit: "inside", withoutEnlargement: true });
       if (field === "logo") {
         body = await img.png({ compressionLevel: 9 }).toBuffer();
@@ -150,7 +154,7 @@ export async function POST(req: Request) {
   // Hero images have no DB column — the URL is persisted by the caller inside
   // customization.linkHeroImage. Returned here unconditionally so a caller
   // that forgets defer=true can never fall through and clobber logo_url.
-  if (field === "hero") {
+  if (field === "hero" || field === "link") {
     return NextResponse.json({ url: publicUrl });
   }
 

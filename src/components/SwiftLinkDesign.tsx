@@ -21,9 +21,12 @@ import { CARD_FONT_OPTIONS } from "@/components/card-templates/shared";
 import {
   SWIFTLINK_LOOKS, DEFAULT_SWIFTLINK_LOOK, isFreeLook, getLook,
   ICON_SHAPES, ICON_FILLS, normalizeIconShape, normalizeIconFill,
-  HERO_STYLES, BUTTON_STYLES, normalizeHeroStyle, normalizeButtonStyle,
+  HERO_STYLES, normalizeHeroStyle,
   HERO_CONTENTS, normalizeHeroContent,
 } from "@/lib/swiftlink-looks";
+import { resolveRowStyle } from "@/lib/swiftlink-tiles";
+import LinkButtonsControls from "@/components/LinkButtonsControls";
+import type { CardLink } from "@/components/card-templates/types";
 
 export type SwiftLinkStyle = {
   linkLook?: string;
@@ -43,7 +46,9 @@ export type SwiftLinkStyle = {
   /** The uploaded header photo for linkHeroContent "custom" — a public URL
    *  from /api/upload (field "hero"). Every plan. */
   linkHeroImage?: string;
-  /** Link rows: "tile" (rich preview tiles, default), "solid", "outline". */
+  /** LEGACY page-wide row style ("tile" | "solid" | "outline") written by the
+   *  pre-2026-09-09 "Link buttons" control. Still read as the fallback for a
+   *  link with no rowStyle of its own; nothing writes it any more. */
   linkButtonStyle?: string;
   /** Solid/outline row color — defaults to the Look's accent. */
   linkButtonColor?: string;
@@ -366,10 +371,16 @@ export function SwiftLinkStyleControls({
   value,
   onChange,
   locked = false,
+  links,
+  onLinksChange,
 }: {
   value: SwiftLinkStyle;
   onChange: (patch: Partial<SwiftLinkStyle>) => void;
   locked?: boolean;
+  /** The card's additional links, for the per-link "Link buttons" section.
+   *  Both editors pass them; the marketing mini-builder doesn't. */
+  links?: CardLink[];
+  onLinksChange?: (links: CardLink[]) => void;
 }) {
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-5">
@@ -461,53 +472,28 @@ export function SwiftLinkStyleControls({
         />
       </div>
 
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>
-          Link buttons
-          <span className="ml-1.5 text-[0.625rem] font-normal normal-case tracking-normal text-gray-500 align-middle">only for Compact style</span>
-          {locked && <span className="ml-1.5 align-middle"><ProTag /></span>}
-        </p>
-        <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">Only has an effect if some of your additional links show as Compact rows — links set to Featured or Grid (in Socials) always keep their image previews.</p>
-        <div className="grid grid-cols-3 gap-1.5">
-          {BUTTON_STYLES.map((o) => {
-            const active = normalizeButtonStyle(value.linkButtonStyle) === o.id;
-            return (
-              <button
-                key={o.id}
-                type="button"
-                disabled={locked}
-                title={o.hint}
-                onClick={() => onChange({ linkButtonStyle: o.id === "tile" ? undefined : o.id })}
-                className={`flex flex-col items-center gap-1.5 px-2 py-2 rounded-lg border text-[0.6875rem] font-semibold transition-colors disabled:opacity-40 ${
-                  active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
-                }`}
-              >
-                {/* Mini glyph: standard = quiet translucent row; solid = filled row; outline = bordered row */}
-                {o.id === "tile" ? (
-                  <span className="w-8 h-4 rounded-full bg-gray-700 ring-1 ring-gray-500 flex items-center justify-center"><span className="w-4 h-[3px] rounded bg-gray-400" /></span>
-                ) : o.id === "solid" ? (
-                  <span className="w-8 h-4 rounded-full bg-gray-300 flex items-center justify-center"><span className="w-4 h-[3px] rounded bg-gray-700" /></span>
-                ) : (
-                  <span className="w-8 h-4 rounded-full border-[1.5px] border-gray-300 flex items-center justify-center"><span className="w-4 h-[3px] rounded bg-gray-400" /></span>
-                )}
-                {o.name}
-              </button>
-            );
-          })}
+      {/* Per-link looks — only where the caller owns the links (the card
+          editor and the wizard); the marketing mini-builder's sketch has no
+          real links, so it gets no section rather than a dead one. */}
+      {links && onLinksChange && (
+        <div className="border-t border-gray-800 pt-4">
+          <p className={`${rowLabel} mb-0.5`}>Link buttons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
+          <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">Choose how each additional link appears. Featured and Grid show a big preview you can swap for your own photo or video; Compact is a slim row you can style.</p>
+          <LinkButtonsControls links={links} onChange={onLinksChange} locked={locked} pageRowStyle={value.linkButtonStyle} />
+          {links.some((l) => l.kind !== "header" && (l.size ?? "grid") === "compact" && resolveRowStyle(l, value.linkButtonStyle) !== "tile") && (
+            <div className="mt-2.5">
+              <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color for Solid and Outline rows — leave Default to use your Look&apos;s accent.</p>
+              <SwatchRow
+                presets={["#1D4ED8", "#111827", "#A8433C", "#0F766E", "#7C3AED", "#B91C1C"]}
+                value={value.linkButtonColor}
+                fallbackHex={getLook(value.linkLook).accent}
+                onPick={(v) => onChange({ linkButtonColor: v })}
+                customLocked={locked}
+              />
+            </div>
+          )}
         </div>
-        {normalizeButtonStyle(value.linkButtonStyle) !== "tile" && (
-          <div className="mt-2.5">
-            <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color — leave Default to use your Look&apos;s accent.</p>
-            <SwatchRow
-              presets={["#1D4ED8", "#111827", "#A8433C", "#0F766E", "#7C3AED", "#B91C1C"]}
-              value={value.linkButtonColor}
-              fallbackHex={getLook(value.linkLook).accent}
-              onPick={(v) => onChange({ linkButtonColor: v })}
-              customLocked={locked}
-            />
-          </div>
-        )}
-      </div>
+      )}
 
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>

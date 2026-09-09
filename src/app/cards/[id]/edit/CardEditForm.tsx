@@ -39,7 +39,6 @@ import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl, socialDestination, normalizeSocial, SOCIAL_FORMATS } from "@/lib/social-url";
 import LinkPreviewThumb from "@/components/LinkPreviewThumb";
-import LinkSizeControl from "@/components/LinkSizeControl";
 import CardUrlEditor from "@/components/CardUrlEditor";
 
 
@@ -971,16 +970,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                         </div>
                         <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
                       </div>
-                      {/* Tile size on the Swift Links page — Pro only (Free renders
-                          every link compact, so a picker would be a lie there). */}
-                      {isPro && (
-                        <div className="mt-2 pl-[2px]">
-                          <LinkSizeControl
-                            value={l.size}
-                            onChange={(size) => setLinks((prev) => prev.map((x, xi) => (xi === i ? { ...x, size } : x)))}
-                          />
-                        </div>
-                      )}
+                      {/* How the link LOOKS on the page (Featured / Grid /
+                          Compact, its preview, its row style) is chosen per
+                          link on the Social design tab — see LinkButtonsControls. */}
                     </div>
                     ),
                   )}
@@ -1078,7 +1070,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 <span className="absolute top-0.5 left-0 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: showCardLinkBtn ? "translateX(22px)" : "translateX(2px)" }} />
               </button>
             </label>
-            <SwiftLinkStyleControls value={linkStyleState} onChange={patchLinkStyle} locked={!isPro} />
+            <SwiftLinkStyleControls value={linkStyleState} onChange={patchLinkStyle} locked={!isPro} links={links} onLinksChange={setLinks} />
             {!isPro && (
               <PlanGate
                 feature="colors-fonts"

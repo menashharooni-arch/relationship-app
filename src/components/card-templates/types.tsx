@@ -2,8 +2,15 @@ export type CardLink = {
   emoji?: string; // legacy — new links have no emoji (picker removed)
   label: string;
   url: string;
-  /** Swift Links tile size (see lib/swiftlink-tiles). Absent = auto. */
+  /** Swift Links tile size (see lib/swiftlink-tiles). Absent = the legacy
+   *  auto (renders as grid, odd one promoted); the picker now always writes one. */
   size?: "featured" | "grid" | "compact";
+  /** Compact rows: "tile" (standard), "solid" or "outline". Set per link in
+   *  Social design → Link buttons. Absent = the page-wide legacy setting. */
+  rowStyle?: "tile" | "solid" | "outline";
+  /** Featured/Grid tiles: an uploaded photo or short video shown as the
+   *  tile's preview instead of the link's own. */
+  media?: { url: string; type: "image" | "video" };
   /** "header" = a section heading on the Swift Links page (label only, no
    *  destination — its url is ignored). Absent = an ordinary link. */
   kind?: "link" | "header";
