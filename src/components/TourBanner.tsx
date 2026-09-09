@@ -48,7 +48,7 @@ export default function TourBanner() {
             </div>
             <div className="min-w-0">
               <p className="text-white font-extrabold text-lg sm:text-xl leading-tight">Take a quick tour</p>
-              <p className="text-gray-400 text-[13px] mt-0.5 leading-snug">New here? See how to navigate your dashboard and every feature in about a minute.</p>
+              <p className="text-gray-400 text-[0.8125rem] mt-0.5 leading-snug">New here? See how to navigate your dashboard and every feature in about a minute.</p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

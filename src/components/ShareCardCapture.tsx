@@ -317,8 +317,11 @@ export default function ShareCardCapture({
 
   // Hidden, off-screen render of the card EXACTLY as the public page shows it
   // (withoutSocials for standard templates; QR kept; natural sizing).
+  // inert as well as aria-hidden: this is a real card, and it contains links.
+  // aria-hidden alone left them in the tab order — you could Tab into a card
+  // nobody can see (axe: aria-hidden-focus).
   return (
-    <div aria-hidden style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
+    <div aria-hidden inert style={{ position: "absolute", left: -10000, top: 0, width: NATURAL, pointerEvents: "none", opacity: 0.01 }}>
       <div ref={cardRef} style={{ width: NATURAL, background: CARD_BG }}>
         <Template data={template === "custom" ? captureData : withoutSocials(captureData)} />
       </div>

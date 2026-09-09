@@ -47,15 +47,15 @@ function PlanBadge({ plan, expires, userId, onUpdated }: { plan: string; expires
 
   return (
     <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5">
-      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: cfg.bg, color: cfg.text }}>
+      <span className="text-[0.625rem] font-bold px-2 py-0.5 rounded-full" style={{ background: cfg.bg, color: cfg.text }}>
         {cfg.label}
       </span>
-      {expires && <span className="text-[9px] text-amber-400" title={`Free month until ${new Date(expires).toLocaleDateString()}`}>⏳</span>}
+      {expires && <span className="text-[0.5625rem] text-amber-400" title={`Free month until ${new Date(expires).toLocaleDateString()}`}>⏳</span>}
       <select
         value={plan}
         onChange={(e) => setPlan(e.target.value)}
         disabled={saving}
-        className="text-[10px] bg-gray-800 border border-gray-700 text-gray-400 rounded-lg px-1.5 py-0.5 focus:outline-none disabled:opacity-40"
+        className="text-[0.625rem] bg-gray-800 border border-gray-700 text-gray-400 rounded-lg px-1.5 py-0.5 focus:outline-none disabled:opacity-40"
       >
         <option value="free">Free</option>
         <option value="pro">Pro</option>
@@ -223,8 +223,8 @@ export default function UsersClient() {
                   >
                     <td className="px-5 py-3">
                       <p className="text-white font-medium text-xs truncate max-w-[180px]">{u.name || "—"}</p>
-                      <p className="text-gray-500 text-[11px] truncate max-w-[180px]">{u.email}</p>
-                      <p className="text-gray-600 text-[10px]">/{u.username}{u.company ? ` · ${u.company}` : ""}</p>
+                      <p className="text-gray-500 text-[0.6875rem] truncate max-w-[180px]">{u.email}</p>
+                      <p className="text-gray-600 text-[0.625rem]">/{u.username}{u.company ? ` · ${u.company}` : ""}</p>
                     </td>
                     <td className="px-4 py-3">
                       <PlanBadge plan={u.plan} expires={u.plan_expires_at} userId={u.id} onUpdated={load} />
@@ -233,21 +233,21 @@ export default function UsersClient() {
                     <td className="px-4 py-3 text-white font-semibold tabular-nums">{u.lead_count}</td>
                     <td className="px-4 py-3 text-gray-400 tabular-nums">{u.view_count}</td>
                     <td className="px-4 py-3">
-                      <span className="text-[10px] text-gray-400 bg-gray-800 px-2 py-0.5 rounded-full" title={getSignupSourceLabel(u.signup_source)}>
+                      <span className="text-[0.625rem] text-gray-400 bg-gray-800 px-2 py-0.5 rounded-full" title={getSignupSourceLabel(u.signup_source)}>
                         {getSignupSourceLabel(u.signup_source)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-500 text-[11px]">
+                    <td className="px-4 py-3 text-gray-500 text-[0.6875rem]">
                       {new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}
                     </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       {u.primary_username ? (
-                        <div className="flex items-center gap-2 text-[11px] whitespace-nowrap">
+                        <div className="flex items-center gap-2 text-[0.6875rem] whitespace-nowrap">
                           <a href={`/${u.primary_username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Card ↗</a>
                           <a href={`/links/${u.primary_username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Links ↗</a>
                         </div>
                       ) : (
-                        <span className="text-gray-600 text-[10px]">no card yet</span>
+                        <span className="text-gray-600 text-[0.625rem]">no card yet</span>
                       )}
                     </td>
                   </tr>

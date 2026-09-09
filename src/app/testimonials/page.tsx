@@ -75,7 +75,6 @@ export default function WhySwiftCardPage() {
   return (
     <div className="rd-dark2">
       <ScrollProgress />
-      <div className="sc-scroll-progress" />
       <ScrollReveal />
       <SiteNav />
 
@@ -106,9 +105,9 @@ export default function WhySwiftCardPage() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {USE_CASES.map((u, i) => (
                 <div key={u.role} className="rd-card-l p-6 flex flex-col" data-reveal style={{ transitionDelay: `${(i % 3) * 70}ms` }}>
-                  <p className="text-[11px] font-bold tracking-[0.18em] uppercase text-slate-500">{u.role}</p>
-                  <p className="text-slate-900 font-semibold text-[16px] mt-3">{u.title}</p>
-                  <p className="text-slate-600 text-[14.5px] leading-relaxed mt-2 flex-1">{u.body}</p>
+                  <p className="rd-eyebrow text-slate-600">{u.role}</p>
+                  <p className="text-slate-900 font-semibold text-[1rem] mt-3">{u.title}</p>
+                  <p className="text-slate-600 text-[0.90625rem] leading-relaxed mt-2 flex-1">{u.body}</p>
                 </div>
               ))}
             </div>
@@ -126,7 +125,7 @@ export default function WhySwiftCardPage() {
               {FACTS.map((s) => (
                 <div key={s.l} className="text-center" data-reveal>
                   <p className="rd-aurora-text text-[clamp(2rem,4vw,2.8rem)] font-extrabold leading-none">{s.v}</p>
-                  <p className="text-white/50 text-[13.5px] mt-2">{s.l}</p>
+                  <p className="text-white/50 text-[0.84375rem] mt-2">{s.l}</p>
                 </div>
               ))}
             </div>

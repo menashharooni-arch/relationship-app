@@ -154,7 +154,7 @@ export default async function SharePage({
         {/* Header — names the card these belong to, so it's unambiguous which
             card's Swift Links / signature are shown. */}
         <div className="mb-6">
-          <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
+          <p className="text-[0.6875rem] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
           <h1 className="text-2xl font-bold text-white">Links</h1>
           <p className="text-gray-500 text-sm mt-1">
             For <span className="text-gray-300 font-medium">{(activeCard.label || activeCard.name || activeUsername) as string}</span>

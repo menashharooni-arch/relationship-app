@@ -118,7 +118,7 @@ export default function MiniBuilderModal({
               className="md:hidden flex flex-col items-center px-6 pt-12 pb-5 border-b border-white/10"
               style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(93,107,255,0.14), transparent 60%), #0A0B10" }}
             >
-              <span className="text-white/35 text-[11px] font-semibold uppercase tracking-widest mb-3">Live preview</span>
+              <span className="text-white/35 text-[0.6875rem] font-semibold uppercase tracking-widest mb-3">Live preview</span>
               <div className="w-full flex items-center justify-center">{preview}</div>
             </div>
           )}
@@ -137,22 +137,22 @@ export default function MiniBuilderModal({
                 ))}
               </div>
 
-              <p className="text-white/40 text-[12px] font-medium mb-1">Step {step + 1} of {total}</p>
-              <h3 className="text-white font-bold text-[20px] leading-tight">{current.title}</h3>
-              {current.subtitle && <p className="text-white/50 text-[13.5px] mt-1.5 leading-relaxed">{current.subtitle}</p>}
+              <p className="text-white/40 text-[0.75rem] font-medium mb-1">Step {step + 1} of {total}</p>
+              <h3 className="text-white font-bold text-[1.25rem] leading-tight">{current.title}</h3>
+              {current.subtitle && <p className="text-white/50 text-[0.84375rem] mt-1.5 leading-relaxed">{current.subtitle}</p>}
 
               <div className="mt-5 space-y-3.5">{current.content}</div>
 
               {/* nav */}
               <div className="mt-7 flex items-center gap-3">
                 {step > 0 && (
-                  <button onClick={() => setStep(step - 1)} className="rd-btn rd-btn-ghost-d text-[14px] px-4 py-2.5">Back</button>
+                  <button onClick={() => setStep(step - 1)} className="rd-btn rd-btn-ghost-d text-[0.875rem] px-4 py-2.5">Back</button>
                 )}
                 {isLast ? (
                   <button
                     onClick={onLaunch}
                     disabled={!canGo || launching}
-                    className="rd-btn rd-btn-aurora text-[14px] px-5 py-2.5 flex-1 disabled:opacity-50"
+                    className="rd-btn rd-btn-aurora text-[0.875rem] px-5 py-2.5 flex-1 disabled:opacity-50"
                   >
                     {launching ? "Opening…" : launchLabel}
                   </button>
@@ -160,14 +160,14 @@ export default function MiniBuilderModal({
                   <button
                     onClick={() => canGo && setStep(step + 1)}
                     disabled={!canGo}
-                    className="rd-btn rd-btn-primary text-[14px] px-5 py-2.5 flex-1 disabled:opacity-40"
+                    className="rd-btn rd-btn-primary text-[0.875rem] px-5 py-2.5 flex-1 disabled:opacity-40"
                   >
                     Continue
                   </button>
                 )}
               </div>
               {isLast && (
-                <p className="text-white/35 text-[11.5px] mt-3 leading-relaxed">
+                <p className="text-white/35 text-[0.71875rem] mt-3 leading-relaxed">
                   We&apos;ll carry over everything you entered — you&apos;ll just add the finishing touches.
                 </p>
               )}
@@ -176,7 +176,7 @@ export default function MiniBuilderModal({
                 <button
                   type="button"
                   onClick={onStartOver}
-                  className="mt-4 text-white/35 hover:text-white/70 text-[11.5px] underline underline-offset-2 transition-colors"
+                  className="mt-4 text-white/35 hover:text-white/70 text-[0.71875rem] underline underline-offset-2 transition-colors"
                 >
                   Start over with a blank one
                 </button>
@@ -185,9 +185,9 @@ export default function MiniBuilderModal({
 
             {/* ── Right: live preview ────────────────────── */}
             <div className={`${hidePreviewOnMobile || current.previewFirst ? "hidden md:flex" : "flex"} relative flex-col items-center justify-center p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10`} style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(93,107,255,0.14), transparent 60%), #0A0B10" }}>
-              <span className="absolute top-4 left-1/2 -translate-x-1/2 text-white/35 text-[11px] font-semibold uppercase tracking-widest">Live preview</span>
+              <span className="absolute top-4 left-1/2 -translate-x-1/2 text-white/35 text-[0.6875rem] font-semibold uppercase tracking-widest">Live preview</span>
               <div className="w-full flex items-center justify-center mt-4">{preview}</div>
-              {previewCaption && <p className="text-white/40 text-[12px] mt-4 text-center">{previewCaption}</p>}
+              {previewCaption && <p className="text-white/40 text-[0.75rem] mt-4 text-center">{previewCaption}</p>}
             </div>
           </div>
         </div>

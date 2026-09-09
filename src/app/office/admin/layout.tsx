@@ -43,7 +43,7 @@ export default async function OfficeAdminLayout({ children }: { children: React.
           <div className="flex items-center justify-between h-12">
             <div className="flex items-center gap-3 min-w-0">
               <Link href="/office/admin" className="flex items-center gap-2 shrink-0 min-w-0">
-                <span className="text-[10px] font-bold tracking-[0.25em] text-slate-500 uppercase shrink-0">SwiftCard</span>
+                <span className="text-[0.625rem] font-bold tracking-[0.25em] text-slate-500 uppercase shrink-0">SwiftCard</span>
                 <span className="text-xs font-bold bg-purple-600/20 border border-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full shrink-0">Admin</span>
                 <span className="text-xs text-gray-500 truncate hidden sm:block">{officeName}</span>
               </Link>

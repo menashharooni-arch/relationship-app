@@ -135,7 +135,7 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
       content: (
         <div className="space-y-4">
           <div>
-            <span className="block text-white/55 text-[12px] font-medium mb-2">Layout</span>
+            <span className="block text-white/55 text-[0.75rem] font-medium mb-2">Layout</span>
             {/* cols-3, not cols-5 — six layouts, so two even rows instead of a
                 five-wide row with one orphan. */}
             <div className="grid grid-cols-3 gap-1.5">
@@ -143,7 +143,7 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
                 <button
                   key={t.id}
                   onClick={() => patch({ template: t.id })}
-                  className="rounded-lg px-1 py-2 text-[11px] font-medium transition-colors"
+                  className="rounded-lg px-1 py-2 text-[0.6875rem] font-medium transition-colors"
                   style={{
                     background: sketch.template === t.id ? "var(--rd-aurora)" : "rgba(255,255,255,0.05)",
                     color: sketch.template === t.id ? "#fff" : "rgba(255,255,255,0.6)",
@@ -186,14 +186,14 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
         previewCaption="Drops into Gmail, Outlook, Apple Mail & more."
         preview={
           <div className="w-[280px] max-w-full rounded-2xl p-4" style={{ background: "#FAF7F2" }}>
-            <p className="text-[13px] text-slate-900 mb-2">
+            <p className="text-[0.8125rem] text-slate-900 mb-2">
               <strong>{sketch.name || "Your Name"}</strong>
               {sketch.company ? <span className="text-slate-500"> | {sketch.company}</span> : null}
             </p>
             <div className="rounded-2xl overflow-hidden shadow-[0_10px_30px_-14px_rgba(8,10,18,0.5)]">
               <InertPreview><CardScaler><Preview data={data} /></CardScaler></InertPreview>
             </div>
-            <p className="mt-2 text-[13px] font-bold" style={{ color: "#2563eb" }}>Contact me →</p>
+            <p className="mt-2 text-[0.8125rem] font-bold" style={{ color: "#2563eb" }}>Contact me →</p>
           </div>
         }
       />

@@ -43,7 +43,7 @@ export default function HeroClaim() {
       <span className="sm:hidden shrink-0 flex"><SwiftCardIcon size={26} /></span>
       <span className="hidden sm:flex shrink-0"><SwiftCardIcon size={28} /></span>
       <label className="flex items-baseline min-w-0 flex-1 cursor-text" htmlFor="hero-claim-name">
-        <span className="text-slate-900 font-semibold text-[14px] sm:text-[17px] whitespace-nowrap select-none">SwiftCard.me/</span>
+        <span className="text-slate-900 font-semibold text-[0.875rem] sm:text-[1.0625rem] whitespace-nowrap select-none">SwiftCard.me/</span>
         <input
           id="hero-claim-name"
           type="text"
@@ -53,10 +53,10 @@ export default function HeroClaim() {
           aria-label="Your full name"
           autoComplete="name"
           maxLength={80}
-          className="min-w-[66px] flex-1 sm:w-[150px] bg-transparent text-slate-900 placeholder-slate-300 text-[14px] sm:text-[17px] font-semibold focus:outline-none"
+          className="min-w-[66px] flex-1 sm:w-[150px] bg-transparent text-slate-900 placeholder-slate-300 text-[0.875rem] sm:text-[1.0625rem] font-semibold focus:outline-none"
         />
       </label>
-      <button type="submit" className="rd-btn rd-btn-aurora shrink-0 !py-2.5 !px-3.5 sm:!py-3 sm:!px-6 text-[13px] sm:text-[15px] whitespace-nowrap">
+      <button type="submit" className="rd-btn rd-btn-aurora shrink-0 !py-2.5 !px-3.5 sm:!py-3 sm:!px-6 text-[0.8125rem] sm:text-[0.9375rem] whitespace-nowrap">
         Start for free
       </button>
       {/* Very light glare, sweeping the whole pill (button included) on a slow

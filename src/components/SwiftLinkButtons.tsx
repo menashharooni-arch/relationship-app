@@ -174,7 +174,7 @@ export default function SwiftLinkButtons({
           return (
             <p
               key={i}
-              className="w-full text-left text-[11px] font-bold uppercase tracking-[0.14em] mt-4 mb-1.5 px-0.5"
+              className="w-full text-left text-[0.6875rem] font-bold uppercase tracking-[0.14em] mt-4 mb-1.5 px-0.5"
               style={{ color: textColor, opacity: 0.55 }}
             >
               {link.emoji ? `${link.emoji} ` : ""}{link.label}
@@ -234,14 +234,14 @@ export default function SwiftLinkButtons({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={favicon} alt="" className="w-[20px] h-[20px] object-contain rounded-full" />
                 ) : link.emoji ? (
-                  <span className="text-[16px] leading-none">{link.emoji}</span>
+                  <span className="text-[1rem] leading-none">{link.emoji}</span>
                 ) : (
                   <svg viewBox="0 0 24 24" fill="none" stroke={labelColor} strokeOpacity={0.7} strokeWidth={2} className="w-4 h-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
                   </svg>
                 )}
               </span>
-              <span className="flex-1 min-w-0 text-left text-[14px] font-semibold truncate" style={{ color: labelColor }}>
+              <span className="flex-1 min-w-0 text-left text-[0.875rem] font-semibold truncate" style={{ color: labelColor }}>
                 {link.label}
               </span>
               <svg viewBox="0 0 24 24" fill="none" stroke={labelColor} strokeOpacity={0.4} strokeWidth={2.2} className="w-4 h-4 shrink-0">
@@ -331,7 +331,7 @@ export default function SwiftLinkButtons({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={favicon} alt="" className="w-[20px] h-[20px] object-contain rounded-full" />
                 ) : (
-                  <span className="text-[15px] leading-none">{link.emoji}</span>
+                  <span className="text-[0.9375rem] leading-none">{link.emoji}</span>
                 )}
               </span>
             )}
@@ -348,7 +348,7 @@ export default function SwiftLinkButtons({
             {/* Centered title at the bottom, 2-line clamp */}
             <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
               <span
-                className={`font-semibold text-center leading-[1.3] ${big ? "text-[18px]" : "text-[16px]"}`}
+                className={`font-semibold text-center leading-[1.3] ${big ? "text-[1.125rem]" : "text-[1rem]"}`}
                 // Break BETWEEN words (overflow-wrap), never mid-word — a word
                 // only splits if it alone is wider than the tile, and the
                 // 2-line clamp ends on a complete word with an ellipsis.

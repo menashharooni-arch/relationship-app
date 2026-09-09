@@ -128,12 +128,12 @@ export default function PricingPage() {
 
             {/* Monthly / Annual toggle */}
             <div className="mt-8 inline-flex items-center gap-4 rounded-full px-5 py-2.5 border border-slate-200 bg-slate-50" data-reveal="fade">
-              <span className={`text-sm font-medium transition-colors ${!annual ? "text-slate-900" : "text-slate-400"}`}>Monthly</span>
+              <span className={`text-sm font-medium transition-colors ${!annual ? "text-slate-900 font-bold" : "text-slate-600"}`}>Monthly</span>
               <button onClick={() => setAnnual(!annual)} aria-label="Toggle annual billing" aria-pressed={annual} className="relative w-11 h-6 rounded-full transition-colors duration-200" style={{ background: annual ? "#2563EB" : "#cbd5e1" }}>
                 <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: annual ? "translateX(22px)" : "translateX(2px)" }} />
               </button>
-              <span className={`text-sm font-medium transition-colors ${annual ? "text-slate-900" : "text-slate-400"}`}>
-                Annual <span className="ml-1 text-[10px] font-black text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">SAVE 10%</span>
+              <span className={`text-sm font-medium transition-colors ${annual ? "text-slate-900 font-bold" : "text-slate-600"}`}>
+                Annual <span className="ml-1 text-[0.625rem] font-black text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-full">SAVE 10%</span>
               </span>
             </div>
           </div>
@@ -155,7 +155,7 @@ export default function PricingPage() {
             <div className="flex items-end gap-1 mb-1"><span className="text-[2.6rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-400 text-sm mb-1">/ month</span></div>
             <p className="text-slate-500 text-sm mb-7 mt-2">{PLAN_DESCRIPTIONS.free}</p>
             <ul className="space-y-2.5 mb-8 flex-1">
-              {features.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-slate-500"><Check />{f}</li>))}
+              {features.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.84375rem] text-slate-500"><Check />{f}</li>))}
             </ul>
             <Link href="/cards/new" className="w-full text-center font-bold py-3.5 rounded-full text-sm bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 transition-colors">Get started free →</Link>
           </div>
@@ -163,7 +163,7 @@ export default function PricingPage() {
           {/* Pro — highlighted, glistening */}
           <div data-reveal className={`${isMobile && mobileTier !== "pro" ? "hidden" : ""} relative rounded-[28px] p-6 sm:p-8 flex flex-col overflow-hidden md:-mt-6 md:mb-0 md:z-10 ring-1 ring-blue-500/20`} style={{ transitionDelay: "90ms", background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
             <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
-            <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[11px] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
+            <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[0.6875rem] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
             <div className="relative z-[2] flex flex-col flex-1">
               <p className="text-[1.4rem] font-extrabold tracking-tight text-black mb-3">Pro</p>
               {/* "Free for your first 14 days, then $X" — owner-approved
@@ -176,7 +176,7 @@ export default function PricingPage() {
               )}
               <p className="text-white/80 text-sm mb-7 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
               <ul className="space-y-2.5 mb-8 flex-1">
-                {features.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-white"><Check pro />{f}</li>))}
+                {features.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.84375rem] text-white"><Check pro />{f}</li>))}
               </ul>
               <button onClick={() => handleUpgrade("pro")} disabled={loading !== null} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
                 {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : `Start free →`}
@@ -186,11 +186,11 @@ export default function PricingPage() {
                   trial only to customers with no prior Stripe subscription, so
                   "for new customers" must survive here no matter how the
                   headline is worded (pinned by copy-truth.test.ts). */}
-              <p className="text-white/70 text-[11px] text-center mt-2.5 leading-relaxed">
+              <p className="text-white/70 text-[0.6875rem] text-center mt-2.5 leading-relaxed">
                 {TRIAL_DAYS} days free for new customers · card required · renews automatically
               </p>
               {checkoutErr && loading === null && (
-                <p className="text-center text-[12px] font-semibold mt-2 rounded-lg py-2 px-3" style={{ background: "rgba(254,226,226,0.95)", color: "#b91c1c" }}>{checkoutErr}</p>
+                <p className="text-center text-[0.75rem] font-semibold mt-2 rounded-lg py-2 px-3" style={{ background: "rgba(254,226,226,0.95)", color: "#b91c1c" }}>{checkoutErr}</p>
               )}
             </div>
             <span className="rd-glisten-sweep" aria-hidden="true" />
@@ -200,12 +200,12 @@ export default function PricingPage() {
           <div data-reveal style={{ transitionDelay: "180ms" }} className={`${isMobile && mobileTier !== "office" ? "hidden" : ""} rounded-[28px] p-6 sm:p-8 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.3)]`}>
             <div className="flex items-center gap-2 mb-3">
               <p className="text-[1.4rem] font-extrabold tracking-tight text-slate-900">Office</p>
-              <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">FOR TEAMS</span>
+              <span className="text-[0.625rem] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">FOR TEAMS</span>
             </div>
             <div className="mb-1">
               <div className="flex items-end gap-1"><span className="text-[2.6rem] font-bold text-slate-900 leading-none">${annual ? formatCents(perMonthCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS)) : formatCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}</span><span className="text-slate-400 text-sm mb-1">/ mo per user</span></div>
               <p className="text-blue-600 text-xs font-semibold mt-1.5">Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}</p>
-              <p className="text-slate-800 font-bold text-[13px] mt-1">{seats} users → {annual
+              <p className="text-slate-800 font-bold text-[0.8125rem] mt-1">{seats} users → {annual
                 ? `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS, seats))}/yr`
                 : `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, seats))}/mo`}</p>
             </div>
@@ -218,16 +218,16 @@ export default function PricingPage() {
                 ))}
               </div>
               <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs text-slate-400">Custom:</span>
-                <input type="number" min={OFFICE_MIN_SEATS} value={seats}
+                <label htmlFor="office-seats" className="text-xs text-slate-500">Custom:</label>
+                <input id="office-seats" aria-label="Number of team seats" type="number" min={OFFICE_MIN_SEATS} value={seats}
                   onChange={(e) => setSeats(Math.max(OFFICE_MIN_SEATS, Math.floor(Number(e.target.value) || OFFICE_MIN_SEATS)))}
                   className="w-20 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 bg-white border border-slate-200 focus:outline-none" />
-                <span className="text-xs text-slate-400">users</span>
+                <span className="text-xs text-slate-500">users</span>
               </div>
-              <p className="text-slate-400 text-[11px] mt-2">No cap on team size — add more seats anytime from your account as you grow.</p>
+              <p className="text-slate-400 text-[0.6875rem] mt-2">No cap on team size — add more seats anytime from your account as you grow.</p>
             </div>
             <ul className="space-y-2.5 mb-8 flex-1">
-              {features.enterprise.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[13.5px] text-slate-600"><Check />{f}</li>))}
+              {features.enterprise.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.84375rem] text-slate-600"><Check />{f}</li>))}
             </ul>
             <button onClick={() => handleUpgrade("enterprise")} disabled={loading !== null} className="w-full font-bold py-3.5 px-3 rounded-full text-sm leading-tight bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors break-words">
               {loading === "enterprise" ? "Loading…" : `Get Office · ${annual
@@ -255,7 +255,14 @@ export default function PricingPage() {
                 Have a promo code?
               </summary>
               <div className="mt-3 flex gap-2">
+                {/* A placeholder is not a label — it disappears the moment you
+                    type, and VoiceOver users get an unnamed box. The invalid
+                    state was also colour-only (a red border) and silent; it is
+                    now announced and pointed at by the field itself. */}
                 <input type="text" placeholder="Enter code" value={promo.code}
+                  aria-label="Promo code"
+                  aria-invalid={promo.status === "invalid"}
+                  aria-describedby={promo.status === "invalid" ? "promo-error" : undefined}
                   onChange={(e) => setPromo((p) => ({ ...p, code: e.target.value.toUpperCase(), status: "idle", message: "" }))}
                   onKeyDown={(e) => e.key === "Enter" && applyPromo()}
                   className="flex-1 rounded-xl px-4 py-2.5 text-sm text-slate-900 bg-white border focus:outline-none transition-colors"
@@ -264,7 +271,16 @@ export default function PricingPage() {
                   {promo.status === "checking" ? "…" : "Apply"}
                 </button>
               </div>
-              {promo.status === "invalid" && <p className="text-red-500 text-xs mt-1.5 text-center">{promo.message}</p>}
+              {promo.status === "invalid" && (
+                <p id="promo-error" role="alert" className="text-red-600 text-xs mt-1.5 text-center flex items-center justify-center gap-1">
+                  {/* An icon as well as the colour: red-alone is exactly what
+                      "Differentiate Without Color Alone" rules out. */}
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 shrink-0" aria-hidden="true">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-5a1 1 0 112 0 1 1 0 01-2 0zm.25-7.25a.75.75 0 011.5 0v4.5a.75.75 0 01-1.5 0v-4.5z" clipRule="evenodd" />
+                  </svg>
+                  {promo.message}
+                </p>
+              )}
             </details>
           )}
         </section>

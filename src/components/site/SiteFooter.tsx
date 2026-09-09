@@ -79,13 +79,13 @@ export default function SiteFooter() {
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 mb-4">
               <SwiftCardIcon size={30} />
-              <span className="text-white font-bold text-[18px] tracking-tight">SwiftCard</span>
+              <span className="text-white font-bold text-[1.125rem] tracking-tight">SwiftCard</span>
             </Link>
-            <p className="text-white/45 text-[14px] leading-relaxed max-w-[240px]">
+            <p className="text-white/55 text-[0.875rem] leading-relaxed max-w-[240px]">
               The digital business card that shares itself. One tap, and you&apos;re in their phone — card, links, and everything you do.
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
-              <Link href="/cards/new" className="rd-btn rd-btn-primary text-[13px] px-4 py-2">Get started free</Link>
+              <Link href="/cards/new" className="rd-btn rd-btn-primary text-[0.8125rem] px-4 py-2">Get started free</Link>
             </div>
             {/* The App Store badge (the homepage hero carries the other one).
                 It renders ONLY once NEXT_PUBLIC_APP_STORE_URL is set, so it is
@@ -99,12 +99,12 @@ export default function SiteFooter() {
           </div>
           {COLS.map((col) => (
             <div key={col.title}>
-              <p className="rd-eyebrow text-white/40 mb-4">{col.title}</p>
+              <p className="rd-eyebrow text-white/55 mb-4">{col.title}</p>
               <ul className="space-y-2.5">
                 {col.links.map((l) => {
                   const li = (
                     <li key={l.label}>
-                      <Link href={l.href} className="text-[14px] text-white/55 hover:text-white transition-colors">{l.label}</Link>
+                      <Link href={l.href} className="text-[0.875rem] text-white/55 hover:text-white transition-colors">{l.label}</Link>
                     </li>
                   );
                   // Hide the Pricing link inside the native app (no selling).
@@ -116,13 +116,13 @@ export default function SiteFooter() {
         </div>
         <div className="rd-hair-d my-10" />
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-white/35 text-[13px]">
+          <p className="text-white/55 text-[0.8125rem]">
             © {new Date().getFullYear()} SwiftCard. All rights reserved.{" "}
-            <Link href="/company" className="hover:text-white/60 transition-colors">SwiftCard is operated by Swift Card Inc.</Link>
+            <Link href="/company" className="hover:text-white transition-colors">SwiftCard is operated by Swift Card Inc.</Link>
           </p>
           <div className="flex items-center gap-5">
-            <Link href="/privacy" className="text-white/40 hover:text-white/70 text-[13px] transition-colors">Privacy</Link>
-            <Link href="/contact" className="text-white/40 hover:text-white/70 text-[13px] transition-colors">Contact Us</Link>
+            <Link href="/privacy" className="text-white/55 hover:text-white text-[0.8125rem] transition-colors">Privacy</Link>
+            <Link href="/contact" className="text-white/55 hover:text-white text-[0.8125rem] transition-colors">Contact Us</Link>
           </div>
         </div>
       </div>

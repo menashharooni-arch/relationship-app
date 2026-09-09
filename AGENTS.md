@@ -33,3 +33,53 @@ Guardrails that will catch you:
 
 Write docs the way a support agent talks: the exact label on the button, the real
 path through the menus, and the thing users get wrong.
+
+# Before you change something that already works
+
+Four checks exist, and they see different things. Knowing which one covers your
+change is the difference between shipping a fix and shipping a regression.
+
+| Check | Command | Sees |
+|---|---|---|
+| Types + lint + logic | `npx tsc --noEmit`, `npx eslint`, `npm test` | ~2700 source-invariant and logic tests. Runs in CI on every push. |
+| Real layout | `npm run test:render` | Renders in headless Chromium with the app's real Tailwind and **measures**. Runs in CI (`render` job). |
+| Every screen, both widths | `npm run qa:sweep` | Loads every page logged-out / Free / Pro at 390px and 1280px: JS errors, 4xx/5xx, overflow, covered controls, broken images, dead links. |
+| The app actually used | `npm run qa:flows` | Drives it: save → reload persistence, double-submit, validation, sign-out, back/forward, empty account, mobile tabs. |
+
+The last two seed their own throwaway accounts against the real Supabase project
+and delete them in a `finally` block. They need `.env.local`, so they are
+developer/pre-release tools, not CI steps. Point them at a production build
+(`npx next build && npx next start -p 3222`, then `BASE=http://localhost:3222`) —
+`next dev`'s indicator sits on top of the bottom-left tab and the dev overlay
+covers footer links, and both look exactly like product defects.
+
+**A source scan cannot see layout, and neither can a type.** If your change moves
+a pixel, run `test:render`. If it changes what a button does, run `qa:flows`.
+
+## The rules that came from real bugs
+
+- **A credential must never be able to reach a URL.** Any `<form>` holding a
+  password carries `method="post"`. `onSubmit` + `preventDefault` is not enough:
+  before React hydrates there is no handler, so a submit takes the HTML default,
+  and without a method that default is GET — which put a real password in the
+  query string, the browser history and the access log. Pinned by
+  `tests/credentials-never-in-url.test.ts`.
+
+- **Everything is interactive before it is hydrated.** A form, a tab, a toggle
+  all accept input between first paint and hydration, when no handler is
+  attached. When that gap can lose data or leak it, close it in the markup —
+  something that works with no JavaScript at all — not in an effect.
+
+- **Only warm what you can actually reach.** `warmSharePreview` is same-origin
+  only: a cross-origin fetch can never read the og:image through CORS, so the
+  request is guaranteed useless. It also had dev boxes and preview deploys
+  fetching real production card pages on every marketing page load. Local work
+  must not generate production traffic.
+
+- **Before editing a shared component, list its consumers and check them after.**
+  `ShareButton`, `CardScaler`, `PlanGate`, `SettingsShell` and the card templates
+  each have many; a change that looks local is not.
+
+- **Several sessions edit this worktree at once.** Stage explicit paths. Never
+  `git add -A` or `git commit -a` — you will commit someone else's half-finished
+  feature. `git status` before and after.

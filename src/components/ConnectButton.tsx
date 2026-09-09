@@ -104,7 +104,7 @@ export default function ConnectButton({
         // ours ends in a relationship — so this is taller and bolder than any
         // tile, and it glows in the Look's own accent rather than a generic
         // drop shadow (a fixed dark shadow reads as dirt on the light Looks).
-        className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-[15px] transition-all active:scale-[0.98] hover:brightness-110"
+        className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-[0.9375rem] transition-all active:scale-[0.98] hover:brightness-110"
         style={{ background: accent, color: accentText, boxShadow: `0 8px 24px -6px ${accent}59` }}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">

@@ -70,7 +70,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
     return (
       <div className="mx-auto max-w-sm">
         <div className="text-center mb-8">
-          <span className="inline-block rounded-full bg-[#1D4ED8] px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white">SwiftCard Pro</span>
+          <span className="inline-block rounded-full bg-[#1D4ED8] px-3 py-1 text-[0.6875rem] font-bold uppercase tracking-wide text-white">SwiftCard Pro</span>
           <h1 className="mt-4 text-2xl font-bold text-white">Do more with every tap</h1>
           <p className="mt-2 text-sm text-gray-400">Unlock everything Pro includes — right here in the app.</p>
         </div>
@@ -111,7 +111,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
             <div className="absolute top-0.5 w-[18px] h-[18px] bg-white rounded-full shadow transition-transform duration-200" style={{ transform: annual ? "translateX(20px)" : "translateX(2px)" }} />
           </button>
           <span className={`text-xs font-medium transition-colors ${annual ? "text-white" : "text-gray-500"}`}>
-            Annual <span className="ml-1 text-[10px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">SAVE 10%</span>
+            Annual <span className="ml-1 text-[0.625rem] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">SAVE 10%</span>
           </span>
         </div>
       </div>
@@ -122,7 +122,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
         {/* Pro */}
         <div className={`${isMobile && mobileTier !== "pro" ? "hidden" : ""} relative rounded-[24px] p-7 flex flex-col overflow-hidden`} style={{ background: "linear-gradient(150deg,#2563EB,#4f46e5)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
           <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
-          <div className="absolute top-6 right-6 bg-white/25 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">MOST POPULAR</div>
+          <div className="absolute top-6 right-6 bg-white/25 text-white text-[0.625rem] font-bold px-2.5 py-1 rounded-full">MOST POPULAR</div>
           <div className="relative flex flex-col flex-1">
             <p className="text-[1.3rem] font-extrabold tracking-tight text-black mb-3">Pro</p>
             {/* "Free for your first 14 days, then $X" — owner-approved
@@ -148,7 +148,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
             <p className={`text-white/80 text-sm mb-6 ${trialEligible ? "mt-4" : "mt-2"}`}>Everything, unlimited.</p>
             <ul className="space-y-2 mb-7 flex-1">
               {PLAN_FEATURES.pro.map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-[13px] text-white"><Check light />{f}</li>
+                <li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-white"><Check light />{f}</li>
               ))}
             </ul>
             <Link
@@ -157,7 +157,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
             >
               {trialEligible ? `Start ${TRIAL_DAYS}-day free trial →` : <>Upgrade to Pro — {formatUsd(proCents)}/{per} →</>}
             </Link>
-            <p className="text-white/70 text-[11px] text-center mt-2.5">
+            <p className="text-white/70 text-[0.6875rem] text-center mt-2.5">
               {trialEligible
                 ? `Card required · renews automatically at ${formatUsd(proCents)}/${per}`
                 : "Billing starts today · Cancel anytime"}
@@ -169,7 +169,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
         <div className={`${isMobile && mobileTier !== "office" ? "hidden" : ""} rounded-[24px] p-7 flex flex-col bg-gray-900 border border-gray-800`}>
           <div className="flex items-center gap-2 mb-3">
             <p className="text-[1.3rem] font-extrabold tracking-tight text-white">Office</p>
-            <span className="text-[10px] font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">FOR TEAMS</span>
+            <span className="text-[0.625rem] font-bold text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">FOR TEAMS</span>
           </div>
           <div className="flex items-end gap-1">
             <span className="text-[2.4rem] font-bold text-white leading-none">{formatUsd(annual ? perMonthCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS) : PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}</span>
@@ -178,7 +178,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
           <p className="text-blue-400 text-xs font-semibold mt-1.5">
             Minimum {OFFICE_MIN_SEATS} people{annual ? " · billed yearly, save 10%" : ""}
           </p>
-          <p className="text-white font-bold text-[13px] mt-1">{seats} people → {formatUsd(officeTotal)}/{per}</p>
+          <p className="text-white font-bold text-[0.8125rem] mt-1">{seats} people → {formatUsd(officeTotal)}/{per}</p>
 
           <div className="mt-4 mb-5">
             <label className="text-xs text-gray-500 font-medium block mb-2">How many people?</label>
@@ -210,7 +210,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
 
           <ul className="space-y-2 mb-7 flex-1">
             {PLAN_FEATURES.office.map((f) => (
-              <li key={f} className="flex items-start gap-2.5 text-[13px] text-gray-400"><Check />{f}</li>
+              <li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-gray-400"><Check />{f}</li>
             ))}
           </ul>
           <Link
@@ -219,7 +219,7 @@ export default function UpgradeClient({ trialEligible }: { trialEligible: boolea
           >
             Upgrade to Office — {formatUsd(officeTotal)}/{per} →
           </Link>
-          <p className="text-gray-600 text-[11px] text-center mt-2">Billing starts today · Your card is seat 1</p>
+          <p className="text-gray-600 text-[0.6875rem] text-center mt-2">Billing starts today · Your card is seat 1</p>
         </div>
       </div>
 

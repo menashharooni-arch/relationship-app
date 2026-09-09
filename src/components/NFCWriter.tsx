@@ -47,7 +47,7 @@ export default function NFCWriter({ url }: { url: string }) {
 
   return (
     <div>
-      <p className="text-gray-300 text-[13px] leading-relaxed mb-3">
+      <p className="text-gray-300 text-[0.8125rem] leading-relaxed mb-3">
         Buy any blank NFC tag or card, write your link to it once, then a phone tap opens your card — no app for them.
       </p>
 
@@ -80,7 +80,7 @@ export default function NFCWriter({ url }: { url: string }) {
 
       {/* Manual path — always available (iPhone, desktop, unsupported browsers) */}
       <div className="mt-3 pt-3 border-t border-gray-800">
-        <p className="text-gray-500 text-[11px] mb-1.5">Or write it yourself with an NFC app — use this link:</p>
+        <p className="text-gray-500 text-[0.6875rem] mb-1.5">Or write it yourself with an NFC app — use this link:</p>
         <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
           <span className="text-blue-400 text-xs truncate flex-1">{tagUrl.replace(/^https?:\/\//, "")}</span>
           <CopyButton text={tagUrl} />

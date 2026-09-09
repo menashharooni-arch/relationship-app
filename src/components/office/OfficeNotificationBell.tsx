@@ -166,7 +166,7 @@ export default function OfficeNotificationBell({
           <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
         </svg>
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-purple-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-purple-500 text-white text-[0.5625rem] font-bold rounded-full flex items-center justify-center">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -188,7 +188,7 @@ export default function OfficeNotificationBell({
             <div className="relative flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
               <div className="min-w-0">
                 <p className="text-sm font-bold text-white">Team notifications</p>
-                <p className="text-[10px] text-gray-500">Important updates about your team</p>
+                <p className="text-[0.625rem] text-gray-500">Important updates about your team</p>
               </div>
               <div className="flex items-center gap-3">
                 {unread > 0 && (
@@ -227,14 +227,14 @@ export default function OfficeNotificationBell({
                       <div className="min-w-0 flex-1">
                         <p className="text-white text-xs font-semibold truncate">{n.title}</p>
                         {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
-                        <p suppressHydrationWarning className="text-gray-500 text-[11px] mt-1 truncate">{timeAgo(n.created_at)}</p>
+                        <p suppressHydrationWarning className="text-gray-500 text-[0.6875rem] mt-1 truncate">{timeAgo(n.created_at)}</p>
                       </div>
                       <button
                         onClick={() => setRead(n.id, !n.read)}
                         disabled={pendingIds.has(n.id)}
                         title={n.read ? "Mark as unread" : "Mark as read"}
                         aria-label={n.read ? "Mark as unread" : "Mark as read"}
-                        className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        className={`shrink-0 text-[0.625rem] font-medium px-2 py-0.5 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           n.read
                             ? "border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500"
                             : "border-purple-700 bg-purple-600/15 text-purple-300 hover:bg-purple-600/25"

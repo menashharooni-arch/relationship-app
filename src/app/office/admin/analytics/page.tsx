@@ -124,7 +124,7 @@ export default async function OfficeAnalyticsPage({
       </div>
 
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
-        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3">Views over time</p>
+        <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-3">Views over time</p>
         {isEmpty ? (
           <Empty>No activity yet for this range — this fills in once your team&apos;s cards start getting views.</Empty>
         ) : (
@@ -134,7 +134,7 @@ export default async function OfficeAnalyticsPage({
 
       {trafficSources.length > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3">Traffic sources</p>
+          <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-3">Traffic sources</p>
           <div className="space-y-1.5">
             {trafficSources.map((s) => (
               <div key={s.source} className="flex items-center justify-between text-sm">
@@ -146,7 +146,7 @@ export default async function OfficeAnalyticsPage({
         </div>
       )}
 
-      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Team performance</p>
+      <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-2">Team performance</p>
       <EmployeeAnalyticsTable employees={employees} range={preset} />
     </div>
   );

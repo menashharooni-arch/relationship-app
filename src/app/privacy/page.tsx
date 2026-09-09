@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import SiteNav from "@/components/site/SiteNav";
 import Link from "next/link";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
-import NativeHidden from "@/components/NativeHidden";
+import SiteFooterMini from "@/components/site/SiteFooterMini";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — SwiftCard",
@@ -21,13 +20,13 @@ function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
 }
 function H3({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-[15px] font-bold text-slate-800 mt-6 mb-2">{children}</h3>;
+  return <h3 className="text-[0.9375rem] font-bold text-slate-800 mt-6 mb-2">{children}</h3>;
 }
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-slate-600 text-[15px] leading-relaxed mb-3">{children}</p>;
+  return <p className="text-slate-600 text-[0.9375rem] leading-relaxed mb-3">{children}</p>;
 }
 function LI({ children }: { children: React.ReactNode }) {
-  return <li className="text-slate-600 text-[15px] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
+  return <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
 }
 
 export default function PrivacyPage() {
@@ -53,7 +52,7 @@ export default function PrivacyPage() {
 
         {/* At-a-glance summary — the four promises people actually care about */}
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
-          <p className="text-[11px] font-bold tracking-[0.18em] uppercase text-slate-500 mb-3">Privacy at a glance</p>
+          <p className="rd-eyebrow text-slate-600 mb-3">Privacy at a glance</p>
           <ul className="space-y-2">
             {[
               "We never sell your personal information — or your contacts' — to anyone.",
@@ -61,7 +60,7 @@ export default function PrivacyPage() {
               "Your card shows only what you choose to make public. Everything else stays private.",
               "You can export or permanently delete your data anytime from Settings.",
             ].map((t) => (
-              <li key={t} className="flex items-start gap-2.5 text-slate-700 text-[14px] leading-relaxed">
+              <li key={t} className="flex items-start gap-2.5 text-slate-700 text-[0.875rem] leading-relaxed">
                 <span className="mt-1 w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(5,150,105,.12)" }}>
                   <svg viewBox="0 0 20 20" className="w-2.5 h-2.5" fill="none" stroke="#059669" strokeWidth={3}><path d="M4 10.5l4 4 8-9" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </span>
@@ -97,9 +96,9 @@ export default function PrivacyPage() {
           third-party data for advertising, and we do not share it with data brokers.
         </P>
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white/70 my-4">
-          <table className="w-full text-[13.5px]" style={{ minWidth: 560 }}>
+          <table className="w-full text-[0.84375rem]" style={{ minWidth: 560 }}>
             <thead>
-              <tr className="text-left text-slate-500 text-[11px] uppercase tracking-wide border-b border-slate-200">
+              <tr className="text-left text-slate-500 text-[0.6875rem] uppercase tracking-wide border-b border-slate-200">
                 <th className="px-4 py-3 font-semibold">Category</th>
                 <th className="px-4 py-3 font-semibold">What it includes</th>
                 <th className="px-4 py-3 font-semibold">Linked to you?</th>
@@ -278,7 +277,7 @@ export default function PrivacyPage() {
           U.S. Children&apos;s Online Privacy Protection Act (COPPA). If we learn that an account belongs to someone
           under 16, we will terminate it and delete the associated personal information. If you believe a child has
           provided us personal information, contact us via the{" "}
-          <Link href="/contact" className="text-brand underline">contact page</Link> and we&apos;ll delete it promptly.
+          <Link href="/contact" className="text-brand underline">contact page</Link>{" "}and we&apos;ll delete it promptly.
         </P>
 
         <H2>Changes</H2>
@@ -296,17 +295,7 @@ export default function PrivacyPage() {
         </P>
       </div>
 
-      <footer className="border-t border-warm-border py-10 px-6 bg-cream mt-auto">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <SwiftCardLogo size={24} />
-          <div className="flex items-center gap-6 text-sm text-slate-500">
-            <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
-            <NativeHidden><Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
-          </div>
-          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY</p>
-        </div>
-      </footer>
+      <SiteFooterMini />
     </main>
   );
 }

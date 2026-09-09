@@ -59,7 +59,7 @@ export default function ReferralsClient() {
 
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
             <p className="text-white font-semibold text-sm mb-1">Signups by source</p>
-            <p className="text-gray-600 text-[11px] mb-3">Every account by how it found SwiftCard. The &quot;Referral link&quot; row is the referral program; the rest are the free-account prompts around the product.</p>
+            <p className="text-gray-600 text-[0.6875rem] mb-3">Every account by how it found SwiftCard. The &quot;Referral link&quot; row is the referral program; the rest are the free-account prompts around the product.</p>
             <div className="space-y-2">
               {Object.entries(stats.bySource ?? {}).sort((a, b) => b[1] - a[1]).map(([src, n]) => {
                 const max = Math.max(...Object.values(stats.bySource ?? { x: 1 }), 1);
@@ -88,7 +88,7 @@ export default function ReferralsClient() {
                 is fixed (referral-server: a month now needs a referrer, a
                 clean status AND the referral source), so the claim is finally
                 accurate — stated precisely rather than broadly. */}
-            <p className="text-gray-600 text-[11px]">Referral signups the fraud checks caught (same device/IP as the referrer, self-referrals). Neither side is rewarded: no free month for the signup, no credit for the referrer. Listed here so you can spot abuse patterns.</p>
+            <p className="text-gray-600 text-[0.6875rem]">Referral signups the fraud checks caught (same device/IP as the referrer, self-referrals). Neither side is rewarded: no free month for the signup, no credit for the referrer. Listed here so you can spot abuse patterns.</p>
             {(stats.flaggedList ?? []).length === 0 ? (
               <p className="text-gray-500 text-xs mt-2">Nothing suspicious so far.</p>
             ) : (

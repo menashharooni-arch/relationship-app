@@ -220,17 +220,17 @@ const PRODUCTS: Record<string, Product> = {
       <div className="w-[340px] max-w-full flex flex-col items-center">
         {/* the lead that just came in */}
         <div className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3.5 flex items-center gap-3 shadow-[0_18px_44px_-24px_rgba(0,0,0,0.7)]">
-          <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[13px] font-bold shrink-0" style={{ background: "var(--rd-aurora)" }}>SC</span>
+          <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[0.8125rem] font-bold shrink-0" style={{ background: "var(--rd-aurora)" }}>SC</span>
           <span className="min-w-0">
-            <span className="block text-white text-[14px] font-semibold leading-tight">Sarah Chen</span>
-            <span className="block text-white/45 text-[12px] leading-tight">just shared her info · via QR</span>
+            <span className="block text-white text-[0.875rem] font-semibold leading-tight">Sarah Chen</span>
+            <span className="block text-white/45 text-[0.75rem] leading-tight">just shared her info · via QR</span>
           </span>
-          <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200 border border-blue-400/25 shrink-0">New lead</span>
+          <span className="ml-auto text-[0.625rem] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200 border border-blue-400/25 shrink-0">New lead</span>
         </div>
         {/* flows automatically to… */}
         <div className="flex flex-col items-center py-2.5">
           <svg viewBox="0 0 24 24" className="w-5 h-5 text-white/30" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
-          <span className="text-white/40 text-[11px] font-medium tracking-wide">synced automatically</span>
+          <span className="text-white/40 text-[0.6875rem] font-medium tracking-wide">synced automatically</span>
         </div>
         {/* …into your tools. Same canonical list as the homepage band. */}
         <div className="grid grid-cols-2 gap-3 w-full">
@@ -238,8 +238,8 @@ const PRODUCTS: Record<string, Product> = {
             <div key={it.name} className="rounded-xl bg-white px-3 py-2.5 flex items-center gap-2.5 shadow-[0_14px_34px_-20px_rgba(0,0,0,0.6)]">
               <span className="w-7 h-7 flex items-center justify-center shrink-0">{it.logo}</span>
               <span className="min-w-0">
-                <span className="block text-slate-800 text-[12.5px] font-bold leading-tight truncate">{it.name}</span>
-                <span className="block text-slate-400 text-[10.5px] leading-tight truncate">{it.short}</span>
+                <span className="block text-slate-800 text-[0.78125rem] font-bold leading-tight truncate">{it.name}</span>
+                <span className="block text-slate-400 text-[0.65625rem] leading-tight truncate">{it.short}</span>
               </span>
             </div>
           ))}
@@ -290,7 +290,6 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   return (
     <div className="rd-dark2">
       <ScrollProgress />
-      <div className="sc-scroll-progress" />
       <ScrollReveal />
       <SiteNav />
 
@@ -341,8 +340,8 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style={{ background: "var(--rd-aurora)" }}>
                     <svg viewBox="0 0 20 20" className="w-5 h-5 text-white" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                   </div>
-                  <p className="text-slate-900 font-semibold text-[16px]">{f.t}</p>
-                  <p className="text-slate-500 text-[14px] mt-1.5 leading-relaxed">{f.d}</p>
+                  <p className="text-slate-900 font-semibold text-[1rem]">{f.t}</p>
+                  <p className="text-slate-500 text-[0.875rem] mt-1.5 leading-relaxed">{f.d}</p>
                 </div>
               ))}
             </div>
@@ -355,7 +354,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(70% 90% at 15% 0%, rgba(93,107,255,0.18), transparent 60%)" }} />
             <div className="relative max-w-5xl mx-auto px-5 sm:px-6">
               <div className="max-w-2xl" data-reveal>
-                <p className="text-[13px] font-semibold tracking-[0.14em] uppercase" style={{ color: "#4DA8F5" }}>What you get</p>
+                <p className="rd-eyebrow rd-eyebrow-accent">What you get</p>
                 <h2 className="rd-h2 text-white text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">One office account. Total control, zero busywork.</h2>
                 <p className="text-white/60 text-[1.05rem] mt-4 leading-relaxed">You set the brand once — every card your team creates inherits it automatically. From there, it&rsquo;s a single dashboard to see how the whole team is doing, not a spreadsheet of who has what.</p>
               </div>
@@ -373,14 +372,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--rd-aurora)" }}>
                       <svg viewBox="0 0 20 20" className="w-4.5 h-4.5 text-white" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
                     </div>
-                    <p className="text-white font-semibold text-[16px]">{s.t}</p>
-                    <p className="text-white/55 text-[14px] mt-1.5 leading-relaxed">{s.d}</p>
+                    <p className="text-white font-semibold text-[1rem]">{s.t}</p>
+                    <p className="text-white/55 text-[0.875rem] mt-1.5 leading-relaxed">{s.d}</p>
                   </div>
                 ))}
               </div>
 
               <div className="mt-16 max-w-2xl" data-reveal>
-                <p className="text-[13px] font-semibold tracking-[0.14em] uppercase" style={{ color: "#4DA8F5" }}>Built for</p>
+                <p className="rd-eyebrow rd-eyebrow-accent">Built for</p>
                 <h2 className="rd-h2 text-white text-[clamp(1.6rem,3vw,2.1rem)] mt-3">Any team that shows up as one brand.</h2>
               </div>
               <div className="mt-8 grid sm:grid-cols-2 gap-4">
@@ -391,13 +390,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   { t: "Multi-location businesses", d: "One brand across every office. Each location's staff gets their own card and contacts, while you keep a single view across all of them." },
                 ].map((s, i) => (
                   <div key={s.t} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
-                    <p className="text-white font-semibold text-[15px]">{s.t}</p>
-                    <p className="text-white/55 text-[13.5px] mt-1.5 leading-relaxed">{s.d}</p>
+                    <p className="text-white font-semibold text-[0.9375rem]">{s.t}</p>
+                    <p className="text-white/55 text-[0.84375rem] mt-1.5 leading-relaxed">{s.d}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-white/45 text-[13px]" data-reveal>
+              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-white/45 text-[0.8125rem]" data-reveal>
                 <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />No cap on seats</span>
                 <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />One bill for the whole team</span>
                 <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Add or remove people anytime</span>
@@ -412,7 +411,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(70% 90% at 15% 0%, rgba(93,107,255,0.18), transparent 60%)" }} />
             <div className="relative max-w-5xl mx-auto px-5 sm:px-6">
               <div className="max-w-2xl" data-reveal>
-                <p className="text-[13px] font-semibold tracking-[0.14em] uppercase" style={{ color: "#4DA8F5" }}>How it works</p>
+                <p className="rd-eyebrow rd-eyebrow-accent">How it works</p>
                 <h2 className="rd-h2 text-white text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">From a handshake to your CRM — hands-off.</h2>
                 <p className="text-white/60 text-[1.05rem] mt-4 leading-relaxed">You never touch a spreadsheet. The second a lead comes in, SwiftCard captures the full context and routes it everywhere it needs to go — while you&rsquo;re still shaking hands.</p>
               </div>
@@ -423,13 +422,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   { n: "3", t: "It lands in your stack", d: "Synced to GoHighLevel, Pipedrive, HubSpot or Google Contacts, piped to 6,000+ apps through Zapier, or exported as CSV — in real time, no manual step." },
                 ].map((s, i) => (
                   <div key={s.n} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6" data-reveal style={{ transitionDelay: `${i * 80}ms` }}>
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-[15px] font-bold mb-4" style={{ background: "var(--rd-aurora)" }}>{s.n}</div>
-                    <p className="text-white font-semibold text-[16px]">{s.t}</p>
-                    <p className="text-white/55 text-[14px] mt-1.5 leading-relaxed">{s.d}</p>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-[0.9375rem] font-bold mb-4" style={{ background: "var(--rd-aurora)" }}>{s.n}</div>
+                    <p className="text-white font-semibold text-[1rem]">{s.t}</p>
+                    <p className="text-white/55 text-[0.875rem] mt-1.5 leading-relaxed">{s.d}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-white/45 text-[13px]" data-reveal>
+              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-white/45 text-[0.8125rem]" data-reveal>
                 <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Real-time — no nightly sync</span>
                 <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />No code required</span>
                 <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Your data stays yours</span>

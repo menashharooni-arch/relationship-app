@@ -79,11 +79,11 @@ function BigStat({ label, value, explainer, delta, sub }: {
     <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4">
       <p className="text-xs text-gray-500">{label}</p>
       <div className="flex items-baseline gap-2 mt-1 flex-wrap">
-        <p className="text-[28px] font-bold text-white tabular-nums leading-none">{value}</p>
+        <p className="text-[1.75rem] font-bold text-white tabular-nums leading-none">{value}</p>
         {sub && <span className="text-xs text-gray-600 font-medium">{sub}</span>}
-        {delta && <span className="text-[11px] font-bold text-green-400">▲ {delta}</span>}
+        {delta && <span className="text-[0.6875rem] font-bold text-green-400">▲ {delta}</span>}
       </div>
-      <p className="text-[11px] text-gray-600 mt-1.5 leading-snug">{explainer}</p>
+      <p className="text-[0.6875rem] text-gray-600 mt-1.5 leading-snug">{explainer}</p>
     </div>
   );
 }
@@ -95,7 +95,7 @@ function Chip({ tone, children }: { tone: "green" | "amber" | "gray"; children: 
     amber: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     gray: "bg-gray-800 text-gray-400 border-gray-700",
   } as const;
-  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${tones[tone]}`}>{children}</span>;
+  return <span className={`text-[0.625rem] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${tones[tone]}`}>{children}</span>;
 }
 
 // The real portal's initials avatar: purple disc, purple border.
@@ -107,7 +107,7 @@ function InitialsAvatar({ initials }: { initials: string }) {
   );
 }
 
-const pillCls = "text-[11px] font-semibold text-gray-400 bg-gray-800 px-2.5 py-1 rounded-full whitespace-nowrap";
+const pillCls = "text-[0.6875rem] font-semibold text-gray-400 bg-gray-800 px-2.5 py-1 rounded-full whitespace-nowrap";
 const inputCls = "w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5 text-sm text-white";
 
 // Static stand-in for a filled text input (the demo isn't a form).
@@ -122,7 +122,7 @@ function Section({ n, title, desc, children }: {
   return (
     <section className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
       <div className="flex items-start gap-3 mb-4">
-        <span className="w-5 h-5 rounded-full bg-purple-500/15 text-purple-300 text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5" aria-hidden="true">{n}</span>
+        <span className="w-5 h-5 rounded-full bg-purple-500/15 text-purple-300 text-[0.6875rem] font-bold flex items-center justify-center shrink-0 mt-0.5" aria-hidden="true">{n}</span>
         <div>
           <p className="text-sm font-bold text-white">{title}</p>
           <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
@@ -169,7 +169,7 @@ export default function TeamsDashboard() {
         <span className="w-3 h-3 rounded-full bg-[#ff5f57]" /><span className="w-3 h-3 rounded-full bg-[#febc2e]" /><span className="w-3 h-3 rounded-full bg-[#28c840]" />
         <div className="ml-3 flex-1 max-w-[280px] h-6 rounded-md bg-white/[0.05] flex items-center px-3 gap-1.5">
           <svg viewBox="0 0 24 24" className="w-3 h-3 text-white/30" fill="none" stroke="currentColor" strokeWidth={2}><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 018 0v3" /></svg>
-          <span className="text-white/40 text-[11px]">swiftcard.me/office/admin</span>
+          <span className="text-white/40 text-[0.6875rem]">swiftcard.me/office/admin</span>
         </div>
       </div>
 
@@ -177,18 +177,18 @@ export default function TeamsDashboard() {
       <div className="bg-gray-950 border-b border-gray-800/80 px-4 sm:px-5">
         <div className="flex items-center justify-between h-11">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[9px] font-bold tracking-[0.25em] text-slate-500 uppercase shrink-0">SwiftCard</span>
-            <span className="text-[10px] font-bold bg-purple-600/20 border border-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full shrink-0">Admin</span>
-            <span className="text-[11px] text-gray-500 truncate hidden sm:block">{COMPANY}</span>
+            <span className="text-[0.5625rem] font-bold tracking-[0.25em] text-slate-500 uppercase shrink-0">SwiftCard</span>
+            <span className="text-[0.625rem] font-bold bg-purple-600/20 border border-purple-500/30 text-purple-300 px-2 py-0.5 rounded-full shrink-0">Admin</span>
+            <span className="text-[0.6875rem] text-gray-500 truncate hidden sm:block">{COMPANY}</span>
           </div>
-          <span className="text-[11px] text-gray-600 shrink-0">← My dashboard</span>
+          <span className="text-[0.6875rem] text-gray-600 shrink-0">← My dashboard</span>
         </div>
         <div className="flex gap-1 -mb-px">
           {TABS.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-3 py-2 text-[12.5px] font-medium border-b-2 transition-colors ${
+              className={`px-3 py-2 text-[0.78125rem] font-medium border-b-2 transition-colors ${
                 tab === t ? "border-purple-500 text-white" : "border-transparent text-gray-500 hover:text-gray-300"
               }`}
             >
@@ -204,14 +204,14 @@ export default function TeamsDashboard() {
           <div>
             <div className="flex items-start justify-between gap-4 mb-1">
               <div>
-                <p className="text-[17px] font-bold text-white tracking-tight">Your team</p>
-                <p className="text-gray-500 text-[12px] mt-0.5">Everyone with a company card, and what those cards are bringing in.</p>
+                <p className="text-[1.0625rem] font-bold text-white tracking-tight">Your team</p>
+                <p className="text-gray-500 text-[0.75rem] mt-0.5">Everyone with a company card, and what those cards are bringing in.</p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-xs text-gray-500 whitespace-nowrap hidden sm:block">
                   <span className="text-gray-300 font-semibold tabular-nums">4 of 6</span> seats in use
                 </span>
-                <span className="bg-purple-600 text-white text-[11.5px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap">+ Add team member</span>
+                <span className="bg-purple-600 text-white text-[0.71875rem] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap">+ Add team member</span>
               </div>
             </div>
             <p className="text-xs text-gray-500 mb-4 sm:hidden">
@@ -227,7 +227,7 @@ export default function TeamsDashboard() {
             </div>
 
             <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden">
-              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-gray-800 bg-gray-900/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-gray-800 bg-gray-900/60 text-[0.625rem] font-semibold text-gray-500 uppercase tracking-wider">
                 <p className="col-span-4">Person</p>
                 <p className="col-span-1 text-right">Views</p>
                 <p className="col-span-1 text-right">Leads</p>
@@ -243,16 +243,16 @@ export default function TeamsDashboard() {
                       <img src={p.photo} alt="" className="w-9 h-9 rounded-full object-cover shrink-0 bg-gray-800" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-[13px] text-white font-medium truncate">{p.name}</p>
-                          {p.owner && <span className="text-[10px] text-purple-400 shrink-0">You</span>}
+                          <p className="text-[0.8125rem] text-white font-medium truncate">{p.name}</p>
+                          {p.owner && <span className="text-[0.625rem] text-purple-400 shrink-0">You</span>}
                         </div>
-                        <p className="text-[11px] text-gray-500 truncate">{p.title}</p>
-                        <p className="text-[11px] text-gray-600 truncate">{p.email}</p>
+                        <p className="text-[0.6875rem] text-gray-500 truncate">{p.title}</p>
+                        <p className="text-[0.6875rem] text-gray-600 truncate">{p.email}</p>
                       </div>
                     </div>
-                    <p className="col-span-4 md:col-span-1 text-[13px] text-gray-300 tabular-nums md:text-right"><span className="md:hidden text-gray-600 text-[10px]">Views </span>{p.views.toLocaleString("en-US")}</p>
-                    <p className="col-span-4 md:col-span-1 text-[13px] text-gray-300 tabular-nums md:text-right"><span className="md:hidden text-gray-600 text-[10px]">Leads </span>{p.leads}</p>
-                    <p className="col-span-4 md:col-span-2 text-[11px] text-gray-500">{p.lastActive}</p>
+                    <p className="col-span-4 md:col-span-1 text-[0.8125rem] text-gray-300 tabular-nums md:text-right"><span className="md:hidden text-gray-600 text-[0.625rem]">Views </span>{p.views.toLocaleString("en-US")}</p>
+                    <p className="col-span-4 md:col-span-1 text-[0.8125rem] text-gray-300 tabular-nums md:text-right"><span className="md:hidden text-gray-600 text-[0.625rem]">Leads </span>{p.leads}</p>
+                    <p className="col-span-4 md:col-span-2 text-[0.6875rem] text-gray-500">{p.lastActive}</p>
                     <div className="col-span-6 md:col-span-2">
                       {p.active ? <Chip tone="green">Active</Chip> : <Chip tone="amber">Not using it yet</Chip>}
                     </div>
@@ -266,19 +266,19 @@ export default function TeamsDashboard() {
                   <div className="col-span-12 md:col-span-4 min-w-0 flex items-center gap-2.5">
                     <InitialsAvatar initials={PENDING.initials} />
                     <div className="min-w-0">
-                      <p className="text-[13px] text-gray-300 truncate">{PENDING.email}</p>
-                      <p className="text-[11px] text-gray-600">Invite sent {PENDING.sent}</p>
+                      <p className="text-[0.8125rem] text-gray-300 truncate">{PENDING.email}</p>
+                      <p className="text-[0.6875rem] text-gray-600">Invite sent {PENDING.sent}</p>
                     </div>
                   </div>
-                  <p className="col-span-4 md:col-span-1 text-[13px] text-gray-600 md:text-right">—</p>
-                  <p className="col-span-4 md:col-span-1 text-[13px] text-gray-600 md:text-right">—</p>
-                  <p className="col-span-4 md:col-span-2 text-[11px] text-gray-600">—</p>
+                  <p className="col-span-4 md:col-span-1 text-[0.8125rem] text-gray-600 md:text-right">—</p>
+                  <p className="col-span-4 md:col-span-1 text-[0.8125rem] text-gray-600 md:text-right">—</p>
+                  <p className="col-span-4 md:col-span-2 text-[0.6875rem] text-gray-600">—</p>
                   <div className="col-span-6 md:col-span-2">
                     <Chip tone="gray">Invite sent</Chip>
                   </div>
                   <div className="col-span-6 md:col-span-2 flex items-center gap-2 md:justify-end">
                     <span className={pillCls}>Resend</span>
-                    <span className="text-[11px] font-semibold text-gray-500 whitespace-nowrap">Cancel</span>
+                    <span className="text-[0.6875rem] font-semibold text-gray-500 whitespace-nowrap">Cancel</span>
                   </div>
                 </div>
               </div>
@@ -290,26 +290,26 @@ export default function TeamsDashboard() {
         {tab === "Leads" && (
           <div>
             <div className="mb-4">
-              <p className="text-[17px] font-bold text-white tracking-tight">Leads</p>
-              <p className="text-gray-500 text-[12px] mt-0.5">Everyone who shared their info with your team — {LEADS.length} so far.</p>
+              <p className="text-[1.0625rem] font-bold text-white tracking-tight">Leads</p>
+              <p className="text-gray-500 text-[0.75rem] mt-0.5">Everyone who shared their info with your team — {LEADS.length} so far.</p>
             </div>
             {/* Search + the two filter selects — same as the real LeadsTable. */}
             <div className="flex flex-col sm:flex-row gap-2 mb-3">
               <div className="flex-1 rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 flex items-center gap-2">
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-gray-600 shrink-0" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" strokeLinecap="round" /></svg>
-                <span className="text-gray-600 text-[12px]">Search by contact name…</span>
+                <span className="text-gray-600 text-[0.75rem]">Search by contact name…</span>
               </div>
               <div className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 sm:w-48 flex items-center justify-between gap-2">
-                <span className="text-gray-400 text-[12px]">Everyone on the team</span>
-                <span className="text-gray-600 text-[9px]">▼</span>
+                <span className="text-gray-400 text-[0.75rem]">Everyone on the team</span>
+                <span className="text-gray-600 text-[0.5625rem]">▼</span>
               </div>
               <div className="rounded-xl bg-gray-900 border border-gray-800 px-3 py-2 sm:w-36 flex items-center justify-between gap-2">
-                <span className="text-gray-400 text-[12px]">Any status</span>
-                <span className="text-gray-600 text-[9px]">▼</span>
+                <span className="text-gray-400 text-[0.75rem]">Any status</span>
+                <span className="text-gray-600 text-[0.5625rem]">▼</span>
               </div>
             </div>
             <div className="rounded-2xl border border-gray-800 bg-gray-900 overflow-hidden">
-              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-gray-800 bg-gray-900/60 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+              <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2.5 border-b border-gray-800 bg-gray-900/60 text-[0.625rem] font-semibold text-gray-500 uppercase tracking-wider">
                 <p className="col-span-3">Contact</p>
                 <p className="col-span-3">Email &amp; phone</p>
                 <p className="col-span-2">Captured by</p>
@@ -320,29 +320,29 @@ export default function TeamsDashboard() {
                 {LEADS.map((l) => (
                   <div key={l.id} className="grid grid-cols-12 gap-3 px-4 py-3 items-center">
                     <div className="col-span-12 md:col-span-3 min-w-0">
-                      <p className="text-[13px] text-white truncate">{l.name}</p>
+                      <p className="text-[0.8125rem] text-white truncate">{l.name}</p>
                     </div>
                     <div className="col-span-12 md:col-span-3 min-w-0">
-                      <p className="text-[11.5px] text-gray-400 truncate">{l.email}</p>
-                      <p className="text-[11.5px] text-gray-600 truncate">{l.phone || "No phone"}</p>
+                      <p className="text-[0.71875rem] text-gray-400 truncate">{l.email}</p>
+                      <p className="text-[0.71875rem] text-gray-600 truncate">{l.phone || "No phone"}</p>
                     </div>
                     {/* The person's NAME — never a card URL slug. */}
-                    <p className="col-span-4 md:col-span-2 text-[11.5px] text-gray-400 truncate">{l.by}</p>
+                    <p className="col-span-4 md:col-span-2 text-[0.71875rem] text-gray-400 truncate">{l.by}</p>
                     <div className="col-span-5 md:col-span-2 flex items-center gap-2 flex-wrap">
-                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${l.worked ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}>
+                      <span className={`inline-flex items-center gap-1.5 text-[0.625rem] font-semibold px-2 py-0.5 rounded-full border ${l.worked ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${l.worked ? "bg-green-400" : "bg-amber-400"}`} />
                         {l.label}
                       </span>
                       {!l.worked && (
-                        <span className="text-[10px] font-semibold text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-full whitespace-nowrap">Mark contacted</span>
+                        <span className="text-[0.625rem] font-semibold text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-full whitespace-nowrap">Mark contacted</span>
                       )}
                     </div>
-                    <p className="col-span-3 md:col-span-2 text-[11px] text-gray-600 whitespace-nowrap">{l.when}</p>
+                    <p className="col-span-3 md:col-span-2 text-[0.6875rem] text-gray-600 whitespace-nowrap">{l.when}</p>
                   </div>
                 ))}
               </div>
             </div>
-            <p className="text-[10.5px] text-gray-600 mt-2.5">
+            <p className="text-[0.65625rem] text-gray-600 mt-2.5">
               <span className="text-amber-400 font-semibold">New</span> = nobody has followed up yet.{" "}
               <span className="text-green-400 font-semibold">Contacted</span>, <span className="text-green-400 font-semibold">Closed</span> and{" "}
               <span className="text-green-400 font-semibold">Not interested</span> = someone on your team has handled it.
@@ -354,13 +354,13 @@ export default function TeamsDashboard() {
         {tab === "Branding" && (
           <div>
             <div className="mb-4">
-              <p className="text-[17px] font-bold text-white tracking-tight">Branding</p>
-              <p className="text-gray-500 text-[12px] mt-0.5">Set this once — every card on your team automatically uses it.</p>
+              <p className="text-[1.0625rem] font-bold text-white tracking-tight">Branding</p>
+              <p className="text-gray-500 text-[0.75rem] mt-0.5">Set this once — every card on your team automatically uses it.</p>
             </div>
 
             {/* The look comes from the admin's own card — same notice as the real page. */}
             <div className="bg-purple-500/5 border border-purple-500/20 rounded-2xl px-4 py-3 mb-4">
-              <p className="text-[13px] text-purple-200 font-medium">Your own card sets the look</p>
+              <p className="text-[0.8125rem] text-purple-200 font-medium">Your own card sets the look</p>
               <p className="text-xs text-purple-200/70 mt-1 leading-relaxed">
                 The colors, fonts and layout on every team card are copied from your own card —
                 change your card once and everyone&apos;s updates with it.{" "}
@@ -380,7 +380,7 @@ export default function TeamsDashboard() {
                         <img src={logoUrl} alt="" className="w-11 h-11 rounded-[10px] shrink-0" />
                         <div className="min-w-0">
                           <p className="text-xs text-gray-300 truncate">morgan-co-logo.png</p>
-                          <p className="text-[11px] text-gray-600">Shows on every card · <span className="text-purple-300 font-semibold">Replace</span></p>
+                          <p className="text-[0.6875rem] text-gray-600">Shows on every card · <span className="text-purple-300 font-semibold">Replace</span></p>
                         </div>
                       </div>
                     </div>
@@ -398,7 +398,7 @@ export default function TeamsDashboard() {
                       <div>
                         <p className="text-xs font-medium text-gray-400 mb-1.5">Main phone number <span className="text-gray-600 font-normal">(optional)</span></p>
                         <FakeInput value="(415) 555-0100" />
-                        <p className="text-[11px] text-gray-600 mt-1">Shows as &quot;Office&quot; on every card, next to each person&apos;s own number.</p>
+                        <p className="text-[0.6875rem] text-gray-600 mt-1">Shows as &quot;Office&quot; on every card, next to each person&apos;s own number.</p>
                       </div>
                       <div>
                         <p className="text-xs font-medium text-gray-400 mb-1.5">Fax <span className="text-gray-600 font-normal">(optional)</span></p>
@@ -435,7 +435,7 @@ export default function TeamsDashboard() {
                       </button>
                     ))}
                   </div>
-                  <p className="text-[11px] text-gray-600 mt-3">
+                  <p className="text-[0.6875rem] text-gray-600 mt-3">
                     Colors and fonts come from your own card — change your card once and everyone&apos;s updates with it.
                   </p>
                 </Section>
@@ -446,14 +446,14 @@ export default function TeamsDashboard() {
                     <input type="checkbox" defaultChecked className="accent-purple-500 mt-0.5" />
                     <span>
                       Keep every card matching
-                      <span className="block text-[11px] text-gray-600 mt-0.5">
+                      <span className="block text-[0.6875rem] text-gray-600 mt-0.5">
                         Recommended. Uncheck only if you want each person to pick their own style.
                       </span>
                     </span>
                   </label>
                 </Section>
 
-                <button type="button" className="bg-purple-600 hover:bg-purple-500 text-white text-[13px] font-semibold px-5 py-2.5 rounded-full transition-colors">
+                <button type="button" className="bg-purple-600 hover:bg-purple-500 text-white text-[0.8125rem] font-semibold px-5 py-2.5 rounded-full transition-colors">
                   Save &amp; apply to all cards
                 </button>
               </div>
@@ -465,7 +465,7 @@ export default function TeamsDashboard() {
                   <div className="rounded-xl overflow-hidden">
                     <CardScaler><Template data={previewData} /></CardScaler>
                   </div>
-                  <p className="text-[11px] text-gray-600 mt-2.5 leading-snug">
+                  <p className="text-[0.6875rem] text-gray-600 mt-2.5 leading-snug">
                     An example teammate. Their name, photo, title, phone and email are theirs — everything else is what you set here.
                   </p>
                 </div>

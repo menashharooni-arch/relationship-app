@@ -68,7 +68,7 @@ export default function PlansClient({ userId, email, initialPlan }: { userId: st
             <p className="text-gray-500 text-xs uppercase tracking-wide">Your account is currently on</p>
             <p className="text-2xl font-bold mt-0.5" style={{ color: PLANS.find((p) => p.id === plan)?.color }}>{currentLabel}</p>
           </div>
-          <span className="text-[10px] font-bold px-3 py-1 rounded-full" style={{ background: (PLANS.find((p) => p.id === plan)?.color ?? "#6b7280") + "22", color: PLANS.find((p) => p.id === plan)?.color }}>{currentLabel}</span>
+          <span className="text-[0.625rem] font-bold px-3 py-1 rounded-full" style={{ background: (PLANS.find((p) => p.id === plan)?.color ?? "#6b7280") + "22", color: PLANS.find((p) => p.id === plan)?.color }}>{currentLabel}</span>
         </div>
 
         {/* Switcher */}
@@ -81,7 +81,7 @@ export default function PlansClient({ userId, email, initialPlan }: { userId: st
                 style={active ? { borderColor: p.color, background: p.color + "12" } : undefined}>
                 <div className="flex items-center justify-between">
                   <p className="font-bold text-lg" style={{ color: p.color }}>{p.label}</p>
-                  {active && <span className="text-[10px] font-semibold text-gray-400">CURRENT</span>}
+                  {active && <span className="text-[0.625rem] font-semibold text-gray-400">CURRENT</span>}
                 </div>
                 <p className="text-gray-500 text-xs mt-1">{p.blurb}</p>
                 <p className="mt-3 text-xs font-semibold" style={{ color: active ? "#9ca3af" : p.color }}>
@@ -130,7 +130,7 @@ export default function PlansClient({ userId, email, initialPlan }: { userId: st
           </div>
         </div>
 
-        <p className="text-gray-600 text-[11px] mt-4">Note: this changes your real account&apos;s plan flag (no charge). Set yourself back to your preferred plan when you&apos;re done testing.</p>
+        <p className="text-gray-600 text-[0.6875rem] mt-4">Note: this changes your real account&apos;s plan flag (no charge). Set yourself back to your preferred plan when you&apos;re done testing.</p>
     </div>
   );
 }

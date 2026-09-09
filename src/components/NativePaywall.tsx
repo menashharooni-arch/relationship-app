@@ -162,11 +162,11 @@ export default function IapSubscribeButton({
       <button
         type="button"
         onClick={() => (needsAccount ? onNeedsAccount!() : setOpen(true))}
-        className={`relative inline-flex flex-col items-center justify-center overflow-hidden rounded-full px-5 py-1.5 text-[13px] font-bold leading-tight text-white transition-[transform,box-shadow] duration-150 active:scale-[0.97] ${className}`}
+        className={`relative inline-flex flex-col items-center justify-center overflow-hidden rounded-full px-5 py-1.5 text-[0.8125rem] font-bold leading-tight text-white transition-[transform,box-shadow] duration-150 active:scale-[0.97] ${className}`}
         style={{ background: "var(--rd-aurora)", boxShadow: "0 8px 22px -10px rgba(37,99,235,0.85), inset 0 1px 0 rgba(255,255,255,0.28)" }}
       >
         <span className="relative z-[4]">{label}</span>
-        {sublabel && <span className="relative z-[4] text-[10px] font-semibold text-white/85">{sublabel}</span>}
+        {sublabel && <span className="relative z-[4] text-[0.625rem] font-semibold text-white/85">{sublabel}</span>}
         <span className="rd-glisten-sweep" aria-hidden="true" />
       </button>
       {open && !needsAccount && <PaywallSheet onClose={() => setOpen(false)} onPurchased={onPurchased} />}
@@ -186,7 +186,7 @@ export function IapProPill({ tier = "pro" }: { tier?: "pro" | "office" }) {
   const label = tier === "office" ? "OFFICE" : "PRO";
   if (!available || tier === "office") {
     return (
-      <span className="shrink-0 rounded-full bg-[#3B82F6] px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-white">
+      <span className="shrink-0 rounded-full bg-[#3B82F6] px-1.5 py-0.5 text-[0.5625rem] font-bold uppercase leading-none tracking-wide text-white">
         {label}
       </span>
     );
@@ -196,7 +196,7 @@ export function IapProPill({ tier = "pro" }: { tier?: "pro" | "office" }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-wide text-white transition-transform active:scale-95"
+        className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[0.625rem] font-bold uppercase leading-none tracking-wide text-white transition-transform active:scale-95"
         style={{ background: "var(--rd-aurora)" }}
       >
         <Spark className="h-2.5 w-2.5" />
@@ -279,11 +279,11 @@ function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchas
         <div className="relative px-6 pt-6 pb-5" style={{ background: "var(--rd-aurora)" }}>
           <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
           <div className="relative z-[2]">
-            <span className="inline-block rounded-full bg-white/25 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">SwiftCard</span>
+            <span className="inline-block rounded-full bg-white/25 px-2.5 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-white">SwiftCard</span>
             <p id="iap-paywall-title" className="mt-2 text-2xl font-extrabold tracking-tight text-black">
               Go Pro
             </p>
-            <p className="mt-1 text-[13px] text-white/85">
+            <p className="mt-1 text-[0.8125rem] text-white/85">
               Everything, unlimited — cards, contacts, AI drafts, the scanner and the custom designer.
             </p>
           </div>
@@ -292,7 +292,7 @@ function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchas
         <div className="p-5">
           <ul className="space-y-1.5">
             {PERKS.map((perk) => (
-              <li key={perk} className="flex items-start gap-2 text-[13px] text-gray-300">
+              <li key={perk} className="flex items-start gap-2 text-[0.8125rem] text-gray-300">
                 <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-600/25">
                   <svg viewBox="0 0 20 20" className="h-2.5 w-2.5" fill="none" stroke="#93c5fd" strokeWidth={2.6}>
                     <path d="M4 10.5l4 4 8-9" strokeLinecap="round" strokeLinejoin="round" />
@@ -304,11 +304,11 @@ function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchas
           </ul>
 
           {packages === null && (
-            <p className="mt-5 text-center text-[13px] text-gray-500">Loading plans…</p>
+            <p className="mt-5 text-center text-[0.8125rem] text-gray-500">Loading plans…</p>
           )}
 
           {packages !== null && !hasProducts && (
-            <p className="mt-5 text-center text-[13px] text-gray-500">
+            <p className="mt-5 text-center text-[0.8125rem] text-gray-500">
               Plans aren&apos;t available right now. Please try again later.
             </p>
           )}
@@ -335,15 +335,15 @@ function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchas
                         <span className="flex items-center gap-2 text-sm font-semibold text-white">
                           {pkg.period === "annual" ? "Annual" : "Monthly"}
                           {pkg.period === "annual" && (
-                            <span className="rounded-full bg-blue-600/30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-200">Best value</span>
+                            <span className="rounded-full bg-blue-600/30 px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-blue-200">Best value</span>
                           )}
                         </span>
-                        {hasTrial && <span className="block text-[11px] text-gray-500">Free for your first {TRIAL_DAYS} days</span>}
+                        {hasTrial && <span className="block text-[0.6875rem] text-gray-500">Free for your first {TRIAL_DAYS} days</span>}
                       </span>
                       {/* Price straight from StoreKit — never typed here. */}
                       <span className="text-right text-sm font-semibold text-white">
                         {pkg.priceString}
-                        <span className="block text-[11px] font-normal text-gray-500">per {pkg.period === "annual" ? "year" : "month"}</span>
+                        <span className="block text-[0.6875rem] font-normal text-gray-500">per {pkg.period === "annual" ? "year" : "month"}</span>
                       </span>
                     </button>
                   );
@@ -366,7 +366,7 @@ function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchas
               type="button"
               onClick={restore}
               disabled={busy !== null}
-              className="py-2 text-[13px] font-semibold text-gray-400 transition-colors hover:text-white disabled:opacity-60"
+              className="py-2 text-[0.8125rem] font-semibold text-gray-400 transition-colors hover:text-white disabled:opacity-60"
             >
               {busy === "restore" ? "Restoring…" : "Restore Purchases"}
             </button>
@@ -375,7 +375,7 @@ function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchas
               type="button"
               onClick={onClose}
               disabled={busy !== null}
-              className="py-2 text-[13px] text-gray-500 transition-colors hover:text-gray-300 disabled:opacity-60"
+              className="py-2 text-[0.8125rem] text-gray-500 transition-colors hover:text-gray-300 disabled:opacity-60"
             >
               Not now
             </button>
@@ -385,12 +385,12 @@ function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchas
 
           {/* Auto-renewal disclosure + legal links: required for auto-renewable
               subscriptions, and kept visible rather than collapsed. */}
-          <p className="mt-3 text-center text-[11px] leading-relaxed text-gray-500">
+          <p className="mt-3 text-center text-[0.6875rem] leading-relaxed text-gray-500">
             Subscriptions renew automatically unless canceled at least 24 hours
             before the end of the current period. Manage or cancel anytime in your
             App Store account settings.
           </p>
-          <p className="mt-1.5 text-center text-[11px] text-gray-500">
+          <p className="mt-1.5 text-center text-[0.6875rem] text-gray-500">
             <Link href="/terms" className="underline">Terms of Use</Link>
             <span className="mx-1.5">·</span>
             <Link href="/privacy" className="underline">Privacy Policy</Link>

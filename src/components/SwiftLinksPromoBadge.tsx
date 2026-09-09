@@ -103,7 +103,7 @@ export default function SwiftLinksPromoBadge({ username, appUrl }: { username: s
                       {/* avatar with a colorful ring */}
                       <div className="w-11 h-11 rounded-full p-[2.5px] bg-gradient-to-tr from-blue-600 via-fuchsia-500 to-amber-400">
                         <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-900 to-indigo-600 flex items-center justify-center">
-                          <span className="text-[9px] font-black text-white tracking-wide">YOU</span>
+                          <span className="text-[0.5625rem] font-black text-white tracking-wide">YOU</span>
                         </div>
                       </div>
                       {/* name + subtitle bars */}
@@ -129,10 +129,10 @@ export default function SwiftLinksPromoBadge({ username, appUrl }: { username: s
             </div>
 
             <div className="px-6 pt-5 pb-6 text-center">
-              <h2 className="text-slate-900 text-[23px] font-extrabold leading-tight tracking-tight">
+              <h2 className="text-slate-900 text-[1.4375rem] font-extrabold leading-tight tracking-tight">
                 Create your own Swift Links
               </h2>
-              <p className="text-slate-500 text-[13.5px] leading-snug mt-2 max-w-[300px] mx-auto">
+              <p className="text-slate-500 text-[0.84375rem] leading-snug mt-2 max-w-[300px] mx-auto">
                 Comes with a SwiftCard and Swift Signature — used by many business
                 professionals. One link to share everything about you.
               </p>
@@ -142,20 +142,20 @@ export default function SwiftLinksPromoBadge({ username, appUrl }: { username: s
                 // Start blank: wipe any leftover guest draft so the builder
                 // always opens fresh (same as the signup nudge CTA).
                 onClick={() => { track(username, "links_badge_cta_click"); resetGuestFlow(); }}
-                className="relative overflow-hidden mt-5 flex items-center justify-center gap-2 w-full py-3.5 rounded-full text-[16px] font-bold text-white bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
+                className="relative overflow-hidden mt-5 flex items-center justify-center gap-2 w-full py-3.5 rounded-full text-[1rem] font-bold text-white bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
                 style={{ boxShadow: "0 12px 28px -6px rgba(37,99,235,0.55)" }}
               >
                 <span className="sc-lbp-shine pointer-events-none absolute inset-0" />
                 See how yours looks — free
                 <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0" aria-hidden="true"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
               </Link>
-              <p className="text-slate-400 text-[11.5px] mt-2">No credit card · Live in 60 seconds</p>
+              <p className="text-slate-400 text-[0.71875rem] mt-2">No credit card · Live in 60 seconds</p>
 
               <div className="flex justify-center mt-3">
                 <a
                   href={`${appUrl}/?src=links_promo_badge`}
                   onClick={() => track(username, "links_badge_explore_click")}
-                  className="text-[13px] font-medium text-slate-500 hover:text-slate-800 underline underline-offset-2 transition-colors"
+                  className="text-[0.8125rem] font-medium text-slate-500 hover:text-slate-800 underline underline-offset-2 transition-colors"
                 >
                   Explore more about SwiftCard
                 </a>

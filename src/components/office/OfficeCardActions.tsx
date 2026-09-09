@@ -123,7 +123,7 @@ export default function OfficeCardActions({ card, appUrl }: { card: Card; appUrl
             >
               {busy ? "Saving…" : "Save changes"}
             </button>
-            <p className="text-[11px] text-gray-600">
+            <p className="text-[0.6875rem] text-gray-600">
               Company logo, office number, fax, website and the design are set on the Branding page.
             </p>
           </div>

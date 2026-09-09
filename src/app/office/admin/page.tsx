@@ -26,10 +26,10 @@ function BigStat({ label, value, explainer, sub }: {
     <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4">
       <p className="text-xs text-gray-500">{label}</p>
       <div className="flex items-baseline gap-2 mt-1 flex-wrap">
-        <p className="text-[28px] font-bold text-white tabular-nums leading-none">{value}</p>
+        <p className="text-[1.75rem] font-bold text-white tabular-nums leading-none">{value}</p>
         {sub && <span className="text-xs text-gray-600 font-medium">{sub}</span>}
       </div>
-      <p className="text-[11px] text-gray-600 mt-1.5 leading-snug">{explainer}</p>
+      <p className="text-[0.6875rem] text-gray-600 mt-1.5 leading-snug">{explainer}</p>
     </div>
   );
 }
@@ -38,7 +38,7 @@ function Step({ n, done, children }: { n: number; done: boolean; children: React
   return (
     <li className="flex items-start gap-3">
       <span
-        className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-px ${
+        className={`w-5 h-5 rounded-full flex items-center justify-center text-[0.6875rem] font-bold shrink-0 mt-px ${
           done ? "bg-green-500/15 text-green-400" : "bg-gray-800 text-gray-500"
         }`}
         aria-hidden="true"
@@ -114,7 +114,7 @@ export default async function OfficeTeamPage() {
         <div className="bg-gray-900 border border-purple-500/20 rounded-2xl p-5 mb-6">
           <div className="flex items-center justify-between gap-3 mb-1">
             <p className="text-sm font-bold text-white">Let&apos;s get your team set up</p>
-            <span className="text-[11px] font-semibold text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full shrink-0 tabular-nums">
+            <span className="text-[0.6875rem] font-semibold text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full shrink-0 tabular-nums">
               {setup.completed} of {setup.total} completed
             </span>
           </div>
@@ -130,7 +130,7 @@ export default async function OfficeTeamPage() {
                   <Link href="/office/admin/branding" className="text-sm font-semibold text-purple-400 hover:text-purple-300 transition-colors">
                     Set up your company branding →
                   </Link>
-                  <span className="block text-[11px] text-gray-600 mt-0.5">Your logo, company name and card design — every card uses it.</span>
+                  <span className="block text-[0.6875rem] text-gray-600 mt-0.5">Your logo, company name and card design — every card uses it.</span>
                 </>
               )}
             </Step>
@@ -140,7 +140,7 @@ export default async function OfficeTeamPage() {
               ) : caps.canInvite ? (
                 <>
                   <AddMemberButton canManageSeats={caps.canManageSeats} label="Invite your first team member →" variant="link" />
-                  <span className="block text-[11px] text-gray-600 mt-0.5">They get an email and build their card in about two minutes.</span>
+                  <span className="block text-[0.6875rem] text-gray-600 mt-0.5">They get an email and build their card in about two minutes.</span>
                 </>
               ) : (
                 <span className="text-sm text-gray-400">Invite your first team member</span>
@@ -151,7 +151,7 @@ export default async function OfficeTeamPage() {
                 Get your first employee card live
               </span>
               {!setup.cardLiveDone && (
-                <span className="block text-[11px] text-gray-600 mt-0.5">
+                <span className="block text-[0.6875rem] text-gray-600 mt-0.5">
                   This checks off as soon as someone you invited finishes their card.
                 </span>
               )}
@@ -161,7 +161,7 @@ export default async function OfficeTeamPage() {
                 Capture your first lead
               </span>
               {!setup.firstLeadDone && (
-                <span className="block text-[11px] text-gray-600 mt-0.5">
+                <span className="block text-[0.6875rem] text-gray-600 mt-0.5">
                   Happens by itself the first time someone shares their info with your team.
                 </span>
               )}

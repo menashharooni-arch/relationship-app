@@ -77,9 +77,9 @@ export default async function AdminRetentionPage() {
               return (
                 <div key={r.userId} className="p-4">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${o.cls}`}>{o.label}</span>
+                    <span className={`text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full border ${o.cls}`}>{o.label}</span>
                     {r.savedBy && (
-                      <span className="text-[11px] text-blue-300 bg-blue-500/10 border border-blue-900/40 px-2 py-0.5 rounded-full">
+                      <span className="text-[0.6875rem] text-blue-300 bg-blue-500/10 border border-blue-900/40 px-2 py-0.5 rounded-full">
                         {SAVED_BY[r.savedBy] ?? r.savedBy}
                       </span>
                     )}

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
-import NativeHidden from "@/components/NativeHidden";
+import SiteFooterMini from "@/components/site/SiteFooterMini";
 
 export const metadata: Metadata = {
   title: "Company — SwiftCard",
@@ -14,7 +13,7 @@ function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
 }
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-slate-600 text-[15px] leading-relaxed mb-3">{children}</p>;
+  return <p className="text-slate-600 text-[0.9375rem] leading-relaxed mb-3">{children}</p>;
 }
 
 export default function CompanyPage() {
@@ -39,32 +38,32 @@ export default function CompanyPage() {
         {/* Company facts — mirrors the Terms "Company information" block */}
         <dl className="mt-6 mb-3 rounded-xl border border-slate-200 bg-white/60 divide-y divide-slate-200">
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Brand</dt>
-            <dd className="text-slate-800 text-[15px]">SwiftCard</dd>
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Brand</dt>
+            <dd className="text-slate-800 text-[0.9375rem]">SwiftCard</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Legal name</dt>
-            <dd className="text-slate-800 text-[15px]">Swift Card Inc</dd>
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Legal name</dt>
+            <dd className="text-slate-800 text-[0.9375rem]">Swift Card Inc</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Entity type</dt>
-            <dd className="text-slate-800 text-[15px]">Corporation</dd>
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Entity type</dt>
+            <dd className="text-slate-800 text-[0.9375rem]">Corporation</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Website</dt>
-            <dd className="text-slate-800 text-[15px]">
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Website</dt>
+            <dd className="text-slate-800 text-[0.9375rem]">
               <Link href="/" className="text-brand underline">swiftcard.me</Link>
             </dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Contact</dt>
-            <dd className="text-slate-800 text-[15px]">
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Contact</dt>
+            <dd className="text-slate-800 text-[0.9375rem]">
               <a href="mailto:hello@swiftcard.me" className="text-brand underline">hello@swiftcard.me</a>
             </dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Location</dt>
-            <dd className="text-slate-800 text-[15px]">New York, NY, USA</dd>
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Location</dt>
+            <dd className="text-slate-800 text-[0.9375rem]">New York, NY, USA</dd>
           </div>
         </dl>
 
@@ -79,16 +78,16 @@ export default function CompanyPage() {
 
         <H2>Policies &amp; legal</H2>
         <ul className="mb-3">
-          <li className="text-slate-600 text-[15px] leading-relaxed mb-1.5 ml-5 list-disc">
+          <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">
             <Link href="/privacy" className="text-brand underline">Privacy Policy</Link> — what we collect, how we use it, and your rights.
           </li>
-          <li className="text-slate-600 text-[15px] leading-relaxed mb-1.5 ml-5 list-disc">
+          <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">
             <Link href="/terms" className="text-brand underline">Terms of Service</Link> — the agreement covering your use of SwiftCard.
           </li>
-          <li className="text-slate-600 text-[15px] leading-relaxed mb-1.5 ml-5 list-disc">
+          <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">
             <Link href="/sms-terms" className="text-brand underline">SMS &amp; Messaging Terms</Link> — how text messaging works on SwiftCard, consent, and opt-out.
           </li>
-          <li className="text-slate-600 text-[15px] leading-relaxed mb-1.5 ml-5 list-disc">
+          <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">
             <Link href="/sms-consent" className="text-brand underline">SMS Consent Overview</Link> — how people opt in to receive texts, shown step by step.
           </li>
         </ul>
@@ -101,18 +100,7 @@ export default function CompanyPage() {
         </P>
       </div>
 
-      <footer className="border-t border-warm-border py-10 px-6 bg-cream mt-auto">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <SwiftCardLogo size={24} />
-          <div className="flex items-center gap-6 text-sm text-slate-500">
-            <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
-            <NativeHidden><Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
-            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
-          </div>
-          <p className="text-slate-400 text-xs">SwiftCard is operated by Swift Card Inc · New York, NY</p>
-        </div>
-      </footer>
+      <SiteFooterMini />
     </main>
   );
 }

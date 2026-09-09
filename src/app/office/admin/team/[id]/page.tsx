@@ -53,7 +53,7 @@ export default async function OfficeMemberPage({ params }: { params: Promise<{ i
       </div>
 
       {/* Their cards, with the actions an owner actually needs. */}
-      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Their cards</p>
+      <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-2">Their cards</p>
       {m.cards.length === 0 ? (
         <Empty>
           They haven&apos;t created their card yet.
@@ -84,7 +84,7 @@ export default async function OfficeMemberPage({ params }: { params: Promise<{ i
       )}
 
       {/* The people this person has brought in. */}
-      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Leads they captured</p>
+      <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-2">Leads they captured</p>
       {m.recentLeads.length === 0 ? (
         <Empty>No leads yet — leads appear here when someone shares their info on this person&apos;s card.</Empty>
       ) : (

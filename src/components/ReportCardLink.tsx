@@ -16,7 +16,7 @@ export default function ReportCardLink({ username }: { username: string }) {
     <div className="text-center py-3">
       <a
         href={`/contact?topic=report&card=${encodeURIComponent(username)}`}
-        className="text-[11px] text-gray-500 hover:text-gray-300 underline underline-offset-2 transition-colors"
+        className="text-[0.6875rem] text-gray-500 hover:text-gray-300 underline underline-offset-2 transition-colors"
       >
         Report this card
       </a>

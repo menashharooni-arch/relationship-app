@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
+import SiteFooterMini from "@/components/site/SiteFooterMini";
+import FaqAccordion from "@/components/site/FaqAccordion";
 import ScrollProgress from "@/components/ScrollProgress";
 import ScrollReveal from "@/components/ScrollReveal";
 import NativeHidden from "@/components/NativeHidden";
@@ -224,8 +225,10 @@ function Cell({ value, brand }: { value: string; brand?: boolean }) {
   const isCross = value === "✗";
   return (
     <td className={`px-4 py-4 text-sm text-center align-middle ${brand ? "font-semibold" : "text-slate-600"}`} style={brand ? { color: "#1D4ED8" } : undefined}>
-      {isCross ? <span className="text-slate-300">✗</span> : isCheck ? (
-        <span><span className="text-green-600 text-base">✓</span>{value.length > 1 ? <span className="text-slate-500 text-xs"> {value.slice(1).trim()}</span> : null}</span>
+      {/* Same as /compare: the glyph is the answer, so it gets a text
+          equivalent and a shade you can actually see (✗ was slate-300, ~1.6:1). */}
+      {isCross ? <><span aria-hidden="true" className="text-slate-500">✗</span><span className="sr-only">No</span></> : isCheck ? (
+        <span><span aria-hidden="true" className="text-green-600 text-base">✓</span><span className="sr-only">Yes</span>{value.length > 1 ? <span className="text-slate-500 text-xs"> {value.slice(1).trim()}</span> : null}</span>
       ) : value}
     </td>
   );
@@ -252,10 +255,10 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
 
       {/* Hero */}
       <section className="text-center px-6 pt-28 pb-10">
-        <p className="text-[11px] font-bold tracking-[0.25em] text-brand uppercase mb-4">Comparison</p>
+        <p className="rd-eyebrow text-brand mb-4">Comparison</p>
         <h1 className="text-4xl font-bold text-slate-900 mb-4">Looking for a {c.name} alternative?</h1>
         <p className="text-slate-500 text-lg max-w-xl mx-auto mb-2">{c.heroSub}</p>
-        <p className="text-slate-400 text-xs max-w-xl mx-auto">
+        <p className="text-slate-500 text-xs max-w-xl mx-auto">
           {c.name} pricing/features sourced from their public pages and subject to change — confirm current details directly with them.
         </p>
         <div className="mt-7">
@@ -300,8 +303,8 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
         <div className="grid sm:grid-cols-3 gap-4">
           {c.switchReasons.map((r) => (
             <div key={r.t} className="rounded-2xl border border-warm-border bg-white p-6 shadow-sm">
-              <p className="text-slate-900 font-semibold text-[15px]">{r.t}</p>
-              <p className="text-slate-500 text-[13.5px] mt-1.5 leading-relaxed">{r.d}</p>
+              <p className="text-slate-900 font-semibold text-[0.9375rem]">{r.t}</p>
+              <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{r.d}</p>
             </div>
           ))}
         </div>
@@ -314,63 +317,37 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
         <div className="grid sm:grid-cols-3 gap-4">
           {c.migration.steps.map((st, i) => (
             <div key={st.t} className="rounded-2xl border border-warm-border bg-white p-6 shadow-sm">
-              <p className="text-[11px] font-bold tracking-widest text-brand mb-2">STEP {i + 1}</p>
-              <p className="text-slate-900 font-semibold text-[15px]">{st.t}</p>
-              <p className="text-slate-500 text-[13.5px] mt-1.5 leading-relaxed">{st.d}</p>
+              <p className="text-[0.6875rem] font-bold tracking-widest text-brand mb-2">STEP {i + 1}</p>
+              <p className="text-slate-900 font-semibold text-[0.9375rem]">{st.t}</p>
+              <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{st.d}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* FAQ — the JSON-LD above is generated from exactly this list */}
-      <section className="max-w-2xl mx-auto w-full px-6 pb-14">
-        <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">Common questions</h2>
-        <div className="flex flex-col gap-3">
-          {c.faq.map((f) => (
-            <details key={f.q} className="group rounded-2xl border border-warm-border bg-white px-6 py-5 shadow-sm">
-              <summary className="cursor-pointer list-none flex items-center justify-between gap-4">
-                <span className="text-slate-900 font-semibold text-[15px]">{f.q}</span>
-                <span className="text-slate-400 text-xl leading-none transition-transform group-open:rotate-45 shrink-0">+</span>
-              </summary>
-              <p className="text-slate-500 text-[14px] mt-3 leading-relaxed">{f.a}</p>
-            </details>
-          ))}
-        </div>
-        <div className="mt-10 text-center">
-          <Link href={`/cards/new?src=${src}`} className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block">
-            Create your free card →
-          </Link>
-        </div>
-      </section>
+      <FaqAccordion items={c.faq}>
+        <Link href={`/cards/new?src=${src}`} className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block">
+          Create your free card →
+        </Link>
+      </FaqAccordion>
 
       {/* Sibling comparisons — internal links keep these pages crawlable and ranking */}
       <section className="max-w-2xl mx-auto w-full px-6 pb-16 text-center">
-        <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold mb-3">More comparisons</p>
+        <p className="rd-eyebrow text-slate-600 mb-3">More comparisons</p>
         <div className="flex flex-wrap justify-center gap-2">
-          <Link href="/compare" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Full comparison table</Link>
-          <Link href="/business-card-view-tracking" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>
-          <Link href="/link-in-bio-with-analytics" className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Link in bio with analytics</Link>
+          <Link href="/compare" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Full comparison table</Link>
+          <Link href="/business-card-view-tracking" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>
+          <Link href="/link-in-bio-with-analytics" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Link in bio with analytics</Link>
           {ALL_SLUGS.filter((s) => s !== slug).map((s) => (
-            <Link key={s} href={`/compare/${s}`} className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">
+            <Link key={s} href={`/compare/${s}`} className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">
               {COMPETITORS[s].name} alternative
             </Link>
           ))}
         </div>
       </section>
 
-      <footer className="border-t border-warm-border py-10 px-6 bg-cream mt-auto">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <SwiftCardLogo size={24} />
-          <div className="flex items-center gap-6 text-sm text-slate-500">
-            <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
-            <NativeHidden><Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
-            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
-            <Link href="/terms" className="hover:text-slate-900 transition-colors">Terms</Link>
-          </div>
-          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY</p>
-        </div>
-      </footer>
+      <SiteFooterMini />
     </main>
   );
 }

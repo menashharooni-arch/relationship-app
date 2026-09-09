@@ -59,10 +59,10 @@ export default function MadeWithSwiftCard({
       {/* whitespace-nowrap on both halves: at 320px inside a padded section card
           this line is close to the available width, and letting it wrap split
           "Made with" from "SwiftCard" mid-phrase. */}
-      <span className="text-slate-500 text-[12.5px] whitespace-nowrap">
+      <span className="text-slate-500 text-[0.78125rem] whitespace-nowrap">
         Made with <span className="font-bold text-slate-900">SwiftCard</span>
       </span>
-      <span className="text-blue-600 text-[12.5px] font-semibold ml-0.5 inline-flex items-center gap-0.5 group-hover:gap-1.5 transition-all whitespace-nowrap">
+      <span className="text-blue-600 text-[0.78125rem] font-semibold ml-0.5 inline-flex items-center gap-0.5 group-hover:gap-1.5 transition-all whitespace-nowrap">
         Get yours free
         <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6" />

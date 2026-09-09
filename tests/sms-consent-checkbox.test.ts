@@ -77,8 +77,14 @@ describe("SMS consent checkbox (A2P 10DLC approval requirements)", () => {
     // the standard is "clear and conspicuous". 10px/slate-400 (1728fe8) was a
     // step back toward the size that drew error 30924 on campaign
     // CM1319bbf18064a7f2100b8b47716fef0b, and is not coming back.
-    const sizes = [...code.matchAll(/text-\[(\d+)px\]/g)].map((m) => Number(m[1]));
-    expect(sizes.length).toBeGreaterThan(0);
+    // Sizes moved from px to rem on 2026-09-09 so iOS Larger Text can scale
+    // them (see the Dynamic Type work in globals.css). The FLOOR is unchanged —
+    // it is still 11 CSS px at the default 16px root, which is what "clear and
+    // conspicuous" was measured against; rem only means it can now grow.
+    const px = [...code.matchAll(/text-\[(\d+(?:\.\d+)?)px\]/g)].map((m) => Number(m[1]));
+    const rem = [...code.matchAll(/text-\[(\d+(?:\.\d+)?)rem\]/g)].map((m) => Number(m[1]) * 16);
+    const sizes = [...px, ...rem];
+    expect(sizes.length, "the consent copy must pin its own size, not inherit one").toBeGreaterThan(0);
     expect(Math.min(...sizes)).toBeGreaterThanOrEqual(11);
   });
 

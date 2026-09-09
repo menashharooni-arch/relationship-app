@@ -216,7 +216,7 @@ export default function NotificationBell({
           <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
         </svg>
         {unread > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[0.5625rem] font-bold rounded-full flex items-center justify-center">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -287,14 +287,14 @@ export default function NotificationBell({
                             title keeps full width on narrow phones. */}
                         <div className="flex items-center gap-2 mt-1 min-w-0">
                           {n.card_owner && (
-                            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400 max-w-[130px] truncate" title={`Card: ${cardLabels?.[n.card_owner] ?? n.card_owner}`}>
+                            <span className="shrink-0 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400 max-w-[130px] truncate" title={`Card: ${cardLabels?.[n.card_owner] ?? n.card_owner}`}>
                               {cardLabels?.[n.card_owner] ?? n.card_owner}
                             </span>
                           )}
                           {/* Relative time is clock-dependent: if the minute ticks
                               between SSR and hydration the strings differ (React
                               #418). The drift is cosmetic, so suppress it. */}
-                          <p suppressHydrationWarning className="text-gray-500 text-[11px] truncate">{timeAgo(n.created_at)}</p>
+                          <p suppressHydrationWarning className="text-gray-500 text-[0.6875rem] truncate">{timeAgo(n.created_at)}</p>
                         </div>
                       </div>
                       <button
@@ -302,7 +302,7 @@ export default function NotificationBell({
                         disabled={pendingIds.has(n.id)}
                         title={n.read ? "Mark as unread" : "Mark as read"}
                         aria-label={n.read ? "Mark as unread" : "Mark as read"}
-                        className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        className={`shrink-0 text-[0.625rem] font-medium px-2 py-0.5 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           n.read
                             ? "border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-500"
                             : "border-blue-700 bg-blue-600/15 text-blue-300 hover:bg-blue-600/25"

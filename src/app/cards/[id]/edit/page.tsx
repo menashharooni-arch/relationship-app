@@ -107,7 +107,7 @@ export default async function CardEditPage({
         </div>
 
         <div className="mb-6">
-          <p className="text-[11px] font-bold tracking-[0.25em] text-gray-500 uppercase mb-1">SwiftCard</p>
+          <p className="text-[0.6875rem] font-bold tracking-[0.25em] text-gray-500 uppercase mb-1">SwiftCard</p>
           <h1 className="text-2xl font-bold text-white">Edit card</h1>
           <p className="text-gray-500 text-sm mt-1">/{card.username}</p>
         </div>

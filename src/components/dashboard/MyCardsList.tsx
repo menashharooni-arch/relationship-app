@@ -164,12 +164,12 @@ export default function MyCardsList({
                       feature="link-off-badge"
                       nativeCopy="These links are only active on the Pro plan"
                       nativeContent={
-                        <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="These links are only active on the Pro plan">
+                        <span className="ml-2 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="These links are only active on the Pro plan">
                           LINK OFF — PRO ONLY
                         </span>
                       }
                     >
-                      <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="This card's public link, QR and Swift Links are off on the Free plan — upgrade to Pro to reactivate them.">
+                      <span className="ml-2 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50 align-middle" title="This card's public link, QR and Swift Links are off on the Free plan — upgrade to Pro to reactivate them.">
                         LINK OFF — PRO ONLY
                       </span>
                     </PlanGate>

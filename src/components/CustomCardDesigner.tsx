@@ -373,9 +373,9 @@ export default function CustomCardDesigner({
   }
 
   const card = "bg-gray-900 border border-gray-800 rounded-xl";
-  const head = "text-[11px] font-semibold uppercase tracking-wide text-gray-400";
-  const row = "text-[10.5px] text-gray-500 w-[52px] shrink-0 pt-1.5";
-  const chip = "text-[12px] px-3 py-1.5 rounded-lg border transition-colors";
+  const head = "text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-400";
+  const row = "text-[0.65625rem] text-gray-500 w-[52px] shrink-0 pt-1.5";
+  const chip = "text-[0.75rem] px-3 py-1.5 rounded-lg border transition-colors";
   const chipOff = "bg-gray-800 border-gray-600 text-gray-100 hover:text-white hover:border-gray-400";
   const chipOn = "bg-blue-600 border-blue-600 text-white";
 
@@ -400,7 +400,7 @@ export default function CustomCardDesigner({
       <div className={`${card} p-3 space-y-2.5 order-1 lg:col-start-2 lg:row-start-1`}>
         <div className="flex items-baseline justify-between gap-2">
           <p className={head}>Looks</p>
-          <p className="text-[10.5px] text-gray-600">hover to preview · click to use</p>
+          <p className="text-[0.65625rem] text-gray-600">hover to preview · click to use</p>
         </div>
         {/* THE headline feature of the custom designer (owner order 2026-08-26:
             "the best feature we have — make people notice it"). Moved to the
@@ -444,16 +444,16 @@ export default function CustomCardDesigner({
                   )}
                 </span>
                 <span className="min-w-0">
-                  <span className={`block text-[13.5px] font-semibold ${canScan ? "text-white" : "text-gray-400"}`}>
+                  <span className={`block text-[0.84375rem] font-semibold ${canScan ? "text-white" : "text-gray-400"}`}>
                     {scanning ? "Rebuilding it with your details…" : "Copy a card or template you like"}
                     {canScan && !scanning && (
-                      <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 text-white align-middle tracking-wide">✨ MAGIC</span>
+                      <span className="ml-1.5 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 text-white align-middle tracking-wide">✨ MAGIC</span>
                     )}
                     {!canScan && (
-                      <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
+                      <span className="ml-1.5 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
                     )}
                   </span>
-                  <span className="block text-[11px] text-gray-400 leading-snug mt-0.5">
+                  <span className="block text-[0.6875rem] text-gray-400 leading-snug mt-0.5">
                     {canScan
                       ? "Upload a card design you like. We rebuild it exactly — same colors, fonts and layout — with YOUR details on it. You approve a preview before anything changes."
                       : "On Pro, upload a card design you like and we'll rebuild it exactly, with your details on it."}
@@ -484,7 +484,7 @@ export default function CustomCardDesigner({
               }`}
             >
               <LookThumb layout={l.preview} />
-              <span className="block text-[10px] text-gray-400 mt-1 truncate">{l.label}</span>
+              <span className="block text-[0.625rem] text-gray-400 mt-1 truncate">{l.label}</span>
             </button>
           ))}
         </div>
@@ -501,21 +501,21 @@ export default function CustomCardDesigner({
           className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void scanPrintedCard(f); }}
         />
-        {scanError && <p className="text-[11px] text-amber-400">{scanError}</p>}
-        {scanNote && <p className="text-[11px] text-emerald-400">{scanNote}</p>}
+        {scanError && <p className="text-[0.6875rem] text-amber-400">{scanError}</p>}
+        {scanNote && <p className="text-[0.6875rem] text-emerald-400">{scanNote}</p>}
 
         {/* Exact design active: the card is the approved image, so the block
             controls below are dormant — say so where the owner is looking,
             with the way out right next to the statement. */}
         {layout.faceImage && (
           <div className="rounded-lg border border-blue-500/40 bg-blue-950/30 px-3 py-2.5 flex items-center gap-3">
-            <p className="text-[11px] text-blue-200 leading-snug flex-1">
+            <p className="text-[0.6875rem] text-blue-200 leading-snug flex-1">
               Exact design is on — your card shows the approved image. Looks and Style below won&apos;t change it.
             </p>
             <button
               type="button"
               onClick={() => commit({ ...layout, faceImage: undefined })}
-              className="text-[11px] font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1.5 shrink-0"
+              className="text-[0.6875rem] font-semibold text-white bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg px-2.5 py-1.5 shrink-0"
             >
               Remove
             </button>
@@ -532,22 +532,22 @@ export default function CustomCardDesigner({
               <p className="text-sm font-semibold text-white">Your card, in that design — check it before it goes on</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-[10.5px] text-gray-500 mb-1.5">The design you uploaded</p>
+                  <p className="text-[0.65625rem] text-gray-500 mb-1.5">The design you uploaded</p>
                   {/* eslint-disable-next-line @next/next/no-img-element -- local data URL */}
                   <img src={transfer.src} alt="The design you uploaded" className="w-full rounded-lg border border-gray-800" />
                 </div>
                 <div>
-                  <p className="text-[10.5px] text-gray-500 mb-1.5">Rebuilt with your details</p>
+                  <p className="text-[0.65625rem] text-gray-500 mb-1.5">Rebuilt with your details</p>
                   {/* eslint-disable-next-line @next/next/no-img-element -- our storage URL */}
                   <img src={transfer.url} alt="Rebuilt with your details" className="w-full rounded-lg border border-blue-500/50" />
                 </div>
               </div>
               {transfer.checklist.length > 0 && (
                 <div className="rounded-lg bg-gray-950 border border-gray-800 px-3 py-2.5">
-                  <p className="text-[11px] font-semibold text-gray-300 mb-1">Look closely — AI rebuilds can misspell:</p>
+                  <p className="text-[0.6875rem] font-semibold text-gray-300 mb-1">Look closely — AI rebuilds can misspell:</p>
                   <ul className="space-y-0.5">
                     {transfer.checklist.map((item) => (
-                      <li key={item} className="text-[11px] text-gray-400 flex gap-1.5">
+                      <li key={item} className="text-[0.6875rem] text-gray-400 flex gap-1.5">
                         <span className="text-blue-400 shrink-0">✓</span>{item}
                       </li>
                     ))}
@@ -562,7 +562,7 @@ export default function CustomCardDesigner({
                     setTransfer(null);
                     setScanNote("Exact design applied. Your live QR sits bottom-right; remove the design any time.");
                   }}
-                  className="text-[12.5px] font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg px-4 py-2"
+                  className="text-[0.78125rem] font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg px-4 py-2"
                 >
                   Use this design
                 </button>
@@ -570,7 +570,7 @@ export default function CustomCardDesigner({
                   type="button"
                   disabled={scanning}
                   onClick={() => { const t = transfer; setTransfer(null); if (t) void transferDesign({ b64: t.b64, dataUrl: t.src }); }}
-                  className="text-[12.5px] font-semibold text-gray-200 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 disabled:opacity-60"
+                  className="text-[0.78125rem] font-semibold text-gray-200 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 disabled:opacity-60"
                 >
                   Try again
                 </button>
@@ -578,14 +578,14 @@ export default function CustomCardDesigner({
                   type="button"
                   disabled={scanning}
                   onClick={() => { const t = transfer; setTransfer(null); if (t) void scanLayoutOnly(t.b64); }}
-                  className="text-[12px] text-gray-400 hover:text-gray-200 px-2 py-2"
+                  className="text-[0.75rem] text-gray-400 hover:text-gray-200 px-2 py-2"
                 >
                   Make it editable blocks instead
                 </button>
                 <button
                   type="button"
                   onClick={() => setTransfer(null)}
-                  className="text-[12px] text-gray-400 hover:text-gray-200 px-2 py-2 ml-auto"
+                  className="text-[0.75rem] text-gray-400 hover:text-gray-200 px-2 py-2 ml-auto"
                 >
                   Cancel
                 </button>
@@ -615,7 +615,7 @@ export default function CustomCardDesigner({
             </CardScaler>
           </div>
         </div>
-        <p className="text-[11px] text-gray-500 mt-2 min-w-0 truncate">
+        <p className="text-[0.6875rem] text-gray-500 mt-2 min-w-0 truncate">
           {hoverLook
             ? `${looks.find((l) => l.key === hoverLook)?.label} — click to use it`
             : "Tap anything on the card to style it."}
@@ -638,7 +638,7 @@ export default function CustomCardDesigner({
               type="button"
               onClick={undo}
               disabled={!canUndo}
-              className="text-[11px] px-2.5 py-1 rounded-lg border border-gray-700 text-gray-300 disabled:opacity-40 hover:border-gray-500 shrink-0"
+              className="text-[0.6875rem] px-2.5 py-1 rounded-lg border border-gray-700 text-gray-300 disabled:opacity-40 hover:border-gray-500 shrink-0"
             >
               ↶ Undo
             </button>
@@ -663,7 +663,7 @@ export default function CustomCardDesigner({
                   }}
                 />
               ))}
-              <label className="flex items-center gap-1 text-[10px] text-gray-500">
+              <label className="flex items-center gap-1 text-[0.625rem] text-gray-500">
                 <input
                   type="color"
                   aria-label="Custom background colour"
@@ -716,12 +716,12 @@ export default function CustomCardDesigner({
             <p className={head}>What&apos;s on your card</p>
             {/* Counted in ROWS, like the cap itself — three socials share one,
                 so showing raw blocks would have said "full" with room left. */}
-            <p className={`text-[11px] ${full ? "text-amber-400" : "text-gray-600"}`}>
+            <p className={`text-[0.6875rem] ${full ? "text-amber-400" : "text-gray-600"}`}>
               {blockLoad(blocks)} of {MAX_VISIBLE_BLOCKS}
             </p>
           </div>
           {full && (
-            <p className="px-3 pt-2 text-[11px] text-amber-400/90">
+            <p className="px-3 pt-2 text-[0.6875rem] text-amber-400/90">
               Your card is full — turn something off to add something else.
             </p>
           )}
@@ -736,10 +736,10 @@ export default function CustomCardDesigner({
                     <div className="flex flex-col gap-px shrink-0">
                       <button type="button" onClick={() => move(b.id, -1)} disabled={i === 0}
                         aria-label={`Move ${blockLabel(b)} up`}
-                        className="w-6 sm:w-5 h-[20px] sm:h-[15px] leading-none text-[9px] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▲</button>
+                        className="w-6 sm:w-5 h-[20px] sm:h-[15px] leading-none text-[0.5625rem] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▲</button>
                       <button type="button" onClick={() => move(b.id, 1)} disabled={i === blocks.length - 1}
                         aria-label={`Move ${blockLabel(b)} down`}
-                        className="w-6 sm:w-5 h-[20px] sm:h-[15px] leading-none text-[9px] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▼</button>
+                        className="w-6 sm:w-5 h-[20px] sm:h-[15px] leading-none text-[0.5625rem] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▼</button>
                     </div>
 
                     <button
@@ -748,10 +748,10 @@ export default function CustomCardDesigner({
                       aria-expanded={open}
                       className="flex-1 min-w-0 text-left"
                     >
-                      <span className={`block text-[13px] font-medium truncate ${b.on ? "text-white" : "text-gray-500"}`}>
+                      <span className={`block text-[0.8125rem] font-medium truncate ${b.on ? "text-white" : "text-gray-500"}`}>
                         {blockLabel(b)}
                       </span>
-                      <span className={`block text-[10.5px] truncate ${open ? "text-gray-300" : "text-gray-500"}`}>
+                      <span className={`block text-[0.65625rem] truncate ${open ? "text-gray-300" : "text-gray-500"}`}>
                         {empty ? "nothing entered yet — it stays hidden"
                                : `${zones[zoneFor(b)]} · ${EMPHASIS.find((e) => e.key === b.emphasis)?.label}`}
                       </span>
@@ -783,7 +783,7 @@ export default function CustomCardDesigner({
                         />
                       )}
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[11px] font-medium text-gray-300 w-12">Size</span>
+                        <span className="text-[0.6875rem] font-medium text-gray-300 w-12">Size</span>
                         {EMPHASIS.map((e) => (
                           <button key={e.key} type="button" onClick={() => patch(b.id, { emphasis: e.key })}
                             className={`${chip} ${b.emphasis === e.key ? chipOn : chipOff}`}>{e.label}</button>
@@ -793,7 +793,7 @@ export default function CustomCardDesigner({
                           the card wide and no size reads well there for text. */}
                       {canChangeZone(b) && (
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[11px] font-medium text-gray-300 w-12">Where</span>
+                          <span className="text-[0.6875rem] font-medium text-gray-300 w-12">Where</span>
                           {(["left", "right"] as CardZone[]).map((z) => (
                             <button key={z} type="button" onClick={() => patch(b.id, { zone: z })}
                               className={`${chip} ${b.zone === z ? chipOn : chipOff}`}>{zones[z]}</button>
@@ -806,7 +806,7 @@ export default function CustomCardDesigner({
                         // Padded to a real target. As a bare text line it was a
                         // 17px-tall tap area on a phone, which is a hard thing
                         // to hit and an easy thing to hit by accident.
-                        className="text-[11px] text-red-400 hover:text-red-300 py-1.5 pr-2 -ml-0.5 pl-0.5"
+                        className="text-[0.6875rem] text-red-400 hover:text-red-300 py-1.5 pr-2 -ml-0.5 pl-0.5"
                       >
                         Remove from card
                       </button>
@@ -818,7 +818,7 @@ export default function CustomCardDesigner({
           </ul>
 
           <div className="px-3 pb-3 pt-1 border-t border-gray-800">
-            <p className="text-[11px] text-gray-500 mb-1.5">Add something</p>
+            <p className="text-[0.6875rem] text-gray-500 mb-1.5">Add something</p>
             <div className="flex flex-wrap gap-1.5">
               {ADDABLE.filter((a) => !blocks.some((b) =>
                 b.type === a.type && b.field === a.field && b.social === a.social && a.type !== "text" && a.type !== "divider",

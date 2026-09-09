@@ -1,6 +1,6 @@
 "use client";
 
-import { detectNativeApp } from "@/lib/platform";
+import { detectNativeApp, useIsIosAppOnMac } from "@/lib/platform";
 
 // "Add to Apple Wallet" download button. On the web it's a plain link to the
 // pass route — the browser hands the .pkpass to Apple Wallet on iPhone/Mac.
@@ -14,6 +14,12 @@ import { detectNativeApp } from "@/lib/platform";
 // byte-identical (the intercept only engages inside the shell).
 export default function AddToWalletButton({ username, className = "" }: { username: string; className?: string }) {
   const href = `/api/wallet/pass?card=${encodeURIComponent(username)}`;
+  // ON A MAC there is no Apple Wallet for an iOS app to add a pass to: PassKit
+  // is not part of the "Designed for iPhone" runtime, so the button opened a
+  // sheet that could not finish — a dead end with no explanation. Say what is
+  // true and point at the thing that DOES work, rather than hiding the feature
+  // as if it never existed.
+  const onMac = useIsIosAppOnMac();
 
   async function handleNativeOpen(e: React.MouseEvent<HTMLAnchorElement>) {
     if (!detectNativeApp()) return; // web: normal link navigation
@@ -26,6 +32,15 @@ export default function AddToWalletButton({ username, className = "" }: { userna
       // but never dead-ends silently).
       window.location.href = href;
     }
+  }
+
+  if (onMac) {
+    return (
+      <p className={`w-full text-center text-[0.8125rem] text-slate-500 leading-snug ${className}`}>
+        Apple Wallet passes are added on your iPhone or iPad. Open SwiftCard there,
+        or use the QR code above.
+      </p>
+    );
   }
 
   return (

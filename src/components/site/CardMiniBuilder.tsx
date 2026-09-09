@@ -154,7 +154,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
       content: (
         <div className="space-y-4">
           <div>
-            <span className="block text-white/55 text-[12px] font-medium mb-2">Template</span>
+            <span className="block text-white/55 text-[0.75rem] font-medium mb-2">Template</span>
             {/* cols-3, not cols-5: with six templates a five-wide row leaves a
                 single orphan pill on a second row. Two rows of three. */}
             <div className="grid grid-cols-3 gap-1.5">
@@ -162,7 +162,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
                 <button
                   key={t.id}
                   onClick={() => patch({ template: t.id })}
-                  className="rounded-lg px-1 py-2 text-[11px] font-medium transition-colors"
+                  className="rounded-lg px-1 py-2 text-[0.6875rem] font-medium transition-colors"
                   style={{
                     background: sketch.template === t.id ? "var(--rd-aurora)" : "rgba(255,255,255,0.05)",
                     color: sketch.template === t.id ? "#fff" : "rgba(255,255,255,0.6)",
@@ -193,7 +193,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
         data-reveal
         style={{ transitionDelay: "350ms" }}
       >
-        <p className="text-[13.5px] font-semibold mb-2 text-slate-500 group-hover:text-[#2563EB] transition-colors">Start from scratch</p>
+        <p className="text-[0.84375rem] font-semibold mb-2 text-slate-500 group-hover:text-[#2563EB] transition-colors">Start from scratch</p>
         {/* w-full + no aspect-ratio: previously `aspect-ratio:1.75` combined with
             `min-h-[150px]` derived the WIDTH from the min-height (150×1.75 =
             262px), blowing past the grid column on a phone and clipping the box
@@ -209,8 +209,8 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
             <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
           </span>
           <div className="px-2">
-            <p className="text-slate-800 font-semibold text-[14px] leading-tight">See how your card would look</p>
-            <p className="text-slate-500 text-[12px] mt-1">Takes 60 seconds — no signup</p>
+            <p className="text-slate-800 font-semibold text-[0.875rem] leading-tight">See how your card would look</p>
+            <p className="text-slate-500 text-[0.75rem] mt-1">Takes 60 seconds — no signup</p>
           </div>
         </div>
       </button>

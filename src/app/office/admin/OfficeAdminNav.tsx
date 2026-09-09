@@ -32,7 +32,7 @@ export default function OfficeAdminNav() {
             key={l.href}
             href={l.href}
             data-tour={l.tour}
-            className={`px-3 py-2 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${
+            className={`px-3 py-2 text-[0.8125rem] font-medium whitespace-nowrap border-b-2 transition-colors ${
               active
                 ? "border-purple-500 text-white"
                 : "border-transparent text-gray-500 hover:text-gray-300"

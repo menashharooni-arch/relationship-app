@@ -206,6 +206,8 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
     setOpen(false);
     setState("idle");
     openText();
+    // Handing your card to a real contact is the other honest win. Same gate.
+    if (!isDark) import("@/lib/app-review").then((m) => m.noteReviewMoment("card_shared")).catch(() => {});
   }
 
   function shareEmailNow() {
@@ -369,7 +371,7 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
           role="menu"
           className="absolute right-0 top-full mt-2 z-30 w-56 rounded-xl border border-gray-700 bg-gray-900 shadow-2xl overflow-hidden"
         >
-          <p className="px-3.5 pt-3 pb-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800">
+          <p className="px-3.5 pt-3 pb-2 text-[0.625rem] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800">
             Share my contact info
           </p>
           {OPTIONS.map((o) => (
@@ -385,8 +387,8 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
                 o.action === "phone" ? "border-t border-gray-800" : ""
               }`}
             >
-              <span className={`block text-[13px] font-semibold ${o.enabled ? "text-gray-100" : "text-gray-600"}`}>{o.label}</span>
-              <span className={`block text-[11px] ${o.enabled ? "text-gray-500" : "text-gray-700"}`}>{o.hint}</span>
+              <span className={`block text-[0.8125rem] font-semibold ${o.enabled ? "text-gray-100" : "text-gray-600"}`}>{o.label}</span>
+              <span className={`block text-[0.6875rem] ${o.enabled ? "text-gray-500" : "text-gray-700"}`}>{o.hint}</span>
             </button>
           ))}
         </div>
@@ -400,7 +402,7 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
       <p
         role="status"
         aria-live="polite"
-        className={`absolute right-0 top-full mt-1.5 z-20 w-64 text-right text-[11px] leading-snug ${
+        className={`absolute right-0 top-full mt-1.5 z-20 w-64 text-right text-[0.6875rem] leading-snug ${
           note ? "" : "sr-only"
         } ${state === "error" ? "text-red-300" : state === "partial" ? "text-amber-300" : "text-emerald-300"}`}
       >

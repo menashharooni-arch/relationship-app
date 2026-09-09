@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
 import type { Metadata } from "next";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
+import SiteFooterMini from "@/components/site/SiteFooterMini";
 import ScrollProgress from "@/components/ScrollProgress";
 import ScrollReveal from "@/components/ScrollReveal";
 import NativeHidden from "@/components/NativeHidden";
@@ -34,14 +34,28 @@ const ROWS: Row[] = [
 ];
 
 function Cell({ value, brand }: { value: string; brand?: boolean }) {
-  const isCheck = value === "✓";
+  // startsWith, not ===, so "✓ (Pro)" reads as a tick with a qualifier like it
+  // already does on /compare/<slug>. On this page it fell through to the plain
+  // text branch, so one row in the SwiftCard column showed a blue "✓ (Pro)"
+  // while every other tick above and below it was green.
+  const isCheck = value.startsWith("✓");
   const isCross = value === "✗";
   return (
     <td
       className={`px-4 py-4 text-sm text-center align-middle ${brand ? "font-semibold" : "text-slate-600"}`}
       style={brand ? { color: "#1D4ED8" } : undefined}
     >
-      {isCheck ? <span className="text-green-600 text-base">✓</span> : isCross ? <span className="text-slate-300">✗</span> : value}
+      {/* The glyph carries meaning, so it needs a text equivalent and enough
+          contrast to be seen: ✗ was slate-300 — about 1.6:1 on the white/cream
+          rows, i.e. the "no" column was effectively blank. */}
+      {isCheck ? (
+        <span>
+          <span aria-hidden="true" className="text-green-600 text-base">✓</span>
+          <span className="sr-only">Yes</span>
+          {value.length > 1 ? <span className="text-slate-500 text-xs"> {value.slice(1).trim()}</span> : null}
+        </span>
+      ) : isCross ? <><span aria-hidden="true" className="text-slate-500">✗</span><span className="sr-only">No</span></>
+        : value}
     </td>
   );
 }
@@ -54,12 +68,12 @@ export default function ComparePage() {
       <SiteNav />
 
       <section className="text-center px-6 pt-28 pb-10">
-        <p className="text-[11px] font-bold tracking-[0.25em] text-brand uppercase mb-4">Comparison</p>
+        <p className="rd-eyebrow text-brand mb-4">Comparison</p>
         <h1 className="text-4xl font-bold text-slate-900 mb-4">SwiftCard vs Linktree, Popl &amp; Blinq</h1>
         <p className="text-slate-500 text-lg max-w-xl mx-auto mb-2">
           Looking for a Linktree alternative, or weighing Popl against Blinq? Here&apos;s how SwiftCard actually compares — real numbers, no spin.
         </p>
-        <p className="text-slate-400 text-xs max-w-xl mx-auto">
+        <p className="text-slate-500 text-xs max-w-xl mx-auto">
           Competitor pricing/features sourced from their public pricing pages and subject to change — confirm current details directly with them.
         </p>
       </section>
@@ -96,12 +110,12 @@ export default function ComparePage() {
 
         <div className="mt-8 max-w-2xl mx-auto text-center">
           <p className="text-slate-600 text-sm leading-relaxed mb-2">
-            <strong className="text-slate-900">Linktree</strong> is built for link-in-bio, not lead capture — it doesn&apos;t have a contacts CRM
+            <strong className="text-slate-900">Linktree</strong>{" "}is built for link-in-bio, not lead capture — it doesn&apos;t have a contacts CRM
             or follow-up automation because that&apos;s not what it&apos;s for.
           </p>
           <p className="text-slate-600 text-sm leading-relaxed mb-2">
             <strong className="text-slate-900">Popl</strong> and <strong className="text-slate-900">Blinq</strong> both do NFC sharing and CRM
-            <em> integrations</em> well, but neither has SwiftCard&apos;s built-in automated email + text follow-up sequences out of the box —
+            <em> integrations</em>{" "}well, but neither has SwiftCard&apos;s built-in automated email + text follow-up sequences out of the box —
             you&apos;d need to wire that up yourself through Zapier or a separate tool.
           </p>
           <p className="text-slate-600 text-sm leading-relaxed">
@@ -112,7 +126,7 @@ export default function ComparePage() {
         {/* Deep-dive pages per competitor — each owns one "<x> alternative" query. */}
         <div className="mt-10 flex flex-wrap justify-center gap-2">
           {["linktree", "popl", "blinq", "hihello"].map((s) => (
-            <Link key={s} href={`/compare/${s}-alternative`} className="text-[13px] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors capitalize">
+            <Link key={s} href={`/compare/${s}-alternative`} className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors capitalize">
               {s === "hihello" ? "HiHello" : s.charAt(0).toUpperCase() + s.slice(1)} alternative →
             </Link>
           ))}
@@ -128,19 +142,7 @@ export default function ComparePage() {
         </div>
       </section>
 
-      <footer className="border-t border-warm-border py-10 px-6 bg-cream mt-auto">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <SwiftCardLogo size={24} />
-          <div className="flex items-center gap-6 text-sm text-slate-500">
-            <Link href="/" className="hover:text-slate-900 transition-colors">Home</Link>
-            <NativeHidden><Link href="/pricing" className="hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact Us</Link>
-            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
-            <Link href="/terms" className="hover:text-slate-900 transition-colors">Terms</Link>
-          </div>
-          <p className="text-slate-400 text-xs">© {new Date().getFullYear()} SwiftCard · New York, NY</p>
-        </div>
-      </footer>
+      <SiteFooterMini />
     </main>
   );
 }

@@ -214,7 +214,11 @@ export default function WalletPassFace({
               colour, because a scanner needs the contrast. */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: `${px(16)}px 0 ${px(40)}px`, flex: "none" }}>
         <div style={{ background: "#fff", borderRadius: px(18), padding: px(18), lineHeight: 0 }}>
-          <QRCodeSVG value={card.cardUrl} size={qr} bgColor="#ffffff" fgColor="#000000" level="M" />
+          {/* qrcode.react emits <svg role="img"> with no name, so VoiceOver
+              announced a bare "image" (axe: svg-img-alt). `title` renders a
+              <title> inside the svg, which is the accessible name. */}
+          <QRCodeSVG value={card.cardUrl} size={qr} bgColor="#ffffff" fgColor="#000000" level="M"
+            title={`QR code that opens ${card.name || "this"} SwiftCard`} />
         </div>
         <p style={{ margin: `${px(14)}px 0 0`, fontSize: Math.max(7, px(25)), color: inkMuted, letterSpacing: "0.01em" }}>
           Scan to connect

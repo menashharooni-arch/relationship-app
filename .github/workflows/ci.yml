@@ -45,3 +45,39 @@ jobs:
 
       - name: Test
         run: npx vitest run
+
+  # ── The suite that measures a real browser ──────────────────────────────────
+  #
+  # `npm test` is 2700 source-invariant and logic tests, and not one of them can
+  # see a word being cut off or a control drawn under something else: overflow
+  # is string length x font metrics x container width, none of which exist until
+  # something is laid out. tests/render/ renders the card templates and key
+  # screens in headless Chromium with the app's real compiled Tailwind and
+  # measures them.
+  #
+  # It was already written and already green — it just was not running anywhere,
+  # so the only thing that caught this class was paint-check.yml, which runs
+  # AFTER production deploys. Same signal, ~2 minutes earlier, on the PR.
+  #
+  # Separate job so a Chromium download never slows the fast checks, and so a
+  # red render suite names itself in the checks list.
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Render tests
+        run: npm run test:render

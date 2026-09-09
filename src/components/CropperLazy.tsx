@@ -151,7 +151,7 @@ export default function CropModal({ src, title, aspect, circular, aspectOptions,
           </div>
         )}
         <p className="text-center text-gray-600 text-xs">Drag the corners or edges to crop · drag inside to move</p>
-        <p className="text-center text-gray-700 text-[11px] mt-1">Press Enter to apply · Esc to cancel</p>
+        <p className="text-center text-gray-700 text-[0.6875rem] mt-1">Press Enter to apply · Esc to cancel</p>
       </div>
     </div>
   );

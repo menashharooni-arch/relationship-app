@@ -144,7 +144,7 @@ export default function RateUsCard({ name, email }: { name: string; email: strin
               >
                 {sending ? "Sending…" : mode === "testimonial" ? "Send testimonial" : "Send feedback"}
               </button>
-              {error && <p role="alert" className="mt-2 text-[11px] text-red-300 text-center">{error}</p>}
+              {error && <p role="alert" className="mt-2 text-[0.6875rem] text-red-300 text-center">{error}</p>}
             </div>
           )}
         </>

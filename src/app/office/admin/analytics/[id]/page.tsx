@@ -105,13 +105,13 @@ export default async function OfficeAnalyticsMemberPage({
       </div>
 
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 mb-6">
-        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3">Views over time</p>
+        <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-3">Views over time</p>
         {totalViews === 0 ? <Empty>No views yet for this range.</Empty> : <ViewsChart data={chartData} />}
       </div>
 
       <div className="grid md:grid-cols-2 gap-4 mb-6">
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3">Traffic sources</p>
+          <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-3">Traffic sources</p>
           {trafficSources.length === 0 ? (
             <p className="text-gray-500 text-sm">No tracked traffic yet.</p>
           ) : (
@@ -127,7 +127,7 @@ export default async function OfficeAnalyticsMemberPage({
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-3">Most active card</p>
+          <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-3">Most active card</p>
           {mostActiveCard ? (
             <div>
               <p className="text-white font-medium">{mostActiveCard.label}</p>
@@ -136,14 +136,14 @@ export default async function OfficeAnalyticsMemberPage({
           ) : (
             <p className="text-gray-500 text-sm">No card yet.</p>
           )}
-          <p className="text-gray-600 text-[11px] mt-3 leading-relaxed">
+          <p className="text-gray-600 text-[0.6875rem] mt-3 leading-relaxed">
             Individual SwiftLink click tracking isn&apos;t available yet — only overall Swift Links page visits are
             tracked (see &quot;SwiftLink views&quot; above).
           </p>
         </div>
       </div>
 
-      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Recent lead activity</p>
+      <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-2">Recent lead activity</p>
       {recentLeads.length === 0 ? (
         <Empty>No leads yet in this range.</Empty>
       ) : (

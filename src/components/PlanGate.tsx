@@ -145,7 +145,7 @@ export function PlanNotice({ tier = "pro", copy }: { tier?: PlanTier; copy: stri
               <PlanBadge tier={tier} />
               <p className="text-sm font-bold text-white">{tier === "office" ? "Office feature" : "Pro feature"}</p>
             </div>
-            <p className="mt-1 text-[13px] leading-snug text-gray-300 [text-wrap:pretty]">
+            <p className="mt-1 text-[0.8125rem] leading-snug text-gray-300 [text-wrap:pretty]">
               <GateCopy copy={body} />
             </p>
           </div>
@@ -184,7 +184,7 @@ export function PlanBadge({ tier = "pro" }: { tier?: PlanTier }) {
     // the badge repeats what the sentence beside it already says in full, so it
     // carries no information on its own. #2563EB is the nearest shade that
     // clears AA at 5.1:1 if this should ever become load-bearing.
-    <span className="shrink-0 rounded-full bg-[#3B82F6] px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wide text-white">
+    <span className="shrink-0 rounded-full bg-[#3B82F6] px-1.5 py-0.5 text-[0.5625rem] font-bold uppercase leading-none tracking-wide text-white">
       {tier === "office" ? "OFFICE" : "PRO"}
     </span>
   );

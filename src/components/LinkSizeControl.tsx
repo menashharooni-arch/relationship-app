@@ -33,7 +33,7 @@ export default function LinkSizeControl({
             type="button"
             onClick={() => onChange(o.value)}
             aria-pressed={active}
-            className={`px-2 py-1 rounded-md text-[10px] font-semibold transition-colors ${
+            className={`px-2 py-1 rounded-md text-[0.625rem] font-semibold transition-colors ${
               active ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400 hover:text-gray-200"
             }`}
           >

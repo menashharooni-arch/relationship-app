@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SRC_COOKIE, COOKIE_MAX_AGE, isSignupSource, type SignupSource } from "@/lib/referral";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-
 // Signup entry (no referrer): swiftcard.me/join?src=save_contact → remember the
 // source for analytics, then start them building. No free month — only a real
 // /r/CODE referral grants one.
@@ -27,12 +25,36 @@ export async function GET(req: NextRequest) {
   const existing = req.cookies.get(SRC_COOKIE)?.value;
   if (src === "preview" && isSignupSource(existing)) src = existing;
   const to = req.nextUrl.searchParams.get("to");
-  const dest =
-    to === "live" ? `${APP_URL}/preview`
-    : to === "signup" ? `${APP_URL}/login?mode=signup`
-    : `${APP_URL}/cards/new`;
+  const path =
+    to === "live" ? "/preview"
+    : to === "signup" ? "/login?mode=signup"
+    : "/cards/new";
 
-  const res = NextResponse.redirect(dest);
+  // Resolved against the REQUEST, not NEXT_PUBLIC_APP_URL. Those are the same
+  // string on production, and different on every preview deploy and dev box —
+  // where this used to bounce the visitor onto production mid-funnel AND throw
+  // away the cookie set two lines below, because a Set-Cookie only reaches the
+  // origin that sent it. The promise in the comment above ("attribution
+  // survives the detour") was only true same-origin. Same pattern as
+  // src/proxy.ts and src/app/auth/callback/route.ts.
+  const res = NextResponse.redirect(new URL(path, req.url));
+
+  // A PREFETCH IS NOT A CLICK. /preview renders three <Link href="/join?src=preview">,
+  // and the App Router prefetches every link in the viewport — including, for
+  // reasons of its own, one request with no `src` at all. That param-less
+  // prefetch fell through to the "share_info" default and wrote it, so every
+  // visitor to the demo page was tagged with a form they never submitted. Then
+  // the real click arrived, found a valid-looking source already set, and the
+  // rule above ("preview is weak, never overwrite a real source") handed the
+  // invented value straight back — so no signup from that page was ever
+  // attributed to `preview`.
+  //
+  // Next-Router-Prefetch is the ONLY header that separates the two: a genuine
+  // click sends `RSC: 1` as well, so keying on RSC would drop attribution for
+  // everyone. The redirect still happens either way, so prefetch stays useful.
+  const isPrefetch = req.headers.get("next-router-prefetch") === "1";
+  if (isPrefetch) return res;
+
   res.cookies.set(SRC_COOKIE, src, {
     maxAge: COOKIE_MAX_AGE,
     httpOnly: true,

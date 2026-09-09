@@ -45,10 +45,10 @@ export default async function ProfilePage() {
       <div className="max-w-sm mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <p className="text-[11px] font-bold tracking-[0.25em] text-slate-400 uppercase mb-1">SwiftCard</p>
+            <p className="text-[0.6875rem] font-bold tracking-[0.25em] text-slate-600 uppercase mb-1">SwiftCard</p>
             <h1 className="text-2xl font-bold text-slate-900">Edit Card</h1>
           </div>
-          <DashboardLink className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
+          <DashboardLink className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
             ← Dashboard
           </DashboardLink>
         </div>

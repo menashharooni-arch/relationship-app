@@ -22,7 +22,7 @@ const STATUS_TONE: Record<MemberStatus, string> = {
 
 function StatusChip({ status }: { status: MemberStatus }) {
   return (
-    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_TONE[status]}`}>
+    <span className={`text-[0.625rem] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${STATUS_TONE[status]}`}>
       {MEMBER_STATUS_LABEL[status]}
     </span>
   );
@@ -54,7 +54,7 @@ function CopyButton({ value, label, copiedLabel = "Copied ✓", className }: {
       onClick={() => {
         try { navigator.clipboard?.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* older browsers */ }
       }}
-      className={className ?? "text-[11px] font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-2.5 py-1 rounded-full transition-colors"}
+      className={className ?? "text-[0.6875rem] font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-2.5 py-1 rounded-full transition-colors"}
     >
       {copied ? copiedLabel : label}
     </button>
@@ -82,7 +82,7 @@ function QrModal({ url, name, onClose }: { url: string; name: string; onClose: (
         <div className="bg-white rounded-2xl p-4 inline-block">
           <QRCodeCanvas value={url} size={168} />
         </div>
-        <p className="text-gray-500 text-[11px] mt-3">Anyone who scans this opens their card.</p>
+        <p className="text-gray-500 text-[0.6875rem] mt-3">Anyone who scans this opens their card.</p>
         <div className="mt-3">
           <CopyButton value={url} label="Copy card link" className="w-full text-xs font-semibold text-white bg-gray-800 hover:bg-gray-700 py-2 rounded-full transition-colors" />
         </div>
@@ -128,7 +128,7 @@ function Drawer({ person, appUrl, caps, onClose }: {
               <div className="min-w-0">
                 <p className="text-white font-bold truncate">{person.name}</p>
                 <p className="text-gray-500 text-xs truncate">{person.title || "No job title yet"}</p>
-                {person.email && <p className="text-gray-600 text-[11px] truncate">{person.email}</p>}
+                {person.email && <p className="text-gray-600 text-[0.6875rem] truncate">{person.email}</p>}
               </div>
             </div>
             <button onClick={onClose} aria-label="Close" className="text-gray-500 hover:text-white text-2xl leading-none px-1 shrink-0">×</button>
@@ -144,7 +144,7 @@ function Drawer({ person, appUrl, caps, onClose }: {
             ].map(([k, v]) => (
               <div key={k} className="rounded-xl border border-gray-800 bg-gray-950/50 px-3 py-2.5">
                 <p className="text-white font-bold tabular-nums">{v}</p>
-                <p className="text-[10px] text-gray-500 mt-0.5">{k}</p>
+                <p className="text-[0.625rem] text-gray-500 mt-0.5">{k}</p>
               </div>
             ))}
           </div>
@@ -156,7 +156,7 @@ function Drawer({ person, appUrl, caps, onClose }: {
           {!hasCard ? (
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3.5 py-3 mb-5">
               <p className="text-amber-300 text-xs font-semibold">They haven&apos;t made their card yet</p>
-              <p className="text-amber-200/70 text-[11px] mt-0.5">
+              <p className="text-amber-200/70 text-[0.6875rem] mt-0.5">
                 They joined but never finished setup, so they have nothing to share. Resending their invite sends the link again.
               </p>
             </div>
@@ -190,7 +190,7 @@ function Drawer({ person, appUrl, caps, onClose }: {
             </div>
           )}
           {person.isOwner && (
-            <p className="text-[11px] text-gray-600 pt-4 border-t border-gray-800">
+            <p className="text-[0.6875rem] text-gray-600 pt-4 border-t border-gray-800">
               {/* Was "Your card sets the look for everyone else's." True only
                   of the ONE-TIME seed at provisioning: after that the brand
                   lives on the offices row and is edited on the Branding page,
@@ -215,7 +215,7 @@ export default function TeamList({ people, invites, appUrl, caps }: {
   return (
     <>
       <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-        <div className="hidden lg:grid grid-cols-12 gap-3 px-5 py-2.5 border-b border-gray-800 bg-gray-900/60 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+        <div className="hidden lg:grid grid-cols-12 gap-3 px-5 py-2.5 border-b border-gray-800 bg-gray-900/60 text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider">
           <p className="col-span-4">Person</p>
           <p className="col-span-1 text-right">Views</p>
           <p className="col-span-1 text-right">Leads</p>
@@ -236,18 +236,18 @@ export default function TeamList({ people, invites, appUrl, caps }: {
                 <span className="min-w-0">
                   <span className="flex items-center gap-2">
                     <span className="text-sm text-white font-medium truncate">{p.name}</span>
-                    {p.isOwner && <span className="text-[10px] text-purple-400 shrink-0">You</span>}
+                    {p.isOwner && <span className="text-[0.625rem] text-purple-400 shrink-0">You</span>}
                   </span>
-                  <span className="block text-[11px] text-gray-500 truncate">{p.title || "No job title yet"}</span>
-                  {p.email && <span className="block text-[11px] text-gray-600 truncate">{p.email}</span>}
+                  <span className="block text-[0.6875rem] text-gray-500 truncate">{p.title || "No job title yet"}</span>
+                  {p.email && <span className="block text-[0.6875rem] text-gray-600 truncate">{p.email}</span>}
                 </span>
               </button>
 
               <p className="col-span-4 lg:col-span-1 text-sm text-gray-300 tabular-nums lg:text-right">
-                <span className="lg:hidden text-gray-600 text-[11px]">Views </span>{p.views.toLocaleString("en-US")}
+                <span className="lg:hidden text-gray-600 text-[0.6875rem]">Views </span>{p.views.toLocaleString("en-US")}
               </p>
               <p className="col-span-4 lg:col-span-1 text-sm text-gray-300 tabular-nums lg:text-right">
-                <span className="lg:hidden text-gray-600 text-[11px]">Leads </span>{p.leads.toLocaleString("en-US")}
+                <span className="lg:hidden text-gray-600 text-[0.6875rem]">Leads </span>{p.leads.toLocaleString("en-US")}
               </p>
               <p className="col-span-4 lg:col-span-2 text-xs text-gray-500">
                 {p.lastActiveAt ? relativeTime(p.lastActiveAt) : "No activity yet"}
@@ -256,7 +256,7 @@ export default function TeamList({ people, invites, appUrl, caps }: {
               <div className="col-span-6 lg:col-span-2 flex lg:justify-end">
                 <button
                   onClick={() => setOpen(p)}
-                  className="text-[11px] font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-2.5 py-1 rounded-full transition-colors"
+                  className="text-[0.6875rem] font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-2.5 py-1 rounded-full transition-colors"
                 >
                   Manage
                 </button>
@@ -272,8 +272,8 @@ export default function TeamList({ people, invites, appUrl, caps }: {
                   {/* Show WHO the invite went to: their name (when the admin
                       gave one) as the headline, the email under it. */}
                   <p className="text-sm text-white font-medium truncate">{inv.name || inv.email}</p>
-                  {inv.name && <p className="text-[11px] text-gray-500 truncate">{inv.email}</p>}
-                  <p className="text-[11px] text-gray-600">
+                  {inv.name && <p className="text-[0.6875rem] text-gray-500 truncate">{inv.email}</p>}
+                  <p className="text-[0.6875rem] text-gray-600">
                     {inv.status === "invite_expired"
                       ? "Invitation expired"
                       : `Invited ${shortDate(inv.sentAt)}`}

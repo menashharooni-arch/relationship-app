@@ -105,11 +105,11 @@ export default function AddSeatButton({ onAdded }: { onAdded?: () => void }) {
       <span className="block text-slate-900 text-xs font-semibold">
         Add seat {info.seats + 1} for {priceLabel}
       </span>
-      <span className="block text-slate-500 text-[11px] mt-0.5 mb-2.5">
+      <span className="block text-slate-500 text-[0.6875rem] mt-0.5 mb-2.5">
         Charged today, prorated for the rest of this billing period. Your {per === "yr" ? "yearly" : "monthly"} total
         becomes {formatUsd(info.perSeatCents * (info.seats + 1))}/{per}.
       </span>
-      {error && <span className="block text-red-500 text-[11px] mb-2">{error}</span>}
+      {error && <span className="block text-red-500 text-[0.6875rem] mb-2">{error}</span>}
       <span className="flex gap-2">
         <button
           onClick={addSeat}

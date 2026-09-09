@@ -164,20 +164,20 @@ export default function AddContactModal({
                 )}
               </button>
               {scanned && scanState === "idle" && (
-                <p className="text-emerald-400 text-[11px] text-center">✓ Filled from the card — add where you met &amp; notes below.</p>
+                <p className="text-emerald-400 text-[0.6875rem] text-center">✓ Filled from the card — add where you met &amp; notes below.</p>
               )}
-              {scanState === "error" && <p className="text-amber-400 text-[11px] text-center">{scanMsg}</p>}
+              {scanState === "error" && <p className="text-amber-400 text-[0.6875rem] text-center">{scanMsg}</p>}
               {scanState === "pro" && (
                 <PlanGate
                   feature="scanner"
                   nativeCopy="Pro feature — The card scanner is only available on the Pro plan"
                 >
-                  <p className="text-[11px] text-center text-blue-300">{scanMsg} <Link href="/upgrade" className="font-semibold underline">Upgrade →</Link></p>
+                  <p className="text-[0.6875rem] text-center text-blue-300">{scanMsg} <Link href="/upgrade" className="font-semibold underline">Upgrade →</Link></p>
                 </PlanGate>
               )}
               <div className="flex items-center gap-2 py-0.5">
                 <div className="flex-1 h-px bg-gray-800" />
-                <span className="text-gray-600 text-[10px] uppercase tracking-wide">or enter manually</span>
+                <span className="text-gray-600 text-[0.625rem] uppercase tracking-wide">or enter manually</span>
                 <div className="flex-1 h-px bg-gray-800" />
               </div>
 

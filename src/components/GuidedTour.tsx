@@ -491,16 +491,16 @@ export default function GuidedTour({
         style={{ width: TIP_W, maxWidth: "calc(100vw - 24px)", visibility: "hidden" }}
       >
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-semibold tracking-wide text-blue-400 uppercase">Step {idx + 1} of {steps.length}</span>
+          <span className="text-[0.6875rem] font-semibold tracking-wide text-blue-400 uppercase">Step {idx + 1} of {steps.length}</span>
           <button onClick={() => finish(true)} className="text-gray-500 hover:text-gray-300 text-xs font-medium transition-colors">Skip tour</button>
         </div>
-        <p className="text-white font-bold text-[15px] leading-snug mb-1.5">{step.title}</p>
-        <p className="text-gray-300 text-[13px] leading-relaxed">{step.body}</p>
+        <p className="text-white font-bold text-[0.9375rem] leading-snug mb-1.5">{step.title}</p>
+        <p className="text-gray-300 text-[0.8125rem] leading-relaxed">{step.body}</p>
         {step.clickToAdvance && (
-          <p className="text-blue-300 text-[12px] font-medium mt-2">Tap the highlighted card, or press Next.</p>
+          <p className="text-blue-300 text-[0.75rem] font-medium mt-2">Tap the highlighted card, or press Next.</p>
         )}
         {step.interactive && (
-          <p className="text-blue-300 text-[12px] font-medium mt-2">Go ahead — try it. Then press Next to continue.</p>
+          <p className="text-blue-300 text-[0.75rem] font-medium mt-2">Go ahead — try it. Then press Next to continue.</p>
         )}
 
         {/* Progress dots */}

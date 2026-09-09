@@ -204,11 +204,15 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
       {/* Normal upload widget */}
       <div>
         <label className="text-xs text-gray-500 block mb-1">{label}</label>
-        {hint && <p className="text-[11px] text-gray-500 mb-2 leading-snug">{hint}</p>}
+        {hint && <p className="text-[0.6875rem] text-gray-500 mb-2 leading-snug">{hint}</p>}
         <div className="flex items-center gap-4">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
+            // Icon-only: without a name VoiceOver said "button" and Voice
+            // Control had nothing to match. `label` is the field's own word
+            // ("Logo", "Photo"), so the spoken name matches what is on screen.
+            aria-label={preview ? `Change ${label.toLowerCase()}` : `Upload ${label.toLowerCase()}`}
             className={`${boxSize} overflow-hidden border-2 border-dashed flex items-center justify-center shrink-0 transition-all hover:border-blue-500`}
             style={{
               borderRadius: isCircle ? "9999px" : "12px",
@@ -238,7 +242,7 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 disabled={uploadStatus === "uploading"}
-                className="text-xs font-medium text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
+                className="text-xs font-medium text-blue-700 hover:text-blue-800 transition-colors disabled:opacity-50"
               >
                 {uploadStatus === "uploading" ? "Uploading…" : preview ? "Change" : "Upload"}
               </button>
@@ -252,10 +256,10 @@ export default function ImageUpload({ field, currentUrl, label, hint, shape = "s
                 </button>
               )}
             </div>
-            <p className="text-[11px] text-gray-600">JPG, PNG · max 5 MB</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">Tap to select · then drag corners to crop</p>
+            <p className="text-[0.6875rem] text-gray-600">JPG, PNG · max 5 MB</p>
+            <p className="text-[0.6875rem] text-gray-500 mt-0.5">Tap to select · then drag corners to crop</p>
             {uploadStatus === "error" && (
-              <p className="text-[11px] text-red-400 mt-1">{errorMsg}</p>
+              <p className="text-[0.6875rem] text-red-400 mt-1">{errorMsg}</p>
             )}
           </div>
 

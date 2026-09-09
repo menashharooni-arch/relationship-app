@@ -181,7 +181,7 @@ export default function BillingManager() {
         <p className="text-sm font-semibold text-white">
           Your plan: {nPlan === "office" ? "Office" : nPlan === "pro" ? "Pro" : "Free"}
         </p>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-gray-400">
+        <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-gray-400">
           {appleBilled
             ? "Your subscription is billed through your Apple account."
             : externallyBilled
@@ -271,7 +271,7 @@ export default function BillingManager() {
       {sub.paymentFailed && (
         <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3">
           <p className="text-amber-300 text-xs font-semibold">Your last payment didn&apos;t go through.</p>
-          <p className="text-amber-200/80 text-[11px] mt-0.5">Update your payment method to keep Pro — your access continues during the grace period.</p>
+          <p className="text-amber-200/80 text-[0.6875rem] mt-0.5">Update your payment method to keep Pro — your access continues during the grace period.</p>
         </div>
       )}
 
@@ -281,7 +281,7 @@ export default function BillingManager() {
           <p className="text-amber-300 text-xs font-semibold">
             Scheduled to cancel on {fmtDate(sub.currentPeriodEnd)}
           </p>
-          <p className="text-amber-200/80 text-[11px] mt-0.5 mb-3">
+          <p className="text-amber-200/80 text-[0.6875rem] mt-0.5 mb-3">
             You&apos;ll keep {planLabel(sub.plan)} until then, after which your account moves to Free.
           </p>
           <button
@@ -394,23 +394,23 @@ function SeatManager({ sub, onChanged }: { sub: Sub; onChanged: () => Promise<vo
     <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3.5 mb-2">
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-semibold text-gray-300">Team seats</p>
-        <p className="text-[11px] text-gray-500">{available} available · min {sub.minSeats}</p>
+        <p className="text-[0.6875rem] text-gray-500">{available} available · min {sub.minSeats}</p>
       </div>
-      <p className="text-[11px] text-gray-500 mb-2">
+      <p className="text-[0.6875rem] text-gray-500 mb-2">
         {current} purchased · you + {active} active + {pending} pending = {used} used
       </p>
 
       {/* Scheduled reduction banner (spec §5) — current vs future clearly distinct */}
       {sub.scheduledSeats != null && (
         <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
-          <p className="text-amber-300 text-[11px] font-semibold">
+          <p className="text-amber-300 text-[0.6875rem] font-semibold">
             Scheduled to reduce {current} → {sub.scheduledSeats} seats on {fmtDate(sub.scheduledSeatsAt)}
           </p>
-          <p className="text-amber-200/80 text-[11px] mt-0.5">
+          <p className="text-amber-200/80 text-[0.6875rem] mt-0.5">
             {formatUsd(seatSubtotalCents(perSeatCents, current))}/{per} now → {formatUsd(seatSubtotalCents(perSeatCents, sub.scheduledSeats))}/{per} after. You keep {current} seats until then.
           </p>
           <button onClick={() => submit(current)} disabled={busy}
-            className="mt-2 text-[11px] font-semibold text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-50 px-3 py-1.5 rounded-full">
+            className="mt-2 text-[0.6875rem] font-semibold text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-50 px-3 py-1.5 rounded-full">
             {busy ? "…" : "Cancel scheduled reduction"}
           </button>
         </div>
@@ -434,11 +434,11 @@ function SeatManager({ sub, onChanged }: { sub: Sub; onChanged: () => Promise<vo
         )}
       </div>
       {changed && seats < current && (
-        <p className="text-[11px] text-gray-500 mt-1.5">Reductions take effect at the end of your billing period; you keep {current} seats until then.</p>
+        <p className="text-[0.6875rem] text-gray-500 mt-1.5">Reductions take effect at the end of your billing period; you keep {current} seats until then.</p>
       )}
-      {msg && <p className="text-[11px] text-gray-400 mt-2">{msg}</p>}
+      {msg && <p className="text-[0.6875rem] text-gray-400 mt-2">{msg}</p>}
       {floor > sub.minSeats && seats <= floor && (
-        <p className="text-[11px] text-gray-600 mt-1.5">Remove members or revoke invitations to go below {floor} seats.</p>
+        <p className="text-[0.6875rem] text-gray-600 mt-1.5">Remove members or revoke invitations to go below {floor} seats.</p>
       )}
     </div>
   );
@@ -510,10 +510,10 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-white font-semibold text-sm">Office <span className="text-gray-500 font-normal">· {officePer}/seat</span></p>
-              <p className="text-gray-500 text-[11px]">One brand across your whole team.</p>
+              <p className="text-gray-500 text-[0.6875rem]">One brand across your whole team.</p>
             </div>
             {sub.plan === "office"
-              ? <span className="text-[11px] font-bold text-blue-300">Current</span>
+              ? <span className="text-[0.6875rem] font-bold text-blue-300">Current</span>
               : (
                 <button onClick={() => choose("office")} disabled={busy === "office"}
                   className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-full">
@@ -523,7 +523,7 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
           </div>
           {(sub.plan !== "office") && (
             <div className="flex items-center gap-2 mt-2.5">
-              <span className="text-[11px] text-gray-500">Seats:</span>
+              <span className="text-[0.6875rem] text-gray-500">Seats:</span>
               <button onClick={() => setSeats((s) => Math.max(PLAN_LIMITS.OFFICE_MIN_SEATS, s - 1))}
                 className="w-6 h-6 rounded bg-gray-800 text-white text-sm">−</button>
               <span className="w-6 text-center text-white text-xs tabular-nums">{seats}</span>
@@ -548,7 +548,7 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
         <button onClick={onCancelInstead}
           className="w-full text-left rounded-xl border border-gray-800/70 bg-gray-950/40 p-3.5 hover:border-gray-700 transition-colors">
           <p className="text-gray-300 font-semibold text-sm">Switch to Free</p>
-          <p className="text-gray-500 text-[11px]">Downgrades your account — extra cards go offline and your card loses its Pro design. See exactly what changes first.</p>
+          <p className="text-gray-500 text-[0.6875rem]">Downgrades your account — extra cards go offline and your card loses its Pro design. See exactly what changes first.</p>
         </button>
       </div>
 
@@ -564,10 +564,10 @@ function PlanRow({ name, price, desc, current, busy, onSelect }: {
     <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3.5 flex items-center justify-between">
       <div>
         <p className="text-white font-semibold text-sm">{name} <span className="text-gray-500 font-normal">· {price}</span></p>
-        <p className="text-gray-500 text-[11px]">{desc}</p>
+        <p className="text-gray-500 text-[0.6875rem]">{desc}</p>
       </div>
       {current
-        ? <span className="text-[11px] font-bold text-blue-300">Current</span>
+        ? <span className="text-[0.6875rem] font-bold text-blue-300">Current</span>
         : (
           <button onClick={onSelect} disabled={busy}
             className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-full">
@@ -682,7 +682,7 @@ function CancelModal({ sub, onClose, onDone }: {
             <div className="rounded-2xl border border-blue-700/40 bg-blue-950/30 p-4 mb-3">
               <p className="text-white font-bold text-base">Don&apos;t need the team? Switch to Pro</p>
               <p className="text-gray-300 text-sm mt-1">Keep your own card and every Pro feature for just <span className="text-white font-semibold">{proLabel}</span> — instead of dropping all the way to Free.</p>
-              <p className="text-gray-500 text-[11px] mt-1.5">Your team&apos;s seats end and their cards revert to their own plans. Prorated — you&apos;re only charged the difference.</p>
+              <p className="text-gray-500 text-[0.6875rem] mt-1.5">Your team&apos;s seats end and their cards revert to their own plans. Prorated — you&apos;re only charged the difference.</p>
               <button onClick={switchToPro} disabled={busy !== null}
                 className="mt-3 w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-full">
                 {busy === "pro" ? "Switching…" : `Switch to Pro · ${proLabel}`}
@@ -730,7 +730,7 @@ function CancelModal({ sub, onClose, onDone }: {
               </li>
             ))}
           </ul>
-          <p className="text-gray-500 text-[11px] mb-4">Nothing is deleted — re-subscribe anytime and it all switches back on instantly.</p>
+          <p className="text-gray-500 text-[0.6875rem] mb-4">Nothing is deleted — re-subscribe anytime and it all switches back on instantly.</p>
           {err && <p className="text-red-400 text-xs mb-3">{err}</p>}
           {/* Primary emphasis on staying (the profitable choice); downgrade is a
               plain, always-available secondary action — clear, not hidden. */}
@@ -812,7 +812,7 @@ function PersonalSubCard({ sub, busy, err, notice, renewalLine, onKeep, onCancel
       {sub.cancelAtPeriodEnd ? (
         <div className="mb-1 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3">
           <p className="text-amber-300 text-xs font-semibold">Ends on {fmtDate(sub.currentPeriodEnd)} — you won&apos;t be charged again.</p>
-          <p className="text-amber-200/80 text-[11px] mt-0.5 mb-3">Your team seat keeps every Pro feature working after that.</p>
+          <p className="text-amber-200/80 text-[0.6875rem] mt-0.5 mb-3">Your team seat keeps every Pro feature working after that.</p>
           <button
             onClick={onKeep}
             disabled={busy === "keep"}

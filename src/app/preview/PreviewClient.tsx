@@ -131,7 +131,7 @@ function CardOnlyPreview({ src }: { src: string }) {
 function ReadToggle({ read, onClick }: { read: boolean; onClick: () => void }) {
   return (
     <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap ${read ? "text-gray-500 border-gray-700 hover:text-gray-300" : "text-blue-300 border-blue-600/50 bg-blue-600/10 hover:bg-blue-600/20"}`}>
+      className={`text-[0.625rem] font-semibold px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap ${read ? "text-gray-500 border-gray-700 hover:text-gray-300" : "text-blue-300 border-blue-600/50 bg-blue-600/10 hover:bg-blue-600/20"}`}>
       {read ? "Mark unread" : "Mark read"}
     </button>
   );
@@ -309,10 +309,10 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
     <>
       <Box>
         <div className="flex items-center gap-2 mb-1">
-          <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">1</span>
+          <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[0.6875rem] font-bold flex items-center justify-center shrink-0">1</span>
           <p className="text-white text-sm font-semibold">Your SwiftCard</p>
         </div>
-        <p className="text-gray-500 text-[11px] mb-3 leading-relaxed">Exactly what people get when you share — tap to open.</p>
+        <p className="text-gray-300 text-[0.6875rem] mb-3 leading-relaxed">Exactly what people get when you share — tap to open.</p>
         <button type="button" onClick={() => openDemo("card")} className="block w-full rounded-xl overflow-hidden ring-1 ring-blue-500/30 hover:ring-blue-500/60 transition-all bg-[#FAF7F2]">
           <CardOnlyPreview key={card.handle} src={`/${card.handle}?embed=card`} />
         </button>
@@ -339,7 +339,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
         {!embedded && (
           <div className="mb-6">
             <h1 className="text-2xl font-bold">This is your dashboard — try it out</h1>
-            <p className="text-gray-500 text-sm mt-1.5">The real app, loaded with sample data. Nothing to install.</p>
+            <p className="text-gray-300 text-sm mt-1.5">The real app, loaded with sample data. Nothing to install.</p>
           </div>
         )}
 
@@ -356,14 +356,14 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               <button key={s.n} type="button" onClick={s.act}
                 className="text-left rounded-xl bg-gray-900/50 border border-gray-800 hover:border-blue-700/60 px-3 py-2.5 transition-colors">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">{s.n}</span>
-                  <span className="text-white text-[12px] font-semibold">{s.t}</span>
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[0.6875rem] font-bold flex items-center justify-center shrink-0">{s.n}</span>
+                  <span className="text-white text-[0.75rem] font-semibold">{s.t}</span>
                 </div>
-                <p className="text-gray-400 text-[11px] leading-snug">{s.d}</p>
+                <p className="text-gray-400 text-[0.6875rem] leading-snug">{s.d}</p>
               </button>
             ))}
           </div>
-          <p className="text-blue-300/70 text-[11px] mt-3">Tip: switch cards up top — every number updates.</p>
+          <p className="text-blue-300/70 text-[0.6875rem] mt-3">Tip: switch cards up top — every number updates.</p>
         </div>
 
         {/* My Cards */}
@@ -371,7 +371,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-white font-semibold text-sm">My Cards</p>
-              <p className="text-gray-600 text-xs mt-0.5">Tap a card to switch — everything below updates to that card.</p>
+              <p className="text-gray-300 text-xs mt-0.5">Tap a card to switch — everything below updates to that card.</p>
             </div>
             <span className="text-xs text-blue-400 font-medium">+ Add card</span>
           </div>
@@ -387,7 +387,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 text-white" style={{ background: c.accent }}>{c.label[0]}</div>
                   <div className="min-w-0 flex-1">
                     <p className="text-white text-sm font-medium truncate">{c.label}</p>
-                    <p className="text-gray-500 text-xs truncate">/{c.handle} · {c.data.title}</p>
+                    <p className="text-gray-300 text-xs truncate">/{c.handle} · {c.data.title}</p>
                   </div>
                 </button>
               );
@@ -425,9 +425,9 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                   <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                       <p className="text-gray-100 text-sm font-semibold truncate">{loc.location}</p>
-                      <p className="text-white text-sm font-bold tabular-nums shrink-0">{(loc.card + loc.link).toLocaleString()} <span className="text-gray-500 font-medium text-[11px]">views</span></p>
+                      <p className="text-white text-sm font-bold tabular-nums shrink-0">{(loc.card + loc.link).toLocaleString()} <span className="text-gray-500 font-medium text-[0.6875rem]">views</span></p>
                     </div>
-                    <div className="flex items-center gap-4 text-[11px]">
+                    <div className="flex items-center gap-4 text-[0.6875rem]">
                       <span className="text-gray-500">SwiftCard <span className="text-gray-200 font-semibold tabular-nums">{loc.card.toLocaleString()}</span></span>
                       <span className="text-gray-500">Swift Links <span className="text-gray-200 font-semibold tabular-nums">{loc.link.toLocaleString()}</span></span>
                     </div>
@@ -448,7 +448,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                   <div key={m.label} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3.5 min-w-0">
                     <p className="text-gray-400 text-xs font-medium truncate">{m.label}</p>
                     <p className="text-2xl font-bold text-white tabular-nums mt-0.5">{m.value}</p>
-                    <p className="text-[11px] font-semibold mt-0.5" style={{ color: m.delta < 0 ? "#f87171" : m.accent }}>
+                    <p className="text-[0.6875rem] font-semibold mt-0.5" style={{ color: m.delta < 0 ? "#f87171" : m.accent }}>
                       {m.delta < 0 ? "▼" : "▲"} {Math.abs(m.delta)}% {DELTA_PERIOD[range]}
                     </p>
                   </div>
@@ -468,7 +468,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
             </div>
             )}
             {/* Basic stats footer — contacts captured + best day, like the real box */}
-            <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[11px]">
+            <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[0.6875rem]">
               <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{card.total}</span></span>
               <span className="text-gray-500">Best day <span className="text-gray-200 font-semibold">{card.bestDay.label}</span> · {card.bestDay.views}</span>
             </div>
@@ -484,9 +484,9 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
         {portalTab === "links" && (
           <div className="max-w-md mx-auto">
             <div className="mb-6">
-              <p className="text-[11px] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
+              <p className="text-[0.6875rem] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
               <h2 className="text-2xl font-bold text-white">Links</h2>
-              <p className="text-gray-500 text-sm mt-1">
+              <p className="text-gray-300 text-sm mt-1">
                 For <span className="text-gray-300 font-medium">{card.label}</span>
                 <span className="text-gray-600"> · /{card.handle}</span>
               </p>
@@ -497,7 +497,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Swift Links</p>
                 <Box>
-                  <p className="text-gray-500 text-xs mb-3 leading-relaxed">
+                  <p className="text-gray-300 text-xs mb-3 leading-relaxed">
                     A separate link from your card — your bio, socials, and links in one place. Drop it in your Instagram, TikTok, or any social bio.
                   </p>
                   <div className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/60 rounded-xl px-3 py-2.5">
@@ -506,7 +506,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                     </svg>
                     <span className="text-blue-400 text-xs truncate flex-1">swiftcard.me/links/{card.handle}</span>
                     <button type="button" onClick={copyLinksUrl}
-                      className="text-[11px] font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-2.5 py-1 transition-colors shrink-0">
+                      className="text-[0.6875rem] font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg px-2.5 py-1 transition-colors shrink-0">
                       {linksCopied ? "Copied ✓" : "Copy"}
                     </button>
                   </div>
@@ -529,7 +529,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Swift Signature</p>
                 <div className="bg-gray-900 border border-gray-800/80 rounded-2xl p-4">
                   <p className="text-white font-semibold text-sm">Swift Signature</p>
-                  <p className="text-gray-500 text-[11px] mt-1 leading-relaxed">
+                  <p className="text-gray-300 text-[0.6875rem] mt-1 leading-relaxed">
                     Copy your Swift Signature and paste it into your email — a clickable link to your card at the bottom of every message you send.
                   </p>
                   <button type="button" onClick={() => openDemo("signature")}
@@ -552,7 +552,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               <div className="flex items-baseline gap-2.5">
                 <h2 className="text-white font-semibold text-sm">Contacts</h2>
                 <span className="text-white font-bold text-lg tabular-nums">{card.total}</span>
-                <span className="text-gray-500 text-[11px] font-medium">Total leads</span>
+                <span className="text-gray-300 text-[0.6875rem] font-medium">Total leads</span>
               </div>
               <span className="text-xs text-gray-300 bg-gray-800 border border-gray-700 px-3 py-1.5 rounded-lg">+ Add contact</span>
             </div>
@@ -579,14 +579,14 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className={`text-sm truncate ${isRead ? "text-gray-200 font-medium" : "text-white font-semibold"}`}>{l.name}</p>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: l.color + "22", color: l.color }}>{l.source}</span>
+                          <span className="text-[0.625rem] font-semibold px-1.5 py-0.5 rounded shrink-0" style={{ background: l.color + "22", color: l.color }}>{l.source}</span>
                         </div>
-                        <p className="text-gray-500 text-xs truncate mt-0.5">{view === "Notifications" ? `Shared their contact with ${firstName}` : l.msg}</p>
+                        <p className="text-gray-300 text-xs truncate mt-0.5">{view === "Notifications" ? `Shared their contact with ${firstName}` : l.msg}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: STATUS_STYLE[l.status].bg, color: STATUS_STYLE[l.status].text }}>{l.status}</span>
+                        <span className="text-[0.625rem] font-semibold px-2 py-0.5 rounded-full" style={{ background: STATUS_STYLE[l.status].bg, color: STATUS_STYLE[l.status].text }}>{l.status}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-600 text-[10px]">{l.time}</span>
+                          <span className="text-gray-600 text-[0.625rem]">{l.time}</span>
                           <ReadToggle read={isRead} onClick={() => toggleRead(l.id)} />
                         </div>
                       </div>
@@ -604,8 +604,8 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                   return (
                     <div key={status} className="min-w-[160px] flex-1 bg-gray-900/40 border border-gray-800/80 rounded-2xl p-2.5">
                       <div className="flex items-center justify-between px-1 mb-2">
-                        <span className="text-[11px] font-semibold" style={{ color: STATUS_STYLE[status].text }}>{status}</span>
-                        <span className="text-gray-600 text-[10px]">{items.length}</span>
+                        <span className="text-[0.6875rem] font-semibold" style={{ color: STATUS_STYLE[status].text }}>{status}</span>
+                        <span className="text-gray-600 text-[0.625rem]">{items.length}</span>
                       </div>
                       <div className="space-y-2">
                         {items.map((l) => {
@@ -613,16 +613,16 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                           return (
                             <div key={l.id} className={`rounded-xl p-2.5 border transition-colors ${isRead ? "bg-gray-800/50 border-gray-700/50" : "bg-blue-600/[0.1] border-blue-600/30"}`}>
                               <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 text-white" style={{ background: l.color }}>{l.initial}</div>
+                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[0.625rem] font-bold shrink-0 text-white" style={{ background: l.color }}>{l.initial}</div>
                                 <p className="text-white text-xs font-semibold truncate flex-1">{l.name}</p>
                                 {!isRead && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
                               </div>
-                              <p className="text-gray-500 text-[10px] mt-1.5 leading-snug line-clamp-2">{l.msg}</p>
+                              <p className="text-gray-500 text-[0.625rem] mt-1.5 leading-snug line-clamp-2">{l.msg}</p>
                               <div className="mt-2 flex justify-end"><ReadToggle read={isRead} onClick={() => toggleRead(l.id)} /></div>
                             </div>
                           );
                         })}
-                        {items.length === 0 && <p className="text-gray-700 text-[10px] text-center py-3">None</p>}
+                        {items.length === 0 && <p className="text-gray-700 text-[0.625rem] text-center py-3">None</p>}
                       </div>
                     </div>
                   );
@@ -654,7 +654,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
             <div className="flex items-center gap-1 rounded-full bg-gray-950/95 backdrop-blur p-1.5">
               <Link
                 href="/join?src=preview"
-                className="flex-1 text-center text-[13px] font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 px-5 py-2.5 rounded-full transition-colors"
+                className="flex-1 text-center text-[0.8125rem] font-bold text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 px-5 py-2.5 rounded-full transition-colors"
               >
                 Create Your Card for Free →
               </Link>
@@ -685,27 +685,27 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
       {modal === "signature" && (
         <FullScreen title="Swift Signature — your card in every email" onClose={() => setModal(null)}>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 w-full max-w-md">
-            <p className="text-gray-500 text-xs mb-3">Here&apos;s how it looks at the bottom of an email you send:</p>
+            <p className="text-gray-300 text-xs mb-3">Here&apos;s how it looks at the bottom of an email you send:</p>
             <div className="rounded-xl border border-gray-700/60 bg-white overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-gray-200 text-[12px] text-gray-500 space-y-0.5">
+              <div className="px-4 py-2.5 border-b border-gray-200 text-[0.75rem] text-gray-500 space-y-0.5">
                 <p><span className="text-gray-400">To:</span> sarah@acme.com</p>
                 <p><span className="text-gray-400">Subject:</span> Great connecting today</p>
               </div>
-              <div className="px-4 py-3 text-[13px] text-gray-800 leading-relaxed">
+              <div className="px-4 py-3 text-[0.8125rem] text-gray-800 leading-relaxed">
                 <p>Hi Sarah,</p>
                 <p className="mt-2">Really enjoyed chatting earlier. My contact info is below in my signature. Let&apos;s keep in touch!</p>
                 <p className="mt-2">Best,</p>
                 <div className="mt-3">
-                  <p className="text-[14px] text-gray-900 mb-1.5"><strong>{card.data.name}</strong> | {card.data.company}</p>
+                  <p className="text-[0.875rem] text-gray-900 mb-1.5"><strong>{card.data.name}</strong> | {card.data.company}</p>
                   <div className="rounded-[10px] overflow-hidden border border-gray-200 w-[240px] max-w-full bg-[#FAF7F2]"><CardOnlyPreview key={`sig-${card.handle}`} src={`/${card.handle}?embed=card`} /></div>
-                  <span className="inline-block mt-2 text-[14px] font-bold text-blue-600">Contact me</span>
+                  <span className="inline-block mt-2 text-[0.875rem] font-bold text-blue-600">Contact me</span>
                 </div>
               </div>
             </div>
             <button onClick={copySig} className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
               {copied ? "Copied ✓ — paste it into your email signature" : "Copy Swift Signature"}
             </button>
-            <p className="text-gray-600 text-[11px] mt-2 text-center">Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>.</p>
+            <p className="text-gray-600 text-[0.6875rem] mt-2 text-center">Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>.</p>
           </div>
         </FullScreen>
       )}

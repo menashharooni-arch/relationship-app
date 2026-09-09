@@ -25,8 +25,8 @@ const SIZES: Record<Size, { pad: string; glyph: string; top: string; main: strin
   // no room for it at any size (the logo, the primary CTA and the menu trigger
   // already fill a 375px row), which is why the nav badge is inside a
   // `hidden lg:flex` cluster and there is no phone equivalent.
-  sm: { pad: "px-3 py-1.5", glyph: "w-[17px] h-[17px]", top: "text-[9px]", main: "text-[12.5px]", gap: "gap-2", radius: "rounded-xl" },
-  md: { pad: "px-3.5 py-2", glyph: "w-[22px] h-[22px]", top: "text-[10px]", main: "text-[14px]", gap: "gap-2.5", radius: "rounded-xl" },
+  sm: { pad: "px-3 py-1.5", glyph: "w-[17px] h-[17px]", top: "text-[0.5625rem]", main: "text-[0.78125rem]", gap: "gap-2", radius: "rounded-xl" },
+  md: { pad: "px-3.5 py-2", glyph: "w-[22px] h-[22px]", top: "text-[0.625rem]", main: "text-[0.875rem]", gap: "gap-2.5", radius: "rounded-xl" },
   // Hero: sits directly beside "See how it works" (.rd-btn + .rd-btn-lg), and
   // the height is not a guess — that button is padding 1rem + font-size 1rem at
   // line-height 1 + a 1px border = exactly 50px. This lands on 50 too:
@@ -37,7 +37,7 @@ const SIZES: Record<Size, { pad: string; glyph: string; top: string; main: strin
   // hero column that is only 343px wide on a 375px phone, and the wider padding
   // put the pair 3px from the edge. py-2.5 is untouched by the breakpoint, so
   // the 50px height — the whole point of this size — holds at every width.
-  lg: { pad: "px-3 sm:px-4 py-2.5", glyph: "w-[22px] h-[22px]", top: "text-[10px]", main: "text-[14px]", gap: "gap-2.5", radius: "rounded-xl" },
+  lg: { pad: "px-3 sm:px-4 py-2.5", glyph: "w-[22px] h-[22px]", top: "text-[0.625rem]", main: "text-[0.875rem]", gap: "gap-2.5", radius: "rounded-xl" },
 };
 
 // Black on light surfaces, glass on dark ones — matching what the hero and the

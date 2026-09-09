@@ -6,7 +6,7 @@ export function StatTile({ label, value, hint }: { label: string; value: string 
     <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-4">
       <p className="text-2xl font-bold text-white tabular-nums">{value}</p>
       <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-      {hint && <p className="text-[11px] text-gray-600 mt-1">{hint}</p>}
+      {hint && <p className="text-[0.6875rem] text-gray-600 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -40,7 +40,7 @@ export function Badge({ tone, children }: { tone: "green" | "amber" | "gray" | "
     red: "bg-red-500/10 text-red-400 border-red-500/20",
   };
   return (
-    <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${tones[tone]}`}>
+    <span className={`text-[0.625rem] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${tones[tone]}`}>
       {children}
     </span>
   );

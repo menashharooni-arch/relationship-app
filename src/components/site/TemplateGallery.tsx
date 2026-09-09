@@ -50,7 +50,7 @@ const TEMPLATES: Tmpl[] = [
 
 function StatusBar() {
   return (
-    <div className="flex items-center justify-between px-6 pt-3 pb-1 text-[11px] font-semibold text-slate-800">
+    <div className="flex items-center justify-between px-6 pt-3 pb-1 text-[0.6875rem] font-semibold text-slate-800">
       <span>9:41</span>
       <div className="flex items-center gap-1">
         <svg viewBox="0 0 18 12" className="w-4 h-3" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1" /><rect x="5" y="4" width="3" height="8" rx="1" /><rect x="10" y="1" width="3" height="11" rx="1" opacity="0.4" /></svg>
@@ -84,11 +84,11 @@ function LinkExperience({ id, Component, data }: { id: string; Component: Tmpl["
         {/* Save contact — plain bold heading, like the live page (the numbered
             badges were removed in the 2026-08-19 card-page redesign). */}
         <div className={Panel} style={panelStyle}>
-          <p className="text-slate-900 font-bold text-[13px] tracking-tight">Save {FIRST}&apos;s contact</p>
-          <p className="text-slate-500 text-[11px] mt-0.5 mb-2.5">One tap adds them to your phone contacts — no app needed.</p>
+          <p className="text-slate-900 font-bold text-[0.8125rem] tracking-tight">Save {FIRST}&apos;s contact</p>
+          <p className="text-slate-500 text-[0.6875rem] mt-0.5 mb-2.5">One tap adds them to your phone contacts — no app needed.</p>
           <button
             onClick={() => setSaved(true)}
-            className="w-full rounded-full py-2.5 text-white text-[12.5px] font-bold flex items-center justify-center gap-1.5 transition-colors"
+            className="w-full rounded-full py-2.5 text-white text-[0.78125rem] font-bold flex items-center justify-center gap-1.5 transition-colors"
             style={{ background: saved ? "#16a34a" : theme.accent }}
           >
             {saved ? (
@@ -101,20 +101,20 @@ function LinkExperience({ id, Component, data }: { id: string; Component: Tmpl["
 
         {/* Share your info back */}
         <div className={Panel} style={panelStyle}>
-          <p className="text-slate-900 font-bold text-[13px] tracking-tight mb-2">Share your info with {FIRST}</p>
+          <p className="text-slate-900 font-bold text-[0.8125rem] tracking-tight mb-2">Share your info with {FIRST}</p>
           {shared ? (
             <div className="py-3 text-center">
               <div className="w-10 h-10 mx-auto mb-1.5 rounded-full bg-green-100 flex items-center justify-center">
                 <svg viewBox="0 0 24 24" className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </div>
-              <p className="text-slate-900 font-bold text-[13px]">Info shared!</p>
+              <p className="text-slate-900 font-bold text-[0.8125rem]">Info shared!</p>
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
               {/* The real form's fields, in the real order: name and PHONE are
                   required, email is optional, and there is a message field. */}
               {["Your name *", "Your phone number *", "Your email (optional)", "Quick message (optional)"].map((ph) => (
-                <div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[12px] text-slate-400" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>
+                <div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[0.75rem] text-slate-400" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>
               ))}
               {/* The SMS consent checkbox, shown UNTICKED as it always renders
                   (optional; pre-checking would break TCPA). Copy trimmed to the
@@ -125,12 +125,12 @@ function LinkExperience({ id, Component, data }: { id: string; Component: Tmpl["
                   className="mt-[2px] w-[13px] h-[13px] rounded-[3px] shrink-0 bg-white"
                   style={{ border: "1.5px solid #C9BFB2" }}
                 />
-                <span className="text-[9.5px] leading-[1.35] text-slate-500">
+                <span className="text-[0.59375rem] leading-[1.35] text-slate-500">
                   <strong className="text-slate-600">Text me follow-ups (optional).</strong>{" "}
                   Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out.
                 </span>
               </div>
-              <button onClick={() => setShared(true)} className="mt-1 w-full h-10 rounded-lg text-white text-[12.5px] font-bold flex items-center justify-center" style={{ background: theme.accent }}>Share my info →</button>
+              <button onClick={() => setShared(true)} className="mt-1 w-full h-10 rounded-lg text-white text-[0.78125rem] font-bold flex items-center justify-center" style={{ background: theme.accent }}>Share my info →</button>
             </div>
           )}
         </div>
@@ -153,7 +153,7 @@ function LinkExperience({ id, Component, data }: { id: string; Component: Tmpl["
               On the live page this line is Free-only (Pro is sold as "100%
               your brand"); the demo card is a Free card, so showing it here is
               truthful. */}
-          <Link href="/cards/new" className="block text-center text-slate-400 hover:text-slate-600 text-[11px] mt-3 transition-colors">
+          <Link href="/cards/new" className="block text-center text-slate-400 hover:text-slate-600 text-[0.6875rem] mt-3 transition-colors">
             Create your card · swiftcard.me
           </Link>
         </div>
@@ -170,7 +170,7 @@ export default function TemplateGallery({ linkedinEnabled = false }: { linkedinE
     <div className="grid lg:grid-cols-[0.82fr_1.18fr] gap-12 items-start">
       {/* Phone — reflects the hovered template's live link experience */}
       <div className="flex flex-col items-center gap-3 order-2 lg:order-1 lg:sticky lg:top-24">
-        <div className="flex items-center gap-1.5 text-slate-400 text-[12px] font-medium">
+        <div className="flex items-center gap-1.5 text-slate-400 text-[0.75rem] font-medium">
           <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 5v14M12 19l-4-4M12 19l4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
           Scroll on phone to view
         </div>
@@ -188,7 +188,7 @@ export default function TemplateGallery({ linkedinEnabled = false }: { linkedinE
 
       {/* Template grid — every real template, name above each */}
       <div className="order-1 lg:order-2">
-        <p className="text-slate-400 text-[13px] font-semibold uppercase tracking-wide mb-5" data-reveal="fade">
+        <p className="rd-eyebrow text-slate-600 mb-5" data-reveal="fade">
           Six designer templates — hover any to see it live
         </p>
         <div className="grid grid-cols-2 gap-x-5 gap-y-7">
@@ -205,9 +205,22 @@ export default function TemplateGallery({ linkedinEnabled = false }: { linkedinE
                 data-reveal
                 style={{ transitionDelay: `${i * 70}ms` }}
                 aria-pressed={on}
+                // The preview inside is a rendered CARD, and a card carries real
+                // tel:/mailto:/https: links. pointer-events:none stops them
+                // swallowing the click, but VoiceOver still walked into them and
+                // announced a button containing three more controls (axe:
+                // nested-interactive). Hiding the preview from the tree and
+                // naming the button keeps one target with one name — which is
+                // also what "tap Modern Bold template" needs to work in Voice
+                // Control.
+                aria-label={`${t.name} template`}
               >
-                <p className={`text-[13.5px] font-semibold mb-2 transition-colors ${on ? "text-[#2563EB]" : "text-slate-700"}`}>{t.name}</p>
+                <p aria-hidden="true" className={`text-[0.84375rem] font-semibold mb-2 transition-colors ${on ? "text-[#2563EB]" : "text-slate-700"}`}>{t.name}</p>
                 <div
+                  // See templates/page.tsx: the preview is a real card with real
+                  // contact links, so it is inert — out of the a11y tree and out
+                  // of the tab order, leaving one named button.
+                  inert
                   className="rounded-2xl overflow-hidden transition-all duration-200"
                   style={{
                     outline: on ? "2px solid #2563EB" : "2px solid transparent",

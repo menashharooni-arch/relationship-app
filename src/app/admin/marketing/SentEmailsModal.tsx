@@ -42,7 +42,7 @@ function StatusBadge({ status }: { status: string }) {
     processing: { label: "Processing", cls: "bg-blue-900/50 text-blue-300" },
   };
   const s = map[status] ?? { label: status, cls: "bg-gray-800 text-gray-400" };
-  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.cls}`}>{s.label}</span>;
+  return <span className={`text-[0.625rem] font-bold px-2 py-0.5 rounded-full ${s.cls}`}>{s.label}</span>;
 }
 
 function fmt(dt: string) {
@@ -184,7 +184,7 @@ export default function SentEmailsModal({ onClose }: { onClose: () => void }) {
                   { k: "Skipped", v: detail.skipped_count, cls: "text-gray-300" },
                 ].map((s) => (
                   <div key={s.k} className="bg-gray-950/60 border border-gray-800 rounded-xl px-3 py-2">
-                    <p className="text-gray-500 text-[10px] uppercase tracking-wider">{s.k}</p>
+                    <p className="text-gray-500 text-[0.625rem] uppercase tracking-wider">{s.k}</p>
                     <p className={`text-lg font-bold ${s.cls}`}>{s.v}</p>
                   </div>
                 ))}
@@ -192,7 +192,7 @@ export default function SentEmailsModal({ onClose }: { onClose: () => void }) {
 
               {/* Full message */}
               <div className="bg-gray-950/60 border border-gray-800 rounded-xl p-4 space-y-2">
-                <p className="text-gray-500 text-[10px] uppercase tracking-wider">Message</p>
+                <p className="text-gray-500 text-[0.625rem] uppercase tracking-wider">Message</p>
                 {detail.headline && <p className="text-white text-sm font-semibold">{detail.headline}</p>}
                 <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">{detail.body}</p>
                 {detail.cta_label && (

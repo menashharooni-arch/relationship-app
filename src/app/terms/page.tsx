@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import SiteNav from "@/components/site/SiteNav";
 import Link from "next/link";
-import SwiftCardLogo from "@/components/SwiftCardLogo";
+import SiteFooterMini from "@/components/site/SiteFooterMini";
 import NativeHidden from "@/components/NativeHidden";
 import NativeOnly from "@/components/NativeOnly";
 
@@ -19,10 +19,10 @@ function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
 }
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-slate-600 text-[15px] leading-relaxed mb-3">{children}</p>;
+  return <p className="text-slate-600 text-[0.9375rem] leading-relaxed mb-3">{children}</p>;
 }
 function LI({ children }: { children: React.ReactNode }) {
-  return <li className="text-slate-600 text-[15px] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
+  return <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
 }
 
 export default function TermsPage() {
@@ -49,16 +49,16 @@ export default function TermsPage() {
         </P>
         <dl className="mt-4 mb-3 rounded-xl border border-slate-200 bg-white/60 divide-y divide-slate-200">
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Operating entity</dt>
-            <dd className="text-slate-800 text-[15px]">Swift Card Inc</dd>
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Operating entity</dt>
+            <dd className="text-slate-800 text-[0.9375rem]">Swift Card Inc</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Brand</dt>
-            <dd className="text-slate-800 text-[15px]">SwiftCard (swiftcard.me)</dd>
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Brand</dt>
+            <dd className="text-slate-800 text-[0.9375rem]">SwiftCard (swiftcard.me)</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[13px] font-semibold sm:w-44 shrink-0">Contact</dt>
-            <dd className="text-slate-800 text-[15px]">
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Contact</dt>
+            <dd className="text-slate-800 text-[0.9375rem]">
               <a href="mailto:hello@swiftcard.me" className="text-brand underline">hello@swiftcard.me</a>
               {" · "}
               <Link href="/contact" className="text-brand underline">swiftcard.me/contact</Link>
@@ -123,7 +123,7 @@ export default function TermsPage() {
             here and in sync with /sms-terms — a link is not a disclosure. */}
         <H2>SMS &amp; text messaging program</H2>
         <P>
-          <strong>Program description.</strong> Swift Card Inc (SwiftCard) sends transactional text messages to
+          <strong>Program description.</strong>{" "}Swift Card Inc (SwiftCard) sends transactional text messages to
           people who explicitly opt in on a SwiftCard user&apos;s share form after an in-person exchange. Messages
           contain the contact details of the SwiftCard user you just met, and the follow-ups about that exchange
           that you consented to receive. We are the sender of every message.
@@ -169,7 +169,7 @@ export default function TermsPage() {
         <P>
           When you subscribe to Pro for the first time, your subscription starts with a free trial (currently 14 days).
           You provide a payment method at checkout, and <strong>when the trial ends your subscription begins and your
-          payment method is charged automatically</strong> at the price shown, unless you cancel before the trial ends.
+          payment method is charged automatically</strong>{" "}at the price shown, unless you cancel before the trial ends.
           You can cancel anytime from Settings or the billing portal — cancel during the trial and you won&apos;t be
           charged. One trial per customer. Promotional free months work similarly: when they end, the account returns
           to the Free plan unless a paid subscription is active. Referral and promotional rewards have no cash value
@@ -203,7 +203,7 @@ export default function TermsPage() {
 
         <H2>Disclaimers</H2>
         <P>
-          The Service is provided <strong>&quot;as is&quot; and &quot;as available.&quot;</strong> To the fullest
+          The Service is provided <strong>&quot;as is&quot; and &quot;as available.&quot;</strong>{" "}To the fullest
           extent permitted by law, we disclaim all warranties, express or implied — including implied warranties of
           merchantability, fitness for a particular purpose, and non-infringement. We don&apos;t warrant that the
           Service will be uninterrupted, error-free, or secure, that defects will be corrected, or that the Service
@@ -219,7 +219,7 @@ export default function TermsPage() {
           opportunities, even if we&apos;ve been advised such damages are possible; (b) we are not liable for the
           conduct or content of any user or third party, or for events beyond our reasonable control; and (c) our
           total, cumulative liability for all claims relating to the Service is limited to the greater of{" "}
-          <strong>$50</strong> or the amount you paid us in the <strong>12 months</strong> before the event giving
+          <strong>$50</strong> or the amount you paid us in the <strong>12 months</strong>{" "}before the event giving
           rise to the claim. These limits apply regardless of the theory of liability (contract, tort, negligence,
           statute, or otherwise) and even if a remedy fails of its essential purpose. Some jurisdictions don&apos;t
           allow certain limitations, so some of these may not apply to you; in that case our liability is limited to
@@ -296,15 +296,7 @@ export default function TermsPage() {
         </P>
       </div>
 
-      <footer className="border-t border-warm-border mt-auto">
-        <div className="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center justify-between gap-4 text-sm text-slate-500">
-          <span>SwiftCard is operated by Swift Card Inc · New York, NY</span>
-          <div className="flex items-center gap-5">
-            <Link href="/privacy" className="hover:text-slate-900 transition-colors">Privacy</Link>
-            <Link href="/contact" className="hover:text-slate-900 transition-colors">Contact</Link>
-          </div>
-        </div>
-      </footer>
+      <SiteFooterMini />
     </main>
   );
 }

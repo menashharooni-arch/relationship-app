@@ -60,3 +60,40 @@ export function useIsNativeApp(): boolean {
   }, []);
   return native;
 }
+
+/**
+ * Is this the iPhone app running on an Apple Silicon Mac?
+ *
+ * The native shell sets `data-sc-mac` on <html> from
+ * `ProcessInfo.processInfo.isiOSAppOnMac` (MainViewController.applyPlatformFlags).
+ * Nothing in the webview can work this out for itself: on a Mac the user agent
+ * still says iPhone and Capacitor still reports platform "ios", so every
+ * "am I native?" check answers yes and the feature fails later, at the point of
+ * use, with no explanation.
+ *
+ * What is genuinely missing on a Mac, and what this gates:
+ *   • Core NFC          — no NFC radio (NFCWriter already self-detects via NDEFReader)
+ *   • Apple Wallet      — PassKit will not add a pass from an iOS app on Mac
+ *   • The rear camera   — no scanning a code by pointing the device at it
+ * Everything else — sharing, QR display, contact saving, forms, uploads,
+ * purchases — works, so nothing else is hidden.
+ *
+ * Returns false on the web and during SSR, like everything else in this file.
+ */
+export function detectIosAppOnMac(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.documentElement.dataset.scMac === "1";
+}
+
+/** Hydration-safe hook — false until after mount, so SSR and first paint agree. */
+export function useIsIosAppOnMac(): boolean {
+  const [onMac, setOnMac] = useState(false);
+  useEffect(() => {
+    // Same reason as useIsNativeApp: the flag only exists on the document once
+    // the native shell has written it, so reading it during render would
+    // mismatch SSR.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe by design
+    setOnMac(detectIosAppOnMac());
+  }, []);
+  return onMac;
+}

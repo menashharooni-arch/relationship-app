@@ -30,7 +30,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3.5">
       <p className="text-xl font-bold tabular-nums">{typeof value === "number" ? value.toLocaleString() : value}</p>
-      <p className="text-gray-400 text-[11px] mt-0.5">{label}</p>
+      <p className="text-gray-400 text-[0.6875rem] mt-0.5">{label}</p>
     </div>
   );
 }
@@ -148,7 +148,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                 </span>
               )}
             </p>
-            <p className="text-gray-600 text-[11px] mt-0.5">Setting a plan directly clears any free-month expiry.</p>
+            <p className="text-gray-600 text-[0.6875rem] mt-0.5">Setting a plan directly clears any free-month expiry.</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {(["free", "pro", "enterprise"] as const).map((p) => (
@@ -221,14 +221,14 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                   <tr key={c.key} className="hover:bg-gray-800/30 transition-colors">
                     <td className="px-5 py-2.5">
                       <p className="text-white text-xs font-medium">{c.label}</p>
-                      <p className="text-gray-600 text-[10px]">/{c.username}</p>
+                      <p className="text-gray-600 text-[0.625rem]">/{c.username}</p>
                     </td>
                     <td className="px-4 py-2.5 text-gray-400 text-xs">{c.template.replace(/-/g, " ")}</td>
                     <td className="px-4 py-2.5 text-gray-300 tabular-nums">{c.cardViews}</td>
                     <td className="px-4 py-2.5 text-gray-300 tabular-nums">{c.linkViews}</td>
                     <td className="px-4 py-2.5 text-white font-semibold tabular-nums">{c.leads}</td>
                     <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2 text-[11px]">
+                      <div className="flex items-center gap-2 text-[0.6875rem]">
                         <a href={`/${c.username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Card ↗</a>
                         <a href={`/links/${c.username}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Links ↗</a>
                         {/* Moderation kill-switch (App Review 1.2): reversible
@@ -258,7 +258,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
         {/* Referral tools */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
           <p className="text-white font-semibold text-sm mb-1">Referral</p>
-          <p className="text-gray-600 text-[11px] mb-3">
+          <p className="text-gray-600 text-[0.6875rem] mb-3">
             Their link: {user.referral_code ? <span className="font-mono text-gray-400">swiftcard.me/r/{user.referral_code}</span> : "no code yet"}
             {" · "}<span className="text-gray-400">{totals.referred}</span> successful signups
             {" · "}<span className="text-gray-400">{totals.referralMonthsClaimed ?? 0}/3</span> months claimed
@@ -280,13 +280,13 @@ export default function UserDetailClient({ userId }: { userId: string }) {
             </button>
           </div>
           {codeMsg && <p className={`text-xs mt-2 ${codeMsg.includes("✓") ? "text-emerald-400" : "text-red-400"}`}>{codeMsg}</p>}
-          <p className="text-gray-600 text-[11px] mt-2">Set a memorable code (e.g. a partner or influencer promo) — anyone signing up through /r/CODE gets the free month and attributes to this user.</p>
+          <p className="text-gray-600 text-[0.6875rem] mt-2">Set a memorable code (e.g. a partner or influencer promo) — anyone signing up through /r/CODE gets the free month and attributes to this user.</p>
         </div>
 
         {/* Recent contacts captured */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
           <p className="text-white font-semibold text-sm mb-1">Recent contacts captured</p>
-          <p className="text-gray-600 text-[11px] mb-3">The latest people who shared their info through this user&apos;s cards, and how each one arrived.</p>
+          <p className="text-gray-600 text-[0.6875rem] mb-3">The latest people who shared their info through this user&apos;s cards, and how each one arrived.</p>
           {recentLeads.length === 0 ? (
             <p className="text-gray-500 text-xs">None yet.</p>
           ) : (
@@ -295,9 +295,9 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                 <div key={l.id} className="py-1.5 flex items-center justify-between gap-2 text-xs">
                   <div className="min-w-0">
                     <p className="text-white truncate">{l.name || l.email || l.phone || "—"}</p>
-                    <p className="text-gray-600 text-[10px] truncate">via {getSourceLabel(l.source)} · /{l.card_owner}</p>
+                    <p className="text-gray-600 text-[0.625rem] truncate">via {getSourceLabel(l.source)} · /{l.card_owner}</p>
                   </div>
-                  <span className="text-gray-600 text-[10px] shrink-0">
+                  <span className="text-gray-600 text-[0.625rem] shrink-0">
                     {new Date(l.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </span>
                 </div>

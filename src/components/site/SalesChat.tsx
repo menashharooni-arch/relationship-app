@@ -95,7 +95,7 @@ export default function SalesChat() {
               <SwiftCardIcon size={28} />
               <div>
                 <p className="text-white text-sm font-semibold leading-none">SwiftCard</p>
-                <p className="text-[11px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Ask us anything</p>
+                <p className="text-[0.6875rem] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Ask us anything</p>
               </div>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="text-xl leading-none transition-colors" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -123,7 +123,7 @@ export default function SalesChat() {
                     key={s}
                     type="button"
                     onClick={() => send(s)}
-                    className="text-[11px] rounded-full px-2.5 py-1 transition-colors"
+                    className="text-[0.6875rem] rounded-full px-2.5 py-1 transition-colors"
                     style={{ color: "rgba(255,255,255,0.75)", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)" }}
                   >
                     {s}

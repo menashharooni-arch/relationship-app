@@ -222,7 +222,7 @@ export default function ManageAccount({ isPro, plan = "free", email = "", isOffi
               hidden inside the Capacitor shell, so this pointer would be a dead
               anchor referencing subscription management — web only. */}
           {isPro && !native && (
-            <p className="text-gray-500 text-[11px] mb-3 leading-relaxed">
+            <p className="text-gray-500 text-[0.6875rem] mb-3 leading-relaxed">
               Just want to stop paying? You can <a href="#billing" className="text-blue-400 hover:text-blue-300 underline">cancel or switch to Free in Plan and billing</a> and keep your account.
             </p>
           )}
@@ -261,7 +261,7 @@ export default function ManageAccount({ isPro, plan = "free", email = "", isOffi
               </>
             ) : (
               <>
-                {stepLabel && <p className="text-gray-600 text-[11px] font-semibold tracking-wide uppercase mb-2">{stepLabel}</p>}
+                {stepLabel && <p className="text-gray-600 text-[0.6875rem] font-semibold tracking-wide uppercase mb-2">{stepLabel}</p>}
 
                 {/* 1 — why */}
                 {step === "why" && (

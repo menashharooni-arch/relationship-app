@@ -400,7 +400,7 @@ export default function EnablePushButton({
             {isOn ? "Push notifications" : "Turn on Push notifications!"}
           </p>
           {(busy || isOn) && (
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[0.6875rem] text-gray-500">
               {busy ? "One moment…" : "On for this device"}
             </p>
           )}

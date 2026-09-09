@@ -65,7 +65,7 @@ function FeaturedTile({ t, big }: { t: Tile; big: boolean }) {
   // title in the Look's text color, not a destination.
   if (t.kind === "header") {
     return (
-      <p className="w-full text-left text-[11px] font-bold uppercase tracking-[0.14em] mt-4 mb-1.5 px-0.5" style={{ color: LOOK.text, opacity: 0.55 }}>
+      <p className="w-full text-left text-[0.6875rem] font-bold uppercase tracking-[0.14em] mt-4 mb-1.5 px-0.5" style={{ color: LOOK.text, opacity: 0.55 }}>
         {t.label}
       </p>
     );
@@ -91,7 +91,7 @@ function FeaturedTile({ t, big }: { t: Tile; big: boolean }) {
       )}
       {/* centered title */}
       <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
-        <span className={`text-white font-semibold text-center leading-[1.3] ${big ? "text-[18px]" : "text-[15px]"}`} style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>{t.label}</span>
+        <span className={`text-white font-semibold text-center leading-[1.3] ${big ? "text-[1.125rem]" : "text-[0.9375rem]"}`} style={{ textShadow: "0 1px 8px rgba(0,0,0,0.6)" }}>{t.label}</span>
       </span>
       <span className="rd-ll-shine" aria-hidden="true" />
     </div>
@@ -114,9 +114,9 @@ function Profile() {
           <h3 className="text-white font-extrabold" style={{ fontSize: 26, letterSpacing: "0.25px", lineHeight: 1.15 }}>Alex Morgan</h3>
           <VerifiedBadge className="w-[19px] h-[19px]" />
         </div>
-        <p className="text-white/50 text-[14px] mt-0.5">@alexmorgan</p>
-        <p className="text-white/60 text-[12.5px] font-medium mt-2">Realtor®&nbsp;&nbsp;·&nbsp;&nbsp;Coastline Realty</p>
-        <p className="text-white/75 text-[13px] leading-relaxed mt-3 max-w-[300px] mx-auto">Building things people love. Tap a link below to connect, book, or take a look</p>
+        <p className="text-white/50 text-[0.875rem] mt-0.5">@alexmorgan</p>
+        <p className="text-white/60 text-[0.78125rem] font-medium mt-2">Realtor®&nbsp;&nbsp;·&nbsp;&nbsp;Coastline Realty</p>
+        <p className="text-white/75 text-[0.8125rem] leading-relaxed mt-3 max-w-[300px] mx-auto">Building things people love. Tap a link below to connect, book, or take a look</p>
 
         {/* Social icons (display-only) */}
         {/* Squircle chips in the Look's accent — the icon shape × fill styling
@@ -145,7 +145,7 @@ function Profile() {
         </div>
         <div className="flex justify-center mt-2">
           {/* Matches SwiftLinkProfile's real footer wording. */}
-          <span className="flex items-center gap-1.5 text-white/40 text-[11px]">
+          <span className="flex items-center gap-1.5 text-white/40 text-[0.6875rem]">
             <svg viewBox="0 0 100 100" className="w-3 h-3"><polygon points="57,15 38,52 50,52 43,85 62,48 50,48" fill="currentColor" /></svg>
             <span>Made with <span className="underline underline-offset-2">swiftcard.me</span></span>
           </span>
@@ -160,7 +160,7 @@ export default function SwiftLinksPhone() {
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="flex items-center gap-1.5 text-white/45 text-[12px] font-medium">
+      <div className="flex items-center gap-1.5 text-white/45 text-[0.75rem] font-medium">
         <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 5v14M12 19l-4-4M12 19l4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         Scroll on phone to view
       </div>
@@ -188,7 +188,7 @@ export default function SwiftLinksPhone() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/marketing/demo-girl.jpg" alt="" className="w-full h-full object-cover" />
             </div>
-            <span className="text-white font-bold text-[14px] truncate">Alex Morgan</span>
+            <span className="text-white font-bold text-[0.875rem] truncate">Alex Morgan</span>
             <VerifiedBadge className="w-4 h-4" />
           </div>
           <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none" onScroll={(e) => setScrolled((e.target as HTMLDivElement).scrollTop > 190)}>

@@ -1,0 +1,348 @@
+// node scripts/qa-sweep.mjs
+//   env: BASE=<url>  OUT=<dir>  ONLY=logged-out|free|pro  WIDTHS=390,1280  KEEP=1
+//
+// The systematic sweep over the PERSONAL app (scripts/qa-office-shell.mjs already
+// owns the Office/iOS-shell surface). It seeds throwaway Free and Pro accounts,
+// walks every logged-out and logged-in screen at phone and desktop widths, and
+// records what only a real browser can see:
+//
+//   • uncaught JS errors and console errors
+//   • API calls that 4xx/5xx (the "looks fine, silently failed" class)
+//   • error/not-found pages reached from a link that promised otherwise
+//   • horizontal overflow, elements wider than the screen, covered controls
+//   • broken images
+//   • dead controls — links to nowhere, buttons with no handler
+//
+// Everything it creates is deleted in the `finally` block. Read-only against
+// pre-existing data: it never touches an account it did not make.
+import { chromium } from "playwright";
+import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+
+const ROOT = new URL("..", import.meta.url).pathname;
+const BASE = process.env.BASE || "http://localhost:3111";
+const OUT = process.env.OUT || "qa-sweep-out";
+mkdirSync(OUT, { recursive: true });
+
+const env = readFileSync(`${ROOT}/.env.local`, "utf8");
+const g = (k) => (env.match(new RegExp("^" + k + "=(.*)$", "m")) || [])[1]?.trim().replace(/^["']|["']$/g, "");
+const SB = g("NEXT_PUBLIC_SUPABASE_URL"), SVC = g("SUPABASE_SERVICE_ROLE_KEY");
+const adm = (p, i) => fetch(SB + p, { ...i, headers: { apikey: SVC, Authorization: "Bearer " + SVC, "Content-Type": "application/json", ...(i?.headers ?? {}) } });
+
+const stamp = Date.now().toString().slice(-8);
+const password = `Qa!aA1${stamp}x`;
+const users = [];
+let browser;
+
+const issues = [];
+const note = (screen, kind, detail) => {
+  if (issues.some((i) => i.screen === screen && i.kind === kind && i.detail === detail)) return;
+  issues.push({ screen, kind, detail });
+  console.log(`  ! ${screen}: ${kind} — ${detail}`);
+};
+
+async function makeUser(email, name, uname, plan, withCard) {
+  const u = await (await adm("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email, password, email_confirm: true }) })).json();
+  if (!u.id) throw new Error("no user id: " + JSON.stringify(u).slice(0, 200));
+  users.push(u.id);
+  await adm("/rest/v1/profiles", {
+    method: "POST", headers: { Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify({ id: u.id, username: uname, name, email, plan, customization: { _aiConsent: "accepted" } }),
+  });
+  if (withCard) {
+    await adm("/rest/v1/cards", {
+      method: "POST",
+      body: JSON.stringify({
+        user_id: u.id, username: uname, name, title: "Senior Client Partner", company: "Northbeam Group",
+        email, phone: "(415) 555-0192", template: "modern-bold",
+      }),
+    });
+  }
+  return u.id;
+}
+
+// ── the audit, run inside the page ───────────────────────────────────────────
+const AUDIT = () => {
+  const W = innerWidth, H = innerHeight;
+  const out = [];
+  const vis = (el) => {
+    const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && cs.visibility !== "hidden" && cs.display !== "none" && cs.opacity !== "0";
+  };
+  const desc = (el) =>
+    `${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}` +
+    `${typeof el.className === "string" && el.className.trim() ? "." + el.className.trim().split(/\s+/).slice(0, 3).join(".") : ""} ` +
+    `“${(el.innerText || el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.getAttribute("alt") || "").trim().slice(0, 40).replace(/\s+/g, " ")}”`;
+  const isFixedish = (el) => {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const p = getComputedStyle(n).position;
+      if (p === "fixed" || p === "sticky") return n;
+    }
+    return null;
+  };
+
+  const txt = document.body.innerText || "";
+  if (/Application error|Something went wrong|Internal Server Error|This page could not be found/i.test(txt)) {
+    out.push(["error-page", txt.slice(0, 140).replace(/\s+/g, " ")]);
+  }
+  if (document.documentElement.scrollWidth > W + 1) {
+    out.push(["horizontal-overflow", `scrollWidth ${document.documentElement.scrollWidth} > ${W}`]);
+  }
+
+  // The Next.js dev overlay is injected chrome, not the product.
+  const all = [...document.querySelectorAll("body *")]
+    .filter((el) => !el.closest("nextjs-portal") && el.tagName !== "NEXTJS-PORTAL")
+    .filter(vis);
+  // ShareCardCapture and friends park a render at left:-10000 for image capture.
+  const offscreenClone = (r) => r.right <= 0 || r.left >= W;
+  // Walk EVERY ancestor, not a fixed depth: a decorative glow inside a
+  // section that clips is not an overflow, and stopping at six levels reported
+  // a wall of them. `clip`/`hidden` on any ancestor means nothing escapes.
+  const clippedByAncestor = (el) => {
+    for (let n = el.parentElement; n; n = n.parentElement) {
+      if (!/^(visible)$/.test(getComputedStyle(n).overflowX)) return true;
+    }
+    return false;
+  };
+
+  let wide = 0;
+  for (const el of all) {
+    const r = el.getBoundingClientRect();
+    if (offscreenClone(r)) continue;
+    const cs = getComputedStyle(el);
+    if (cs.position === "fixed" || cs.pointerEvents === "none") continue; // decorations can't be interacted with
+    if ((r.right > W + 1 || r.left < -1) && r.width < W * 2 && !clippedByAncestor(el)) {
+      if (++wide <= 8) out.push(["wider-than-screen", `${desc(el)} ${Math.round(r.left)}..${Math.round(r.right)}`]);
+    }
+  }
+
+  // Broken images: loaded but zero intrinsic size, or never completed.
+  for (const img of document.querySelectorAll("img")) {
+    if (!vis(img)) continue;
+    if (img.complete && img.naturalWidth === 0) out.push(["broken-image", `${img.getAttribute("src")?.slice(0, 90)}`]);
+  }
+
+  // Dead controls: an anchor that goes nowhere, a button with nothing bound.
+  let dead = 0;
+  for (const el of all) {
+    if (el.tagName === "A") {
+      const href = el.getAttribute("href");
+      if (href === null || href === "" || href === "#") {
+        // A tab/disclosure implemented as <a role=button> with a handler is fine.
+        if (el.getAttribute("role") === "button" || el.onclick) continue;
+        if (++dead <= 6) out.push(["dead-link", desc(el)]);
+      }
+    }
+  }
+
+  // Interactive controls physically covered by something else.
+  let covered = 0;
+  const inter = all.filter((el) => el.matches("button, a[href], [role='button'], input, select, textarea, [role='switch'], [role='tab']"));
+  for (const el of inter) {
+    const r = el.getBoundingClientRect();
+    if (r.bottom <= 0 || r.top >= H || offscreenClone(r)) continue;
+    const cx = Math.min(W - 1, Math.max(0, r.left + r.width / 2));
+    const cy = Math.min(H - 1, Math.max(0, r.top + r.height / 2));
+    const hit = document.elementFromPoint(cx, cy);
+    if (!hit || hit === el || el.contains(hit) || hit.contains(el)) continue;
+    const fx = isFixedish(el), hitFixed = isFixedish(hit);
+    if (hitFixed && !fx) continue;                       // content flowing under a bar is normal
+    if (hitFixed) {
+      const hr = hitFixed.getBoundingClientRect();
+      if (hr.width >= W - 1 && hr.height >= H - 1 && !(hit.innerText || "").trim()) continue; // modal backdrop
+    }
+    if (hit.closest("[role='dialog'], [aria-modal='true']") && !el.closest("[role='dialog'], [aria-modal='true']")) continue;
+    if (hit.tagName === "NEXTJS-PORTAL" || hit.closest("nextjs-portal")) continue; // dev overlay
+    if (++covered <= 6) out.push(["covered-control", `${desc(el)} covered by ${desc(hit)}`]);
+  }
+  return out;
+};
+
+function wirePage(page, screenRef) {
+  page.on("pageerror", (e) => note(screenRef.name, "js-error", e.message.split("\n")[0].slice(0, 160)));
+  page.on("console", (m) => {
+    if (m.type() !== "error") return;
+    const t = m.text();
+    // Chromium logs a console error for every non-2xx resource; the response
+    // listener below already reports those with method + status.
+    if (/Failed to load resource/i.test(t)) return;
+    note(screenRef.name, "console-error", t.split("\n")[0].slice(0, 160));
+  });
+  page.on("response", (r) => {
+    const u = r.url();
+    if (!u.startsWith(BASE)) return;
+    if (r.status() < 400) return;
+    if (r.status() === 401 || r.status() === 403) return;  // gating is a feature; audited explicitly
+    note(screenRef.name, "http-" + r.status(), `${r.request().method()} ${u.replace(BASE, "")}`);
+  });
+  page.on("requestfailed", (r) => {
+    if (!r.url().startsWith(BASE)) return;
+    const why = r.failure()?.errorText ?? "";
+    // ERR_ABORTED means the BROWSER cancelled the request, never that the
+    // server failed one — a production build prefetches every link in view
+    // (and follows the redirects they return) and drops the lot the moment you
+    // navigate. That produced 616 "failures" in a single pass, enough noise to
+    // bury a real finding. A genuine server fault arrives as a 4xx/5xx, which
+    // the response handler above reports on its own.
+    if (why.includes("ERR_ABORTED")) return;
+    note(screenRef.name, "request-failed", `${r.method()} ${r.url().replace(BASE, "")} — ${why}`);
+  });
+}
+
+async function auditPage(page, screenRef, name, { scrollBottom = true, shot = true } = {}) {
+  screenRef.name = name;
+  await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(200);
+  let found = await page.evaluate(AUDIT);
+  if (shot) await page.screenshot({ path: `${OUT}/${name}-top.png` }).catch(() => {});
+  if (scrollBottom) {
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(500);
+    const more = await page.evaluate(AUDIT);
+    found = found.concat(more.filter((m) => !found.some((f) => f[0] === m[0] && f[1] === m[1])));
+    if (shot) await page.screenshot({ path: `${OUT}/${name}-bottom.png` }).catch(() => {});
+  }
+  console.log(`  ${name}: ${found.length ? found.length + " finding(s)" : "clean"}`);
+  for (const [kind, detail] of found) note(name, kind, detail);
+  return found;
+}
+
+async function visit(page, screenRef, name, path, opts) {
+  screenRef.name = name;
+  const res = await page.goto(BASE + path, { waitUntil: "domcontentloaded", timeout: 45000 }).catch((e) => {
+    note(name, "navigation-failed", `${path} — ${e.message.split("\n")[0]}`);
+    return null;
+  });
+  if (res && res.status() >= 400) note(name, "page-http-" + res.status(), path);
+  return auditPage(page, screenRef, name, opts);
+}
+
+async function login(page, email) {
+  await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+  await page.fill("#auth-email", email);
+  await page.fill("#auth-password", password);
+  await page.click('button[type="submit"]');
+  await page.waitForURL(/dashboard|onboarding|welcome|office/, { timeout: 45000 }).catch(() => {});
+  await page.waitForTimeout(2500);
+}
+
+async function dismissOverlays(page) {
+  for (const label of ["Allow", "Not now", "Skip tour", "Skip", "Got it", "Maybe later", "Done", "Close"]) {
+    const b = page.locator(`button:has-text("${label}")`).first();
+    if (await b.isVisible().catch(() => false)) { await b.click().catch(() => {}); await page.waitForTimeout(350); }
+  }
+}
+
+const WIDTHS = (process.env.WIDTHS || "390,1280").split(",").map((n) => parseInt(n, 10));
+const ONLY = process.env.ONLY || "";
+
+async function newPage(width) {
+  const mobile = width < 700;
+  const ctx = await browser.newContext({
+    viewport: { width, height: mobile ? 844 : 900 },
+    deviceScaleFactor: 1,
+    isMobile: mobile,
+    hasTouch: mobile,
+    userAgent: mobile
+      ? "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+      : undefined,
+  });
+  const page = await ctx.newPage();
+  const screenRef = { name: "unknown" };
+  wirePage(page, screenRef);
+  return { ctx, page, screenRef };
+}
+
+// Public/marketing surface — no account, no writes.
+const LOGGED_OUT = [
+  ["home", "/"], ["pricing", "/pricing"], ["templates", "/templates"], ["compare", "/compare"],
+  ["contact", "/contact"], ["company", "/company"], ["blog", "/blog"], ["testimonials", "/testimonials"],
+  ["grow", "/grow"], ["login", "/login"], ["privacy", "/privacy"], ["terms", "/terms"],
+  ["sms-consent", "/sms-consent"], ["preview", "/preview"], ["cards-new-guest", "/cards/new"],
+  ["seo-view-tracking", "/business-card-view-tracking"], ["seo-link-in-bio", "/link-in-bio-with-analytics"],
+  ["product-cards", "/products/digital-cards"], ["for-realtors", "/for/real-estate-agents"],
+  ["not-found", "/this-route-does-not-exist"],
+];
+
+// Signed-in surface. Every one is a read; nothing here submits a form.
+const LOGGED_IN = [
+  ["dashboard", "/dashboard"], ["contacts", "/contacts"], ["share", "/share"],
+  ["settings", "/settings/flows"], ["profile", "/profile"], ["profile-card", "/profile/card"],
+  ["upgrade", "/upgrade"], ["cards-new", "/cards/new"], ["welcome", "/welcome"],
+  ["email-prefs", "/email/preferences"],
+];
+
+try {
+  browser = await chromium.launch();
+
+  for (const width of WIDTHS) {
+    const tag = width < 700 ? "m" : "d";
+
+    if (!ONLY || ONLY === "logged-out") {
+      console.log(`\nLOGGED OUT @ ${width}px`);
+      const { ctx, page, screenRef } = await newPage(width);
+      for (const [name, path] of LOGGED_OUT) await visit(page, screenRef, `${tag}-${name}`, path);
+
+      // Back/forward must not strand the visitor on a blank or errored frame.
+      screenRef.name = `${tag}-history`;
+      await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => {});
+      await page.waitForTimeout(800);
+      await auditPage(page, screenRef, `${tag}-history-back`, { scrollBottom: false });
+      await page.goForward({ waitUntil: "domcontentloaded" }).catch(() => {});
+      await page.waitForTimeout(800);
+      await auditPage(page, screenRef, `${tag}-history-forward`, { scrollBottom: false });
+      await ctx.close();
+    }
+
+    for (const plan of ["free", "pro"]) {
+      if (ONLY && ONLY !== plan) continue;
+      console.log(`\n${plan.toUpperCase()} @ ${width}px`);
+      const email = `qa-${plan}-${tag}-${stamp}@swiftcard-test.invalid`;
+      const uname = `qa-${plan}-${tag}-${stamp}`;
+      await makeUser(email, plan === "pro" ? "Priya Raman" : "Sam Cole", uname, plan, true);
+      const { ctx, page, screenRef } = await newPage(width);
+      await login(page, email);
+      await dismissOverlays(page);
+      for (const [name, path] of LOGGED_IN) {
+        await visit(page, screenRef, `${tag}-${plan}-${name}`, path);
+        await dismissOverlays(page);
+      }
+      // Reload persistence: the dashboard must come back the same, not empty.
+      await visit(page, screenRef, `${tag}-${plan}-dashboard-reload`, "/dashboard", { scrollBottom: false });
+      await ctx.close();
+    }
+  }
+} catch (e) {
+  console.error("FAILED:", e.stack?.split("\n").slice(0, 4).join(" | "));
+  note("harness", "crashed", e.message.split("\n")[0]);
+} finally {
+  if (browser) await browser.close().catch(() => {});
+  if (process.env.KEEP) {
+    console.log("\nKEEP=1 — leaving", users.length, "seeded user(s):", users.join(", "));
+  } else {
+    console.log("\ncleaning up…");
+    try {
+      for (const id of users) {
+        const prof = await (await adm(`/rest/v1/profiles?id=eq.${id}&select=username`)).json().catch(() => []);
+        const un = prof?.[0]?.username;
+        if (un) {
+          await adm(`/rest/v1/card_views?username=in.(${un},${un}__links)`, { method: "DELETE" });
+          await adm(`/rest/v1/card_events?username=in.(${un},${un}__links)`, { method: "DELETE" });
+          await adm(`/rest/v1/leads?card_owner=eq.${un}`, { method: "DELETE" });
+        }
+        await adm(`/rest/v1/notifications?user_id=eq.${id}`, { method: "DELETE" });
+        await adm(`/rest/v1/cards?user_id=eq.${id}`, { method: "DELETE" });
+        await adm(`/rest/v1/profiles?id=eq.${id}`, { method: "DELETE" });
+        await adm(`/auth/v1/admin/users/${id}`, { method: "DELETE" });
+      }
+      console.log("  removed", users.length, "user(s)");
+    } catch (e) {
+      console.error("  CLEANUP FAILED — remove manually:", users, e.message);
+    }
+  }
+  writeFileSync(`${OUT}/issues.json`, JSON.stringify(issues, null, 2));
+  const byKind = issues.reduce((m, i) => ((m[i.kind] = (m[i.kind] || 0) + 1), m), {});
+  console.log(`\n${issues.length} finding(s) → ${OUT}/issues.json`);
+  console.log(Object.entries(byKind).sort((a, b) => b[1] - a[1]).map(([k, n]) => `  ${n}× ${k}`).join("\n"));
+}

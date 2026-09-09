@@ -63,14 +63,14 @@ export default function SmsConsentCheckbox({ checked = false, onChange }: Props 
           onChange={(e) => onChange?.(e.target.checked)}
           className="mt-[2px] h-4 w-4 shrink-0 accent-brand cursor-pointer"
         />
-        <span className="text-slate-500 text-[11px] leading-snug">
+        <span className="text-slate-500 text-[0.6875rem] leading-snug">
           <strong className="text-slate-600">Text me follow-ups (optional).</strong>{" "}
           I agree to receive follow-up text messages from SwiftCard about my conversation with this
           SwiftCard user — their contact details, replies, and any follow-up messages they set up.
           Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.
         </span>
       </label>
-      <p className="text-slate-400 text-[11px] leading-snug mt-1.5">
+      <p className="text-slate-400 text-[0.6875rem] leading-snug mt-1.5">
         Optional — you can share your info without this and still hear back by email.{" "}
         <a href="/sms-terms" target="_blank" rel="noopener" className="underline">SMS Terms</a>
         {" · "}
