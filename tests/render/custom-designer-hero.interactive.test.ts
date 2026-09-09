@@ -45,7 +45,9 @@ describe("copy-design hero box", () => {
     expect(order.boxBeforeThumbs).toBe(true);
     expect(order.hasFrame).toBe(true);
     expect(order.hasHalo).toBe(true);
-    await page.screenshot({ path: "/Users/menashharooni/.playwright-mcp/designer-hero.png" });
+    // (A debug screenshot to a hardcoded personal path used to live here. It
+    //  passed on one Mac and threw ENOENT on every other machine — which is
+    //  exactly what it did the first time this suite ran in CI.)
     await page.close();
   });
 });
