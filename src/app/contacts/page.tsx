@@ -50,7 +50,7 @@ export default async function ContactsPage({
   // four extra round trips of pure latency on the app's most-used screen.
   const admin = getAdminSupabase();
   const cardsQuery = () =>
-    admin.from("cards").select("id, username, name, label, title, company, email, phone").eq("user_id", authedUserId).order("created_at", { ascending: true });
+    admin.from("cards").select("id, username, name, label, title, company, email, phone, is_offline").eq("user_id", authedUserId).order("created_at", { ascending: true });
   const [{ data: { user } }, params, cookieStore, { data: profile }, cardsRes0] = await Promise.all([
     supabase.auth.getUser(),
     searchParams,
@@ -309,6 +309,11 @@ export default async function ContactsPage({
             company: (c.company as string | null) ?? null,
             phone: (c.phone as string | null) ?? null,
             email: (c.email as string | null) ?? null,
+            // Whether this card is still LIVE. A contact captured on a card
+            // that was later switched off would otherwise be shared with a
+            // link that 404s and previews as the generic SwiftCard brand image
+            // — reported 2026-09-08 as "the preview is missing my headshot".
+            offline: c.is_offline === true,
           }]))}
         />
       </div>

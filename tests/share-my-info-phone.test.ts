@@ -80,7 +80,13 @@ describe("contact Share menu — share from my phone", () => {
     }
     const phoneOption = code.slice(code.indexOf('action: "phone"'));
     const enabled = phoneOption.slice(0, phoneOption.indexOf("hint:"));
-    expect(enabled).toContain("enabled: !!cardOwner");
+    // It still needs a card to hand over...
+    expect(enabled).toContain("!!cardOwner");
+    // ...and it still must NOT depend on what channels the CONTACT has. That is
+    // the invariant; the exact expression is not. `!isDark` joined it on
+    // 2026-09-08 — a gate on the OWNER's card being switched off, not on the
+    // contact — because a dark card's link 404s and previews as the generic
+    // brand image (see share-never-sends-a-dark-card.test.ts).
     expect(enabled).not.toContain("hasPhone");
     expect(enabled).not.toContain("hasEmail");
   });
