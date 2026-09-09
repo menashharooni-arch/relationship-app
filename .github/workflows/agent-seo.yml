@@ -38,6 +38,11 @@ jobs:
       # that is why page-writing is a separate step through the LLM runner
       # rather than folded into agent-seo.mjs. `continue-on-error` keeps a
       # stood-down writer from failing the audit that already succeeded.
+      # run-agent.mjs drives the Claude Code CLI (execFileSync("claude")). Every
+      # other brain-using workflow installs it; this one never did, so Jake's
+      # landing-page step died with "spawnSync claude ENOENT" on every run.
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
       - name: Write one SEO landing page
         continue-on-error: true
         env:
