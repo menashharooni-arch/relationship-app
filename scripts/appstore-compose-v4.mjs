@@ -20,7 +20,7 @@
 // Every screen is still a real capture of the running app
 // (scripts/appstore-capture.mjs) — Apple 2.3.3. Captions, device frames and
 // callouts around a real screen are allowed and expected.
-import { writeFileSync, mkdirSync, readFileSync, unlinkSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, unlinkSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const RAW = process.env.RAW || "app-store/screenshots/_raw";
@@ -58,6 +58,10 @@ const person = `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stro
 const apple = `<svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9-.7 0-1.8-.8-3-.8-1.5 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.5-1-2.5-3.8zM14.1 5.8c.6-.8 1.1-1.9.9-3-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1.1.1 2.1-.5 2.8-1.3z"/></svg>`;
 const arrow = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>`;
 
+// The seed's day-0 email is sent at 9:12 on capture day; the raw's mtime is
+// that day, so the pop-out date matches the screen on every re-run.
+const SENT = statSync(`${RAW}/dashboard.png`).mtime.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
 // Each frame: the screen crop (src, y), the caption, the status bar, and the
 // pop-outs with their position (top/left/right in frame px) and tilt.
 const FRAMES = [
@@ -94,7 +98,7 @@ const FRAMES = [
     sub: "An email and text sequence written from your notes, sent on schedule.",
     bar: { bg: "#faf7f2", fg: "#111" },
     pops: [
-      { html: `<div class="pop card mail"><div class="row"><span>Sent Sep 8, 9:12 AM</span>${check}</div><b>Subject: Great meeting you</b><span class="txt">Hi Jordan, lovely to meet you today. Here’s my portfolio and the 2026 packages we talked about…</span></div>`, at: "top:770px; left:46px", rot: -2.5 },
+      { html: `<div class="pop card mail"><div class="row"><span>Sent ${SENT}, 9:12 AM</span>${check}</div><b>Subject: Great meeting you</b><span class="txt">Hi Jordan, lovely to meet you today. Here’s my portfolio and the 2026 packages we talked about…</span></div>`, at: "top:770px; left:46px", rot: -2.5 },
       { html: chip(`<i class="on"></i><span>On · Medium · 3 emails</span>`), at: "top:2180px; right:30px", rot: 3, blue: true },
     ] },
   { n: "06", src: "dashboard", y: 2150, kicker: "Analytics",
@@ -102,15 +106,15 @@ const FRAMES = [
     sub: "Views by day, by source, by town. Who came back, and when.",
     bar: { bg: "#fbf7f1", fg: "#111" },
     pops: [
-      { html: stat("SwiftCard views · Month", "4,354", "Best day <b>Sep 2</b> · 700"), at: "top:760px; left:44px", rot: -3 },
-      { html: chip(`${pin}<span>Portland, OR · <b>3,250</b> views</span>`), at: "top:2100px; right:34px", rot: 2.5 },
+      { html: stat("SwiftCard views · Month", "4,345", "Best day <b>Sep 3</b> · 700"), at: "top:760px; left:44px", rot: -3 },
+      { html: chip(`${pin}<span>Portland, OR · <b>3,193</b> views</span>`), at: "top:2100px; right:34px", rot: 2.5 },
     ] },
   { n: "07", src: "dashboard-locations", y: 2270, kicker: "Locations",
     title: "Which towns\n<em>find you</em>",
     sub: "Every view placed on the map, split between your card and Swift Links.",
     bar: { bg: "#fbf7f1", fg: "#111" },
     pops: [
-      { html: loc("Portland, OR", "3,250", "2,642", "608"), at: "top:780px; right:40px", rot: 2.5 },
+      { html: loc("Portland, OR", "3,193", "2,574", "619"), at: "top:780px; right:40px", rot: 2.5 },
     ] },
   { n: "08", src: "swift-links", y: 0, kicker: "Swift Links",
     title: "All your links,\n<em>one page</em>",
