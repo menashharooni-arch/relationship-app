@@ -56,7 +56,7 @@ const ACCOUNTS = {
       title: "Real Estate Agent",
       company: "Harbor & Oak Realty",
       phone: "(415) 555-0137",
-      website: "https://harborandoak.example.com",
+      website: "https://example.com",
       linkedin: "samokafor",
       instagram: "harborandoak",
       template: "local-business",
