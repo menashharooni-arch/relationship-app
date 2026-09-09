@@ -434,7 +434,10 @@ function PhoneCard({ persona }: { persona: Persona }) {
         <div className="origin-top-left flex flex-col items-center px-4 pt-2 pb-4 gap-4" style={{ width: PHONE_NATURAL_W, height: PHONE_NATURAL_H, transform: `scale(${PHONE_SCALE})` }}>
 
           {/* Business card */}
-          <div className="w-full max-w-sm">
+          {/* pointerEvents: none — the template renders phone/email/website as real
+              tel:/mailto:/https: links for personas who don't exist. Same treatment
+              DashboardDemo, TemplateGallery, LeadCapturePhone and SignatureDemo apply. */}
+          <div className="w-full max-w-sm" style={{ pointerEvents: "none" }}>
             <CardScaler>
               <Template data={persona.data} />
             </CardScaler>
