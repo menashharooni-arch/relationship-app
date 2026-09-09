@@ -143,8 +143,18 @@ export async function purgeUserData(admin: Admin, userId: string): Promise<void>
     }
   });
 
-  // Cards, then the profile row, then the auth identity.
-  await safeDelete(() => admin.from("cards").delete().eq("user_id", userId));
+  // Cards, then the profile row, then the auth identity. The cards delete is
+  // NOT best-effort like the rest of this function: swallowing a real failure
+  // here (a transient error, not a missing table) and deleting the profile
+  // anyway orphans the card — it stays live and public with no owner, so the
+  // page/vCard kill-switches disagree about whether it still exists instead of
+  // both correctly taking it down. A real failure stops this account's purge
+  // for today; it's still flagged _deleted, so tomorrow's cron retries it.
+  const { error: cardsError } = await admin.from("cards").delete().eq("user_id", userId);
+  if (cardsError) {
+    await reportError("account-purge.cards-delete-failed", new Error(cardsError.message), { userId });
+    return;
+  }
   await safeDelete(() => admin.from("profiles").delete().eq("id", userId));
   await safeDelete(() => admin.auth.admin.deleteUser(userId));
 }
