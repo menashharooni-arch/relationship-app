@@ -21,34 +21,8 @@
 // duplicate reports. A finding that disappears from the array is treated as
 // resolved by the caller.
 
-const BASE = process.env.HEALTH_BASE_URL || "https://swiftcard.me";
-
-/** Fetch with a hard timeout; never throws. Returns {ok,status,ms,body,headers}. */
-async function probe(path, { method = "GET", timeoutMs = 15000, wantBody = false } = {}) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  const t0 = Date.now();
-  try {
-    const res = await fetch(BASE + path, { method, signal: ctrl.signal, redirect: "follow" });
-    const body = wantBody ? await res.text() : "";
-    return { ok: res.ok, status: res.status, ms: Date.now() - t0, body, headers: res.headers };
-  } catch (e) {
-    return { ok: false, status: 0, ms: Date.now() - t0, body: "", headers: new Headers(), err: String(e?.message ?? e) };
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/** Transient blips are not incidents. Three tries before a probe counts as failed. */
-async function stable(fn, tries = 3) {
-  let last;
-  for (let i = 1; i <= tries; i++) {
-    last = await fn();
-    if (last.ok) return last;
-    if (i < tries) await new Promise((r) => setTimeout(r, 2000 * i));
-  }
-  return last;
-}
+import { BASE, probe, stable } from "./probe.mjs";
+import { SERVICING_DETECTORS, SERVICING_BLINDNESS } from "./detectors-servicing.mjs";
 
 // ── Finn · Flow Check ────────────────────────────────────────────────────────
 // The paths a real person walks. A 200 that renders an empty card page is still
@@ -361,6 +335,9 @@ export const DETECTORS = {
   perf: dashPerfCheck,
   security: veraSecurityCheck,
   bugwatch: boBugCheck,
+  // Rex's servicing bench (2026-09-08): cards, links, payments, deliverability,
+  // renewals, deps, data, appstore, layout — see detectors-servicing.mjs.
+  ...SERVICING_DETECTORS,
 };
 
 // ── "Can this watchdog actually see?" ────────────────────────────────────────
@@ -403,7 +380,7 @@ const BLINDNESS_CHECKS = {
  * reports once and closes itself the moment the credential appears.
  */
 export async function blindnessFindings(agentId) {
-  const check = BLINDNESS_CHECKS[agentId];
+  const check = BLINDNESS_CHECKS[agentId] ?? SERVICING_BLINDNESS[agentId];
   const f = check ? await check() : null;
   return f ? [f] : [];
 }

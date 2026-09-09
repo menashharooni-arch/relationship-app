@@ -13,7 +13,7 @@ export type Mentionable = { handle: string; responders: string[]; label: string;
 const parties = Object.entries(ORG) as Array<[string, Party]>;
 
 /** Team handle → the lead that owns it (matches the TEAMS ids in the tab). */
-export const TEAM_LEAD: Record<string, string> = { marketing: "maya", growth: "sasha", success: "nina", engineering: "rex", protection: "rex", watchdogs: "rex" };
+export const TEAM_LEAD: Record<string, string> = { marketing: "maya", growth: "sasha", strategy: "theo", success: "nina", engineering: "rex", protection: "rex", watchdogs: "rex" };
 
 /** The responder id a party runs its chat turn as. */
 export function responderOf(partyId: string): string | null {

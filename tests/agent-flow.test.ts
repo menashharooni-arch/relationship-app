@@ -226,7 +226,8 @@ describe("agent flow: person-facing copy is guarded against sounding like AI", (
     // Addy writes ad copy that real people read, so he carries the doctrine and
     // the tell-filter too (added 2026-09-03 with the paid-ads agent).
     // 2026-09-08: every agent whose words reach a real person carries it.
-    expect(runner).toMatch(/PERSON_FACING = new Set\(\["outreach", "prospects", "mentions", "influencer", "social", "ads", "email", "industry", "forums", "partners", "listings", "reviews", "retention", "video"\]\)/);
+    // Second wave (2026-09-08): Piper (press), Lou (local), Ollie/Uma/Cass (lifecycle copy), Pat (testimonial asks).
+    expect(runner).toMatch(/PERSON_FACING = new Set\(\["outreach", "prospects", "mentions", "influencer", "social", "ads", "email", "industry", "forums", "partners", "listings", "reviews", "retention", "video", "pr", "local", "onboarding", "upsell", "churn", "proof"\]\)/);
     expect(runner).toMatch(/HUMAN_VOICE\.md/);
   });
 
@@ -241,7 +242,7 @@ describe("agent flow: person-facing copy is guarded against sounding like AI", (
   });
 
   it("each person-facing agent carries the mandatory final pass", () => {
-    for (const a of ["outreach", "prospects", "mentions", "influencer", "social", "email", "industry", "forums", "partners", "listings", "reviews", "retention"])
+    for (const a of ["outreach", "prospects", "mentions", "influencer", "social", "email", "industry", "forums", "partners", "listings", "reviews", "retention", "pr", "local", "onboarding", "upsell", "churn", "proof"])
       expect(read(`marketing-agents/agents/${a}.md`), `${a}.md missing its final pass`).toMatch(/HUMAN_VOICE/);
   });
 });
@@ -400,16 +401,20 @@ describe("default rhythms — no schedule-less agents", () => {
 // (site health, broken user journey, security). Nothing else — cap events and
 // other little things live in the comms log, run history, and the digest.
 describe("agent emails: digest and criticals only", () => {
-  it("exactly these four files may email, and agentkit itself sends none", () => {
+  // agent-watch.mjs is the shared full pass for Rex's nine servicing watchdogs
+  // (2026-09-08) and agent-layout.mjs is Pix's browser pass — same rule: one
+  // email, critical only.
+  const MAY_EMAIL = ["agent-manager.mjs", "agent-perf.mjs", "agent-security.mjs", "agent-flowcheck.mjs", "agent-watch.mjs", "agent-layout.mjs"];
+  it("exactly these files may email, and agentkit itself sends none", () => {
     expect(read("marketing-agents/lib/agentkit.mjs")).not.toMatch(/await email\(/);
-    for (const f of ["agent-manager.mjs", "agent-perf.mjs", "agent-security.mjs", "agent-flowcheck.mjs"])
+    for (const f of MAY_EMAIL)
       expect((read(`marketing-agents/${f}`).match(/await email\(/g) ?? []).length, f).toBe(1);
-    for (const f of readdirSync("marketing-agents").filter((x) => x.endsWith(".mjs") && !["agent-manager.mjs", "agent-perf.mjs", "agent-security.mjs", "agent-flowcheck.mjs"].includes(x)))
+    for (const f of readdirSync("marketing-agents").filter((x) => x.endsWith(".mjs") && !MAY_EMAIL.includes(x)))
       expect(read(`marketing-agents/${f}`), `${f} must not email`).not.toMatch(/await email\(/);
   });
 
-  it("the three non-digest emails fire only on CRITICAL findings", () => {
-    for (const f of ["agent-perf.mjs", "agent-security.mjs", "agent-flowcheck.mjs"]) {
+  it("the non-digest emails fire only on CRITICAL findings", () => {
+    for (const f of MAY_EMAIL.filter((f) => f !== "agent-manager.mjs")) {
       const src = read(`marketing-agents/${f}`);
       const at = src.indexOf("await email(");
       expect(src.slice(Math.max(0, at - 400), at), `${f} email must be critical-gated`).toMatch(/critical/i);
@@ -451,9 +456,10 @@ describe("continuous watchdogs have no schedule", () => {
   const config = JSON.parse(read("marketing-agents/config.json"));
   const route = read("src/app/api/admin/agents/control/route.ts");
   const client = read("src/app/admin/agent-flow/AgentFlowClient.tsx");
-  const WATCH = ["flowcheck", "bugwatch", "security", "perf"];
+  // 2026-09-08: Rex's servicing watch joined the loop — same rule, no cadence.
+  const WATCH = ["flowcheck", "bugwatch", "security", "perf", "cards", "links", "payments", "deliverability", "renewals", "deps", "data", "appstore", "layout"];
 
-  it("all four are marked continuous and carry NO default_schedule", () => {
+  it("every watchdog is marked continuous and carries NO default_schedule", () => {
     for (const id of WATCH) {
       expect(config.agents[id].continuous, `${id} must be continuous`).toBe(true);
       expect(config.agents[id].default_schedule, `${id} must have no cadence`).toBeUndefined();
@@ -483,9 +489,13 @@ describe("continuous watchdogs have no schedule", () => {
   });
 
   it("detection is code-only — the loop spends no tokens to watch", () => {
-    const d = read("marketing-agents/lib/detectors.mjs");
-    for (const forbidden of ["claude", "anthropic", "openai", "gemini"])
-      expect(d.toLowerCase(), `detectors must not call an LLM (${forbidden})`).not.toContain(forbidden);
+    for (const file of ["detectors.mjs", "detectors-servicing.mjs", "probe.mjs"]) {
+      const d = read(`marketing-agents/lib/${file}`);
+      for (const forbidden of ["claude", "anthropic", "openai", "gemini"])
+        expect(d.toLowerCase(), `${file} must not call an LLM (${forbidden})`).not.toContain(forbidden);
+    }
+    // …and the shared full-pass runners spend nothing either.
+    for (const file of ["agent-watch.mjs", "agent-layout.mjs"]) expect(read(`marketing-agents/${file}`)).not.toMatch(/standDownIfUsageExhausted|execFileSync|askClaude/);
   });
 
   it("findings dedupe, so a long outage reports once rather than every tick", () => {
@@ -543,7 +553,10 @@ describe("watchdogs report their own blindness", () => {
 
   it("the loop checks blindness BEFORE trusting a detector's all-clear", () => {
     const w = read("marketing-agents/watchdog.mjs");
-    expect(w).toMatch(/await blindnessFindings\(agentId\)\), \.\.\.\(await DETECTORS\[agentId\]\(\)\)/);
+    // Open findings are handed to the detector so a rotating sample (Cara's
+    // six cards, Lyn's seven pages) re-checks what it already reported instead
+    // of silently closing it when the sample moves on.
+    expect(w).toMatch(/await blindnessFindings\(agentId\)\), \.\.\.\(await DETECTORS\[agentId\]\(\{ openKeys: \[\.\.\.open\.keys\(\)\] \}\)\)/);
   });
 
   it("a used-up Claude window stands the agent down instead of failing it red", () => {

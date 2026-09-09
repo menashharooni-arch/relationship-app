@@ -243,7 +243,7 @@ export function openRequestsBlock(reqs) {
 /** Who may file a request to whom (e.g. social → video). A closed map — an
  *  agent cannot invent a colleague to lean on. Shared by the daily runner and
  *  the chat turn. */
-export const CAN_REQUEST = { social: ["video"], ads: ["video"], blog: ["video"], email: ["video"], partners: ["video"], listings: ["video"], cro: ["video"], support: ["cro"] };
+export const CAN_REQUEST = { social: ["video"], ads: ["video"], blog: ["video"], email: ["video"], partners: ["video"], listings: ["video"], cro: ["video"], support: ["cro"], geo: ["cro"], launch: ["social", "email"], trends: ["social", "blog", "email"], proof: ["video"], pr: ["video"], referral: ["cro", "email"] };
 
 /** What the owner told THIS agent in the company chat lately — standing
  *  instructions every normal run follows until he says otherwise. Read-only,
@@ -314,7 +314,7 @@ export function soundsHuman(text) {
 // the verbatim detail from THEIR post/bio/review the draft hinges on — and the
 // draft must actually use it. No hook, or a hook the text never touches, and
 // the option is dropped like an AI tell.
-export const PERSONAL_AGENTS = new Set(["mentions", "forums", "prospects", "outreach", "influencer", "partners", "industry", "reviews"]);
+export const PERSONAL_AGENTS = new Set(["mentions", "forums", "prospects", "outreach", "influencer", "partners", "industry", "reviews", "pr", "local", "proof"]);
 
 const HOOK_STOPWORDS = new Set(["about", "after", "again", "also", "been", "being", "business", "card", "cards", "digital", "does", "doing", "from", "have", "here", "into", "just", "like", "more", "most", "need", "only", "other", "over", "really", "same", "some", "than", "that", "their", "them", "then", "there", "these", "they", "this", "very", "want", "were", "what", "when", "where", "which", "while", "with", "would", "your"]);
 const hookWords = (s) => Array.from(new Set(String(s).toLowerCase().replace(/[^a-z0-9$%'\s-]/g, " ").split(/\s+/).filter((w) => w.length >= 4 && !HOOK_STOPWORDS.has(w))));

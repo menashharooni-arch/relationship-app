@@ -172,5 +172,29 @@ insert into agent_settings (agent_id, output_cap, usage_cap_usd) values
   ('listings',     6, 1.50),
   ('reviews',      6, 1.50),
   ('support',      4, 1.50),
-  ('retention',    2, 2.00)
+  ('retention',    2, 2.00),
+  -- The 2026-09-08 second wave: Theo's strategy team, Nina's lifecycle
+  -- agents, Lou for local, and Rex's nine servicing watchdogs + Cody.
+  ('analyst',        3, 2.00),
+  ('trends',         4, 1.50),
+  ('aso',            3, 1.50),
+  ('geo',            3, 1.50),
+  ('launch',         3, 1.50),
+  ('referral',       3, 1.50),
+  ('pr',             6, 2.00),
+  ('local',          6, 2.00),
+  ('onboarding',     3, 1.50),
+  ('upsell',         3, 1.50),
+  ('churn',          3, 1.50),
+  ('proof',          4, 1.50),
+  ('cards',          5, 0.50),
+  ('links',          5, 0.50),
+  ('payments',       5, 0.50),
+  ('deliverability', 5, 0.50),
+  ('renewals',       3, 0.50),
+  ('deps',           5, 0.50),
+  ('data',           5, 0.50),
+  ('appstore',       5, 0.50),
+  ('layout',         5, 0.50),
+  ('compliance',     4, 1.50)
 on conflict (agent_id) do nothing;

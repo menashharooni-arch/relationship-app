@@ -16,6 +16,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { safeMain, parseClaudeJson, extractJson, standDownIfUsageExhausted, standDownForUsage, sb } from "./lib/agentkit.mjs";
+import { dataBlock, focusBlock, teamOutputBlock } from "./lib/insights.mjs";
 import {
   ensurePlaybook, playbookBlock, recentWorkBlock, intelBlock, openRequests, openRequestsBlock, ownerChatBlock,
   TWO_OPTIONS_RULES, OPTIONS_JSON_SHAPE, PERSONAL_RULES, PERSONAL_AGENTS, queueChoice, soundsHuman, isPersonal, fileRequest, CAN_REQUEST,
@@ -36,7 +37,7 @@ const roleOf = (id) => Object.values(org.parties).find((p) => p.agent_id === id)
 // (counted in the run summary) rather than queued — the owner's rule is that
 // robotic-sounding copy must never reach a real person, and a filter the model
 // can't argue with beats an instruction it might drift from.
-const PERSON_FACING = new Set(["outreach", "prospects", "mentions", "influencer", "social", "ads", "email", "industry", "forums", "partners", "listings", "reviews", "retention", "video"]);
+const PERSON_FACING = new Set(["outreach", "prospects", "mentions", "influencer", "social", "ads", "email", "industry", "forums", "partners", "listings", "reviews", "retention", "video", "pr", "local", "onboarding", "upsell", "churn", "proof"]);
 const humanVoice = PERSON_FACING.has(agentId)
   ? "\n---\n" + readFileSync(new URL("./HUMAN_VOICE.md", import.meta.url), "utf8")
   : "";
@@ -77,7 +78,7 @@ async function existingPagesBlock(id) {
     ];
     return "\n---\nPAGES THAT ALREADY EXIST — do NOT write another page for any of these keywords or slugs:\n" +
       (lines.length ? lines.join("\n") : "(none yet — the site has no agent-written pages)") +
-      "\nAlso already covered by hand-built pages, do not duplicate: /compare/blinq, /compare/hihello, /compare/popl, /compare/linq, /pricing, /templates, /preview, and the /for/* industry pages.";
+      "\nAlso already covered by hand-built pages, do not duplicate: /compare/linktree-alternative, /compare/popl-alternative, /compare/blinq-alternative, /compare/hihello-alternative, /pricing, /templates, /preview, and the /for/* industry pages.";
   } catch {
     return "";
   }
@@ -103,9 +104,16 @@ await safeMain(agentId, async (run) => {
     humanVoice,
     "\n---\nCENTRAL CONFIG (target lists):\n" + JSON.stringify(config.targets, null, 1),
     `\n---\nTODAY: ${new Date().toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long", year: "numeric", month: "long", day: "numeric" })} (US Eastern).`,
+    // The owner's one-line focus for the week (Settings) — read before anything else.
+    await focusBlock(),
     playbookBlock(playbook),
     await recentWorkBlock(agentId),
     await intelBlock(),
+    // Ana, Ollie, Uma, Cass, Pat, Lena and Axel start from our own numbers,
+    // not from a guess about them (lib/insights.mjs — counts and segments only).
+    await dataBlock(agentId),
+    // What colleagues already shipped this week: repurpose before inventing.
+    await teamOutputBlock(agentId),
     openRequestsBlock(requests),
     // Standing orders from the company chat ("@jake focus on realtors this
     // week") shape every run until the owner says otherwise.
