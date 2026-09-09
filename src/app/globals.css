@@ -17,6 +17,20 @@
   --color-warm-border: #E4DDD4;
   --color-warm-card: #EDE5D8;
   --color-warm-card-border: #D4C8B8;
+  /* The ONE muted text colour for the cream marketing pages (legal, company,
+     blog, /compare, the SEO landings).
+     Those pages used text-slate-500, which measures 4.46:1 on the cream ground
+     — under WCAG 1.4.3's 4.5:1, and it carries real reading text: hero ledes,
+     card descriptions, timestamps. The obvious fix (slate-600) does clear it at
+     7.09:1, but that is exactly the colour those pages already use for BODY
+     text, so the muted tier would vanish into the body tier and the hierarchy
+     with it.
+     This is the value that fits between them: 5.51:1 on cream #FAF7F2 and
+     5.89:1 on the white cards, still visibly lighter than slate-600 body copy.
+     Warm rather than slate, so the neutral carries the ground's hue instead of
+     fighting it — the same reasoning, and the same ramp, as the app's own
+     light-theme remap further down this file. */
+  --color-ink-muted: #6B635C;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -408,7 +422,7 @@ body {
    keep their own shade so the blue scale still reads as a scale.
    Safe for the card preview: .sc-card restores its own palette below, and the
    card renderer uses no blue text at all. */
-[data-sc-theme="light"] .sc-app :is(.text-blue-100, .text-blue-200, .text-blue-200\/90, .text-blue-300, .text-blue-300\/80, .text-blue-300\/70, .text-blue-400, .text-blue-400\/60, .text-blue-500) { color: #1D4ED8 !important; }
+[data-sc-theme="light"] .sc-app :is(.text-blue-100, .text-blue-200, .text-blue-200\/90, .text-blue-200\/80, .text-blue-300, .text-blue-300\/80, .text-blue-300\/70, .text-blue-400, .text-blue-400\/60, .text-blue-500) { color: #1D4ED8 !important; }
 [data-sc-theme="light"] .sc-app :is(.bg-amber-950\/30, .bg-amber-950\/40) { background-color: #FFFBEB !important; }
 [data-sc-theme="light"] .sc-app .border-amber-800\/40 { border-color: #FDE68A !important; }
 [data-sc-theme="light"] .sc-app :is(.text-amber-100, .text-amber-100\/90, .text-amber-200, .text-amber-200\/80, .text-amber-200\/70, .text-amber-200\/60, .text-amber-300, .text-amber-300\/90) { color: #92400E !important; }
@@ -730,9 +744,11 @@ summary.list-none::-webkit-details-marker { display: none; }
 .rd-drift-a { animation: sc-drift-a 20s ease-in-out infinite; }
 .rd-drift-b { animation: sc-drift-b 26s ease-in-out infinite; }
 
-.rd-grid { background-image: linear-gradient(var(--rd-line-dark) 1px, transparent 1px), linear-gradient(90deg, var(--rd-line-dark) 1px, transparent 1px);
-  background-size: 56px 56px; -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 78%);
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 78%); }
+/* .rd-grid (a 56px hairline grid masked behind the dark heroes) was removed
+   2026-09-09. A tiled blueprint grid over a hero is one of the most recognisable
+   generated-UI signatures, and at 2x it was plainly visible behind the headline
+   rather than the "faint texture" it looked like at 1x. The heroes keep their
+   radial brand glows, which are the SwiftCard signature; the grid was not. */
 
 .rd-hair-d { height: 1px; background: linear-gradient(90deg, transparent, var(--rd-line-dark2), transparent); }
 

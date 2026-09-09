@@ -110,7 +110,6 @@ export default function ContactPage() {
 
       <main className="relative overflow-clip">
         <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-28">
-          <div className="rd-grid absolute inset-0 opacity-40" />
           <div className="rd-glow rd-glow-violet rd-drift-a" style={{ width: 520, height: 520, left: "-10%", top: "-12%" }} />
           <div className="rd-glow rd-glow-cyan rd-drift-b" style={{ width: 380, height: 380, right: "-8%", bottom: "-10%", opacity: 0.3 }} />
 

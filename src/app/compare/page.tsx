@@ -52,9 +52,9 @@ function Cell({ value, brand }: { value: string; brand?: boolean }) {
         <span>
           <span aria-hidden="true" className="text-green-600 text-base">✓</span>
           <span className="sr-only">Yes</span>
-          {value.length > 1 ? <span className="text-slate-500 text-xs"> {value.slice(1).trim()}</span> : null}
+          {value.length > 1 ? <span className="text-ink-muted text-xs"> {value.slice(1).trim()}</span> : null}
         </span>
-      ) : isCross ? <><span aria-hidden="true" className="text-slate-500">✗</span><span className="sr-only">No</span></>
+      ) : isCross ? <><span aria-hidden="true" className="text-ink-muted">✗</span><span className="sr-only">No</span></>
         : value}
     </td>
   );
@@ -69,11 +69,11 @@ export default function ComparePage() {
 
       <section className="text-center px-6 pt-28 pb-10">
         <p className="rd-eyebrow text-brand mb-4">Comparison</p>
-        <h1 className="text-4xl font-bold text-slate-900 mb-4">SwiftCard vs Linktree, Popl &amp; Blinq</h1>
-        <p className="text-slate-500 text-lg max-w-xl mx-auto mb-2">
+        <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">SwiftCard vs Linktree, Popl &amp; Blinq</h1>
+        <p className="text-ink-muted text-lg max-w-xl mx-auto mb-2">
           Looking for a Linktree alternative, or weighing Popl against Blinq? Here&apos;s how SwiftCard actually compares — real numbers, no spin.
         </p>
-        <p className="text-slate-500 text-xs max-w-xl mx-auto">
+        <p className="text-ink-muted text-xs max-w-xl mx-auto">
           Competitor pricing/features sourced from their public pricing pages and subject to change — confirm current details directly with them.
         </p>
       </section>
@@ -85,9 +85,9 @@ export default function ComparePage() {
               <tr className="border-b border-warm-border">
                 <th className="px-4 py-4 text-left text-sm font-semibold text-slate-900 w-1/3">&nbsp;</th>
                 <th className="px-4 py-4 text-sm font-bold text-center" style={{ color: "#1D4ED8" }}>SwiftCard</th>
-                <th className="px-4 py-4 text-sm font-semibold text-slate-500 text-center">Linktree</th>
-                <th className="px-4 py-4 text-sm font-semibold text-slate-500 text-center">Popl</th>
-                <th className="px-4 py-4 text-sm font-semibold text-slate-500 text-center">Blinq</th>
+                <th className="px-4 py-4 text-sm font-semibold text-ink-muted text-center">Linktree</th>
+                <th className="px-4 py-4 text-sm font-semibold text-ink-muted text-center">Popl</th>
+                <th className="px-4 py-4 text-sm font-semibold text-ink-muted text-center">Blinq</th>
               </tr>
             </thead>
             <tbody>
@@ -126,7 +126,7 @@ export default function ComparePage() {
         {/* Deep-dive pages per competitor — each owns one "<x> alternative" query. */}
         <div className="mt-10 flex flex-wrap justify-center gap-2">
           {["linktree", "popl", "blinq", "hihello"].map((s) => (
-            <Link key={s} href={`/compare/${s}-alternative`} className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors capitalize">
+            <Link key={s} href={`/compare/${s}-alternative`} className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors capitalize">
               {s === "hihello" ? "HiHello" : s.charAt(0).toUpperCase() + s.slice(1)} alternative →
             </Link>
           ))}
@@ -135,7 +135,7 @@ export default function ComparePage() {
         <div className="mt-10 text-center">
           <Link
             href="/cards/new"
-            className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block"
+            className="rd-btn rd-btn-primary rd-btn-lg"
           >
             Try SwiftCard free →
           </Link>

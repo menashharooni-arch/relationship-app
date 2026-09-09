@@ -31,8 +31,8 @@ export default function TermsPage() {
       <SiteNav />
 
       <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Terms of Service</h1>
-        <p className="text-slate-500 text-sm mb-8">Last updated: July 21, 2026</p>
+        <h1 className="rd-display text-[clamp(1.8rem,3.4vw,2.3rem)] text-slate-900 mb-2 [text-wrap:balance]">Terms of Service</h1>
+        <p className="text-ink-muted text-sm mb-8">Last updated: July 21, 2026</p>
 
         <P>
           These terms are an agreement between you and SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;)
@@ -49,15 +49,15 @@ export default function TermsPage() {
         </P>
         <dl className="mt-4 mb-3 rounded-xl border border-slate-200 bg-white/60 divide-y divide-slate-200">
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Operating entity</dt>
+            <dt className="text-ink-muted text-[0.8125rem] font-semibold sm:w-44 shrink-0">Operating entity</dt>
             <dd className="text-slate-800 text-[0.9375rem]">Swift Card Inc</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Brand</dt>
+            <dt className="text-ink-muted text-[0.8125rem] font-semibold sm:w-44 shrink-0">Brand</dt>
             <dd className="text-slate-800 text-[0.9375rem]">SwiftCard (swiftcard.me)</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Contact</dt>
+            <dt className="text-ink-muted text-[0.8125rem] font-semibold sm:w-44 shrink-0">Contact</dt>
             <dd className="text-slate-800 text-[0.9375rem]">
               <a href="mailto:hello@swiftcard.me" className="text-brand underline">hello@swiftcard.me</a>
               {" · "}

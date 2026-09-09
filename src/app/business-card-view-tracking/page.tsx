@@ -61,12 +61,12 @@ export default function ViewTrackingPage() {
 
       <section className="text-center px-6 pt-28 pb-10">
         <p className="rd-eyebrow text-brand mb-4">View tracking</p>
-        <h1 className="text-4xl font-bold text-slate-900 mb-4 max-w-2xl mx-auto">A business card that tells you who&apos;s looking</h1>
-        <p className="text-slate-500 text-lg max-w-xl mx-auto">
+        <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 max-w-2xl mx-auto [text-wrap:balance]">A business card that tells you who&apos;s looking</h1>
+        <p className="text-ink-muted text-lg max-w-xl mx-auto">
           Paper cards disappear into pockets. A SwiftCard reports back — every view, its source, and whether they came back for a second look.
         </p>
         <div className="mt-7">
-          <Link href={`/cards/new?src=${SRC}`} className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block">
+          <Link href={`/cards/new?src=${SRC}`} className="rd-btn rd-btn-primary rd-btn-lg">
             Create your free card →
           </Link>
         </div>
@@ -75,21 +75,21 @@ export default function ViewTrackingPage() {
       <section className="max-w-4xl mx-auto w-full px-6 pb-14">
         <div className="grid sm:grid-cols-2 gap-4">
           {FEATURES.map((f) => (
-            <div key={f.t} className="rounded-2xl border border-warm-border bg-white p-6 shadow-sm">
+            <div key={f.t} className="rd-card-l p-6">
               <p className="text-slate-900 font-semibold text-[0.9375rem]">{f.t}</p>
-              <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{f.d}</p>
+              <p className="text-ink-muted text-[0.84375rem] mt-1.5 leading-relaxed">{f.d}</p>
             </div>
           ))}
         </div>
         <NativeHidden>
-          <p className="text-slate-500 text-sm text-center mt-8">
+          <p className="text-ink-muted text-sm text-center mt-8">
             Free to start. <Link href="/pricing" className="text-brand underline underline-offset-2">Pro</Link> adds viewer locations, full view history, and automated follow-up.
           </p>
         </NativeHidden>
       </section>
 
       <FaqAccordion items={FAQ}>
-        <Link href={`/cards/new?src=${SRC}`} className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block">
+        <Link href={`/cards/new?src=${SRC}`} className="rd-btn rd-btn-primary rd-btn-lg">
           Start tracking your card →
         </Link>
       </FaqAccordion>
@@ -97,11 +97,11 @@ export default function ViewTrackingPage() {
       <section className="max-w-2xl mx-auto w-full px-6 pb-16 text-center">
         <p className="rd-eyebrow text-slate-600 mb-3">Keep exploring</p>
         <div className="flex flex-wrap justify-center gap-2">
-          <Link href="/products/analytics" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Dashboard &amp; analytics</Link>
-          <Link href="/products/lead-capture" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Lead capture</Link>
-          <Link href="/link-in-bio-with-analytics" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Link in bio with analytics</Link>
-          <Link href="/compare" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Compare alternatives</Link>
-          <Link href="/templates" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card designs</Link>
+          <Link href="/products/analytics" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Dashboard &amp; analytics</Link>
+          <Link href="/products/lead-capture" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Lead capture</Link>
+          <Link href="/link-in-bio-with-analytics" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Link in bio with analytics</Link>
+          <Link href="/compare" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Compare alternatives</Link>
+          <Link href="/templates" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card designs</Link>
         </div>
       </section>
 

@@ -227,8 +227,8 @@ function Cell({ value, brand }: { value: string; brand?: boolean }) {
     <td className={`px-4 py-4 text-sm text-center align-middle ${brand ? "font-semibold" : "text-slate-600"}`} style={brand ? { color: "#1D4ED8" } : undefined}>
       {/* Same as /compare: the glyph is the answer, so it gets a text
           equivalent and a shade you can actually see (✗ was slate-300, ~1.6:1). */}
-      {isCross ? <><span aria-hidden="true" className="text-slate-500">✗</span><span className="sr-only">No</span></> : isCheck ? (
-        <span><span aria-hidden="true" className="text-green-600 text-base">✓</span><span className="sr-only">Yes</span>{value.length > 1 ? <span className="text-slate-500 text-xs"> {value.slice(1).trim()}</span> : null}</span>
+      {isCross ? <><span aria-hidden="true" className="text-ink-muted">✗</span><span className="sr-only">No</span></> : isCheck ? (
+        <span><span aria-hidden="true" className="text-green-600 text-base">✓</span><span className="sr-only">Yes</span>{value.length > 1 ? <span className="text-ink-muted text-xs"> {value.slice(1).trim()}</span> : null}</span>
       ) : value}
     </td>
   );
@@ -256,13 +256,13 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
       {/* Hero */}
       <section className="text-center px-6 pt-28 pb-10">
         <p className="rd-eyebrow text-brand mb-4">Comparison</p>
-        <h1 className="text-4xl font-bold text-slate-900 mb-4">Looking for a {c.name} alternative?</h1>
-        <p className="text-slate-500 text-lg max-w-xl mx-auto mb-2">{c.heroSub}</p>
-        <p className="text-slate-500 text-xs max-w-xl mx-auto">
+        <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">Looking for a {c.name} alternative?</h1>
+        <p className="text-ink-muted text-lg max-w-xl mx-auto mb-2">{c.heroSub}</p>
+        <p className="text-ink-muted text-xs max-w-xl mx-auto">
           {c.name} pricing/features sourced from their public pages and subject to change — confirm current details directly with them.
         </p>
         <div className="mt-7">
-          <Link href={`/cards/new?src=${src}`} className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block">
+          <Link href={`/cards/new?src=${src}`} className="rd-btn rd-btn-primary rd-btn-lg">
             Try SwiftCard free →
           </Link>
         </div>
@@ -276,7 +276,7 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
               <tr className="border-b border-warm-border">
                 <th className="px-4 py-4 text-left text-sm font-semibold text-slate-900 w-2/5">&nbsp;</th>
                 <th className="px-4 py-4 text-sm font-bold text-center" style={{ color: "#1D4ED8" }}>SwiftCard</th>
-                <th className="px-4 py-4 text-sm font-semibold text-slate-500 text-center">{c.name}</th>
+                <th className="px-4 py-4 text-sm font-semibold text-ink-muted text-center">{c.name}</th>
               </tr>
             </thead>
             <tbody>
@@ -299,12 +299,12 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
 
       {/* Why people switch */}
       <section className="max-w-4xl mx-auto w-full px-6 pb-14">
-        <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">Why people switch</h2>
+        <h2 className="rd-h2 text-[clamp(1.5rem,3vw,2rem)] text-slate-900 text-center mb-8 [text-wrap:balance]">Why people switch</h2>
         <div className="grid sm:grid-cols-3 gap-4">
           {c.switchReasons.map((r) => (
-            <div key={r.t} className="rounded-2xl border border-warm-border bg-white p-6 shadow-sm">
+            <div key={r.t} className="rd-card-l p-6">
               <p className="text-slate-900 font-semibold text-[0.9375rem]">{r.t}</p>
-              <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{r.d}</p>
+              <p className="text-ink-muted text-[0.84375rem] mt-1.5 leading-relaxed">{r.d}</p>
             </div>
           ))}
         </div>
@@ -312,14 +312,14 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
 
       {/* Switching — the migration path the page promises in search results */}
       <section className="max-w-4xl mx-auto w-full px-6 pb-14">
-        <h2 className="text-2xl font-bold text-slate-900 text-center mb-3">Switching from {c.name}</h2>
-        <p className="text-slate-500 text-sm text-center max-w-xl mx-auto mb-8">{c.migration.intro}</p>
+        <h2 className="rd-h2 text-[clamp(1.5rem,3vw,2rem)] text-slate-900 text-center mb-3 [text-wrap:balance]">Switching from {c.name}</h2>
+        <p className="text-ink-muted text-sm text-center max-w-xl mx-auto mb-8">{c.migration.intro}</p>
         <div className="grid sm:grid-cols-3 gap-4">
           {c.migration.steps.map((st, i) => (
-            <div key={st.t} className="rounded-2xl border border-warm-border bg-white p-6 shadow-sm">
+            <div key={st.t} className="rd-card-l p-6">
               <p className="text-[0.6875rem] font-bold tracking-widest text-brand mb-2">STEP {i + 1}</p>
               <p className="text-slate-900 font-semibold text-[0.9375rem]">{st.t}</p>
-              <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{st.d}</p>
+              <p className="text-ink-muted text-[0.84375rem] mt-1.5 leading-relaxed">{st.d}</p>
             </div>
           ))}
         </div>
@@ -327,7 +327,7 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
 
       {/* FAQ — the JSON-LD above is generated from exactly this list */}
       <FaqAccordion items={c.faq}>
-        <Link href={`/cards/new?src=${src}`} className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block">
+        <Link href={`/cards/new?src=${src}`} className="rd-btn rd-btn-primary rd-btn-lg">
           Create your free card →
         </Link>
       </FaqAccordion>
@@ -336,11 +336,11 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
       <section className="max-w-2xl mx-auto w-full px-6 pb-16 text-center">
         <p className="rd-eyebrow text-slate-600 mb-3">More comparisons</p>
         <div className="flex flex-wrap justify-center gap-2">
-          <Link href="/compare" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Full comparison table</Link>
-          <Link href="/business-card-view-tracking" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>
-          <Link href="/link-in-bio-with-analytics" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Link in bio with analytics</Link>
+          <Link href="/compare" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Full comparison table</Link>
+          <Link href="/business-card-view-tracking" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>
+          <Link href="/link-in-bio-with-analytics" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Link in bio with analytics</Link>
           {ALL_SLUGS.filter((s) => s !== slug).map((s) => (
-            <Link key={s} href={`/compare/${s}`} className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">
+            <Link key={s} href={`/compare/${s}`} className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">
               {COMPETITORS[s].name} alternative
             </Link>
           ))}

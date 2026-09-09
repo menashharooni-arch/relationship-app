@@ -36,17 +36,17 @@ export default async function BlogIndexPage() {
       <SiteNav />
       <section className="text-center px-6 pt-28 pb-10">
         <p className="rd-eyebrow text-brand mb-4">Blog</p>
-        <h1 className="text-4xl font-bold text-slate-900 mb-4">The SwiftCard blog</h1>
-        <p className="text-slate-500 text-lg max-w-xl mx-auto">Digital business cards, lead capture, and following up — written plainly, compared honestly.</p>
+        <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">The SwiftCard blog</h1>
+        <p className="text-ink-muted text-lg max-w-xl mx-auto">Digital business cards, lead capture, and following up — written plainly, compared honestly.</p>
       </section>
       <section className="max-w-2xl mx-auto w-full px-6 pb-16 flex-1">
-        {posts.length === 0 && <p className="text-slate-500 text-center">First posts are on the way.</p>}
+        {posts.length === 0 && <p className="text-ink-muted text-center">First posts are on the way.</p>}
         <div className="flex flex-col gap-3">
           {posts.map((p) => (
-            <Link key={p.slug} href={`/blog/${p.slug}`} className="rounded-2xl border border-warm-border bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
+            <Link key={p.slug} href={`/blog/${p.slug}`} className="rd-card-l p-6">
               <p className="text-slate-900 font-semibold text-[1.0625rem]">{p.title}</p>
-              <p className="text-slate-500 text-sm mt-1.5 leading-relaxed">{p.description}</p>
-              {p.published_at && <p className="text-slate-500 text-xs mt-2">{new Date(p.published_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>}
+              <p className="text-ink-muted text-sm mt-1.5 leading-relaxed">{p.description}</p>
+              {p.published_at && <p className="text-ink-muted text-xs mt-2">{new Date(p.published_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>}
             </Link>
           ))}
         </div>

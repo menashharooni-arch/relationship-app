@@ -32,7 +32,7 @@ export default function SiteFooterMini({ extra = [] }: { extra?: Extra[] }) {
         {/* py-1 on each link: at 14px these rows were 20px tall, under the
             24×24 floor in WCAG 2.5.8. The padding is invisible (the row is a
             flex line) and takes them to 28px. */}
-        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-slate-600">
+        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-ink-muted">
           <Link href="/" className="py-1 hover:text-slate-900 transition-colors">Home</Link>
           <NativeHidden><Link href="/pricing" className="py-1 hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
           {extra.map((l) => (
@@ -42,11 +42,11 @@ export default function SiteFooterMini({ extra = [] }: { extra?: Extra[] }) {
           <Link href="/privacy" className="py-1 hover:text-slate-900 transition-colors">Privacy</Link>
           <Link href="/terms" className="py-1 hover:text-slate-900 transition-colors">Terms</Link>
         </nav>
-        {/* slate-600, not the slate-400 every copy of this line used: on the
-            cream ground that measured 2.4:1, far under WCAG 1.4.3's 4.5:1. This
-            is the smallest text on the page, so it takes the darkest muted tier
-            (7.1:1) rather than slate-500, which lands at 4.46:1 on cream. */}
-        <p className="text-slate-600 text-xs text-center">
+        {/* ink-muted, not the slate-400 every copy of this line used: on the
+            cream ground that measured 2.4:1, far under WCAG 1.4.3's 4.5:1.
+            --color-ink-muted is 5.51:1 there and is the one muted tier these
+            pages use, so the footer reads as part of the page. */}
+        <p className="text-ink-muted text-xs text-center">
           © {new Date().getFullYear()} SwiftCard · Operated by Swift Card Inc · New York, NY
         </p>
       </div>
