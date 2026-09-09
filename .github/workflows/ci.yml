@@ -62,8 +62,20 @@ jobs:
   # Separate job so a Chromium download never slows the fast checks, and so a
   # red render suite names itself in the checks list.
   render:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # macOS, not ubuntu, and it costs more minutes on purpose.
+    #
+    # These tests MEASURE text: "does this company name fit", "does the contact
+    # row overflow at 375px". The app ships Geist (next/font/google, fetched at
+    # build time into .next/static/media under a hashed name), so a Linux runner
+    # falls back to DejaVu and measures a font the product never uses. The first
+    # CI run proved it — portal-phone-fit reported a 12px overflow and
+    # signup-nudge a clipped line that neither shows on a machine with the real
+    # font. Testing a fiction is worse than not testing.
+    #
+    # If the minutes ever matter more than the signal, move this back to
+    # ubuntu-latest and accept that the pixel-exact tests are advisory there.
+    runs-on: macos-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
