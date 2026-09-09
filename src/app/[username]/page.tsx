@@ -157,9 +157,12 @@ export default async function CardPage({
     !((profileRow.customization as { _migrated?: boolean } | null)?._migrated) &&
     !!profileRow.name;
 
-  // Hide cards whose owner account has been deleted.
+  // Hide cards whose owner account has been deleted. A card row with no
+  // matching owner profile (purged/orphaned) counts as deleted too — the same
+  // "no owner" signal isCardActive() uses for the vCard route, so the two
+  // don't disagree about whether an orphaned card is still live.
   const ownerDeleted = cardRow
-    ? !!((cardOwner?.customization as { _deleted?: boolean } | null)?._deleted)
+    ? !cardOwner || !!((cardOwner.customization as { _deleted?: boolean } | null)?._deleted)
     : !!((profileRow?.customization as { _deleted?: boolean } | null)?._deleted);
 
   const profile = cardRow
