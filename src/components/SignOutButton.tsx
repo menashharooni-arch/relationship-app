@@ -1,16 +1,45 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { clearPersonScopedState, LAST_AUTH_UID_KEY } from "@/lib/account-state";
 import { unbindDevicePush } from "@/lib/push-device";
 
-export default function SignOutButton() {
+type Variant = "text" | "danger";
+
+// Sign out is CONFIRMED, never immediate (owner call 2026-09-09). It is a
+// one-tap way to lose an unsaved draft and a logged-in session on a phone that
+// may not remember the password, and it used to sit in the top-right corner
+// where a mis-tap on the notification bell could reach it. The action itself is
+// unchanged — the dialog only gates it.
+export default function SignOutButton({ variant = "text" }: { variant?: Variant }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Esc closes the dialog, and the page behind it must not scroll while it is
+  // open — on a phone the confirm card would otherwise drift off-screen.
+  useEffect(() => {
+    if (!confirming) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setConfirming(false);
+    }
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [confirming]);
+
   async function handleSignOut() {
+    if (busy) return;
+    setBusy(true);
     // Sever this DEVICE's push binding BEFORE the session goes away (the
     // DELETE needs auth) — otherwise the signed-out account's lead/view
     // notifications keep landing on this lock screen, where the next person
@@ -40,12 +69,66 @@ export default function SignOutButton() {
     window.location.href = "/";
   }
 
+  const triggerClass =
+    variant === "danger"
+      ? "shrink-0 text-xs font-semibold text-red-400 hover:text-red-300 border border-red-900/60 hover:border-red-700 rounded-full px-4 py-2 transition-colors"
+      : "text-sm text-gray-500 hover:text-white transition-colors";
+
   return (
-    <button
-      onClick={handleSignOut}
-      className="text-sm text-gray-500 hover:text-white transition-colors"
-    >
-      Sign out
-    </button>
+    <>
+      <button type="button" onClick={() => setConfirming(true)} className={triggerClass}>
+        Sign out
+      </button>
+
+      {confirming && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center px-5"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sign-out-title"
+        >
+          <button
+            type="button"
+            aria-label="Cancel"
+            onClick={() => setConfirming(false)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          />
+
+          <div className="relative w-full max-w-sm rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-2xl">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-600/15 border border-red-500/30">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-6 w-6 text-red-400">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M18.75 15L21.75 12m0 0l-3-3m3 3H9" />
+              </svg>
+            </div>
+
+            <h2 id="sign-out-title" className="text-center text-lg font-bold text-white">
+              Sign out of SwiftCard?
+            </h2>
+            <p className="mt-2 text-center text-sm leading-relaxed text-gray-400">
+              You&apos;ll need to sign in again on this device to reach your cards and contacts.
+            </p>
+
+            <div className="mt-6 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                disabled={busy}
+                className="flex-1 rounded-full border border-gray-700 py-2.5 text-sm font-semibold text-gray-300 transition-colors hover:border-gray-600 hover:text-white disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={busy}
+                className="flex-1 rounded-full bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-500 disabled:opacity-60"
+              >
+                {busy ? "Signing out…" : "Sign out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

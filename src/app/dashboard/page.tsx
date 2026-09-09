@@ -706,7 +706,15 @@ export default async function DashboardPage({
             )}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Sign out used to end this cluster; it now lives in Settings →
+              Profile, where it is confirmed before it fires. With the button
+              and its divider gone, these icons are the last thing in the bar,
+              so -mr-1.5 pulls them back out to the container's right edge:
+              each icon sits centred in a 36px hit target with ~6px of visual
+              padding, which without the nudge reads as a gap the logo on the
+              left does not have. Small on purpose — the tap targets stay
+              whole and inside the nav. */}
+          <div className="flex items-center gap-2 shrink-0 -mr-1.5">
             {/* Mobile already has Settings in the bottom tab bar (MobileNav) —
                 same /settings/flows destination — so this top-bar gear is
                 redundant clutter on small screens; keep it for desktop, which
@@ -715,8 +723,6 @@ export default async function DashboardPage({
             <span data-tour="nav-grow" className="flex items-center"><GrowLinkButton /></span>
             <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
             <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} activeCard={activeUsername} /></span>
-            <div className="w-px h-4 bg-gray-800 mx-1 hidden sm:block" />
-            <SignOutButton />
           </div>
         </div>
       </nav>

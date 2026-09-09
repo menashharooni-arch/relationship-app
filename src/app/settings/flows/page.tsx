@@ -214,6 +214,18 @@ export default async function FlowSettingsPage({
             isPro={isPro}
             defaultOpen
           />
+          {/* Sign out lives HERE, not in the top-right corner of every app
+              screen (owner call 2026-09-09). It sat one mis-tap away from the
+              notification bell, and it belongs with the account it ends — the
+              same row shape as "Change password" in Security, one section
+              down. The button itself confirms before it signs anyone out. */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-white text-sm font-semibold">Sign out</p>
+              <p className="text-gray-500 text-xs mt-0.5">Sign out of SwiftCard on this device.</p>
+            </div>
+            <SignOutButton variant="danger" />
+          </div>
         </div>
       ),
     },
@@ -355,7 +367,7 @@ export default async function FlowSettingsPage({
     {
       id: "security",
       label: "Security",
-      desc: "Your password and session.",
+      desc: "Your account password.",
       icon: I.security,
       content: (
         <div className="space-y-3">
@@ -367,13 +379,6 @@ export default async function FlowSettingsPage({
             <Link href="/auth/reset-password" className="text-xs font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-full px-4 py-2 transition-colors shrink-0">
               Change password
             </Link>
-          </div>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-white text-sm font-semibold">Sign out</p>
-              <p className="text-gray-500 text-xs mt-0.5">Sign out of SwiftCard on this device.</p>
-            </div>
-            <SignOutButton />
           </div>
         </div>
       ),
