@@ -26,7 +26,10 @@ import { asc, token } from "./lib/asc.mjs";
 // type that now covers it — Apple folded 6.9" into the 6.7" slot rather than
 // adding a new one. Smaller iPhones auto-scale from this set.
 const DISPLAY_TYPE = "APP_IPHONE_67";
-const LOCALIZATION = process.env.ASC_LOCALIZATION_ID || "38667b78-e037-47f4-ba09-bdd91b52ceae";
+// The en-US localization of the version in PREPARE_FOR_SUBMISSION. Apple
+// refuses screenshot edits on a released version, so this has to be the
+// unreleased one: 1.0.2 as of 2026-09-09 (1.0.0 was 38667b78…, 1.0.1 077d36d9…).
+const LOCALIZATION = process.env.ASC_LOCALIZATION_ID || "efacc7ef-d168-43b7-9751-cf49f0cb2046";
 const dir = process.argv[2] || "app-store/screenshots/6.9-inch";
 
 const files = readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".png")).sort();

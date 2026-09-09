@@ -29,7 +29,9 @@ const adm = (p, i) => fetch(SB + p, {
 });
 
 const stamp = Date.now().toString().slice(-8);
-const uname = `alex-rivera-${stamp}`;
+// A real-looking slug: it shows on the Share options frame twice, and
+// "alex-rivera-21416935" read as a test account. Cleaned up in the finally.
+const uname = process.env.UNAME || "lenabrooks-photography";
 const email = `shots-${stamp}@swiftcard-test.invalid`;
 const password = `Shot!aA1${Math.random().toString(36).slice(2)}`;
 let userId = null, cardId = null, browser;
@@ -217,13 +219,18 @@ try {
       for (let i = 0; i < n; i++) {
         const at = new Date(at0);
         at.setHours(7 + ((i * 7 + d) % 15), (i * 13) % 60, (i * 29) % 60, 0);
-        if (d === 0 && at > new Date()) at.setHours(new Date().getHours(), 0, 0, 0);
+        // Today's not-yet-happened views are pulled back to the current hour,
+        // which puts them all in one 30-minute bucket — a repeat visitor id
+        // there trips uq_card_views_visitor_bucket (it did, 2026-09-09
+        // morning). Clamped views are always unique visitors.
+        const clamped = d === 0 && at > new Date();
+        if (clamped) at.setHours(new Date().getHours(), 0, 0, 0);
         views.push({
           username: key, viewed_at: at.toISOString(),
           location: pickTown(key === uname ? "card" : "links", d, i),
           source: SOURCES[(d * 3 + i) % SOURCES.length],
           // Some visitors come back: a repeat id every 6th view.
-          visitor_id: i % 6 === 0 ? `shot-repeat-${d % 9}-${i % 11}` : `shot-${key.length}-${d}-${i}`,
+          visitor_id: i % 6 === 0 && !clamped ? `shot-repeat-${d % 9}-${i % 11}` : `shot-${key.length}-${d}-${i}`,
         });
       }
       if (key === uname) cardTotal += n; else linkTotal += n;

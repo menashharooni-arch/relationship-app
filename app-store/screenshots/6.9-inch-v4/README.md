@@ -2,7 +2,8 @@
 
 Built 2026-09-09 by `scripts/appstore-compose-v4.mjs` from the same `_raw`
 captures as v3 (Lena Brooks, photographer; real screens of the running app).
-**Not uploaded to App Store Connect** — 1.0.2 still carries the v3 set. Never
+**Uploaded to the unreleased 1.0.2 version on 2026-09-09** (replacing v3); it goes live
+with the next build submission. The live 1.0.1 listing still shows the v2 set. Never
 submit without Menash's explicit go.
 
 ## What changed from v3, and why
@@ -21,10 +22,10 @@ submit without Menash's explicit go.
 - **The dead band is gone.** v3 had ~300px of empty navy between the caption
   and the phone; the pop-outs now live there.
 
-## Known to fix before upload
+## Capture notes
 
-- The seeded slug is `alex-rivera-21416935` and shows twice on frame 10
-  (Share options). Re-capture with a proper `FirstLast-Company` username
-  (`uname` in `appstore-capture.mjs`) before this set ships.
-
-Render: `node scripts/appstore-compose-v4.mjs` (`ONLY=06,07` for a subset).
+- Re-captured 2026-09-09 with username `lenabrooks-photography` (v3 showed
+  `alex-rivera-21416935` on the Share options frame).
+- Pop-out values are typed into `appstore-compose-v4.mjs` and must match the
+  raw capture: 4,345 card views, best day Sep 3 · 700, Portland 3,193
+  (2,574 / 619). Re-check them after every re-capture.
