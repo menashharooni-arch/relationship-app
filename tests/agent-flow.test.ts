@@ -736,3 +736,42 @@ describe("Milo and Addy share one rendered creative pool", () => {
     expect(read("marketing-agents/lib/media-pool.mjs")).toMatch(/6 \* 60 \* 60 \* 1000/);
   });
 });
+
+// ── Every watchdog's report must be actionable in the UI ─────────────────────
+// Cara (cards) reached Menash on 2026-09-09 showing ONLY a Reject button: the
+// acknowledge button was gated on a hardcoded list of five item types, and the
+// nine servicing watchdogs added the night before were not on it. Two separate
+// regressions are pinned here so neither can come back quietly.
+describe("watchdog findings are approvable, and reported once", () => {
+  const client = read("src/app/admin/agent-flow/AgentFlowClient.tsx");
+  const servicing = read("marketing-agents/lib/detectors-servicing.mjs");
+
+  it("every finding item_type the watchdogs file can be acknowledged in the UI", () => {
+    const block = servicing.match(/export const FINDING_ITEM_TYPE = \{([\s\S]*?)\}/)?.[1] ?? "";
+    const types = [...block.matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+    expect(types.length, "FINDING_ITEM_TYPE should not be empty").toBeGreaterThan(10);
+    // Mirrors isAcknowledgeable() in the client.
+    for (const t of types)
+      expect(t === "digest" || t.endsWith("_finding") || t.endsWith("_report"), `${t} would render with only a Reject button`).toBe(true);
+  });
+
+  it("the acknowledge button is not gated on a hardcoded list of item types", () => {
+    expect(client).toMatch(/isAcknowledgeable\(it\.item_type\)/);
+    expect(client, "a hardcoded item_type list is exactly the bug that hid Cara's Approve button")
+      .not.toMatch(/it\.item_type === "security_finding" \|\| it\.item_type === "seo_report"/);
+  });
+
+  it("the loop wakes a watchdog once per cycle, not once per finding", () => {
+    const loop = read("marketing-agents/watchdog.mjs");
+    // The dispatch must live OUTSIDE the per-finding loop, guarded by a count.
+    expect(loop).toMatch(/if \(newFindings\.length\) \{\s*\n\s*await dispatchAgent\(/);
+    expect(loop, "dispatching inside the findings loop files one duplicate report per finding")
+      .not.toMatch(/await dispatchAgent\(agentId, f\.title\)/);
+  });
+
+  it("the full-pass report carries a dedupe key so a repeat pass collapses", () => {
+    const watch = read("marketing-agents/agent-watch.mjs");
+    expect(watch).toMatch(/dedupe_key: `watchdog:report:\$\{agentId\}:\$\{signature\}`/);
+    expect(watch, "keying on the timestamp would never dedupe").not.toMatch(/dedupe_key:[^\n]*stamp\}`/);
+  });
+});

@@ -35,6 +35,17 @@ const CONNECTOR_RULES: Array<{ id: string; label: string; matches: (i: Item) => 
   { id: "higgsfield", label: "Send to Higgsfield", matches: (i) => i.item_type === "video_script" && i.platform !== "linkedin" },
   { id: "reddit", label: "Reply on Reddit", matches: (i) => i.platform === "reddit" && ["reply_draft", "outreach_draft"].includes(i.item_type) && !!i.target_url },
 ];
+/** Findings and reports are ACKNOWLEDGED, not executed — the green button files
+ *  them as read. This used to be a hardcoded list of five item types, so every
+ *  watchdog added in the 2026-09-08 second wave (Cara's card_finding, Lyn's
+ *  link_finding, Penny, Della, Ren, Dex, Dana, Ash, Pix, and Bo's bug_finding)
+ *  fell straight off it and rendered with a Reject button and nothing else.
+ *  Menash reported exactly that on Cara. Matching the suffix instead means a
+ *  new watchdog is covered the day it ships, with no list to remember. */
+export function isAcknowledgeable(itemType: string): boolean {
+  return itemType === "digest" || itemType.endsWith("_finding") || itemType.endsWith("_report");
+}
+
 const CONNECTOR_ENVS: Record<string, string> = {
   linkedin: "LINKEDIN_ACCESS_TOKEN + LINKEDIN_AUTHOR_URN",
   higgsfield: "HIGGSFIELD_API_KEY_ID + HIGGSFIELD_API_KEY_SECRET",
@@ -1043,7 +1054,7 @@ export default function AgentFlowClient() {
                       {conn && !connReady && <span className="text-[0.625rem] text-gray-600 max-w-[160px] leading-snug">⚡ auto-{conn.label} available — connect it in Settings</span>}
                       {it.item_type === "blog_post" && <button onClick={() => act([it.id], "published")} title="Goes live on swiftcard.me/blog immediately" className="text-xs bg-emerald-800 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Publish</button>}
                       {it.item_type === "prospect" && <button onClick={() => act([it.id], "contacted")} className="text-xs bg-gray-800 hover:bg-gray-700 text-white px-3 py-1.5 rounded-full whitespace-nowrap">Mark contacted</button>}
-                      {(it.item_type === "security_finding" || it.item_type === "seo_report" || it.item_type === "perf_report" || it.item_type === "flow_finding" || it.item_type === "digest") && (
+                      {isAcknowledgeable(it.item_type) && (
                         <button onClick={() => act([it.id], "acknowledged")} title="Approve = noted and filed. Reports never execute anything — a code fix ships only when you merge its draft PR." className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-full whitespace-nowrap">✓ Approved</button>
                       )}
                       {it.payload && "pr_url" in (it.payload as object) && (

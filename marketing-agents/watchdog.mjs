@@ -159,6 +159,7 @@ async function tick() {
       continue;
     }
     const seen = new Set();
+    const newFindings = [];
 
     for (const f of findings) {
       const key = `watchdog:${f.key}`;
@@ -166,10 +167,23 @@ async function tick() {
       if (open.has(key)) continue; // already reported and still open — say nothing
       console.log(`${stamp()} ${agentId} NEW ${f.severity}: ${f.title}`);
       const itemId = await recordFinding(agentId, f);
-      // Tell the owner's comms log immediately, then wake the agent to dig in.
+      // Tell the owner's comms log immediately.
       await say(agentId, "owner", `${f.severity === "critical" ? "🔴" : "🟠"} ${f.title} — ${f.detail.slice(0, 300)}`, { kind: "owner_out" }).catch(() => {});
-      await dispatchAgent(agentId, f.title);
+      newFindings.push(f);
       await handToFixer(agentId, itemId, f);
+    }
+
+    // ONE wake per cycle, not one per finding.
+    //
+    // This used to sit inside the loop above, so a probe that turned up N new
+    // problems dispatched the agent's workflow N times — and because that
+    // workflow does a FULL pass and files a written report every time, the
+    // owner got N identical "Card health: N problem(s)" items seconds apart.
+    // Cara found 2 problems on 2026-09-09 and filed the same report twice;
+    // Lyn did the same thing earlier that day. The findings themselves were
+    // never duplicated (they carry dedupe keys) — only the report was.
+    if (newFindings.length) {
+      await dispatchAgent(agentId, newFindings.length === 1 ? newFindings[0].title : `${newFindings.length} new findings`);
     }
 
     // Anything previously open that no longer trips is fixed. Close it so the
