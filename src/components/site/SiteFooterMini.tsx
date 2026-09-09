@@ -32,7 +32,7 @@ export default function SiteFooterMini({ extra = [] }: { extra?: Extra[] }) {
         {/* py-1 on each link: at 14px these rows were 20px tall, under the
             24×24 floor in WCAG 2.5.8. The padding is invisible (the row is a
             flex line) and takes them to 28px. */}
-        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-slate-500">
+        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-sm text-slate-600">
           <Link href="/" className="py-1 hover:text-slate-900 transition-colors">Home</Link>
           <NativeHidden><Link href="/pricing" className="py-1 hover:text-slate-900 transition-colors">Pricing</Link></NativeHidden>
           {extra.map((l) => (

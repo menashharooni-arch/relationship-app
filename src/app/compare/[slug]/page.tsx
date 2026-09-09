@@ -270,7 +270,7 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
 
       {/* Table */}
       <section className="max-w-3xl mx-auto w-full px-6 pb-12">
-        <div className="overflow-x-auto rounded-3xl border border-warm-border bg-white shadow-sm">
+        <div className="relative overflow-x-auto rounded-3xl border border-warm-border bg-white shadow-sm">
           <table className="w-full border-collapse min-w-[520px]">
             <thead>
               <tr className="border-b border-warm-border">
