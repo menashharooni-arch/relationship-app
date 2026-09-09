@@ -71,10 +71,18 @@ leads, card, profile, auth user) in a finally block.
 ## Uploading
 
 `scripts/asc-upload-screenshots.mjs` defaults to the 1.0.0 localization, which
-is live and cannot accept screenshots. Target the pending version:
+is live and cannot accept screenshots. 1.0.1 shipped (2026-09-08) still on the
+v2 set — it was submitted before this set existed and locked. This set is
+attached to **1.0.2** (created 2026-09-08, Prepare for Submission; description,
+keywords and promo text carried over), and goes live when 1.0.2 is submitted
+with a build:
 
-    ASC_LOCALIZATION_ID=077d36d9-9903-46b1-8a9a-0b5ac3226bf5 \
+    ASC_LOCALIZATION_ID=efacc7ef-d168-43b7-9751-cf49f0cb2046 \
       node scripts/asc-upload-screenshots.mjs app-store/screenshots/6.9-inch-v3
+
+Re-shot 2026-09-08: the 09-06 dashboard frame had its newest four days flat
+(3,529 views instead of the 4,354 seeded) because the first 1000-row
+`card_views` batch failed silently. The seed now checks every batch.
 
 It deletes and recreates the APP_IPHONE_67 set, so the listing mirrors this
 directory exactly rather than appending. A version that is Waiting for Review
