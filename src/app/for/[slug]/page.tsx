@@ -322,7 +322,6 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
       <main className="overflow-clip">
         {/* Hero */}
         <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-24">
-          <div className="rd-grid absolute inset-0 opacity-40" />
           <div className="rd-glow rd-glow-violet rd-drift-a" style={{ width: 520, height: 520, left: "-8%", top: "-14%" }} />
           <div className="rd-glow rd-glow-cyan rd-drift-b" style={{ width: 380, height: 380, right: "-6%", top: "6%", opacity: 0.3 }} />
           <div className="relative max-w-6xl mx-auto px-5 sm:px-6 grid lg:grid-cols-2 gap-14 items-center">

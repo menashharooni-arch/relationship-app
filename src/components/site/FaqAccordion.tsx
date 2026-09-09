@@ -28,10 +28,10 @@ export default function FaqAccordion({
 }) {
   return (
     <section className="max-w-2xl mx-auto w-full px-6 pb-14">
-      <h2 className="text-2xl font-bold text-slate-900 text-center mb-8">{heading}</h2>
+      <h2 className="rd-h2 text-[clamp(1.5rem,3vw,2rem)] text-slate-900 text-center mb-8 [text-wrap:balance]">{heading}</h2>
       <div className="flex flex-col gap-3">
         {items.map((f) => (
-          <details key={f.q} className="group rounded-2xl border border-warm-border bg-white px-6 py-5 shadow-sm">
+          <details key={f.q} className="rd-card-l group px-6 py-5">
             {/* The summary was only as tall as its own text (23px), so the row's
                 generous padding LOOKED clickable and wasn't, and the target sat
                 under the 24×24 floor in WCAG 2.5.8. The negative margins cancel
@@ -42,9 +42,9 @@ export default function FaqAccordion({
               {/* Decorative: the open/closed state is already announced by the
                   <details> element itself, so a screen reader should not also
                   read out a stray "+". */}
-              <span aria-hidden="true" className="text-slate-500 text-xl leading-none transition-transform group-open:rotate-45 shrink-0">+</span>
+              <span aria-hidden="true" className="text-ink-muted text-xl leading-none transition-transform group-open:rotate-45 shrink-0">+</span>
             </summary>
-            <p className="text-slate-500 text-[0.875rem] mt-3 leading-relaxed">{f.a}</p>
+            <p className="text-ink-muted text-[0.875rem] mt-3 leading-relaxed">{f.a}</p>
           </details>
         ))}
       </div>

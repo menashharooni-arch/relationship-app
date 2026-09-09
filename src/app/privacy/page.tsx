@@ -35,8 +35,8 @@ export default function PrivacyPage() {
       <SiteNav />
 
       <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Privacy Policy</h1>
-        <p className="text-slate-500 text-sm mb-8">Last updated: {LAST_UPDATED}</p>
+        <h1 className="rd-display text-[clamp(1.8rem,3.4vw,2.3rem)] text-slate-900 mb-2 [text-wrap:balance]">Privacy Policy</h1>
+        <p className="text-ink-muted text-sm mb-8">Last updated: {LAST_UPDATED}</p>
 
         <P>
           SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;), a brand operated by Swift Card Inc,
@@ -98,7 +98,7 @@ export default function PrivacyPage() {
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white/70 my-4">
           <table className="w-full text-[0.84375rem]" style={{ minWidth: 560 }}>
             <thead>
-              <tr className="text-left text-slate-500 text-[0.6875rem] uppercase tracking-wide border-b border-slate-200">
+              <tr className="text-left text-ink-muted text-[0.6875rem] uppercase tracking-wide border-b border-slate-200">
                 <th className="px-4 py-3 font-semibold">Category</th>
                 <th className="px-4 py-3 font-semibold">What it includes</th>
                 <th className="px-4 py-3 font-semibold">Linked to you?</th>

@@ -27,8 +27,8 @@ export default function SmsTermsPage() {
       <SiteNav />
 
       <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">SMS &amp; Messaging Terms</h1>
-        <p className="text-slate-500 text-sm mb-8">Last updated: {LAST_UPDATED}</p>
+        <h1 className="rd-display text-[clamp(1.8rem,3.4vw,2.3rem)] text-slate-900 mb-2 [text-wrap:balance]">SMS &amp; Messaging Terms</h1>
+        <p className="text-ink-muted text-sm mb-8">Last updated: {LAST_UPDATED}</p>
 
         <P>
           These terms describe SwiftCard&apos;s text-messaging program. SwiftCard is operated by{" "}

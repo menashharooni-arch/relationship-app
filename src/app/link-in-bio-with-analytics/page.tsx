@@ -61,12 +61,12 @@ export default function LinkInBioPage() {
 
       <section className="text-center px-6 pt-28 pb-10">
         <p className="rd-eyebrow text-brand mb-4">Swift Links</p>
-        <h1 className="text-4xl font-bold text-slate-900 mb-4 max-w-2xl mx-auto">The link in bio that reports back</h1>
-        <p className="text-slate-500 text-lg max-w-xl mx-auto">
+        <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 max-w-2xl mx-auto [text-wrap:balance]">The link in bio that reports back</h1>
+        <p className="text-ink-muted text-lg max-w-xl mx-auto">
           Most bio links are a dead end — visitors tap through and vanish. Swift Links counts every visit, names its source, and lets visitors leave their contact info on the way.
         </p>
         <div className="mt-7">
-          <Link href={`/cards/new?src=${SRC}`} className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block">
+          <Link href={`/cards/new?src=${SRC}`} className="rd-btn rd-btn-primary rd-btn-lg">
             Create your page free →
           </Link>
         </div>
@@ -75,21 +75,21 @@ export default function LinkInBioPage() {
       <section className="max-w-4xl mx-auto w-full px-6 pb-14">
         <div className="grid sm:grid-cols-2 gap-4">
           {FEATURES.map((f) => (
-            <div key={f.t} className="rounded-2xl border border-warm-border bg-white p-6 shadow-sm">
+            <div key={f.t} className="rd-card-l p-6">
               <p className="text-slate-900 font-semibold text-[0.9375rem]">{f.t}</p>
-              <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{f.d}</p>
+              <p className="text-ink-muted text-[0.84375rem] mt-1.5 leading-relaxed">{f.d}</p>
             </div>
           ))}
         </div>
         <NativeHidden>
-          <p className="text-slate-500 text-sm text-center mt-8">
+          <p className="text-ink-muted text-sm text-center mt-8">
             Free to start. <Link href="/pricing" className="text-brand underline underline-offset-2">Pro</Link> unlocks unlimited links, video tiles, and full analytics.
           </p>
         </NativeHidden>
       </section>
 
       <FaqAccordion items={FAQ}>
-        <Link href={`/cards/new?src=${SRC}`} className="btn-cta bg-brand hover:bg-brand-dark text-white font-semibold px-8 py-3.5 rounded-full text-sm transition-colors inline-block">
+        <Link href={`/cards/new?src=${SRC}`} className="rd-btn rd-btn-primary rd-btn-lg">
           Get your Swift Links page →
         </Link>
       </FaqAccordion>
@@ -97,11 +97,11 @@ export default function LinkInBioPage() {
       <section className="max-w-2xl mx-auto w-full px-6 pb-16 text-center">
         <p className="rd-eyebrow text-slate-600 mb-3">Keep exploring</p>
         <div className="flex flex-wrap justify-center gap-2">
-          <Link href="/products/swiftlinks" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Swift Links product tour</Link>
-          <Link href="/compare/linktree-alternative" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Linktree alternative</Link>
-          <Link href="/business-card-view-tracking" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>
-          <Link href="/products/analytics" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Dashboard &amp; analytics</Link>
-          <Link href="/templates" className="text-[0.8125rem] text-slate-500 hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card designs</Link>
+          <Link href="/products/swiftlinks" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Swift Links product tour</Link>
+          <Link href="/compare/linktree-alternative" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Linktree alternative</Link>
+          <Link href="/business-card-view-tracking" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>
+          <Link href="/products/analytics" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Dashboard &amp; analytics</Link>
+          <Link href="/templates" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card designs</Link>
         </div>
       </section>
 

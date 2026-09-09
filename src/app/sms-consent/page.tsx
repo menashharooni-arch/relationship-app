@@ -27,8 +27,8 @@ export default function SmsConsentPage() {
       <SiteNav />
 
       <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">SMS Consent Overview</h1>
-        <p className="text-slate-500 text-sm mb-8">Last updated: {LAST_UPDATED}</p>
+        <h1 className="rd-display text-[clamp(1.8rem,3.4vw,2.3rem)] text-slate-900 mb-2 [text-wrap:balance]">SMS Consent Overview</h1>
+        <p className="text-ink-muted text-sm mb-8">Last updated: {LAST_UPDATED}</p>
 
         <P>
           This page shows exactly how SwiftCard collects consent to send text messages. SwiftCard is a

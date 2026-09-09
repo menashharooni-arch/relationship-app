@@ -266,7 +266,6 @@ export default function Home() {
 
         {/* ═══════════════ ANALYTICS / DASHBOARD ═══════════════ */}
         <section id="analytics" className="rd-dark2 relative py-24 sm:py-28 overflow-hidden">
-          <div className="rd-grid absolute inset-0 opacity-40" />
           <div className="rd-glow rd-glow-violet rd-drift-a" style={{ width: 480, height: 480, left: "-10%", bottom: "-20%", opacity: 0.3 }} />
           <div className="relative max-w-7xl mx-auto px-5 sm:px-6">
             <div className="max-w-2xl mb-12" data-reveal>
