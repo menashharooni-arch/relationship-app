@@ -77,24 +77,63 @@ describe("the component hands off and sends nothing itself", () => {
     expect(fn("openEmail")).not.toMatch(/await/);
   });
 
-  it("never posts to the server or logs a message", () => {
-    expect(code).not.toContain("fetch(");
-    expect(code).not.toContain("share-card");
+  // 2026-09-09: "Share by both" is the ONE option that sends server-side —
+  // one tap cannot open two apps, and the old two-tap version meant the email
+  // half usually never went. Text and email are unchanged and must stay that
+  // way: they still go from the owner's own number and mailbox.
+  it("the single-channel options still hand off and never send", () => {
+    for (const name of ["openText", "openEmail", "shareText", "shareEmailNow"]) {
+      const at = code.indexOf(`function ${name}(`);
+      expect(at, name).toBeGreaterThan(-1);
+      const body = code.slice(at, code.indexOf("\n  }", at));
+      expect(body, `${name} must not send server-side`).not.toContain("fetch(");
+      expect(body, `${name} must not post to share-card`).not.toContain("share-card");
+    }
     expect(code).not.toContain("logMessage");
   });
 
-  it("'Share by both' opens the text first and then offers the email", () => {
-    const at = code.indexOf("function shareBoth(");
+  it("'Share by both' sends both channels through the existing share-card route", () => {
+    const at = code.indexOf("async function shareBoth(");
+    expect(at).toBeGreaterThan(-1);
     const body = code.slice(at, code.indexOf("\n  }", at));
-    expect(body.indexOf("openText()")).toBeGreaterThan(-1);
-    expect(body).toMatch(/setState\("emailNext"\)/);
-    expect(code).toMatch(/state === "emailNext" \? shareEmailNow\(\)/);
+    // The existing endpoint, not a new one, and both channels in ONE request:
+    // two requests could not report a half-delivered share honestly.
+    expect(body).toMatch(/fetch\("\/api\/leads\/share-card"/);
+    expect(body).toMatch(/channel: "both"/);
+    // No app is opened — that was the iOS bug.
+    expect(body).not.toContain("window.location.assign");
+    expect(body).not.toContain("openText()");
+    // Partial delivery is reported as partial, never as success.
+    expect(body).toMatch(/setState\("partial"\)/);
+    expect(body).toMatch(/setState\("sent"\)/);
+  });
+
+  it("a double tap cannot send twice", () => {
+    // A ref, not state: two taps in one React batch both read stale state, so
+    // only a synchronously-written guard actually blocks the second send.
+    expect(code).toMatch(/const sending = useRef\(false\)/);
+    const at = code.indexOf("async function shareBoth(");
+    const body = code.slice(at, code.indexOf("\n  }", at));
+    expect(body).toMatch(/if \([^)]*sending\.current\)\s*return/);
+    expect(body).toMatch(/sending\.current = true/);
+    expect(body).toMatch(/sending\.current = false/);
+    // And the server enforces it independently — a client guard is a courtesy.
+    const route = readFileSync(join(root, "src/app/api/leads/share-card/route.ts"), "utf8");
+    expect(route).toMatch(/SHARE_REPEAT_WINDOW_MS/);
   });
 
   it("the contacts page signs with the card the contact belongs to", () => {
     const ui = readFileSync(join(root, "src/components/ContactsClient.tsx"), "utf8");
     expect(ui).toMatch(/signer=\{selected\.card_owner \? cardSigners\[selected\.card_owner\]/);
     const page = readFileSync(join(root, "src/app/contacts/page.tsx"), "utf8");
-    expect(page).toMatch(/select\("id, username, name, label, title, company, email, phone"\)/);
+    // Every field the signature is built from must still be read. is_offline
+    // joined the list on 2026-09-08 so the Share menu can refuse a card that
+    // has been switched off (see share-never-sends-a-dark-card.test.ts) —
+    // asserted field by field rather than as one frozen string, so adding a
+    // column is not a test failure but DROPPING one still is.
+    const select = page.match(/\.select\("([^"]*)"\)/)?.[1] ?? "";
+    for (const field of ["id", "username", "name", "label", "title", "company", "email", "phone", "is_offline"]) {
+      expect(select.split(/,\s*/), `contacts page must read ${field}`).toContain(field);
+    }
   });
 });

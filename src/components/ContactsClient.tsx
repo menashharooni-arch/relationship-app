@@ -1108,15 +1108,19 @@ export default function ContactsClient({
               ) : (
                 <span className="flex-1 text-center text-xs text-gray-600 py-2.5 rounded-xl border border-dashed border-gray-800">No phone to call</span>
               )}
-              {/* Every option hands off to the owner's own phone (Messages /
-                  Mail / share sheet), pre-addressed to this contact. Nothing
-                  is sent or logged server-side, so there is no onSent. */}
+              {/* Text / email / share sheet hand off to the owner's own phone,
+                  pre-addressed to this contact — nothing is sent or logged.
+                  "Share by both" is the exception: it sends from SwiftCard's
+                  own senders and writes two rows into the thread, so it needs
+                  the lead id and a refresh when it lands. */}
               <ShareMyInfoButton
                 firstName={(selected.name || "them").split(" ")[0]}
                 phone={selected.phone}
                 email={selected.email || null}
                 cardOwner={selected.card_owner}
                 signer={selected.card_owner ? cardSigners[selected.card_owner] ?? null : null}
+                leadId={selected.id}
+                onSent={refreshActivity}
               />
               <button
                 onClick={saveContactToPhone}

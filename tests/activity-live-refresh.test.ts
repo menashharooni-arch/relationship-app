@@ -40,17 +40,20 @@ describe("one refresh both feeds behind the panel", () => {
 });
 
 describe("every action that writes to the panel refreshes it", () => {
-  it("sharing your card writes nothing, so it refreshes nothing", () => {
-    // 2026-09-08: every Share option now hands off to the owner's own phone
-    // (Messages / Mail / the share sheet), pre-addressed to the contact. None
-    // of them can tell us whether the owner pressed send, so none of them
-    // writes a row — and a refresh here would read back a thread nothing was
-    // added to. The old server-sent path (and its onSent) is gone.
-    expect(ui()).not.toMatch(/onSent=/);
+  it("'Share by both' writes two rows, so it refreshes the panel", () => {
+    // 2026-09-08: text / email / share sheet hand off to the owner's own phone
+    // and cannot tell us whether he pressed send, so they write nothing and a
+    // refresh would read back a thread nothing was added to.
+    // 2026-09-09: "both" is the exception — it sends from our own senders and
+    // logs a row per channel, so the thread on screen is stale until it
+    // refreshes. Sending without refreshing was the original bug here.
+    expect(ui()).toMatch(/onSent=\{refreshActivity\}/);
+    expect(ui()).toMatch(/leadId=\{selected\.id\}/);
     const btn = read("src/components/ShareMyInfoButton.tsx");
-    expect(btn).not.toMatch(/onSent/);
-    expect(btn).not.toMatch(/share-card/);
-    expect(btn).not.toMatch(/fetch\(/);
+    expect(btn).toMatch(/onSent\?\.\(\)/);
+    // Still exactly one server call in the whole component: the "both" path.
+    expect(btn.match(/fetch\(/g) ?? []).toHaveLength(1);
+    expect(btn).toMatch(/fetch\("\/api\/leads\/share-card"/);
   });
 
 });
