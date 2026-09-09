@@ -29,6 +29,42 @@ const FALLBACK_GRADIENTS = [
   "linear-gradient(135deg, #065f46 0%, #0d9488 60%, #0284c7 100%)",
 ];
 
+// An uploaded tile video. autoplay+muted+loop+playsinline is what iOS Safari
+// and the shell's WKWebView require for silent inline autoplay; the effect
+// re-asserts muted (it must be true BEFORE play() for the policy to allow it)
+// and nudges play() for the cases where the attribute alone is not enough —
+// a tile that hydrates after the element was created, or a page restored from
+// the back/forward cache. When autoplay is refused anyway (Low Power Mode),
+// preload="auto" leaves the first frame showing, so the tile still has its
+// image and the link still opens on tap.
+function TileVideo({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.muted = true;
+    el.defaultMuted = true;
+    const p = el.play();
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  }, [src]);
+  return (
+    <video
+      ref={ref}
+      // #t=0.001: when autoplay is refused (Low Power Mode), WebKit still
+      // paints the first frame of a seeked clip — a black tile otherwise.
+      src={`${src}#t=0.001`}
+      className="absolute inset-0 w-full h-full object-cover"
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="auto"
+      disablePictureInPicture
+      aria-hidden="true"
+    />
+  );
+}
+
 function fullHref(url: string) {
   const v = (url || "").trim();
   if (!v) return "#";
@@ -303,16 +339,7 @@ export default function SwiftLinkButtons({
           <>
             {/* Uploaded video, image, or branded gradient fallback */}
             {mediaVideo ? (
-              <video
-                src={mediaVideo}
-                className="absolute inset-0 w-full h-full object-cover"
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                aria-hidden="true"
-              />
+              <TileVideo src={mediaVideo} />
             ) : img ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />

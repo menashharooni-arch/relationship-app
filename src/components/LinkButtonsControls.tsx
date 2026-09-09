@@ -144,7 +144,9 @@ function LinkMediaControl({
       />
       <div className="flex items-center gap-2.5">
         {media?.type === "video" ? (
-          <video src={media.url} muted playsInline preload="metadata" className="w-14 h-10 rounded-md object-cover border border-gray-700 shrink-0 bg-black" aria-label="Uploaded video" />
+          // The #t=0.001 fragment makes iOS paint the first frame instead of
+          // a black box — WebKit only renders a frame once the clip is seeked.
+          <video src={`${media.url}#t=0.001`} muted playsInline preload="auto" className="w-14 h-10 rounded-md object-cover border border-gray-700 shrink-0 bg-black" aria-label="Uploaded video" />
         ) : media?.type === "image" ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={media.url} alt="Uploaded preview" className="w-14 h-10 rounded-md object-cover border border-gray-700 shrink-0" />
@@ -173,7 +175,13 @@ function LinkMediaControl({
         </div>
       </div>
       {error && <p className="text-[0.625rem] text-red-400 mt-1.5 leading-snug">{error}</p>}
-      {!media && !error && <p className="text-[0.625rem] text-gray-600 mt-1.5 leading-snug">Photos up to 5 MB, videos up to 25 MB (a few seconds, plays muted).</p>}
+      {!error && (
+        <p className="text-[0.625rem] text-gray-600 mt-1.5 leading-snug">
+          {media
+            ? "Shown centered and cropped to the tile — landscape (about 2:1) fits edge to edge."
+            : "Photos up to 5 MB, videos up to 25 MB (a few seconds, plays muted). Landscape fits best; other shapes are centered and cropped to the tile."}
+        </p>
+      )}
     </div>
   );
 }
@@ -202,8 +210,19 @@ export default function LinkButtonsControls({
     );
   }
 
+  // Grid tiles pack in pairs; the page promotes an unpaired one to full
+  // width rather than leave it beside a gap (lib/swiftlink-tiles). Say so
+  // whenever that will happen, so a "Grid" pick that shows full width never
+  // looks like a bug.
+  const gridCount = real.filter((l) => (l.size ?? "grid") === "grid").length;
+
   return (
     <div className="space-y-2">
+      {gridCount % 2 === 1 && (
+        <p className="text-[0.625rem] text-blue-200 bg-blue-600/10 border border-blue-600/30 rounded-lg px-2.5 py-1.5 leading-snug">
+          Grid tiles show two per row. You have {gridCount} — the first one will show full width until you add or remove one.
+        </p>
+      )}
       {links.map((l, i) => {
         if (l.kind === "header") return null;
         // A link saved before the picker always wrote a size resolves as grid
