@@ -229,8 +229,15 @@ try {
       if (key === uname) cardTotal += n; else linkTotal += n;
     }
   }
+  // Checked, and retried once. The v3 dashboard frame shipped with its newest
+  // four days flat: the FIRST 1000-row batch (today back to day 4) failed and
+  // nothing noticed, because adm() is a bare fetch. A chart that dies off in
+  // its last week says the opposite of what the frame is for.
   for (let i = 0; i < views.length; i += 1000) {
-    await adm("/rest/v1/card_views", { method: "POST", body: JSON.stringify(views.slice(i, i + 1000)) });
+    const batch = JSON.stringify(views.slice(i, i + 1000));
+    let res = await adm("/rest/v1/card_views", { method: "POST", body: batch });
+    if (!res.ok) res = await adm("/rest/v1/card_views", { method: "POST", body: batch });
+    if (!res.ok) throw new Error(`card_views batch ${i / 1000 + 1} failed: ${res.status} ${await res.text()}`);
   }
   console.log("  seeded", views.length, "views —", cardTotal, "card,", linkTotal, "links");
 
