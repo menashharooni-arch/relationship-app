@@ -884,12 +884,35 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     <>
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
       <div className={step === 5 ? "max-w-md mx-auto" : "max-w-4xl mx-auto"}>
-        {/* Back-link matches how the user got here:
-            • guest / marketing entry → "Home" (no jump into a lingering session's
-              account without a fresh sign-in);
-            • signed-in "Add Card" from the dashboard (add=1 → guest=false, the
-              server verified the session) → "Dashboard", back to their cards. */}
-        {guest ? (
+        {/* The one control at the TOP of the page. It has to match what is
+            actually behind the user, because that is what people assume it
+            does.
+            • STEPS 2–4 → "Back", to the step they just came from. This said
+              "Home" on every step, which made it the only top-of-page control
+              on Card design, Socials and Social design — and for a guest that
+              link deliberately WIPES the draft (see resetGuestFlow below).
+              People look UP to go back, not down, so reaching for it by reflex
+              threw away the whole half-built card. The "← Back" buttons at the
+              bottom of those steps stay; this one catches everyone who never
+              scrolls that far.
+            • STEP 1 and the success screen → nothing precedes them, so this is
+              the way OUT, and it matches how the user got here: "Home" for a
+              guest / marketing entry (no jump into a lingering session's
+              account without a fresh sign-in), or "Dashboard" for a signed-in
+              "Add Card" (add=1 → guest=false, the server verified the
+              session). */}
+        {step >= 2 && step <= 4 ? (
+          <button
+            type="button"
+            onClick={() => setStep(step - 1)}
+            className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            Back
+          </button>
+        ) : guest ? (
           <Link
             href="/"
             // Leaving for Home abandons this card: wipe the whole unfinished
