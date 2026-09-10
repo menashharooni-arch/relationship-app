@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "tests/render/swiftlink-page-background.test.ts"
+        ],
+        "createdAt": "2026-09-10T04:49:22.612Z",
+        "reason": "Headless measurement test with no markup; the match is the literal <img> inside a test name asserting a video background renders as <video>, not <img>"
+      }
+    ]
+  }
+}

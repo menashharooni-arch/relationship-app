@@ -16,6 +16,10 @@ const PAGE_ONLY_KEYS = [
   "links", "bio", "about",
   "linkLook", "linkBgColor", "linkTextColor", "linkFontFamily",
   "linkIconShape", "linkIconFill",
+  // The Swift Links page background. Nothing about it can reach the card
+  // image, so a card whose only change is a new background photo must not
+  // count as a card that needs its signature re-rendered.
+  "linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass",
 ] as const;
 
 /** Short stable hash (djb2) — small, deterministic, good enough for change detection. */
