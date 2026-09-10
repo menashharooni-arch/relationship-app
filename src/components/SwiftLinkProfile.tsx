@@ -12,14 +12,22 @@ import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
 import SwiftLinksPromoBadge from "@/components/SwiftLinksPromoBadge";
-import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeHeroContent, normalizeButtonStyle } from "@/lib/swiftlink-looks";
+import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeHeroContent, normalizeButtonStyle, pageMediaUrl, normalizePageMediaType, normalizePageDim, PAGE_MEDIA_BASE } from "@/lib/swiftlink-looks";
 
 // Owner-picked "Social design": a named Look (every plan — Free gets the free
 // pair, see lib/swiftlink-looks) plus optional Pro fine-tuning (bg/text/font)
 // layered on top of it. No style at all → the default Look ("Paper", light).
 // heroStyle ("cover"/"avatar") and buttonStyle/buttonColor are the 2026-09-01
 // Linktree-informed additions — see lib/swiftlink-looks for the vocabulary.
-export type SwiftLinkPageStyle = { look?: string; bg?: string; text?: string; font?: string; iconShape?: string; iconFill?: string; heroStyle?: string; heroContent?: string; heroImage?: string; buttonStyle?: string; buttonColor?: string };
+export type SwiftLinkPageStyle = {
+  look?: string; bg?: string; text?: string; font?: string;
+  iconShape?: string; iconFill?: string;
+  heroStyle?: string; heroContent?: string; heroImage?: string;
+  buttonStyle?: string; buttonColor?: string;
+  /** Page BACKGROUND media — a photo or short video behind the whole page,
+   *  and only with the compact-circle header. See lib/swiftlink-looks. */
+  bgMedia?: string; bgMediaType?: string; bgDim?: number; glass?: boolean;
+};
 
 type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" } };
 
@@ -142,6 +150,20 @@ export default function SwiftLinkProfile({
     logoUrl ? { kind: "logo" as const, url: logoUrl } :
     { kind: "initials" as const, url: null };
 
+  // ── Page background media ─────────────────────────────────────────────────
+  // A photo or short video behind the WHOLE page. Gated on the compact-circle
+  // header HERE as well as in the editor, so a background stored while that
+  // header was selected can never leak onto a cover/banner/none page — those
+  // already lead with a large photo, and two full-bleed images at once is not
+  // a design. Switching the header away therefore HIDES the background; it is
+  // never deleted, and switching back brings it straight back.
+  //
+  // https-only (pageMediaUrl): the URL comes through client-writable
+  // customization and is printed into a src on a public page.
+  const bgMedia = heroAvatar ? pageMediaUrl(pageStyle?.bgMedia) : null;
+  const bgMediaVideo = bgMedia !== null && normalizePageMediaType(pageStyle?.bgMediaType) === "video";
+  const bgDim = normalizePageDim(pageStyle?.bgDim);
+
   // Mini header fades in once the hero scrolls out from under it. Not in a
   // preview: there's no page scroll, so it would just sit invisible. Shorter
   // headers get proportionally earlier thresholds.
@@ -161,14 +183,26 @@ export default function SwiftLinkProfile({
   // Resolved page look: the named Look supplies the whole scheme, and the Pro
   // fine-tune keys (bg/text) override it individually where set.
   const look = getLook(pageStyle?.look);
-  const sheetBg = pageStyle?.bg || look.sheet;
-  const textColor = pageStyle?.text || look.text;
+  // With background media the sheet is TRANSPARENT and this colour only shows
+  // in the moment before the photo decodes (or forever, if it 404s). It is
+  // pinned near-black rather than following the Look or the owner's custom
+  // colour because the text over it is forced white below — a light sheet
+  // there would be an unreadable page, which is precisely the failure a
+  // background feature must not be able to produce.
+  const sheetBg = bgMedia ? PAGE_MEDIA_BASE : (pageStyle?.bg || look.sheet);
+  // Same reason: a light Look's near-black body text is invisible on a dimmed
+  // photo. The owner's own explicit text colour still wins — they can see the
+  // result live in the preview.
+  const textColor = pageStyle?.text || (bgMedia ? "#ffffff" : look.text);
   const pageFont = pageStyle?.font;
   // Gradient and Aura are properties of the LOOK's surface, so a Pro custom
   // background (which replaces that surface) turns them off — otherwise the
   // custom color would paint over half the effect and leave the rest orphaned.
-  const sheetTo = pageStyle?.bg ? undefined : look.sheetTo;
-  const auraOn = !pageStyle?.bg && !!look.aura && !!photoUrl;
+  const sheetTo = pageStyle?.bg || bgMedia ? undefined : look.sheetTo;
+  // Aura is the owner's headshot blurred behind a glass sheet. Background
+  // media replaces exactly that surface, so the two cannot both run — the
+  // same reason a custom background colour turns Aura off.
+  const auraOn = !pageStyle?.bg && !bgMedia && !!look.aura && !!photoUrl;
   // The one color the sheet's chrome (hero fade end-stop, glass tint) meets:
   // solid for normal looks, a translucent tint of the same hex for Aura so
   // the blurred photo glows through.
@@ -176,7 +210,9 @@ export default function SwiftLinkProfile({
   // A custom Pro background can flip the effective mode out from under the
   // Look, and the neutral chrome (rings, hovers, hero fade edge) must follow
   // the SURFACE, not the label — judge the sheet actually in use.
-  const light = pageStyle?.bg ? isLightHex(pageStyle.bg) : look.mode === "light";
+  // Neutral chrome (rings, hover wells, the icon set) follows the SURFACE in
+  // use. Over dimmed media that surface is dark, whatever the Look says.
+  const light = bgMedia ? false : pageStyle?.bg ? isLightHex(pageStyle.bg) : look.mode === "light";
 
   // Hero → sheet fade: an EASED multi-stop ramp of the same sheet color the
   // old two-stop linear fade used (owner order 2026-09-02: the hard band
@@ -208,6 +244,58 @@ export default function SwiftLinkProfile({
         }`}
         style={{ background: sheetBg, fontFamily: pageFont }}
       >
+        {/* Page background media — the owner's photo or short video behind the
+            whole page. First child so every sibling paints above it.
+
+            FULL-HEIGHT COVER, not a viewport-locked backdrop. The reference
+            page pins its video to the viewport with position:fixed; that is
+            not available here and the alternatives are worse:
+              • position:fixed escapes this container's overflow-hidden, so on
+                desktop the media would spill past the phone-width card's
+                rounded edges and margins, and in the live PREVIEW it would
+                cover the editor around it.
+              • position:sticky cannot reach the viewport either — measured:
+                overflow-hidden on this sheet makes it the scrollport, and a
+                sticky child inside a scrollport that never scrolls just moves
+                away with the page.
+            So the layer spans the sheet and the media covers it. The trade is
+            a tighter crop on a very long page (the media's height is stretched
+            to the whole scroll height); in exchange it is undistorted, clipped
+            correctly on every surface, identical in the preview and the live
+            page, and immune to the iOS toolbar bugs a fixed backdrop invites.
+
+            aria-hidden + pointer-events-none: it is decoration, and it must
+            never intercept a tap meant for a link above it. */}
+        {bgMedia && (
+          <div data-sc-pagebg aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+            {bgMediaVideo ? (
+              // Muted + playsInline + autoPlay is what iOS Safari and the
+              // native shell's WKWebView require before they will start a
+              // video without a tap. preload="auto" additionally leaves the
+              // first frame painted when autoplay is refused anyway (Low
+              // Power Mode), so the page still has its background instead of
+              // a black rectangle. Same recipe as the link tiles.
+              <video
+                src={`${bgMedia}#t=0.001`}
+                className="absolute inset-0 w-full h-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                tabIndex={-1}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={bgMedia} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            )}
+            {/* The scrim. This is the only thing standing between an arbitrary
+                holiday snap and unreadable white text, so it is owner-
+                controlled (0-80%) with a sane default rather than fixed. */}
+            <div data-sc-scrim className="absolute inset-0" style={{ background: `rgba(0,0,0,${bgDim / 100})` }} />
+          </div>
+        )}
+
         {/* Aura — the owner's own photo, blurred and dimmed, as the page
             atmosphere behind everything (the glass sheet included). First
             child so every sibling paints above it; scale-125 hides the blur's
@@ -335,12 +423,28 @@ export default function SwiftLinkProfile({
           // through the blend. flatTop (avatar/none) was already square.
           className={`relative px-4 pb-9 text-center ${flatTop ? "pt-10" : "-mt-10 pt-7"}`}
           style={{
-            background: auraOn
-              ? sheetMeet
-              : sheetTo
-                ? `linear-gradient(180deg, ${sheetBg} 0%, ${sheetTo} 100%)`
-                : sheetBg,
+            // Over background media the sheet paints NOTHING — it is the layer
+            // the content sits on, and the media is behind it. Painting sheetBg
+            // here would cover the photo with a solid rectangle from the
+            // avatar down, which is the whole page.
+            background: bgMedia
+              ? "transparent"
+              : auraOn
+                ? sheetMeet
+                : sheetTo
+                  ? `linear-gradient(180deg, ${sheetBg} 0%, ${sheetTo} 100%)`
+                  : sheetBg,
             ...(auraOn ? { backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)" } : {}),
+            // A soft shadow under every piece of text on the page, but only
+            // over media. The scrim alone cannot cover the case that actually
+            // happens: one bright patch of an otherwise dark photo landing
+            // exactly behind the section headers or the bio, which are the
+            // lightest-weight text here. Measured against a 35% scrim on a
+            // sky/rock photo, where "CLICK BELOW TO CONNECT WITH ME" was
+            // barely legible and is now clean. Inherited, so it reaches the
+            // name, bio, headers, labels and footer at once; invisible over
+            // flat areas, which is why it can be left on unconditionally.
+            ...(bgMedia ? { textShadow: "0 1px 12px rgba(0,0,0,0.5)" } : {}),
           }}
         >
           {/* Compact circular avatar — the "avatar" header style. Shows the
@@ -431,6 +535,12 @@ export default function SwiftLinkProfile({
             paid={paidTiles}
             buttonStyle={normalizeButtonStyle(pageStyle?.buttonStyle)}
             buttonColor={pageStyle?.buttonColor}
+            // Only with media behind them: a backdrop-filter over a flat sheet
+            // colour has nothing to blur, and the row would just look washed
+            // out for no reason. `bgMedia` is already gated on the
+            // compact-circle header, so this follows it.
+            glass={!!bgMedia && !!pageStyle?.glass}
+            overMedia={!!bgMedia}
             accent={look.accent}
             accentText={look.accentText}
             // `embedded` is the live-preview/designer rendering, where a tap is

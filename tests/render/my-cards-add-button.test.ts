@@ -19,14 +19,34 @@ import { appCss, launchBrowser } from "./harness";
 // duplicate control.
 
 const DASH = join(process.cwd(), "src/app/dashboard/page.tsx");
-const src = () => readFileSync(DASH, "utf8");
 
-/** Pull a className string out of the page source by a distinctive fragment. */
+/**
+ * The dashboard source, from the My Cards box onwards.
+ *
+ * SCOPED, not the whole file. Every fragment below is a Tailwind class string,
+ * and Tailwind class strings repeat — the page's top-right icon cluster is also
+ * a "flex items-center gap-2 shrink-0". When that cluster gained a -mr-1.5
+ * (2026-09-09, after sign-out moved out of the header) it started matching
+ * first, and this test measured the NAV's wrapper as if it were the My Cards
+ * actions: every "flush with the right edge" assertion went red by exactly the
+ * 6px of that nudge, pointing at a box nobody had touched.
+ *
+ * Anchoring on the box's own data-tour marker means a fragment can only ever
+ * match inside the thing being measured.
+ */
+function scopedSrc(): string {
+  const s = readFileSync(DASH, "utf8");
+  const i = s.indexOf('data-tour="my-cards"');
+  if (i < 0) throw new Error('No data-tour="my-cards" box in dashboard/page.tsx');
+  return s.slice(i);
+}
+
+/** Pull a className string out of the My Cards box by a distinctive fragment. */
 function classNameContaining(fragment: string): string {
-  const s = src();
+  const s = scopedSrc();
   const re = new RegExp(`className="([^"]*${fragment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^"]*)"`);
   const m = s.match(re);
-  if (!m) throw new Error(`No className containing "${fragment}" in dashboard/page.tsx`);
+  if (!m) throw new Error(`No className containing "${fragment}" in the My Cards box`);
   return m[1];
 }
 

@@ -261,3 +261,70 @@ export const DEFAULT_BUTTON_STYLE: ButtonStyle = "tile";
 export function normalizeButtonStyle(v?: string | null): ButtonStyle {
   return v === "solid" || v === "outline" ? v : DEFAULT_BUTTON_STYLE;
 }
+
+// ── Page BACKGROUND media (Linktree-informed, 2026-09-10) ───────────────────
+//
+// A photo or a short video behind the WHOLE page, instead of a flat colour.
+// Owner reference: linktr.ee/kelsieblevinsrealestate — a looping video filling
+// the page, a small round avatar over it, and frosted translucent link rows.
+//
+// TIED TO THE COMPACT-CIRCLE HEADER, on purpose. The "cover" and "banner"
+// headers already put a large photo across the top of the page; a second
+// full-bleed image behind it gives two competing photographs and no page
+// design survives that. "No header" is deliberately the flat, quiet page. The
+// compact circle is the one layout with a small identity mark and nothing else
+// at the top — exactly the shape a background needs. So the controls only
+// appear for it (SwiftLinkDesign) and the render is gated on it as well
+// (SwiftLinkProfile), which means switching the header away HIDES a stored
+// background rather than deleting it: switch back and it returns.
+//
+// Pro fine-tuning — all four keys live in LINK_STYLE_KEYS, so a Free page
+// stores none of them and renders none of them.
+
+export type PageMediaType = "image" | "video";
+
+export function normalizePageMediaType(v?: string | null): PageMediaType {
+  return v === "video" ? "video" : "image";
+}
+
+/**
+ * The background URL, or null.
+ *
+ * https ONLY. This value arrives through client-writable customization and is
+ * printed into an `src` on a PUBLIC page, so anything else — a `javascript:`
+ * URL, a `data:` document, a plain http asset that would break the padlock —
+ * must not render. Same rule the header photo (linkHeroImage) already applies.
+ */
+export function pageMediaUrl(v?: string | null): string | null {
+  return typeof v === "string" && /^https:\/\//.test(v) ? v : null;
+}
+
+/** How dark the scrim over the background media is, as a percentage. */
+export const DEFAULT_PAGE_DIM = 35;
+export const MAX_PAGE_DIM = 80;
+
+/**
+ * The scrim, 0-80%.
+ *
+ * It is what makes text legible over an arbitrary photo, so it is clamped
+ * rather than trusted: a stored 500, a negative, a NaN from a hand-edited
+ * payload must all land somewhere sane instead of blanking the page or
+ * removing the only contrast the text has.
+ */
+export function normalizePageDim(v?: number | string | null): number {
+  const n = typeof v === "string" ? Number(v) : v;
+  if (typeof n !== "number" || !Number.isFinite(n)) return DEFAULT_PAGE_DIM;
+  return Math.min(MAX_PAGE_DIM, Math.max(0, Math.round(n)));
+}
+
+/**
+ * The base colour behind the background media.
+ *
+ * Deliberately a FIXED near-black rather than the Look's sheet or the owner's
+ * custom page colour. Over media the page's text is forced to white (a light
+ * Look's near-black text is invisible on a dark photo), and this colour is
+ * what shows in the seconds before the photo decodes, or forever if it 404s.
+ * Pairing white text with a light sheet there would produce an unreadable
+ * page, so the one surface that can appear underneath is pinned dark.
+ */
+export const PAGE_MEDIA_BASE = "#0D0D10";

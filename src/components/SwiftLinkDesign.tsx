@@ -23,7 +23,9 @@ import {
   ICON_SHAPES, ICON_FILLS, normalizeIconShape, normalizeIconFill,
   HERO_STYLES, normalizeHeroStyle,
   HERO_CONTENTS, normalizeHeroContent,
+  normalizePageDim, MAX_PAGE_DIM,
 } from "@/lib/swiftlink-looks";
+import { isAllowedMedia, uploadMedia, uploadErrorMessage, WRONG_TYPE_MESSAGE, IMAGE_TYPES, VIDEO_TYPES } from "@/lib/upload-media";
 import { resolveRowStyle } from "@/lib/swiftlink-tiles";
 import LinkButtonsControls from "@/components/LinkButtonsControls";
 import type { CardLink } from "@/components/card-templates/types";
@@ -46,6 +48,16 @@ export type SwiftLinkStyle = {
   /** The uploaded header photo for linkHeroContent "custom" — a public URL
    *  from /api/upload (field "hero"). Every plan. */
   linkHeroImage?: string;
+  /** PAGE BACKGROUND MEDIA — a photo or short video behind the whole page,
+   *  offered only with the compact-circle header (see lib/swiftlink-looks for
+   *  why). Pro: all four keys are in LINK_STYLE_KEYS. */
+  linkBgMedia?: string;
+  /** "image" | "video" — which element renders linkBgMedia. */
+  linkBgMediaType?: string;
+  /** Scrim over the media, 0-80%. The readability control. */
+  linkBgDim?: number;
+  /** Frost the plain link rows over the media. */
+  linkGlass?: boolean;
   /** LEGACY page-wide row style ("tile" | "solid" | "outline") written by the
    *  pre-2026-09-09 "Link buttons" control. Still read as the fallback for a
    *  link with no rowStyle of its own; nothing writes it any more. */
@@ -367,12 +379,184 @@ function HeroImageUpload({
   );
 }
 
+// ── Page background media ───────────────────────────────────────────────────
+//
+// Add / Edit / Remove for the photo or video behind the whole page, plus the
+// two controls that only make sense once one is set: how far to darken it, and
+// whether the plain link rows go frosted over it.
+//
+// Rendered ONLY under the compact-circle header — see lib/swiftlink-looks for
+// why that pairing and no other. Switching the header away hides this section
+// and stops the background rendering, but never deletes it: switch back and
+// the photo, the scrim and the frosting are all still there.
+function PageBackgroundMedia({
+  value,
+  onChange,
+  locked,
+}: {
+  value: SwiftLinkStyle;
+  onChange: (patch: Partial<SwiftLinkStyle>) => void;
+  locked: boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const url = value.linkBgMedia;
+  const isVideo = value.linkBgMediaType === "video";
+  const dim = normalizePageDim(value.linkBgDim);
+
+  async function pickFile(file: File) {
+    if (!isAllowedMedia(file)) {
+      setError(WRONG_TYPE_MESSAGE);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const media = await uploadMedia(file, "pagebg");
+      // The type is written WITH the url, in one patch. Two patches could
+      // interleave with another edit and leave a video url flagged as an
+      // image, which renders an <img> pointed at an mp4 — a broken page.
+      //
+      // Frosting defaults ON for a first background. Side by side it is not
+      // close: over a busy photo the stock translucent rows let the picture
+      // read straight through the labels, and the frosted ones stay crisp.
+      // `?? true` and not `|| true`: once the owner has turned it off it is
+      // stored as an explicit false, and replacing the photo must not quietly
+      // turn it back on.
+      onChange({
+        linkBgMedia: media.url,
+        linkBgMediaType: media.type,
+        linkGlass: value.linkGlass ?? true,
+      });
+    } catch (e) {
+      setError(uploadErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-2.5">
+      <input
+        ref={fileRef}
+        type="file"
+        accept={[...IMAGE_TYPES, ...VIDEO_TYPES].join(",")}
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) pickFile(f);
+          e.target.value = ""; // re-picking the same file must fire again
+        }}
+      />
+
+      <div className="flex items-center gap-2.5">
+        {url ? (
+          isVideo ? (
+            // muted + playsInline so the thumbnail can show a frame without
+            // the browser refusing to load it or making noise in the editor.
+            <video
+              src={`${url}#t=0.001`}
+              muted
+              playsInline
+              preload="auto"
+              className="w-12 h-12 rounded-lg object-cover border border-gray-700 shrink-0 bg-black"
+              aria-label="Background video"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt="Page background" className="w-12 h-12 rounded-lg object-cover border border-gray-700 shrink-0" />
+          )
+        ) : (
+          <span className="w-12 h-12 rounded-lg border border-dashed border-gray-600 bg-gray-800/40 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="w-5 h-5 text-gray-500">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0021.75 19.5V4.5A1.5 1.5 0 0020.25 3H3.75A1.5 1.5 0 002.25 4.5v15A1.5 1.5 0 003.75 21z" />
+            </svg>
+          </span>
+        )}
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            disabled={busy || locked}
+            onClick={() => fileRef.current?.click()}
+            className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/40 text-[0.6875rem] font-semibold text-gray-300 hover:border-gray-600 transition-colors disabled:opacity-50 disabled:hover:border-gray-700"
+          >
+            {busy ? "Uploading…" : url ? "Edit" : "Add"}
+          </button>
+          {url && !busy && (
+            <button
+              type="button"
+              disabled={locked}
+              // Clears the type alongside the url. Leaving a stale "video"
+              // behind would mislabel the NEXT photo the owner adds.
+              onClick={() => onChange({ linkBgMedia: undefined, linkBgMediaType: undefined })}
+              className="px-3 py-1.5 rounded-lg text-[0.6875rem] font-semibold text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && <p className="text-[0.625rem] text-red-400 mt-1.5 leading-snug">{error}</p>}
+      {!url && !error && (
+        <p className="text-[0.625rem] text-gray-500 mt-1.5 leading-snug">
+          A photo or a short video fills the page behind everything. Portrait shots fit best. Photos up to 5 MB, videos up to 25 MB.
+        </p>
+      )}
+
+      {url && (
+        <>
+          <div className="mt-3">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className="text-[0.625rem] text-gray-400 leading-snug">Darken</p>
+              <span className="text-[0.625rem] font-semibold text-gray-400 tabular-nums">{dim}%</span>
+            </div>
+            {/* The readability control, not a decoration: a bright photo makes
+                white text vanish, and this is the only thing that fixes it.
+                Shown with the media because on its own it does nothing. */}
+            <input
+              type="range"
+              min={0}
+              max={MAX_PAGE_DIM}
+              step={5}
+              value={dim}
+              disabled={locked}
+              aria-label="Darken the background"
+              onChange={(e) => onChange({ linkBgDim: normalizePageDim(e.target.value) })}
+              className="w-full accent-blue-500 disabled:opacity-50"
+            />
+            <p className="text-[0.625rem] text-gray-500 mt-0.5 leading-snug">Darker backgrounds make your name and links easier to read.</p>
+          </div>
+
+          <label className={`mt-3 flex items-start gap-2.5 rounded-lg border border-gray-700 bg-gray-800/40 px-2.5 py-2 ${locked ? "opacity-50" : "cursor-pointer hover:border-gray-600"} transition-colors`}>
+            <input
+              type="checkbox"
+              checked={!!value.linkGlass}
+              disabled={locked}
+              onChange={(e) => onChange({ linkGlass: e.target.checked })}
+              className="mt-0.5 w-3.5 h-3.5 accent-blue-500 shrink-0"
+            />
+            <span className="min-w-0">
+              <span className="block text-[0.6875rem] font-semibold text-gray-200">Blur the link buttons</span>
+              <span className="block text-[0.625rem] text-gray-500 leading-snug">Frosted glass rows, so your background shows softly through them.</span>
+            </span>
+          </label>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function SwiftLinkStyleControls({
   value,
   onChange,
   locked = false,
   links,
   onLinksChange,
+  canUpload = true,
 }: {
   value: SwiftLinkStyle;
   onChange: (patch: Partial<SwiftLinkStyle>) => void;
@@ -381,7 +565,17 @@ export function SwiftLinkStyleControls({
    *  Both editors pass them; the marketing mini-builder doesn't. */
   links?: CardLink[];
   onLinksChange?: (links: CardLink[]) => void;
+  /** False where there is no signed-in account to upload against — the
+   *  marketing mini-builder, whose sketch is a visitor's doodle. Every upload
+   *  route answers 401 there, so the "Add" button would be a dead end; the
+   *  same reasoning that gives the mini-builder no "Link buttons" section. */
+  canUpload?: boolean;
 }) {
+  // The compact-circle header is what unlocks the page-background media below.
+  // Derived once so the two sections can never disagree about which header is
+  // selected.
+  const isAvatarHeader = normalizeHeroStyle(value.linkHeroStyle) === "avatar";
+
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-5">
       <div>
@@ -497,7 +691,11 @@ export function SwiftLinkStyleControls({
 
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">The surface behind your photo, bio, socials and links.</p>
+        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">
+          {isAvatarHeader
+            ? "A colour, or a photo or video filling the whole page behind your links."
+            : "The surface behind your photo, bio, socials and links."}
+        </p>
         <SwatchRow
           presets={BG_PRESETS}
           value={value.linkBgColor}
@@ -505,6 +703,18 @@ export function SwiftLinkStyleControls({
           onPick={(v) => onChange({ linkBgColor: v })}
           customLocked={locked}
         />
+        {/* Only with the compact circle. The cover and banner headers already
+            lead with a big photo, and "No header" is the deliberately flat
+            page — see lib/swiftlink-looks. */}
+        {isAvatarHeader && canUpload && <PageBackgroundMedia value={value} onChange={onChange} locked={locked} />}
+        {/* A background stored under the compact circle is HIDDEN by another
+            header, not deleted. Saying so is the difference between "my photo
+            vanished" and "I know where it went". */}
+        {!isAvatarHeader && value.linkBgMedia && (
+          <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">
+            Your background photo or video is saved. It shows when the page header is set to <span className="text-gray-400 font-semibold">Compact circle</span>.
+          </p>
+        )}
       </div>
 
       <div className="border-t border-gray-800 pt-4">

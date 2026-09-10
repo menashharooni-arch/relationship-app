@@ -84,7 +84,9 @@ export default function SwiftLinkLivePreview({
     heroImage: style?.linkHeroImage,
     heroStyle: style?.linkHeroStyle,
     heroContent: style?.linkHeroContent,
-    ...(paid ? { bg: style?.linkBgColor, text: style?.linkTextColor, font: style?.linkFontFamily, iconShape: style?.linkIconShape, iconFill: style?.linkIconFill, buttonStyle: style?.linkButtonStyle, buttonColor: style?.linkButtonColor } : {}),
+    ...(paid ? { bg: style?.linkBgColor, text: style?.linkTextColor, font: style?.linkFontFamily, iconShape: style?.linkIconShape, iconFill: style?.linkIconFill, buttonStyle: style?.linkButtonStyle, buttonColor: style?.linkButtonColor,
+      // Page background media, previewed exactly as the live page renders it.
+      bgMedia: style?.linkBgMedia, bgMediaType: style?.linkBgMediaType, bgDim: style?.linkBgDim, glass: style?.linkGlass } : {}),
   };
 
   // Only real, filled links carry to the page (same filter the live page uses),

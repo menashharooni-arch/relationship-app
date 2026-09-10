@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   }
 
   const file = formData.get("file") as File | null;
-  const field = formData.get("field") as string | null; // "photo" or "logo"
+  const field = formData.get("field") as string | null; // see the allow-list below
   const cardId = formData.get("card_id") as string | null;
   const defer = formData.get("defer") as string | null; // "true" = just return the URL, write nothing
 
@@ -66,13 +66,14 @@ export async function POST(req: Request) {
   // (with upsert) could traverse out of this user's folder and overwrite another
   // user's file. Only these fields exist, and the extension is derived from
   // the re-encoded content-type below, never from the attacker's filename.
-  // "hero" is the Swift Links header image (customization.linkHeroImage) and
-  // "link" a per-link tile photo (customization.links[i].media) — both ALWAYS
-  // deferred (the URL lives in customization, there is no column), so the
-  // DB-write branches below never see them. Videos for a link tile do NOT
-  // come through here: they exceed the request-body limit and go straight to
-  // storage via /api/upload/link-video.
-  if (field !== "photo" && field !== "logo" && field !== "hero" && field !== "link") return NextResponse.json({ error: "Invalid field" }, { status: 400 });
+  // "hero" is the Swift Links header image (customization.linkHeroImage),
+  // "link" a per-link tile photo (customization.links[i].media) and "pagebg"
+  // the Swift Links page background (customization.linkBgMedia) — all three
+  // ALWAYS deferred (the URL lives in customization, there is no column), so
+  // the DB-write branches below never see them. Videos do NOT come through
+  // here for a link tile or a page background: they exceed the request-body
+  // limit and go straight to storage via /api/upload/link-video.
+  if (field !== "photo" && field !== "logo" && field !== "hero" && field !== "link" && field !== "pagebg") return NextResponse.json({ error: "Invalid field" }, { status: 400 });
   if (!ALLOWED.includes(file.type)) return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
 
@@ -106,7 +107,11 @@ export async function POST(req: Request) {
       // hero fills the 430px-wide cover at up to 2x — 1200 keeps it sharp
       // without storing phone-camera originals.
       // A link tile is 1.91:1 at up to 430px wide × 2x — 1200 keeps it sharp.
-      const MAXDIM = field === "photo" ? 1000 : field === "hero" || field === "link" ? 1200 : 800;
+      // "pagebg" gets more: it is cover-cropped over the WHOLE page, so its
+      // long edge is stretched to the full scroll height (often 3-4x the
+      // viewport) rather than to a tile. 1600 is the most the 5 MB cap will
+      // carry at a sane JPEG quality.
+      const MAXDIM = field === "photo" ? 1000 : field === "pagebg" ? 1600 : field === "hero" || field === "link" ? 1200 : 800;
       const img = sharp(Buffer.from(arrayBuffer)).rotate().resize(MAXDIM, MAXDIM, { fit: "inside", withoutEnlargement: true });
       if (field === "logo") {
         body = await img.png({ compressionLevel: 9 }).toBuffer();
@@ -151,10 +156,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: publicUrl });
   }
 
-  // Hero images have no DB column — the URL is persisted by the caller inside
-  // customization.linkHeroImage. Returned here unconditionally so a caller
-  // that forgets defer=true can never fall through and clobber logo_url.
-  if (field === "hero" || field === "link") {
+  // These three have no DB column — the URL is persisted by the caller inside
+  // customization (linkHeroImage / links[i].media / linkBgMedia). Returned
+  // here unconditionally so a caller that forgets defer=true can never fall
+  // through and clobber logo_url.
+  if (field === "hero" || field === "link" || field === "pagebg") {
     return NextResponse.json({ url: publicUrl });
   }
 
