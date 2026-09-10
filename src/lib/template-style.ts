@@ -16,6 +16,22 @@ export type TemplateStyle = {
   textColor?: string;
   infoColor?: string; // color of the contact/details text (phone, email, address…)
   fontFamily?: string;
+  /**
+   * The card's SECOND surface, where a template has one.
+   *
+   * `bgColor` paints whatever each template calls its brand surface — Classic
+   * Pro's left panel, Local Business's header stripe, Photo First's info panel.
+   * The other half of those cards was a hard-coded constant nobody could
+   * change: Local Business's cream body, Classic Pro's white info panel, Photo
+   * First's photo panel. Owner, 2026-09-10: "for local business, it's only
+   * letting them choose the color of the header stripe, but not the color of
+   * the bottom part of the card."
+   *
+   * Absent on the three single-surface templates (Modern Bold, Luxury Minimal,
+   * Logo First), which is why META carries `surface` only where one exists —
+   * a control for a surface the template does not have is worse than none.
+   */
+  surfaceColor?: string;
   /** Material laid over the panel colour — see lib/card-finishes.ts. */
   finish?: string;
   /** A photo behind the panel. Public URL from /api/upload (field "cardbg"). */
@@ -85,6 +101,7 @@ export function templateStyle(data: Pick<CardData, "customization">): TemplateSt
   return {
     accentColor: pick(c.accentColor),
     bgColor: pick(c.bgColor),
+    surfaceColor: pick(c.surfaceColor),
     textColor: pick(c.textColor),
     infoColor: pick(c.infoColor),
     fontFamily: pick(c.fontFamily),

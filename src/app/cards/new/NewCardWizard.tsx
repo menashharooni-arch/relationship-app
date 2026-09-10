@@ -386,6 +386,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     setTemplateStyleState({
       accentColor: result.customization.accentColor as string | undefined,
       bgColor: result.customization.bgColor as string | undefined,
+      surfaceColor: result.customization.surfaceColor as string | undefined,
       textColor: result.customization.textColor as string | undefined,
       infoColor: result.customization.infoColor as string | undefined,
       fontFamily: result.customization.fontFamily as string | undefined,

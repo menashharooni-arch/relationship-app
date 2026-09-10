@@ -123,6 +123,8 @@ export type CardCustomization = {
   // so cards saved before these existed render exactly as before.
   bgColor?: string;      // primary branding surface (navy panel, dark bg, stripe…)
   textColor?: string;    // hero/name text color
+  surfaceColor?: string; // the card's SECOND surface (info panel, body, photo panel)
+                         // — only on templates that have one; see lib/template-style.ts
   fontFamily?: string;   // card typography (a full CSS font stack)
   // ── Finish + panel media (lib/card-finishes.ts) ───────────────────────────
   // The material laid over bgColor, and an optional photo or video behind it.

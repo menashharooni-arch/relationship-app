@@ -54,7 +54,7 @@ export const FREE_MONTH_DAYS = 30;
 // non-paid accounts so a downgraded or hand-crafted request can't keep an
 // arbitrary custom value. (Free baseline customization — about, address, bio,
 // socials, testimonials, links up to the cap — is never touched.)
-export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font", "bgColor", "textColor", "infoColor", "fontFamily",
+export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font", "bgColor", "surfaceColor", "textColor", "infoColor", "fontFamily",
   // Card FINISH and panel media (lib/card-finishes.ts). `finish` is only
   // PARTLY Pro — Flat, Sheen and Halo are free — so it is snapped below
   // rather than dropped. Panel media is Pro outright: an uploaded photo or
@@ -151,6 +151,7 @@ export function convertCustomizationToFreeClosest(
   const changed = hadProKey || hadCustomTemplate;
 
   const bgColor = pickStr(cust.bgColor);
+  const surfaceColor = pickStr(cust.surfaceColor);
   const textColor = pickStr(cust.textColor);
   const infoColor = pickStr(cust.infoColor);
   const accentColor = pickStr(cust.accentColor);
@@ -173,11 +174,19 @@ export function convertCustomizationToFreeClosest(
   // the target template's baked-in defaults in place rather than guessing.
   if (!hadCustomTemplate) {
     if (bgColor !== undefined) cust.bgColor = nearestPreset(bgColor, meta.bg.presets, meta.bg.fallback);
+    // Only three templates have a second surface. On the others the key is
+    // meaningless, so it is dropped rather than snapped to a palette that
+    // does not exist.
+    if (surfaceColor !== undefined) {
+      if (meta.surface) cust.surfaceColor = nearestPreset(surfaceColor, meta.surface.presets, meta.surface.fallback);
+      else delete cust.surfaceColor;
+    }
     if (textColor !== undefined) cust.textColor = nearestPreset(textColor, meta.text.presets, meta.text.fallback);
     if (infoColor !== undefined) cust.infoColor = nearestPreset(infoColor, meta.info.presets, meta.info.fallback);
     if (accentColor !== undefined) cust.accentColor = nearestPreset(accentColor, meta.accent.presets, meta.accent.fallback);
   } else {
     delete cust.bgColor;
+    delete cust.surfaceColor;
     delete cust.textColor;
     delete cust.infoColor;
     delete cust.accentColor;
