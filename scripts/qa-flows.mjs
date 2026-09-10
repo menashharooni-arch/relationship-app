@@ -15,6 +15,7 @@
 // did not create. Exits non-zero when a flow fails, so CI can gate on it.
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { markInternal } from "./qa-internal.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const BASE = process.env.BASE || "http://localhost:3111";
@@ -64,10 +65,10 @@ async function seed() {
 let storageState = null;
 
 async function newPage({ signedIn = true } = {}) {
-  const ctx = await browser.newContext({
+  const ctx = await markInternal(await browser.newContext({
     viewport: { width: 1280, height: 900 },
     ...(signedIn && storageState ? { storageState } : {}),
-  });
+  }));
   const page = await ctx.newPage();
   page.on("pageerror", (e) => fail("js-error", `${page.url().replace(BASE, "")} — ${e.message.split("\n")[0].slice(0, 140)}`));
   return { ctx, page };
@@ -97,7 +98,7 @@ async function typeInto(page, selector, value) {
 }
 
 async function signInOnce() {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const ctx = await markInternal(await browser.newContext({ viewport: { width: 1280, height: 900 } }));
   const page = await ctx.newPage();
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
   await typeInto(page, "#auth-email", email);
@@ -406,7 +407,7 @@ FLOWS["empty-account"] = async () => {
     body: JSON.stringify({ id: created.id, username: u2, name: "New Person", email: e2, plan: "free", customization: { _aiConsent: "accepted" } }),
   });
   // No card, no contacts, no views — deliberately.
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const ctx = await markInternal(await browser.newContext({ viewport: { width: 1280, height: 900 } }));
   const page = await ctx.newPage();
   page.on("pageerror", (err) => fail("empty-account", `js-error on ${page.url().replace(BASE, "")} — ${err.message.split("\n")[0].slice(0, 140)}`));
   try {
@@ -437,11 +438,11 @@ FLOWS["empty-account"] = async () => {
 
 // ── J. Mobile tab bar: every tab goes where it says ─────────────────────────
 FLOWS["mobile-tabs"] = async () => {
-  const ctx = await browser.newContext({
+  const ctx = await markInternal(await browser.newContext({
     viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true,
     userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
     ...(storageState ? { storageState } : {}),
-  });
+  }));
   const page = await ctx.newPage();
   page.on("pageerror", (e) => fail("mobile-tabs", `js-error — ${e.message.split("\n")[0].slice(0, 140)}`));
   try {

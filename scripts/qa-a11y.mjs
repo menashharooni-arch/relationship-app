@@ -26,6 +26,7 @@
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { markInternal } from "./qa-internal.mjs";
 
 const require_ = createRequire(import.meta.url);
 const AXE_SRC = readFileSync(require_.resolve("axe-core/axe.min.js"), "utf8");
@@ -313,12 +314,12 @@ const ONLY = process.env.ONLY || "";
 
 async function context(width, extra = {}) {
   const mobile = width < 700;
-  return browser.newContext({
+  return markInternal(await browser.newContext({
     viewport: { width, height: mobile ? 844 : 900 },
     isMobile: mobile, hasTouch: mobile,
     userAgent: mobile ? "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" : undefined,
     ...extra,
-  });
+  }));
 }
 
 try {

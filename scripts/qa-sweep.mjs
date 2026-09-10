@@ -17,6 +17,7 @@
 // pre-existing data: it never touches an account it did not make.
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { markInternal } from "./qa-internal.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const BASE = process.env.BASE || "http://localhost:3111";
@@ -239,7 +240,7 @@ const ONLY = process.env.ONLY || "";
 
 async function newPage(width) {
   const mobile = width < 700;
-  const ctx = await browser.newContext({
+  const ctx = await markInternal(await browser.newContext({
     viewport: { width, height: mobile ? 844 : 900 },
     deviceScaleFactor: 1,
     isMobile: mobile,
@@ -247,7 +248,7 @@ async function newPage(width) {
     userAgent: mobile
       ? "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
       : undefined,
-  });
+  }));
   const page = await ctx.newPage();
   const screenRef = { name: "unknown" };
   wirePage(page, screenRef);
