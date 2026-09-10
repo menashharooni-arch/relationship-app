@@ -134,6 +134,24 @@ export const SWIFTLINK_LOOKS: SwiftLinkLook[] = [
     sheet: "#1C1229", page: "#0F0A18", text: "#F3EEFB",
     accent: "#A78BFA", accentText: "#1C1229", tile: "#271A38",
   },
+  {
+    // The dark WARM one. Every other dark solid is cool or neutral (Onyx,
+    // Forest, Midnight, Orchid), so a warm brand had nothing here to sit on.
+    // Oxblood with an antique-gold accent. Gold rather than the obvious rose:
+    // a light pink on wine reads as sweet, and Blush already owns pink in this
+    // family. Wine and gold is the pairing this colour has always wanted, and
+    // the accent still has to be light enough to carry dark label text.
+    id: "claret", name: "Claret", family: "solid", mode: "dark",
+    sheet: "#22121B", page: "#120A0E", text: "#F9E9EF",
+    accent: "#D4AF6A", accentText: "#241004", tile: "#2E1A25",
+  },
+  {
+    // The light COOL one. Paper is warm white, Chrome is neutral silver —
+    // neither reads as organic. Muted green-grey, calm rather than fresh.
+    id: "sage", name: "Sage", family: "solid", mode: "light",
+    sheet: "#F1F4EE", page: "#E1E8DB", text: "#1F2A1C",
+    accent: "#3F6212", accentText: "#FFFFFF", tile: "#E6ECE0",
+  },
 
   // ── GRADIENT — two colours falling down the page ──────────────────────────
   // hoo.be's premium themes are soft gradients rather than flats.
@@ -162,6 +180,35 @@ export const SWIFTLINK_LOOKS: SwiftLinkLook[] = [
     id: "ink", name: "Ink", family: "gradient", mode: "dark",
     sheet: "#111318", sheetTo: "#1B2330", page: "#08090C", text: "#EEF1F6",
     accent: "#94A3B8", accentText: "#0F1319", tile: "#1C1F26",
+  },
+  {
+    // Ivory settling into taupe. The light counterpart to Ink: the quiet one,
+    // with no hue strong enough to date it or to fight a logo.
+    id: "linen", name: "Linen", family: "gradient", mode: "light",
+    sheet: "#FBF7F0", sheetTo: "#EFE7DA", page: "#E5DCCB", text: "#2B241A",
+    accent: "#6B5B45", accentText: "#FFFFFF", tile: "#F2ECE1",
+  },
+  {
+    // Pale green into soft eucalyptus. Nothing else in the library is a light
+    // green, and it is the register wellness, property and outdoor brands ask
+    // for by name.
+    id: "meadow", name: "Meadow", family: "gradient", mode: "light",
+    sheet: "#F0F9F2", sheetTo: "#DDF0E3", page: "#D2E7D8", text: "#10291B",
+    accent: "#065F46", accentText: "#FFFFFF", tile: "#E2F1E6",
+  },
+  {
+    // Deep water: teal sinking into midnight blue. Distinct from Nebula, which
+    // ends in violet, and from Ink, which has no hue at all.
+    id: "lagoon", name: "Lagoon", family: "gradient", mode: "dark",
+    sheet: "#06222B", sheetTo: "#0B2F4A", page: "#041520", text: "#E3F4F8",
+    accent: "#22D3EE", accentText: "#04252C", tile: "#0C2E38",
+  },
+  {
+    // Plum burning down into rust. The dark WARM gradient — the one register
+    // the four originals left out entirely.
+    id: "sunset", name: "Sunset", family: "gradient", mode: "dark",
+    sheet: "#2A0F26", sheetTo: "#4A1A12", page: "#170812", text: "#FCEDE4",
+    accent: "#FB923C", accentText: "#3A1704", tile: "#35161F",
   },
 
   // ── GLASS — a colour wash under a frosted sheet ───────────────────────────
@@ -199,6 +246,32 @@ export const SWIFTLINK_LOOKS: SwiftLinkLook[] = [
     sheet: "#170F12", page: "#0D0809", text: "#FAEDE7",
     accent: "#F59E0B", accentText: "#2B1A02", tile: "#241619",
     wash: ["#5E1B4E", "#93301E", "#A76410"], frost: 0.48,
+  },
+  {
+    // Blush, peach and lavender behind white frost. The light WARM glass —
+    // Frost is cool and Mist is grey, so a warm brand had no light option
+    // in this family at all.
+    id: "bloom", name: "Bloom", family: "glass", mode: "light",
+    sheet: "#FDF6F4", page: "#F2E3E0", text: "#3A1C24",
+    accent: "#BE185D", accentText: "#FFFFFF", tile: "#F6E7E4",
+    wash: ["#F3C9D6", "#F6D4BE", "#DCCBEE"], frost: 0.58,
+  },
+  {
+    // Emerald into sea-green into moss, under smoked glass. Deep water and
+    // deep forest at once; the only green in the family.
+    id: "jade", name: "Jade", family: "glass", mode: "dark",
+    sheet: "#08160F", page: "#04100A", text: "#E4F5EA",
+    accent: "#34D399", accentText: "#04281A", tile: "#12241A",
+    wash: ["#0C5F3C", "#0B6357", "#2A6B22"], frost: 0.48,
+  },
+  {
+    // Steel and slate with the faintest warm turn at the end. No colour to
+    // speak of — the glass equivalent of Ink, for a page that wants depth and
+    // texture and no opinion whatsoever.
+    id: "graphite", name: "Graphite", family: "glass", mode: "dark",
+    sheet: "#121316", page: "#08090B", text: "#EDEEF1",
+    accent: "#A1A1AA", accentText: "#101114", tile: "#1D1E22",
+    wash: ["#3E4450", "#2C2E36", "#4A4340"], frost: 0.48,
   },
   {
     // The owner's own headshot, blurred and dimmed, as the page atmosphere —
