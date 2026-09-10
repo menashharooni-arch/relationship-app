@@ -920,7 +920,12 @@ export function SwiftLinkStyleControls({
                 );
               })}
             </div>
-            {normalizeHeroContent(value.linkHeroContent) === "custom" && (
+            {/* canUpload, same as the page background below it: in the
+                marketing sketch there is no account to upload against, so this
+                control could only ever answer 401. It was the last place in
+                this panel where a visitor could reach a button that has to
+                fail. */}
+            {normalizeHeroContent(value.linkHeroContent) === "custom" && canUpload && (
               <HeroImageUpload url={value.linkHeroImage} onChange={onChange} />
             )}
           </div>

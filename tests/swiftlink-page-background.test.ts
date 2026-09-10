@@ -434,4 +434,30 @@ describe("uploads", () => {
     // route answers 401 there.
     expect(read("src/components/site/SwiftLinkMiniBuilder.tsx")).toMatch(/canUpload=\{false\}/);
   });
+
+  it("NEITHER upload control is reachable in the sketch", () => {
+    // There are two of them in this panel — the header photo and the page
+    // background — and for a while only one was gated. A visitor could pick
+    // "Upload photo" under Page header, meet a file picker, and be told to
+    // sign in after choosing a file. Both are behind canUpload now.
+    const design = read("src/components/SwiftLinkDesign.tsx");
+    expect(design).toMatch(/=== "custom" && canUpload && \(\s*<HeroImageUpload/);
+    expect(design).toMatch(/isAvatarHeader && canUpload && <PageBackgroundMedia/);
+    // …and nothing else in the panel calls the uploader directly.
+    const calls = design.match(/uploadMedia\(/g) ?? [];
+    expect(calls.length).toBe(1);
+  });
+
+  it("a header picked in the sketch survives the hand-off too", () => {
+    // Same three hops the accent had to cross. The header controls are
+    // structural, so they are neither Pro-gated nor upload-gated — which means
+    // the mini-builder shows them to every visitor, and a "Compact circle"
+    // chosen there has to still be chosen in the real builder.
+    for (const key of ["linkHeroStyle", "linkHeroContent"]) {
+      expect(PREFILL_LINK_STYLE_KEYS, key).toContain(key);
+    }
+    // linkHeroImage stays OUT: it is an uploaded URL, and the control that
+    // sets it is gated off in the sketch by the test above.
+    expect(PREFILL_LINK_STYLE_KEYS).not.toContain("linkHeroImage");
+  });
 });
