@@ -40,11 +40,20 @@ function stops(bg: string): string[] {
   return bg.match(/#[0-9a-fA-F]{6}/g) ?? [];
 }
 
-// The label sits a few px above the tile's bottom edge, where the scrim has
-// almost but not quite reached full strength. 0.68 is that position, and it is
-// the WEAKEST the scrim ever is under the label — testing there is the
-// conservative choice.
-const SCRIM_AT_LABEL = 0.68;
+// How strong the scrim is where the label sits.
+//
+// This is a BOUND, not a measurement. The real figure depends on the rendered
+// tile height, and modelling it here got it wrong once already: the first
+// version assumed 0.68 when the label actually lands nearer 0.44 of the ramp,
+// so this test was checking a surface that does not exist. It erred toward
+// "more scrim than there really is", which is the optimistic direction — a
+// tile could have passed here and still been unreadable.
+//
+// So this stays a cheap smoke check with a deliberately WEAK scrim, and the
+// real answer comes from tests/render/swiftlink-tile-contrast.test.ts, which
+// hides the label, screenshots the pixel underneath it and measures that.
+// Keep the two in that order: this one fails fast, that one is the truth.
+const SCRIM_AT_LABEL = 0.4;
 
 describe("every Look produces a readable tile", () => {
   const cases = SWIFTLINK_LOOKS.flatMap((look) => [0, 1, 2, 3].map((i) => ({ look, i })));
