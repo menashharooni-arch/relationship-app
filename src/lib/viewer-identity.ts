@@ -72,6 +72,71 @@ export function authoritativeEventIdentity(
 type Admin = ReturnType<typeof getAdminSupabase>;
 
 /**
+ * Contact details safe to write into the owner's CRM, or null.
+ *
+ * /api/card-events is public and card slugs are public, so for an anonymous
+ * visitor the name/email/phone on an event arrive FROM THE CLIENT. That is
+ * deliberate — it is how someone who shared their details once is recognised
+ * on a later visit — and it is fine for our own bell, which records how sure
+ * we are (`identityLevel`) and never presents an association as certain.
+ *
+ * It is not fine for a CRM. Salesforce, HubSpot and a Zapier pipeline are a
+ * customer's system of record, and anyone could POST any public slug with any
+ * name and email and have a fabricated contact land in it.
+ *
+ * So this re-derives the details SERVER-SIDE instead of trusting the payload:
+ *   • an authenticated viewer is already authoritative — their session decided
+ *     the name, and by design it carries no email or phone;
+ *   • an anonymous visitor only counts if they actually submitted a lead to
+ *     THIS owner from THIS browser, and then the LEAD's own stored values are
+ *     used, never the ones the request supplied.
+ * Anything else returns null, and the event goes to the CRM without contact
+ * details — honest, and still carrying the event, source and location.
+ *
+ * Never throws: a lookup failure degrades to null (no contact details) rather
+ * than breaking event recording for a visitor.
+ */
+export async function corroboratedContact(opts: {
+  admin: Admin;
+  cardOwner: string;
+  visitorId: string | null | undefined;
+  sessionViewer: SessionViewer | null;
+  identity: EventIdentity;
+}): Promise<{ name: string | null; email: string | null; phone: string | null } | null> {
+  const { admin, cardOwner, visitorId, sessionViewer, identity } = opts;
+
+  // A session is proof of who this is. authoritativeEventIdentity has already
+  // reduced it to the display name with no email or phone, which is the whole
+  // point of that function — pass it straight through.
+  if (sessionViewer) {
+    return identity.visitor_name ? { name: identity.visitor_name, email: null, phone: null } : null;
+  }
+
+  if (!visitorId) return null;
+
+  try {
+    // Matched on visitor_id, not on the supplied email: the email is exactly
+    // the field an attacker controls, so using it to look up the record that
+    // is supposed to vouch for it would prove nothing.
+    const { data } = await admin
+      .from("leads")
+      .select("name, email, phone")
+      .eq("card_owner", cardOwner)
+      .eq("visitor_id", visitorId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!data) return null;
+    const name = (data.name as string | null) || null;
+    const email = (data.email as string | null) || null;
+    const phone = (data.phone as string | null) || null;
+    return name || email || phone ? { name, email, phone } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolve the authenticated viewer on the current request, or null when the
  * request is anonymous. Display name comes from their oldest card (the name
  * this person publicly presents as), then the OAuth profile name; email is the

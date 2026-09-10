@@ -6,7 +6,7 @@ import { planFromPriceId } from "@/lib/subscription";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
 import type Stripe from "stripe";
-import { officeSubUserBlockMessage, getOfficeSubUserContext, roleHasCapability } from "@/lib/office-roles";
+import { officeSubUserBlockMessage, getOfficeSubUserContext, roleHasCapability, resolveBillingSubjectId } from "@/lib/office-roles";
 
 // GET /api/stripe/subscription — the read model the billing UI renders from.
 // Reads the profile, and (when there's a live Stripe subscription) the
@@ -37,11 +37,20 @@ export async function GET() {
   const subUserCtx = await getOfficeSubUserContext(user.id);
   const personalSubOnly = !!subUserCtx && !roleHasCapability(subUserCtx.role, "manage_billing");
 
+  // THE SAME SUBJECT THE WRITES ACT ON. This used to read `user.id` while
+  // cancel, change-plan, discount, keep and preview all resolved through
+  // resolveBillingSubjectId — which returns the OWNER's id for a delegated
+  // billing_admin. A billing_admin who also held a personal subscription was
+  // therefore shown their own plan and, on pressing Cancel, would have
+  // cancelled the ORGANISATION's. You may only act on what you were shown.
+  const subjectId = await resolveBillingSubjectId(user.id);
+  const managingOrgBilling = subjectId !== user.id;
+
   const admin = getAdminSupabase();
   const { data: profile } = await admin
     .from("profiles")
     .select("plan, stripe_customer_id, stripe_subscription_id, plan_expires_at, customization")
-    .eq("id", user.id)
+    .eq("id", subjectId)
     .single();
 
   const cust = (profile?.customization as Record<string, unknown> | null) ?? {};
@@ -72,6 +81,10 @@ export async function GET() {
     hasStripeSubscription: !!profile?.stripe_subscription_id,
     hasCustomer: !!profile?.stripe_customer_id,
     personalSubOnly,
+    // Whose subscription this payload describes. True when a delegated
+    // billing_admin is looking at the ORGANISATION's, so the UI can name it
+    // instead of letting them believe it is their own.
+    managingOrgBilling,
   };
 
   if (!profile?.stripe_subscription_id) {
@@ -95,10 +108,14 @@ export async function GET() {
     base.renewalCents = unit != null ? unit * (item?.quantity ?? 1) : null;
 
     if (mapped?.plan === "office") {
+      // subjectId, not user.id — the office belongs to whoever holds the
+      // subscription this payload describes. With the caller's id here, a
+      // delegated billing_admin saw the org's plan and price but no seat
+      // counts at all, because they do not own the office row.
       const { data: office } = await admin
         .from("offices")
         .select("id, scheduled_seats, scheduled_seats_at")
-        .eq("owner_id", user.id)
+        .eq("owner_id", subjectId)
         .maybeSingle();
       if (office) {
         // Same accounting as the invite/seat routes — getOfficeSeatUsage drops

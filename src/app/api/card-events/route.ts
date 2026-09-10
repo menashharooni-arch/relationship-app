@@ -7,7 +7,7 @@ import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { isCardActive } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isSelfTraffic, resolveOwnerId } from "@/lib/self-traffic";
-import { authoritativeEventIdentity, resolveSessionViewer } from "@/lib/viewer-identity";
+import { authoritativeEventIdentity, corroboratedContact, resolveSessionViewer } from "@/lib/viewer-identity";
 import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot, botFamily } from "@/lib/bot-detection";
 import { logIngest, type IngestReason, type IngestDecision } from "@/lib/ingest-log";
@@ -445,12 +445,32 @@ export async function POST(req: NextRequest) {
           // Mirror this conversation notification to the owner's CRM. The CRM
           // wants the EVENT, not the merged headline — a milestone is our
           // gamification, not something to write into their pipeline.
+          //
+          // CONTACT DETAILS ARE CORROBORATED FIRST. This endpoint is public and
+          // card slugs are public, so for an anonymous visitor the name, email
+          // and phone arrive from the client — by design, so someone who shared
+          // once is recognised next time. That is fine for our own bell, which
+          // records the difference as `identityLevel` above and never presents
+          // it as certain. It is NOT fine to post into Salesforce, HubSpot or a
+          // Zapier pipeline: a stranger could POST any slug with any name and
+          // email and write a fabricated contact into a customer's system of
+          // record. So the details forwarded here come from the LEAD this
+          // visitor actually submitted to THIS owner, read server-side — or the
+          // event goes without contact details at all, which is honest and
+          // still useful (it carries the event, source and location).
+          const crmContact = await corroboratedContact({
+            admin,
+            cardOwner: card_owner_username,
+            visitorId: visitor_id,
+            sessionViewer,
+            identity,
+          });
           await dispatchCrmEvent(card_owner_username, {
             type: "conversation.notification",
             event: isView ? "card_viewed" : "contact_saved",
             title: notice.title,
             body: notice.body,
-            contact: { name: identity.visitor_name, email: identity.visitor_email, phone: identity.visitor_phone },
+            ...(crmContact ? { contact: crmContact } : {}),
             source: source || "direct_link",
             location: location ?? undefined,
           });

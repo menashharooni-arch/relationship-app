@@ -123,9 +123,43 @@ export function canSeeBilling(
   return !!personalSubscriptionId;
 }
 
+/**
+ * WHOSE subscription this user's billing actions apply to.
+ *
+ * A delegated billing_admin manages the ORGANISATION's — that is the role.
+ * Everyone else manages their own.
+ *
+ * TWO RULES THIS HAS TO KEEP, both learned the hard way:
+ *
+ * 1. The owner must still be on a paid Office plan, the same re-check
+ *    requireOfficeCapability makes. Membership outlives the subscription on
+ *    purpose (so re-subscribing restores the team), and /api/admin/set-plan
+ *    and /api/admin/users/[id] change profiles.plan with no office teardown.
+ *    Without this, a billing_admin left over from a lapsed Office plan could
+ *    reach the ex-owner's now-PERSONAL subscription and cancel or change it.
+ *    /api/stripe/subscription/seats already 403s in that state through
+ *    requireOfficeCapability; this made the other five routes disagree with it.
+ *
+ * 2. EVERY caller must resolve the subject the same way — the read as well as
+ *    the writes. The subscription GET used to read `user.id` while cancel,
+ *    change-plan, discount, keep and preview all resolved through here, so a
+ *    billing_admin who also held a personal subscription was SHOWN their own
+ *    plan and would have CANCELLED the organisation's. You may only act on
+ *    what you were shown; that is the whole invariant, and it is now pinned
+ *    by a test.
+ */
 export async function resolveBillingSubjectId(userId: string): Promise<string> {
   const ctx = await resolveOfficeContext(userId);
   if (ctx && !ctx.isOwner && roleHasCapability(ctx.role, "manage_billing") && ctx.ownerId) {
+    const admin = getAdminSupabase();
+    const { data: ownerProfile } = await admin
+      .from("profiles")
+      .select("plan")
+      .eq("id", ctx.ownerId)
+      .maybeSingle();
+    // Lapsed Office plan: the delegation is over. Fall back to their own
+    // account rather than reaching into a subscription that is now personal.
+    if (!isOfficePlan(ownerProfile?.plan as string | null)) return userId;
     return ctx.ownerId;
   }
   return userId;
