@@ -4,6 +4,7 @@ import Link from "next/link";
 import { TRIAL_DAYS } from "@/lib/plan";
 import SiteNav from "@/components/site/SiteNav";
 import HeroClaim from "@/components/site/HeroClaim";
+import AppStoreBadge from "@/components/AppStoreBadge";
 import HeroShowcase from "@/components/site/HeroShowcase";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
@@ -137,16 +138,31 @@ export default function Home() {
                   decision, Jul 2026): it should show the card working, not the
                   steps list. The claim box takes the visitor's first name into
                   the builder pre-filled (?name=…). */}
-              {/* No App Store badge here (owner decision 2026-09-03, evening —
-                  reversing the morning's "beside the button" request): the
+              {/* The App Store badge is here on PHONES ONLY (owner, 2026-09-10).
+                  This is not a re-reversal of the 2026-09-03 evening decision —
+                  that one removed a badge from every width, reasoning that "the
                   desktop header already carries one next to Log in, and the
-                  footer another, so a third in the hero was clutter beside the
-                  one thing this row is for. The badge component and its other
-                  placements are untouched. */}
+                  footer another, so a third in the hero was clutter". True on
+                  desktop, and still true: this one is `lg:hidden`, so desktop is
+                  exactly as that decision left it.
+                  Below lg it was not true, and the removal left phones with NO
+                  App Store link above the fold at all — while SiteNav's own
+                  comment still said "Phones get the hero badge beside 'See how
+                  it works' instead", because the nav badge is inside a
+                  `hidden lg:flex` cluster (a 375px bar has no room for the logo,
+                  the CTA, the menu trigger AND a badge). The two comments had
+                  been contradicting each other since.
+                  `lg:hidden` is the complement of that nav cluster, so there is
+                  now exactly ONE above-the-fold badge at every width, and never
+                  two. */}
               <div className="mt-7 flex flex-wrap items-center gap-3" data-reveal>
                 <Link id="hero-cta" href="#cards" className="rd-btn rd-btn-ghost-l rd-btn-lg !bg-white/85">
                   See how it works
                 </Link>
+                {/* size="lg" is the one built for this slot: 50px tall, matching
+                    .rd-btn-lg beside it to the pixel, with px-3 below sm so the
+                    pair still clears the edge of a 343px hero column. */}
+                <AppStoreBadge size="lg" className="lg:hidden" />
                 <HeroClaim />
               </div>
             </div>

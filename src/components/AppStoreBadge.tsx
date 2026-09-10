@@ -37,6 +37,14 @@ const SIZES: Record<Size, { pad: string; glyph: string; top: string; main: strin
   // hero column that is only 343px wide on a 375px phone, and the wider padding
   // put the pair 3px from the edge. py-2.5 is untouched by the breakpoint, so
   // the 50px height — the whole point of this size — holds at every width.
+  //
+  // Trimming further does NOT buy a narrower phone. Measured 2026-09-10 at
+  // 360px, where the column is 320: the button is 186 and this badge 133, so
+  // even at px-2.5 with an 8px row gap the pair needs 319-323px and the badge
+  // drops to its own line either way. So it keeps the roomier padding and
+  // wraps below 375 — cleanly, still full size, still directly under the
+  // button. Shaving a pixel off a badge to win a pixel is how a design ends up
+  // cramped everywhere to serve the one width it still cannot fit.
   lg: { pad: "px-3 sm:px-4 py-2.5", glyph: "w-[22px] h-[22px]", top: "text-[0.625rem]", main: "text-[0.875rem]", gap: "gap-2.5", radius: "rounded-xl" },
 };
 
