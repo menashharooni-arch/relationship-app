@@ -101,9 +101,9 @@ export const officeDocs = defineDocs([
       "stop employees changing",
     ],
     answer:
-      "The Branding tab. Section one is company information — logo, company name, website and office contact details, all identical on everyone's card. Section two is the card design every teammate shares. Saving re-applies the look to every active teammate's card automatically.",
+      "The Branding tab. Section one is company information — logo, company name, website and office contact details, all identical on everyone's card. Section two is the card design every teammate shares: the template, its colours and font, the Finish laid over the card background, and a panel photo or video with its Darken setting — the same controls a teammate would see on their own \"Card design\" tab. Saving re-applies the look to every active teammate's card automatically.",
     detail:
-      "The control people call the \"design lock\" is a checkbox reading \"Keep every card matching\", and it is ON by default — that name appears nowhere in the UI, so describe the checkbox. Unchecking it lets each teammate choose their own template and colours, while the logo, company name and contact details stay company-controlled either way. Branding governs your TEAMMATES' cards; your own personal card stays yours and is not overwritten.",
+      "The control people call the \"design lock\" is a checkbox reading \"Keep every card matching\", and it is ON by default — that name appears nowhere in the UI, so describe the checkbox. While it is on, a teammate opening their own \"Card design\" tab sees a \"Managed by your organization\" note instead of the controls. Unchecking it lets each teammate choose their own template, colours, finish and panel background, while the logo, company name and contact details stay company-controlled either way. Branding governs your TEAMMATES' cards; your own personal card stays yours and is not overwritten.",
   },
   {
     id: "office-roles",
