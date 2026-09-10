@@ -24,6 +24,13 @@
 		<string>SwiftCard App Store</string>
 		<key>me.swiftcard.app.SwiftCardWidgetExtension</key>
 		<string>SwiftCard Widget App Store</string>
+		<!-- The Apple Watch app and its complication. Both are inside the .ipa
+		     (App.app/Watch/SwiftCardWatch.app and its PlugIns), so both need a
+		     profile here or -exportArchive stops at the last step. -->
+		<key>me.swiftcard.app.watchkitapp</key>
+		<string>SwiftCard Watch App Store</string>
+		<key>me.swiftcard.app.watchkitapp.complication</key>
+		<string>SwiftCard Watch Complication App Store</string>
 	</dict>
 	<!-- dSYMs, so native crashes can be symbolicated. -->
 	<key>uploadSymbols</key>

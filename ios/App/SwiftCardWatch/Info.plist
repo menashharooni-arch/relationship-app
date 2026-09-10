@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<!-- The name under the icon in the watch app grid. Short on purpose: the
+	     grid clips at roughly ten characters on a 40mm watch. -->
+	<key>CFBundleDisplayName</key>
+	<string>SwiftCard</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<!-- Must stay in lockstep with the App target's MARKETING_VERSION /
+	     CURRENT_PROJECT_VERSION. App Store upload rejects a watch app whose
+	     version differs from its companion iPhone app. -->
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- WKApplication = YES declares a modern SINGLE-target watch app
+	     (watchOS 7+). The old two-target shape (a WatchKit app plus a WatchKit
+	     extension, WKWatchKitApp) is gone; setting the old key instead makes
+	     the target build and then fail to install with no useful diagnostic. -->
+	<key>WKApplication</key>
+	<true/>
+	<!-- The iPhone app this watch app belongs to. This single string is what
+	     makes the pair a pair: it is how watchOS installs this app alongside
+	     SwiftCard, and how WCSession knows which process to talk to. It must
+	     match the App target's PRODUCT_BUNDLE_IDENTIFIER exactly. -->
+	<key>WKCompanionAppBundleIdentifier</key>
+	<string>me.swiftcard.app</string>
+	<!-- The card is cached on the watch, so the app is genuinely useful with
+	     the phone switched off or left at home. Saying so lets watchOS launch
+	     it without waiting on the companion. -->
+	<key>WKRunsIndependentlyOfCompanionApp</key>
+	<true/>
+</dict>
+</plist>

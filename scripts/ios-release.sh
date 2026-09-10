@@ -83,7 +83,9 @@ npx cap sync ios
 
 # ── archive ──────────────────────────────────────────────────────────────────
 # The archive is SIGNED, with MANUAL style pinned per target in project.pbxproj
-# (App → "SwiftCard App Store", widget → "SwiftCard Widget App Store").
+# (App → "SwiftCard App Store", widget → "SwiftCard Widget App Store", watch app
+# → "SwiftCard Watch App Store", complication → "SwiftCard Watch Complication
+# App Store"). Run scripts/asc-provision.mjs first; it creates all four.
 #
 # It used to archive with CODE_SIGNING_ALLOWED=NO on the reasoning that
 # automatic signing wants an "Apple Development" profile and this team has no
@@ -155,13 +157,35 @@ if [[ -n "$WIDGET" ]]; then
   grep -q 'group.me.swiftcard.app' <<<"$WENTS" || missing+=("widget application-groups (widget cannot read the shared container)")
 fi
 
+# ── the Apple Watch app ──────────────────────────────────────────────────────
+# Checked for PRESENCE first, not just entitlements. A watch app is embedded by
+# a copy-files phase, and a phase that silently stops running produces a
+# perfectly valid iPhone .ipa with no watch app in it — Apple accepts it, review
+# passes, and the feature simply does not exist for anyone. Same failure shape
+# as the entitlements above, one level up.
+WATCH_APP="$APP_BIN/Watch/SwiftCardWatch.app"
+if [[ ! -d "$WATCH_APP" ]]; then
+  missing+=("Watch/SwiftCardWatch.app (the Apple Watch app is not in the build at all)")
+else
+  WAENTS="$(codesign -d --entitlements :- "$WATCH_APP" 2>/dev/null || true)"
+  grep -q 'group.me.swiftcard.app' <<<"$WAENTS" || missing+=("watch app application-groups (its complication cannot read the card)")
+
+  COMPLICATION="$(find "$WATCH_APP/PlugIns" -maxdepth 1 -name '*.appex' 2>/dev/null | head -1 || true)"
+  if [[ -z "$COMPLICATION" ]]; then
+    missing+=("watch complication .appex (no watch-face complication would install)")
+  else
+    CENTS="$(codesign -d --entitlements :- "$COMPLICATION" 2>/dev/null || true)"
+    grep -q 'group.me.swiftcard.app' <<<"$CENTS" || missing+=("watch complication application-groups (it would render the empty state forever)")
+  fi
+fi
+
 if (( ${#missing[@]} )); then
   printf '\nerror: the signed binary is missing entitlements the app depends on:\n' >&2
   printf '  - %s\n' "${missing[@]}" >&2
   printf '\nApp entitlements actually embedded:\n%s\n' "$ENTS" >&2
   die "refusing to ship a build whose capabilities are dead on device."
 fi
-echo "Entitlements OK: push (production), Universal Links, app group — app and widget."
+echo "Entitlements OK: push (production), Universal Links, app group — app, widget, watch app and complication."
 
 # Validation catches the things App Store Connect would reject hours later:
 # missing privacy manifest reasons, bad icon, entitlement/profile mismatch,

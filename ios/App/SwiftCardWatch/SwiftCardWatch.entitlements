@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The WATCH-side App Group. Same identifier as the phone's, but a
+	     completely separate container: App Groups are shared between an app and
+	     its extensions on ONE device, never across the pair. This one exists so
+	     the complication extension can read the card this app receives over
+	     WatchConnectivity. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.me.swiftcard.app</string>
+	</array>
+</dict>
+</plist>

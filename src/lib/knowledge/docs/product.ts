@@ -89,13 +89,26 @@ export const productDocs = defineDocs([
     title: "Apple Wallet pass",
     audience: ["visitor", "user"],
     triggers: [
-      "apple wallet", "wallet", "wallet pass", "add to wallet", "apple watch", "watch",
+      "apple wallet", "wallet", "wallet pass", "add to wallet",
       "google wallet", "android wallet",
     ],
     answer:
       "Your own card can go in Apple Wallet: dashboard → \"Other ways to share\" → \"Add to Apple Wallet\". The pass carries your card's look and a big QR, so it's a couple of taps away and shows on Apple Watch.",
     detail:
-      "The pass keeps itself current: once it's in Wallet it registers with SwiftCard, so editing your card updates the pass already on the phone — no need to re-add it. Two things people expect that aren't there. There is no \"Add to Apple Wallet\" button on the public card page — a visitor cannot add SOMEONE ELSE's card to their Wallet, only save them as a contact. And there is no watchOS app: the Watch simply shows the Wallet pass. There is no Google Wallet pass either; on Android, share the link or the QR. The \"Add SwiftCard to Wallet\" button on the marketing homepage is a call to action that opens the card builder — a pass only exists once you've built a card and signed in.",
+      "The pass keeps itself current: once it's in Wallet it registers with SwiftCard, so editing your card updates the pass already on the phone — no need to re-add it. Two things people expect that aren't there. There is no \"Add to Apple Wallet\" button on the public card page — a visitor cannot add SOMEONE ELSE's card to their Wallet, only save them as a contact. There IS an Apple Watch app now (see the Apple Watch answer) — the Wallet pass is no longer the only thing on the wrist. There is no Google Wallet pass either; on Android, share the link or the QR. The \"Add SwiftCard to Wallet\" button on the marketing homepage is a call to action that opens the card builder — a pass only exists once you've built a card and signed in.",
+  },
+  {
+    id: "apple-watch",
+    title: "SwiftCard on Apple Watch",
+    audience: ["visitor", "user"],
+    triggers: [
+      "apple watch", "watch", "watch app", "watchos", "on my wrist", "wrist",
+      "watch complication", "complication", "watch face", "share from my watch",
+    ],
+    answer:
+      "If you have the iPhone app, SwiftCard is on your Apple Watch too. Open it and your card's QR code fills the screen for someone to scan — your name and company are just below. There is nothing to set up: the watch picks up whichever card is active on your phone.",
+    detail:
+      "It comes WITH the iPhone app, as part of the same download — there is no separate watch app to install, though you may need to switch it on in the iPhone's Watch app under Available Apps. Add the complication to a watch face (\"My SwiftCard\") and your card is one tap from a raised wrist. Three things worth knowing. It works without your phone: the card is stored on the watch, so the QR still shows with the phone off or left at home. It follows your active card automatically — change cards on the phone, and the watch changes with it. And signing out on the phone clears the watch too. If the watch says \"Open SwiftCard on your iPhone\", open the iPhone app once while the watch is nearby and it will catch up. There is no Android or Wear OS version.",
   },
   {
     id: "nfc",
