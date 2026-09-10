@@ -13,6 +13,7 @@
 //   autoplaying embed. Free renders every link compact and videos link out —
 //   featured tiles, the grid and inline video are the advertised premium.
 
+import { fallbackTile } from "@/lib/swiftlink-looks";
 import { useEffect, useRef, useState } from "react";
 import { videoThumbnail, videoEmbed } from "@/lib/video";
 import { triggerSignupNudge } from "@/lib/nudge";
@@ -23,12 +24,6 @@ type Preview = { image: string | null; favicon: string | null; title: string | n
 
 // Fallback gradients for links with no preview image — picked by index so
 // neighboring tiles differ.
-const FALLBACK_GRADIENTS = [
-  "linear-gradient(135deg, #4338ca 0%, #7c3aed 55%, #db2777 100%)",
-  "linear-gradient(135deg, #0e7490 0%, #2563eb 60%, #4f46e5 100%)",
-  "linear-gradient(135deg, #b45309 0%, #dc2626 60%, #be185d 100%)",
-  "linear-gradient(135deg, #065f46 0%, #0d9488 60%, #0284c7 100%)",
-];
 
 // An uploaded tile video. autoplay+muted+loop+playsinline is what iOS Safari
 // and the shell's WKWebView require for silent inline autoplay; the effect
@@ -352,9 +347,15 @@ export default function SwiftLinkButtons({
         const media = tileMedia(link, paid);
         const mediaVideo = media?.type === "video" ? media.url : null;
         const img = media?.type === "image" ? media.url : videoThumb || pv?.image || null;
+        // With no picture the tile is built from this page's own Look — see
+        // fallbackTile() in lib/swiftlink-looks. It replaced four hard-coded
+        // rainbow gradients that ignored the palette the owner picked.
+        const fb = fallbackTile({ tile: tileBg, accent }, i);
         // Light-bottomed preview → dark title on a light scrim; anything else
-        // (dark image, gradient fallback, unsampleable) → white on dark scrim.
-        const lightTile = img ? tileTone[img] === "light" : false;
+        // → white on dark. The branded tile can land either way (a light Look
+        // makes a light tile), so it reports its own lightness rather than
+        // being assumed dark the way the old fixed gradients could be.
+        const lightTile = img ? tileTone[img] === "light" : fb.light;
         const isPlaying = playing === i;
         const big = size === "featured" || isPlaying;
 
@@ -398,20 +399,15 @@ export default function SwiftLinkButtons({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center" style={{ background: FALLBACK_GRADIENTS[i % FALLBACK_GRADIENTS.length] }}>
-                {link.emoji ? (
-                  <span className="text-4xl drop-shadow">{link.emoji}</span>
-                ) : favicon ? (
-                  <span className="w-12 h-12 rounded-full bg-white/95 flex items-center justify-center shadow-lg">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={favicon} alt="" className="w-7 h-7 object-contain" />
-                  </span>
-                ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth={2} className="w-9 h-9">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                  </svg>
-                )}
-              </div>
+              // No picture: the branded surface carries the tile on its own.
+              // Nothing is centred on it any more. A 36px emoji floating in
+              // the middle of a coloured rectangle was the cartoon look, and
+              // the chain-link glyph that stood in when there was no emoji was
+              // worse — every tile on the page wearing the same generic icon.
+              // Whatever the owner did choose (an emoji, or the site's
+              // favicon) now appears as the same small top-left chip the
+              // picture tiles have always used, so the two states match.
+              <div className="absolute inset-0" style={{ background: fb.background }} />
             )}
 
             {/* Bottom gradient so the title reads over any image — matched to
@@ -426,8 +422,15 @@ export default function SwiftLinkButtons({
             />
 
             {/* Favicon circle, top-left (link.me's iconbox) */}
-            {(img || mediaVideo) && (favicon || link.emoji) && (
-              <span className="absolute top-2 left-2 z-[6] w-[30px] h-[30px] rounded-full bg-white/95 shadow flex items-center justify-center">
+            {(favicon || link.emoji) && (
+              <span
+                className="absolute top-2 left-2 z-[6] w-[30px] h-[30px] rounded-full flex items-center justify-center"
+                style={
+                  lightTile
+                    ? { background: "rgba(255,255,255,0.92)", boxShadow: "0 1px 3px rgba(15,23,42,0.18), inset 0 0 0 1px rgba(15,23,42,0.08)" }
+                    : { background: "rgba(255,255,255,0.95)", boxShadow: "0 1px 3px rgba(0,0,0,0.28)" }
+                }
+              >
                 {favicon ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={favicon} alt="" className="w-[20px] h-[20px] object-contain rounded-full" />

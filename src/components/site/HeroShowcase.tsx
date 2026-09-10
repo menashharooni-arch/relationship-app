@@ -10,9 +10,10 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
-import { getLook, hexAlpha, type SwiftLinkLook } from "@/lib/swiftlink-looks";
+import { getLook, hexAlpha, fallbackTile, type SwiftLinkLook } from "@/lib/swiftlink-looks";
 import PlatformIcon from "@/components/PlatformIcon";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
+import PhoneFrame from "@/components/PhoneFrame";
 
 // ── The hero's rotating persona showcase (owner order 2026-08-26, modeled on
 //    link.me's front page) ────────────────────────────────────────────────────
@@ -52,8 +53,11 @@ type Persona = {
   socials: BrandSocial[];
   /** The card page's action-link rows AND the Swift Links grid: [emoji, label]. */
   rows: Array<[string, string]>;
-  /** Four half-width Swift Links grid tiles: [emoji, label]. */
-  grid: Array<[string, string]>;
+  /** Four half-width Swift Links grid tiles. Labels only: the live renderer
+   *  shows an emoji as a small corner chip when the owner picked one, and
+   *  nothing at all when they did not — which is the common case, and the
+   *  one that lets the brand-derived tile carry the design. */
+  grid: string[];
   signoff: string;
 };
 
@@ -88,7 +92,7 @@ const PERSONAS: Persona[] = [
     look: getLook("nebula"),
     socials: soc([["Instagram", "#"], ["LinkedIn", "#"], ["Facebook", "#"], ["YouTube", "#"]]),
     rows: [["🏡", "Current listings"], ["📅", "Book a private showing"]],
-    grid: [["🔑", "Just listed"], ["🏡", "Open houses"], ["⭐", "Client reviews"], ["🧮", "Home valuation"]],
+    grid: ["Just listed", "Open houses", "Client reviews", "Home valuation"],
     signoff: "Talk soon,",
   },
   {
@@ -104,7 +108,7 @@ const PERSONAS: Persona[] = [
     look: getLook("sand"),
     socials: soc([["Instagram", "#"], ["Facebook", "#"], ["YouTube", "#"]]),
     rows: [["⚡", "Request a free quote"], ["⭐", "Read our 5-star reviews"]],
-    grid: [["⚡", "Free quote"], ["🔌", "EV chargers"], ["⭐", "Reviews"], ["🧰", "Our services"]],
+    grid: ["Free quote", "EV chargers", "Reviews", "Our services"],
     signoff: "Thanks,",
   },
   {
@@ -120,7 +124,7 @@ const PERSONAS: Persona[] = [
     look: getLook("paper"),
     socials: soc([["LinkedIn", "#"], ["Facebook", "#"], ["X / Twitter", "#"]]),
     rows: [["🛡️", "Free coverage review"], ["📄", "Start a claim"]],
-    grid: [["🛡️", "Coverage review"], ["🏠", "Home + auto"], ["👨‍👩‍👧", "Life insurance"], ["📄", "Start a claim"]],
+    grid: ["Coverage review", "Home + auto", "Life insurance", "Start a claim"],
     signoff: "Best regards,",
   },
   {
@@ -136,7 +140,7 @@ const PERSONAS: Persona[] = [
     look: getLook("chrome"),
     socials: soc([["LinkedIn", "#"], ["X / Twitter", "#"]]),
     rows: [["🗓️", "Schedule a consultation"], ["📈", "Quarterly market briefing"]],
-    grid: [["🗓️", "Consultation"], ["📈", "Market briefing"], ["🏛️", "Wealth guide"], ["🔐", "Client portal"]],
+    grid: ["Consultation", "Market briefing", "Wealth guide", "Client portal"],
     signoff: "Kind regards,",
   },
   {
@@ -152,7 +156,7 @@ const PERSONAS: Persona[] = [
     look: getLook("midnight"),
     socials: soc([["LinkedIn", "#"], ["X / Twitter", "#"], ["Instagram", "#"]]),
     rows: [["⚖️", "Free case evaluation"], ["🏛️", "Practice areas"]],
-    grid: [["⚖️", "Case evaluation"], ["🏛️", "Practice areas"], ["📚", "Client results"], ["📰", "In the news"]],
+    grid: ["Case evaluation", "Practice areas", "Client results", "In the news"],
     signoff: "Sincerely,",
   },
   {
@@ -169,20 +173,13 @@ const PERSONAS: Persona[] = [
     look: getLook("onyx"),
     socials: soc([["Instagram", "#"], ["TikTok", "#"], ["YouTube", "#"], ["Facebook", "#"]]),
     rows: [["🚗", "Browse new inventory"], ["🔑", "Book a test drive"]],
-    grid: [["🚗", "New inventory"], ["🔑", "Book a test drive"], ["🏁", "Weekly deals"], ["💰", "Trade-in offer"]],
+    grid: ["New inventory", "Book a test drive", "Weekly deals", "Trade-in offer"],
     signoff: "Drive safe,",
   },
 ];
 
 // SwiftLinkButtons' exact fallback gradients — a real page's grid tiles with
 // no preview image look precisely like this, indexed so neighbours differ.
-const FALLBACK_GRADIENTS = [
-  "linear-gradient(135deg, #4338ca 0%, #7c3aed 55%, #db2777 100%)",
-  "linear-gradient(135deg, #0e7490 0%, #2563eb 60%, #4f46e5 100%)",
-  "linear-gradient(135deg, #b45309 0%, #dc2626 60%, #be185d 100%)",
-  "linear-gradient(135deg, #065f46 0%, #0d9488 60%, #0284c7 100%)",
-];
-
 // Personas that exist for the /for/<industry> landing pages only — the
 // homepage rotation stays the six above.
 const VERTICAL_PERSONAS: Persona[] = [
@@ -200,7 +197,7 @@ const VERTICAL_PERSONAS: Persona[] = [
     look: getLook("forest"),
     socials: soc([["LinkedIn", "#"], ["Instagram", "#"], ["Facebook", "#"]]),
     rows: [["🏠", "Start a pre-approval"], ["🧮", "Payment calculator"]],
-    grid: [["🏠", "Get pre-approved"], ["🧮", "Rate calculator"], ["⭐", "Client reviews"], ["🤝", "Agent partners"]],
+    grid: ["Get pre-approved", "Rate calculator", "Client reviews", "Agent partners"],
     signoff: "Talk soon,",
   },
   {
@@ -217,7 +214,7 @@ const VERTICAL_PERSONAS: Persona[] = [
     look: getLook("blush"),
     socials: soc([["Instagram", "#"], ["TikTok", "#"], ["YouTube", "#"], ["Facebook", "#"]]),
     rows: [["📸", "View my portfolio"], ["📅", "Check date availability"]],
-    grid: [["📸", "Portfolio"], ["💍", "Wedding packages"], ["🌅", "Mini sessions"], ["🖼️", "Client galleries"]],
+    grid: ["Portfolio", "Wedding packages", "Mini sessions", "Client galleries"],
     signoff: "With love,",
   },
   {
@@ -234,7 +231,7 @@ const VERTICAL_PERSONAS: Persona[] = [
     look: getLook("orchid"),
     socials: soc([["Instagram", "#"], ["TikTok", "#"], ["YouTube", "#"]]),
     rows: [["💈", "Book a chair"], ["🗓️", "See open slots"]],
-    grid: [["💈", "Book now"], ["💵", "Price list"], ["✨", "Transformations"], ["🧴", "Products I use"]],
+    grid: ["Book now", "Price list", "Transformations", "Products I use"],
     signoff: "See you soon,",
   },
 ];
@@ -263,9 +260,12 @@ function Verified({ size = 22 }: { size?: number }) {
 }
 
 /** LEFT — the persona's Swift Links page, the live page's own layout at 430px scaled down. */
+/** The card page's ambient accent wash — the real page's own background. */
+const phoneScreenWash = (accent: string) =>
+  `linear-gradient(180deg, ${hexAlpha(accent, 0.14)} 0%, rgba(250,247,242,0) 46%), #FAF7F2`;
+
 function MiniLinks({ persona }: { persona: Persona }) {
   const L = persona.look;
-  const light = L.mode === "light";
   const text = L.text;
   const first = persona.data.name.split(" ")[0];
   const sheetBg = L.sheetTo ? `linear-gradient(180deg, ${L.sheet} 0%, ${L.sheetTo} 100%)` : L.sheet;
@@ -323,20 +323,31 @@ function MiniLinks({ persona }: { persona: Persona }) {
               packing in pairs, gradient fallback, bottom scrim, centered
               title, shine sweep — SwiftLinkButtons' own classes. */}
           <div className="w-full mt-6 flex flex-wrap justify-between">
-            {persona.grid.map(([emoji, label], i) => (
+            {persona.grid.map((label, i) => {
+              // Same call the live page makes, so the tiles here ARE the
+              // tiles a visitor sees: one brand-derived ramp instead of the
+              // four fixed rainbow gradients this used to mirror.
+              const fb = fallbackTile(L, i);
+              return (
               <div key={label} className="relative overflow-hidden rounded-[14px] mb-2.5 block aspect-[1.91/1] w-[calc(50%-6px)]" style={{ background: L.tile }}>
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: FALLBACK_GRADIENTS[i % FALLBACK_GRADIENTS.length] }}>
-                  <span className="text-4xl drop-shadow">{emoji}</span>
-                </div>
-                <div className="absolute inset-x-0 bottom-0 h-[70%]" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)" }} />
+                <div className="absolute inset-0" style={{ background: fb.background }} />
+                <div
+                  className="absolute inset-x-0 bottom-0 h-[70%]"
+                  style={{
+                    background: fb.light
+                      ? "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.82) 100%)"
+                      : "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.75) 100%)",
+                  }}
+                />
                 <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
-                  <span className="font-semibold text-center leading-[1.3] text-[1rem]" style={{ color: "#ffffff", textShadow: "0 1px 8px rgba(0,0,0,0.6)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  <span className="font-semibold text-center leading-[1.3] text-[1rem]" style={{ color: fb.light ? "#0F172A" : "#ffffff", textShadow: fb.light ? "0 1px 6px rgba(255,255,255,0.7)" : "0 1px 8px rgba(0,0,0,0.6)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                     {label}
                   </span>
                 </span>
                 <span className="sc-hs-shine" aria-hidden="true" />
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Made-with footer, every real profile carries it */}
@@ -417,18 +428,7 @@ function PhoneCard({ persona }: { persona: Persona }) {
   const first = persona.data.name.split(" ")[0];
   const domain = persona.data.website || "";
   return (
-    <div
-      className="w-full h-full rounded-[30px] overflow-hidden flex flex-col"
-      style={{ background: `linear-gradient(180deg, ${hexAlpha(persona.accent, 0.14)} 0%, rgba(250,247,242,0) 46%), #FAF7F2` }}
-    >
-      {/* status strip */}
-      <div className="flex items-center justify-between px-5 pt-2.5 pb-1" aria-hidden="true">
-        <span className="text-[0.5625rem] font-semibold text-slate-700">9:41</span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-[7px] rounded-[2px] border border-slate-500/70 relative"><span className="absolute inset-[1px] right-[3px] bg-slate-600 rounded-[1px]" /></span>
-        </span>
-      </div>
-
+    <div className="w-full h-full flex flex-col">
       {/* the page, natural width, scaled as one unit */}
       <div className="mx-auto overflow-hidden" style={{ width: PHONE_NATURAL_W * PHONE_SCALE, height: PHONE_NATURAL_H * PHONE_SCALE }}>
         <div className="origin-top-left flex flex-col items-center px-4 pt-2 pb-4 gap-4" style={{ width: PHONE_NATURAL_W, height: PHONE_NATURAL_H, transform: `scale(${PHONE_SCALE})` }}>
@@ -527,26 +527,64 @@ function Stage({ persona, entered, preload }: { persona: Persona; entered: boole
         </span>
       </div>
 
-      {/* CENTER — the phone. Crossfades between personas (link.me's center). */}
-      <div className="absolute left-[210px] top-[34px] z-20 w-[280px] h-[600px] rounded-[38px] bg-slate-900 p-[7px] shadow-[0_40px_90px_-30px_rgba(8,10,18,0.6)]">
-        <div key={persona.key + "-phone"} className={`sc-hs-fade w-full h-full ${entered ? "" : "sc-hs-hidden"}`}>
-          <PhoneCard persona={persona} />
+      {/* CENTER — the phone. Crossfades between personas (link.me's center).
+          The shell is the shared PhoneFrame: real iPhone geometry, Dynamic
+          Island, titanium rail, glass. 582 + the frame's own 17px of rail and
+          bezel lands back on the 600px height this stage was laid out around,
+          so nothing else on the stage moves. */}
+      <div className="absolute left-[210px] top-[34px] z-20">
+        <PhoneFrame
+          width={280}
+          tilt={-1.6}
+          screenStyle={{ height: 582, background: phoneScreenWash(persona.accent) }}
+          ariaLabel="A SwiftCard link open on a phone"
+        >
+          <div key={persona.key + "-phone"} className={`sc-hs-fade w-full h-full ${entered ? "" : "sc-hs-hidden"}`}>
+            <PhoneCard persona={persona} />
+          </div>
+        </PhoneFrame>
+      </div>
+
+      {/* THE THREE OBJECTS SIT AT THREE DEPTHS.
+          Before this they did not: same shadow, same scale, same dead-flat
+          angle on all three, which is why a phone and two panels read as three
+          stickers laid on the page instead of a photograph of a desk.
+          Depth here is carried by four cues at once, all of them small:
+            • SCALE     — the far panel is 94.5%, the near one full size.
+            • ANGLE     — a couple of degrees each way. Nothing in a real
+                          photograph is perfectly square to the lens.
+            • SHADOW    — far = wide, soft and weak; near = tighter and darker;
+                          the phone (PhoneFrame) darkest of all. Distance is
+                          mostly read from how hard a shadow is.
+            • AIR       — the far panel loses a little saturation and contrast,
+                          which is what distance does to colour. Deliberately
+                          NOT blur: the owner's standing order is that every
+                          panel stays legible, and a blurred one does not.
+          The static depth transform has to live on its own element because the
+          drift keyframes animate `transform` — one element cannot hold both. */}
+
+      {/* LEFT flanker — the full Swift Links page, furthest back. IN FRONT of
+          the phone's edge (owner: nothing may hide under the phone). */}
+      <div
+        className="absolute left-0 top-[104px] z-10"
+        style={{ transform: "rotate(-2.4deg) scale(0.945)", transformOrigin: "left center", filter: "saturate(0.94) contrast(0.975)" }}
+      >
+        <div className="rounded-[16px] shadow-[0_34px_70px_-26px_rgba(8,10,18,0.38)] ring-1 ring-black/5 sc-hs-drift">
+          <div key={persona.key + "-links"} className={`sc-hs-slide-l ${entered ? "" : "sc-hs-hidden-l"}`}>
+            <MiniLinks persona={persona} />
+          </div>
         </div>
       </div>
 
-      {/* LEFT flanker — the full Swift Links page. IN FRONT of the phone's
-          edge (owner: nothing may hide under the phone), sliding in from the
-          left and drifting while visible. */}
-      <div className="absolute left-0 top-[104px] z-10 rounded-[16px] shadow-[0_28px_60px_-20px_rgba(8,10,18,0.55)] ring-1 ring-black/5 sc-hs-drift">
-        <div key={persona.key + "-links"} className={`sc-hs-slide-l ${entered ? "" : "sc-hs-hidden-l"}`}>
-          <MiniLinks persona={persona} />
-        </div>
-      </div>
-
-      {/* RIGHT flanker — Swift Signature, slides in from the right, sits low. */}
-      <div className="absolute right-0 bottom-[70px] z-10 rounded-[18px] shadow-[0_24px_50px_-18px_rgba(8,10,18,0.5)] ring-1 ring-black/5 sc-hs-drift" style={{ animationDelay: "1.4s" }}>
-        <div key={persona.key + "-sig"} className={`sc-hs-slide-r ${entered ? "" : "sc-hs-hidden-r"}`}>
-          <MiniSignature persona={persona} />
+      {/* RIGHT flanker — Swift Signature, nearest the viewer, sits low. */}
+      <div
+        className="absolute right-0 bottom-[70px] z-10"
+        style={{ transform: "rotate(2.1deg)", transformOrigin: "right center" }}
+      >
+        <div className="rounded-[18px] shadow-[0_18px_38px_-12px_rgba(8,10,18,0.5),0_3px_8px_-2px_rgba(8,10,18,0.32)] ring-1 ring-black/5 sc-hs-drift" style={{ animationDelay: "1.4s", animationDuration: "5.1s" }}>
+          <div key={persona.key + "-sig"} className={`sc-hs-slide-r ${entered ? "" : "sc-hs-hidden-r"}`}>
+            <MiniSignature persona={persona} />
+          </div>
         </div>
       </div>
 

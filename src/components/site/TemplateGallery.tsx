@@ -15,6 +15,7 @@ import ShareButton from "@/components/ShareButton";
 import CardMiniBuilder from "./CardMiniBuilder";
 import { cardPageTheme } from "@/lib/card-page-theme";
 import DemoSwiftLinks from "./DemoSwiftLinks";
+import PhoneFrame, { StatusBar, phoneScreenWidth } from "@/components/PhoneFrame";
 
 // Interactive template gallery for the homepage. It renders the REAL card
 // templates (same components, same sample data as /templates and the live
@@ -47,19 +48,6 @@ const TEMPLATES: Tmpl[] = [
   { id: "luxury-minimal", name: "Luxury Minimal", Component: LuxuryMinimal },
   { id: "logo-first", name: "Logo First", Component: LogoFirst, data: LOGO_FIRST_DATA },
 ];
-
-function StatusBar() {
-  return (
-    <div className="flex items-center justify-between px-6 pt-3 pb-1 text-[0.6875rem] font-semibold text-slate-800">
-      <span>9:41</span>
-      <div className="flex items-center gap-1">
-        <svg viewBox="0 0 18 12" className="w-4 h-3" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1" /><rect x="5" y="4" width="3" height="8" rx="1" /><rect x="10" y="1" width="3" height="11" rx="1" opacity="0.4" /></svg>
-        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><path d="M12 18a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM5 13a10 10 0 0114 0l-1.5 1.5a8 8 0 00-11 0zm-3-3a14 14 0 0120 0l-1.5 1.5a12 12 0 00-17 0z" /></svg>
-        <svg viewBox="0 0 26 13" className="w-6 h-3.5" fill="none" stroke="currentColor" strokeWidth="1"><rect x="0.5" y="0.5" width="22" height="12" rx="3" /><rect x="2" y="2" width="17" height="9" rx="1.5" fill="currentColor" /><rect x="23.5" y="4" width="2" height="5" rx="1" fill="currentColor" /></svg>
-      </div>
-    </div>
-  );
-}
 
 const Panel = "w-full rounded-2xl p-4 shadow-sm";
 const panelStyle = { background: "#fff", border: "1px solid #E4DDD4" } as const;
@@ -174,16 +162,13 @@ export default function TemplateGallery({ linkedinEnabled = false }: { linkedinE
           <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 5v14M12 19l-4-4M12 19l4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
           Scroll on phone to view
         </div>
-        <div className="rd-phone w-[300px]">
-          <div className="rd-phone-screen h-[600px]" style={{ background: "#FAF7F2" }}>
-            <div className="rd-notch" />
-            <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none">
-              <StatusBar />
-              <LinkExperience key={activeT.id} id={activeT.id} Component={activeT.Component} data={activeT.data ?? CARD} />
-            </div>
-            <div className="pointer-events-none absolute inset-0 z-10" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 26%)" }} />
+        {/* One shared iPhone for the whole site — see components/PhoneFrame. */}
+        <PhoneFrame width={300} statusBar={false} screenStyle={{ height: 600, background: "#FAF7F2" }}>
+          <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none">
+            <StatusBar width={phoneScreenWidth(300)} />
+            <LinkExperience key={activeT.id} id={activeT.id} Component={activeT.Component} data={activeT.data ?? CARD} />
           </div>
-        </div>
+        </PhoneFrame>
       </div>
 
       {/* Template grid — every real template, name above each */}

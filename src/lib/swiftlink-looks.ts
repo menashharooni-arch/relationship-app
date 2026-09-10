@@ -512,3 +512,88 @@ export function normalizePageDim(v?: number | string | null): number {
  * page, so the one surface that can appear underneath is pinned dark.
  */
 export const PAGE_MEDIA_BASE = "#0D0D10";
+
+// ── The tile a link falls back to when it has no picture ─────────────────────
+//
+// Until now that fallback was one of four hard-coded gradients, picked by the
+// link's index: indigo→purple→pink, cyan→blue→indigo, amber→red→pink,
+// emerald→teal→sky. So a page built on the warm "Sand" Look, whose owner never
+// chose a single one of those colours, got a purple tile, a blue tile, a red
+// tile and a green tile — four saturated hues that belonged to nobody, sitting
+// directly under a name and a headshot. It is the single loudest thing that
+// made a real person's page look generated rather than designed, and it made
+// the marketing hero look it too, because the hero mirrors this exact code.
+//
+// A tile with no picture now takes its colour from the page's own Look. The
+// four tiles are four steps of ONE brand-derived ramp rather than four
+// unrelated colours, so a wall of them reads as a set. The variation is real
+// but small: enough that a 2x2 grid is not four identical blocks, never enough
+// to leave the palette.
+
+/** `a` mixed into `b` at `t` (0 = all b, 1 = all a). Both must be #rrggbb. */
+function mixHex(a: string, b: string, t: number): string {
+  const pa = /^#([0-9a-fA-F]{6})$/.exec(a);
+  const pb = /^#([0-9a-fA-F]{6})$/.exec(b);
+  if (!pa || !pb) return a;
+  const na = parseInt(pa[1], 16);
+  const nb = parseInt(pb[1], 16);
+  const ch = (sh: number) => {
+    const va = (na >> sh) & 255;
+    const vb = (nb >> sh) & 255;
+    return Math.round(vb + (va - vb) * t);
+  };
+  return `#${[ch(16), ch(8), ch(0)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** Relative luminance, the WCAG definition. */
+function luminance(hex: string): number {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
+  if (!m) return 0;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    .map((v) => {
+      const s = v / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    })
+    .reduce((acc, c, i) => acc + c * [0.2126, 0.7152, 0.0722][i], 0);
+}
+
+/** Is this colour light enough to need dark text on top? */
+export function isLightSurface(hex: string): boolean {
+  return luminance(hex) > 0.42;
+}
+
+// How much accent goes into each tile, cycling every four. Deliberately not a
+// straight ramp — 1st and 3rd sit close, 2nd and 4th push further — so a 2x2
+// grid never reads as a gradient someone forgot to finish.
+const TILE_MIX = [0.34, 0.62, 0.46, 0.78];
+
+export type FallbackTile = {
+  /** Ready for `style={{ background }}`. */
+  background: string;
+  /** True when the tile is light enough that its label must be dark. */
+  light: boolean;
+};
+
+/**
+ * The branded stand-in for a link tile with no image.
+ *
+ * Takes just the two colours it needs rather than a whole Look, so the live
+ * renderer — which is handed `tileBg` and `accent` as separate props — and the
+ * marketing mirror, which holds the Look itself, can both call it. The two gradient stops are the same mix nudged apart in lightness,
+ * which gives the tile a soft sheen instead of a flat fill — a flat block at
+ * this size looks like a missing image, and a sheen looks like a surface.
+ */
+export function fallbackTile(look: { tile: string; accent: string }, index: number): FallbackTile {
+  const t = TILE_MIX[((index % TILE_MIX.length) + TILE_MIX.length) % TILE_MIX.length];
+  const base = mixHex(look.accent, look.tile, t);
+  // Push the top stop toward white and the bottom toward black on a dark tile;
+  // the reverse on a light one, so the sheen always falls the same way.
+  const light = isLightSurface(base);
+  const top = mixHex(light ? "#FFFFFF" : "#FFFFFF", base, light ? 0.34 : 0.14);
+  const bottom = mixHex("#000000", base, light ? 0.06 : 0.16);
+  return {
+    background: `linear-gradient(145deg, ${top} 0%, ${base} 52%, ${bottom} 100%)`,
+    light,
+  };
+}
