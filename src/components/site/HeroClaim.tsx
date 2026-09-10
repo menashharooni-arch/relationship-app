@@ -32,18 +32,47 @@ export default function HeroClaim() {
   return (
     <form
       onSubmit={go}
-      className="relative overflow-hidden flex items-center gap-2 sm:gap-3 rounded-full pl-3.5 sm:pl-5 pr-1.5 sm:pr-2.5 py-2 sm:py-2.5 w-full sm:w-auto"
+      // Ask the floating chat launcher to get off this row. On a short viewport
+      // the launcher lands exactly on "Start for free" — 36.7% of it on an
+      // iPhone 13 Mini — and a tap there opened support chat instead of
+      // starting a signup. See lib/chat-avoid.ts.
+      data-chat-avoid=""
+      // Phone spacing is measured, not eyeballed. On a 390px phone the pill is
+      // 350 wide and every pixel of it is spoken for: 14 padding + 112 for
+      // "SwiftCard.me/" + the field + 8 gap + 124 button + 6 padding. That left
+      // the field at 86px while "Alex Morgan" needs 97, so the name scrolled
+      // and the URL read "SwiftCard.me/lex Morgan" — the start of someone's own
+      // name cut off, in the one element whose entire job is to show it.
+      // Trimming the padding, the gap and the button's own padding below sm
+      // returns 14px and the field reaches 100. Desktop keeps its roomier
+      // spacing untouched.
+      className="sc-claim relative overflow-hidden flex items-center gap-1.5 sm:gap-3 rounded-full pl-3 sm:pl-5 pr-1 sm:pr-2.5 py-2 sm:py-2.5 w-full sm:w-auto"
       style={{
         // A whisper of a vertical gradient instead of flat white: it gives the
         // glare sweep something to read against, and the pill a hint of glass.
+        // The shadow and the focus ring live in globals.css (.sc-claim) — an
+        // inline box-shadow cannot answer :focus-within.
         background: "linear-gradient(180deg, #FFFFFF 0%, #F7F9FC 100%)",
-        boxShadow: "0 16px 40px -12px rgba(15,23,42,0.28), inset 0 0 0 1px rgba(15,23,42,0.08)",
       }}
     >
-      <span className="sm:hidden shrink-0 flex"><SwiftCardIcon size={26} /></span>
+      {/* The mark is desktop-only. On a phone it sits 8px from the words
+          "SwiftCard.me/" and says the same thing twice, while costing 34px of
+          the one field the pill exists to collect — which, once both halves of
+          the URL went to 16px for the touch floor above, had been squeezed to
+          64px, narrow enough that "Alex Morgan" scrolled inside it. Dropping
+          the duplicate gives the name room to actually be read. */}
       <span className="hidden sm:flex shrink-0"><SwiftCardIcon size={28} /></span>
       <label className="flex items-baseline min-w-0 flex-1 cursor-text" htmlFor="hero-claim-name">
-        <span className="text-slate-900 font-semibold text-[0.875rem] sm:text-[1.0625rem] whitespace-nowrap select-none">SwiftCard.me/</span>
+        {/* 16px on phones, NOT 14. globals.css floors every form control at
+            16px under `any-pointer: coarse`, because iOS zooms the page in on
+            a smaller one and will not zoom back. That floor reached the input
+            and not this label, so on a phone the typed name rendered 16px
+            beside a 14px "SwiftCard.me/" and its box sat 2px higher — the
+            misalignment the owner reported on 2026-09-10, visible only once
+            you start typing because until then the input holds a placeholder
+            in the same lighter grey. Matching the two here is the fix; raising
+            the input instead would bring the zoom back. */}
+        <span className="text-slate-900 font-semibold text-base sm:text-[1.0625rem] whitespace-nowrap select-none">SwiftCard.me/</span>
         <input
           id="hero-claim-name"
           type="text"
@@ -53,10 +82,20 @@ export default function HeroClaim() {
           aria-label="Your full name"
           autoComplete="name"
           maxLength={80}
-          className="min-w-[66px] flex-1 sm:w-[150px] bg-transparent text-slate-900 placeholder-slate-300 text-[0.875rem] sm:text-[1.0625rem] font-semibold focus:outline-none"
+          // A name longer than the field scrolls inside it while you type,
+          // because the browser keeps the caret in view. That is right during
+          // typing and wrong the moment you stop: the pill goes back to
+          // advertising a URL, and a URL that begins mid-word ("SwiftCard.me/
+          // xandra Morgan") reads as a bug. Rewinding on blur means the claim
+          // always starts where the name starts.
+          onBlur={(e) => { e.currentTarget.scrollLeft = 0; }}
+          // sc-claim-field opts this control out of the global 16px control
+          // floor — see globals.css. It is inline body text, not a form field
+          // in a form, and it must match the words it continues.
+          className="sc-claim-field min-w-[64px] flex-1 sm:w-[150px] bg-transparent text-slate-900 placeholder-slate-300 text-base sm:text-[1.0625rem] font-semibold focus:outline-none"
         />
       </label>
-      <button type="submit" className="rd-btn rd-btn-aurora shrink-0 !py-2.5 !px-3.5 sm:!py-3 sm:!px-6 text-[0.8125rem] sm:text-[0.9375rem] whitespace-nowrap">
+      <button type="submit" className="rd-btn rd-btn-aurora shrink-0 !py-2.5 !px-2.5 sm:!py-3 sm:!px-6 text-[0.8125rem] sm:text-[0.9375rem] whitespace-nowrap">
         Start for free
       </button>
       {/* Very light glare, sweeping the whole pill (button included) on a slow
