@@ -148,7 +148,7 @@ function internalFlag(): boolean {
   }
 }
 
-function sendFirstParty(name: EventName, props: EventProps): void {
+function sendFirstParty(name: EventName, props: EventProps, pathOverride?: string): void {
   if (typeof window === "undefined") return;
   void (async () => {
     try {
@@ -162,7 +162,7 @@ function sendFirstParty(name: EventName, props: EventProps): void {
           name,
           props,
           sessionKey: sessionKey(),
-          path: window.location.pathname,
+          path: pathOverride ?? window.location.pathname,
           internal: internalFlag(),
         }),
       });
@@ -279,11 +279,20 @@ export function isFunnelPath(pathname: string): boolean {
   return (FUNNEL_PATHS as readonly string[]).includes(pathname);
 }
 
-/** Manual pageview — used by AnalyticsProvider on every route change. */
-export function trackPageview(): void {
+/**
+ * Manual pageview — used by AnalyticsProvider on every route change.
+ *
+ * `pathname` comes from usePathname(), which is the router's own committed
+ * value. Reading window.location here instead would be trusting that the
+ * browser URL has already caught up with the route the effect is reacting to —
+ * true today, but the kind of assumption that turns into a page counted under
+ * the previous route's name.
+ */
+export function trackPageview(pathname?: string): void {
   if (typeof window === "undefined") return;
+  const path = pathname ?? window.location.pathname;
   // First-party: funnel pages only (see FUNNEL_PATHS).
-  if (isFunnelPath(window.location.pathname)) sendFirstParty("page_viewed", {});
+  if (isFunnelPath(path)) sendFirstParty("page_viewed", {}, path);
   if (!KEY) return;
   void (async () => {
     try {

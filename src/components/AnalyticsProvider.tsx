@@ -21,7 +21,7 @@ export default function AnalyticsProvider() {
   useEffect(() => {
     // Captures the entry URL on first load (query params and all) and every
     // subsequent route change.
-    trackPageview();
+    trackPageview(pathname);
   }, [pathname]);
 
   // ── "Someone clicked upgrade" ──────────────────────────────────────────────

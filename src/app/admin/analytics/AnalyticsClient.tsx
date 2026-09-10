@@ -196,7 +196,7 @@ export function FunnelPanel({ funnel, signups }: { funnel: Funnel; signups: { d3
         )}
       </div>
       <p className="text-gray-600 text-[0.6875rem] mb-4">
-        Every step someone takes before they pay. The number on the right is how many of the previous step made it this far — that&apos;s where you&apos;re losing people.
+        Every step someone takes before they pay. The number on the right is how many of the previous step made it this far — that&apos;s where you&apos;re losing people. Counting started 10 Sep 2026, so the first month is still filling in.
       </p>
 
       {!anyData ? (
@@ -228,7 +228,14 @@ export function FunnelPanel({ funnel, signups }: { funnel: Funnel; signups: { d3
                       number is wider than the bar drawn for it. */}
                   <span className="w-12 text-right text-[0.6875rem] font-semibold text-gray-200 tabular-nums shrink-0">{r.n30.toLocaleString()}</span>
                   <span className="w-10 text-right text-[0.6875rem] tabular-nums shrink-0">
-                    {pct === null ? <span className="text-gray-600">—</span> : (
+                    {pct === null ? <span className="text-gray-600">—</span> : pct > 100 ? (
+                      // Not every step feeds only from the one above it: someone
+                      // can sign up without ever opening the builder, and for
+                      // the first 30 days accounts predate this tracking
+                      // entirely. Shown grey rather than as a green 300%, which
+                      // would read as a wildly good conversion rate.
+                      <span className="text-gray-500" title="More than the step above — some people arrive here without passing through it.">&gt;100%</span>
+                    ) : (
                       <span className={pct >= 50 ? "text-green-400" : pct >= 20 ? "text-amber-400" : "text-red-400"}>{pct}%</span>
                     )}
                   </span>
