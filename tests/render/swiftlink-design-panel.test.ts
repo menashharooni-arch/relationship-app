@@ -98,6 +98,55 @@ describe("panel order", () => {
     expect(order.indexOf("Link buttons")).toBeGreaterThan(order.indexOf("Connect button"));
   }, 60_000);
 
+  it("fits a phone with nothing clipped or spilling out", async () => {
+    // This panel lives on a 390px screen far more often than on a desktop, and
+    // it is the width where a two-column swatch grid, a wrapped group blurb and
+    // a long section description are all closest to breaking.
+    const css = await appCss();
+    const markup = renderToStaticMarkup(createElement(SwiftLinkStyleControls, {
+      value: { linkLook: "aurora", linkHeroStyle: "cover", linkAccentColor: "#0F766E" },
+      onChange: () => {}, links: LINKS, onLinksChange: () => {},
+    } as PickerProps));
+    const page = await browser.newPage();
+    try {
+      await page.setViewportSize({ width: 390, height: 3000 });
+      await page.setContent(
+        `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style>
+         <style>body{margin:0;padding:8px;background:#0b0f16}</style></head>
+         <body class="sc-app"><div id="panel" style="width:374px">${markup}</div></body></html>`,
+        { waitUntil: "load" },
+      );
+      await page.waitForTimeout(250);
+      const r = await page.evaluate(() => {
+        const panel = document.getElementById("panel")!;
+        const box = panel.getBoundingClientRect();
+        const spills: string[] = [];
+        const clipped: string[] = [];
+        for (const el of Array.from(panel.querySelectorAll<HTMLElement>("*"))) {
+          const b = el.getBoundingClientRect();
+          if (b.width === 0 && b.height === 0) continue;
+          if (b.right > box.right + 1 || b.left < box.left - 1) {
+            spills.push(`${el.tagName}.${String(el.className).slice(0, 40)}`);
+          }
+          // Text cut off inside its own box.
+          if (el.children.length === 0 && el.scrollWidth > el.clientWidth + 1) {
+            clipped.push((el.textContent || "").trim().slice(0, 40));
+          }
+        }
+        return {
+          spills: [...new Set(spills)].slice(0, 6),
+          clipped: [...new Set(clipped)].slice(0, 6),
+          scrollsSideways: panel.scrollWidth > panel.clientWidth + 1,
+        };
+      });
+      expect(r.spills).toEqual([]);
+      expect(r.clipped).toEqual([]);
+      expect(r.scrollsSideways).toBe(false);
+    } finally {
+      await page.close();
+    }
+  }, 60_000);
+
   it("offers the compact-circle switch inside Page background, not by scrolling", async () => {
     // Page header now sits BELOW Page background, so the photo/video option
     // has to be reachable from where it is described. Without this the panel

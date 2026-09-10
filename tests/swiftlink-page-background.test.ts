@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { LINK_STYLE_KEYS, LINK_STRUCTURAL_KEYS, sanitizeCustomizationForPlan } from "@/lib/plan";
+import { PREFILL_LINK_STYLE_KEYS } from "@/lib/prefill";
+import { isPaidPlan } from "@/lib/plan";
+import { OFFICE_DESIGN_KEYS, overlayOfficeDesign } from "@/lib/office-brand";
 import {
   pageMediaUrl,
   normalizePageMediaType,
@@ -204,11 +207,93 @@ describe("the accent — one colour for every call to action", () => {
     expect(design).toMatch(/linkLook: v,[^}]*linkAccentColor: undefined/);
   });
 
+  it("survives the marketing sketch's hand-off to the wizard", () => {
+    // The mini-builder renders this control (it is gated by neither `links`
+    // nor `canUpload`), so a visitor can pick a colour there. That colour then
+    // has to cross three hops to reach the real builder: the sketch's read-back
+    // map, the CardPrefill type, and the key list the wizard restores from.
+    // It was dropped at the last two — the same whitelist trap that ate the
+    // page background in the card editor, in a different file.
+    expect(PREFILL_LINK_STYLE_KEYS).toContain("linkAccentColor");
+    expect(read("src/lib/prefill.ts")).toMatch(/linkAccentColor\?: string/);
+    expect(read("src/components/site/useProductSketch.ts")).toMatch(/linkAccentColor: p\.linkAccentColor/);
+  });
+
+  it("every prefill style key is declared and mapped, not just this one", () => {
+    // The general form of the bug above: a key on the carry list that the type
+    // does not declare, or that the sketch never reads back, is a colour the
+    // visitor picks and silently loses.
+    const type = read("src/lib/prefill.ts");
+    const sketch = read("src/components/site/useProductSketch.ts");
+    for (const key of PREFILL_LINK_STYLE_KEYS) {
+      expect(type, `${key} missing from the CardPrefill type`).toMatch(new RegExp(`${key}\\?: `));
+      expect(sketch, `${key} missing from the sketch's fromPrefill map`).toContain(`${key}: p.${key}`);
+    }
+  });
+
   it("the Solid/Outline rows preview the accent actually in use", () => {
     // Their "Default" swatch falls back to the accent, so showing the Look's
     // raw one would preview a colour those rows never render.
     const design = read("src/components/SwiftLinkDesign.tsx");
     expect(design).toMatch(/fallbackHex=\{value\.linkAccentColor \|\| getLook\(value\.linkLook\)\.accent\}/);
+  });
+});
+
+describe("every plan and every Office role gets the same Social design", () => {
+  // Owner question, 2026-09-10: does this reach the Office admin AND the
+  // sub-user? It does, but only because every surface gates on isPaidPlan
+  // rather than on plan === "pro" — a narrower check anywhere would lock the
+  // whole panel for a whole company, and it would do it silently.
+
+  it("an Office plan counts as paid", () => {
+    expect(isPaidPlan("enterprise")).toBe(true);
+    expect(isPaidPlan("pro")).toBe(true);
+    expect(isPaidPlan("free")).toBe(false);
+    expect(isPaidPlan(null)).toBe(false);
+  });
+
+  it("a sub-user's OWN profile is set to enterprise when they join", () => {
+    // The gate reads profiles.plan for the person editing, not the office's
+    // plan. If joining left a member on "free" they would see the entire
+    // Social design panel Pro-locked while their admin saw it open.
+    expect(read("src/app/api/join/route.ts")).toMatch(/plan: "enterprise"/);
+  });
+
+  it("every surface that unlocks the panel uses isPaidPlan", () => {
+    for (const f of [
+      "src/app/cards/[id]/edit/page.tsx",   // the card editor
+      "src/app/cards/new/page.tsx",         // the wizard
+      "src/app/links/[username]/page.tsx",  // the public page
+    ]) {
+      expect(read(f), f).toMatch(/isPaidPlan\(/);
+    }
+  });
+
+  it("keeps the accent for an Office account and strips it for Free", () => {
+    const cust = { linkAccentColor: "#0F766E" };
+    expect(
+      (sanitizeCustomizationForPlan(cust, isPaidPlan("enterprise"), "modern") as Record<string, unknown>).linkAccentColor,
+    ).toBe("#0F766E");
+    expect(
+      (sanitizeCustomizationForPlan(cust, isPaidPlan("free"), "modern") as Record<string, unknown>).linkAccentColor,
+    ).toBeUndefined();
+  });
+
+  it("a company brand lock governs the CARD, and leaves Swift Links alone", () => {
+    // overlayOfficeDesign forces OFFICE_DESIGN_KEYS onto every member's card.
+    // That list is the card's colours and font — no link* key is in it — so an
+    // employee's Swift Links page, and the accent on it, stays their own. This
+    // pins the separation: adding a link key to that list would silently
+    // overwrite every member's page the next time branding was applied.
+    for (const key of LINK_STYLE_KEYS) {
+      expect(OFFICE_DESIGN_KEYS as readonly string[], `${key} must not be office-locked`).not.toContain(key);
+    }
+    const locked = overlayOfficeDesign(
+      { linkAccentColor: "#0F766E", accentColor: "#FF0000" },
+      { design: { accentColor: "#123456" }, lockTemplate: true },
+    );
+    expect(locked.linkAccentColor).toBe("#0F766E"); // the member's own, untouched
+    expect(locked.accentColor).toBe("#123456");     // the company's, forced
   });
 });
 

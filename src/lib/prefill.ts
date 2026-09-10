@@ -44,6 +44,9 @@ export type CardPrefill = {
   linkBgColor?: string;
   linkTextColor?: string;
   linkFontFamily?: string;
+  /** The Connect button / accent colour. Carried like the other five so a
+   *  colour picked in the marketing sketch survives the hand-off. */
+  linkAccentColor?: string;
   logoUrl?: string | null;     // data URL from the guest crop — claimed on signup
   headshotUrl?: string | null; // data URL from the guest crop — claimed on signup
   /** Which product the visitor was building — picks the step the wizard opens
@@ -58,7 +61,7 @@ export const PREFILL_STYLE_KEYS = ["accentColor", "bgColor", "textColor", "infoC
 
 // Swift Links page design keys — separate list so the wizard can hydrate them
 // into its OWN "Social design" state instead of the card's style state.
-export const PREFILL_LINK_STYLE_KEYS = ["linkLook", "linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill"] as const;
+export const PREFILL_LINK_STYLE_KEYS = ["linkLook", "linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill", "linkAccentColor"] as const;
 
 const KEY = "swiftcard_prefill";
 
