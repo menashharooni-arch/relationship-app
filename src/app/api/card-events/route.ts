@@ -152,11 +152,16 @@ export async function POST(req: NextRequest) {
     // the card_views row and the card_events row can never disagree about where
     // the visit came from OR about how confident that answer is.
     let viewGeo: GeoResult | null = null;
+    // The milestone this view crossed, if any. recordView DETECTS it and writes
+    // nothing (lib/milestones.ts); folding it into the visit's one notification
+    // below is what stopped one view producing two bell rows.
+    let milestone: Awaited<ReturnType<typeof recordView>>["milestone"] = null;
     if (event_type === "viewed_card") {
       const viewsKey = surface === "links" ? `${card_owner_username}__links` : card_owner_username;
-      const { outcome, geo: recordedGeo } = await recordView({
+      const { outcome, geo: recordedGeo, milestone: crossed } = await recordView({
         req, username: viewsKey, visitorId: visitor_id, source, ip,
       });
+      milestone = crossed ?? null;
       if (outcome !== "recorded") {
         // recordView's own verdict: deduped (same visit), self, inactive, or a
         // failed write. Its geo answer rides along so even a declined attempt
@@ -428,6 +433,46 @@ export async function POST(req: NextRequest) {
             source: source || "direct_link",
             location: location ?? undefined,
           });
+
+          // ── The milestone this view crossed, folded into the SAME row ──────
+          //
+          // It used to be its own bell row, written inside recordView, which is
+          // how one view produced two notifications a second apart:
+          //   21:47:55  milestone_50  "50 views — on fire!"
+          //   21:47:56  card_viewed   "Someone viewed your Swift Links."
+          //
+          // Announced AFTER the view, deliberately: notifyVisit only ever moves
+          // a visit UP the rank list, so the view (rank 1) creates the row and
+          // the milestone (rank 2) upgrades it in place. Doing it the other way
+          // round would leave the owner a bare statistic with no idea who had
+          // just been on their card.
+          //
+          // The copy carries BOTH facts, because both matter and there is now
+          // only one row to carry them: the celebration as the headline, the
+          // person and place in the body.
+          //
+          // `milestone:` is the once-ever ledger (notifications.milestone).
+          // upgrade() sets it and never clears it, so a lead captured later in
+          // this same visit rewrites the type without losing the record that
+          // this milestone was announced.
+          //
+          // Never pushes: no pushCategory, and push-policy.ts has no category
+          // that could carry a view count anyway.
+          if (milestone) {
+            await notifyVisit({
+              userId: owner.id,
+              cardOwner: card_owner_username,
+              visitorId: visitor_id,
+              ip,
+              notice: {
+                type: milestone.type,
+                milestone: milestone.type,
+                title: milestone.title,
+                body: `${notice.body} That's ${milestone.reached.toLocaleString("en-US")} views on /${milestone.slug}.`,
+                url: `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner_username)}`,
+              },
+            });
+          }
         }
       }
     }

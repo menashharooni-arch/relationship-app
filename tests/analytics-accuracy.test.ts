@@ -304,14 +304,24 @@ describe("contact saves say only what happened", () => {
 });
 
 describe("the milestone ledger has the index it has always claimed", () => {
-  it("creates notifications_milestone_once_idx for real", () => {
-    // lib/milestones.ts says in a comment that this index "is the real ledger",
-    // and it existed in no migration in the repository — so the check-then-insert
-    // in front of it was an open TOCTOU window.
-    expect(read("src/lib/milestones.ts")).toMatch(/notifications_milestone_once_idx/);
+  it("creates the type-based index for real", () => {
+    // lib/milestones.ts named this index as "the real ledger" in a comment, and
+    // it existed in no migration in the repository — so the check-then-write in
+    // front of it was an open TOCTOU window.
     const sql = read("supabase/analytics-accuracy.sql");
     expect(sql).toMatch(/CREATE UNIQUE INDEX IF NOT EXISTS notifications_milestone_once_idx/);
     expect(sql).toMatch(/type LIKE 'milestone_%'/);
+  });
+
+  it("and the ledger it now actually uses — a column no upgrade can erase", () => {
+    const sql = read("supabase/milestone-one-bell.sql");
+    expect(sql).toMatch(/alter table public\.notifications add column if not exists milestone text/);
+    expect(sql).toMatch(/notifications_milestone_once_idx_v2/);
+    // History is backfilled so nothing already announced fires a second time.
+    expect(sql).toMatch(/set milestone = type/);
+    // Additive only — the older index is kept, not swapped out.
+    expect(sql).not.toMatch(/drop index/i);
+    expect(sql).not.toMatch(/DROP COLUMN|DROP TABLE/i);
   });
 });
 

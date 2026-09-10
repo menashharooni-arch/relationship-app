@@ -23,15 +23,41 @@ const MILESTONES: Record<number, { title: string; body: string }> = {
 const MILESTONE_COUNTS = Object.keys(MILESTONES).map(Number).sort((a, b) => b - a);
 
 // Called after each recorded view. Counts the card's combined SwiftCard +
-// Swift Links views; when the total has REACHED a milestone that was never
-// announced, writes the owner a BELL ROW — never a push. Reached, not "lands exactly
-// on": two views committing near-simultaneously can jump the count straight
-// over a milestone (4 → 6), and an exact-match check skipped it forever.
-// The notifications table doubles as the dedupe ledger so a burst of
-// simultaneous views can't fire the same milestone twice.
-export type MilestoneNotice = { type: string; title: string; body: string };
+// Swift Links views and reports the highest milestone the total has REACHED
+// but never announced. Reached, not "lands exactly on": two views committing
+// near-simultaneously can jump the count straight over a milestone (4 → 6), and
+// an exact-match check skipped it forever.
+//
+// DETECTION ONLY — it no longer writes anything.
+//
+// It used to insert its own bell row, and that produced the double
+// notification the owner reported twice. Real pair, from production
+// 2026-09-09:
+//
+//   21:47:55  milestone_50  "50 views — on fire!"
+//   21:47:56  card_viewed   "Someone viewed your Swift Links."
+//
+// One person, one view, two rows a second apart — because this file deduped
+// only against itself while /api/card-events deduped against the visit. The
+// caller now folds the milestone INTO that visit's single notification
+// (visit-notify.ts), so the owner gets one row carrying both facts.
+//
+// The once-ever ledger moved with it, onto notifications.milestone: a column
+// upgrade() sets and never clears, so a visit that crosses a milestone and then
+// captures a lead cannot lose the record that the milestone was announced.
+export type MilestoneNotice = {
+  /** notifications.type AND the ledger value, e.g. "milestone_50". */
+  type: string;
+  title: string;
+  /** The authored celebration line, without any card-scope suffix. */
+  body: string;
+  /** The number reached, so the caller can state it in its own sentence. */
+  reached: number;
+  /** The card slug this milestone belongs to (the "__links" suffix stripped). */
+  slug: string;
+};
 
-/** The milestone this view crossed, for the caller's own record, else null. */
+/** The milestone this view crossed, for the caller to announce, else null. */
 export async function checkViewMilestone(rawUsername: string): Promise<MilestoneNotice | null> {
   try {
     const base = rawUsername.replace(/__links$/, "");
@@ -60,37 +86,46 @@ export async function checkViewMilestone(rawUsername: string): Promise<Milestone
     }
     if (!ownerId) return null;
 
-    // Dedupe: one notification per milestone per card, ever. If the card_owner
-    // column isn't migrated yet (42703), dedupe per-user instead.
+    // ── Has this milestone already been announced? ─────────────────────────
+    // The ledger is notifications.milestone (supabase/milestone-one-bell.sql),
+    // NOT the row's type: a visit that crosses a milestone and then captures a
+    // lead has its type rewritten to new_lead, so a type-based check would
+    // forget and announce the same milestone again on the next view.
+    //
+    // `type` is still accepted as a match so the milestones announced BEFORE
+    // that column existed are not all re-announced once.
     const type = `milestone_${reached}`;
-    const scoped = await admin.from("notifications").select("id").eq("card_owner", base).eq("type", type).limit(1);
+    const scoped = await admin
+      .from("notifications")
+      .select("id")
+      .eq("card_owner", base)
+      .or(`milestone.eq.${type},type.eq.${type}`)
+      .limit(1);
     if (scoped.error) {
-      const { data: byUser } = await admin.from("notifications").select("id").eq("user_id", ownerId).eq("type", type).limit(1);
-      if (byUser?.length) return null;
+      // Column not migrated yet (or no card_owner column): fall back to the
+      // pre-ledger question. Announcing twice is the failure mode here, so the
+      // fallback deliberately errs toward staying quiet.
+      const { data: byType } = await admin
+        .from("notifications")
+        .select("id")
+        .eq("user_id", ownerId)
+        .eq("type", type)
+        .limit(1);
+      if (byType?.length) return null;
     } else if (scoped.data?.length) {
       return null;
     }
 
-    const { insertNotification } = await import("@/lib/notify");
-    // The SELECT above is a check-then-insert: two views straddling a milestone
-    // can both pass it. The notifications_milestone_once_idx unique index is the
-    // real ledger — whoever loses that race gets no row back here and must NOT
-    // go on to send a push for a notification it didn't create.
-    const created = await insertNotification({
-      user_id: ownerId,
-      card_owner: base,
-      type,
-      title: m.title,
-      body: `${m.body} (/${base})`,
-    });
-    if (!created) return null;
-
-    // NO PUSH, ever. A view milestone is a statistic — the product cheering,
-    // not news the person has to act on — and push-policy.ts deliberately has
-    // no category that could carry it. The bell row above is the whole
-    // announcement, and it is also the once-ever ledger, so it must always be
-    // written. The milestone is returned only so a caller can record it.
-    return { type, title: m.title, body: m.body };
+    // NOTHING IS WRITTEN HERE. The check above is a read; the caller announces
+    // it through notifyVisit, which folds it into the visit's one row and
+    // writes the ledger atomically with it. The unique index on
+    // (card_owner, milestone) is what actually closes the check-then-write
+    // race — whoever loses it gets a 23505 and simply doesn't announce.
+    //
+    // NO PUSH, ever, on any path. A view count is a statistic — the product
+    // cheering, not news to act on — and push-policy.ts deliberately has no
+    // category that could carry one.
+    return { type, title: m.title, body: m.body, reached, slug: base };
   } catch {
     /* achievements are best-effort — never block view tracking */
     return null;
