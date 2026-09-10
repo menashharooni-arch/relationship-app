@@ -76,7 +76,21 @@ describe("contact_saved reaches the phone, not just the bell", () => {
     // Every push() call site sits behind a successful write: the insert with
     // no error, or an upgrade that returned true.
     expect(lib).toMatch(/if \(!error\) \{\s*await push\(\);/);
-    expect(lib).toMatch(/\? \(await push\(\), "upgraded"\) : "failed"/);
+    expect(lib).toMatch(/\? \(await push\(true\), "upgraded"\) : "failed"/);
+  });
+
+  // One person's visit is ONE interrupt. The collapse id keeps the lock screen
+  // to a single banner, but a replacement still buzzes — so an upgrade only
+  // re-pushes when the news got big enough to deserve it. A view overtaken by
+  // a contact download changes the row in silence; a stranger becoming a named
+  // lead is worth the second buzz. Marked by the UNCAPPED categories, which is
+  // the same list of "things a person would be angry to have withheld".
+  it("a capped upgrade mid-visit changes the row without a second buzz", () => {
+    const lib = stripComments(read("src/lib/visit-notify.ts"));
+    expect(lib).toMatch(/const push = async \(onUpgrade = false\) =>/);
+    expect(lib).toMatch(/if \(onUpgrade && !UNCAPPED\.includes\(notice\.pushCategory\)\) return;/);
+    // Both upgrade paths must pass the flag, or the rule only half-applies.
+    expect(lib.match(/await push\(true\)/g)?.length).toBe(2);
   });
 
   it("a dead push subscription can never fail the event write", () => {

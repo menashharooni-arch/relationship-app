@@ -66,7 +66,7 @@ export async function sendPushToUser(userId: string, payload: {
 
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   let cappedSentToday = 0;
-  let lastFirstViewAt: number | null = null;
+  let lastViewPushAt: number | null = null;
   try {
     const { data: recent } = await admin
       .from("push_log")
@@ -77,9 +77,9 @@ export async function sendPushToUser(userId: string, payload: {
     for (const row of recent ?? []) {
       const cat = row.category as PushCategory;
       if (!UNCAPPED.includes(cat)) cappedSentToday++;
-      if (cat === "first_view") {
+      if (cat === "card_view") {
         const at = Date.parse(row.created_at as string);
-        if (!lastFirstViewAt || at > lastFirstViewAt) lastFirstViewAt = at;
+        if (!lastViewPushAt || at > lastViewPushAt) lastViewPushAt = at;
       }
     }
   } catch {
@@ -88,7 +88,7 @@ export async function sendPushToUser(userId: string, payload: {
     // dropping every notification in the product.
   }
 
-  const verdict = decidePush({ category: payload.category, prefs, cappedSentToday, lastFirstViewAt });
+  const verdict = decidePush({ category: payload.category, prefs, cappedSentToday, lastViewPushAt });
   if (!verdict.send) {
     await log(verdict.reason);
     return;

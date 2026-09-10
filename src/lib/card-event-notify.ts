@@ -36,6 +36,16 @@ export function cardEventNotice(input: {
    * was — no retro-claiming a confidence nobody recorded.
    */
   geoAccuracy?: GeoAccuracy | null;
+  /**
+   * This is the first view this card has EVER had.
+   *
+   * Changes the headline only. Every view now notifies (see the events route),
+   * which is right — but it makes the first one indistinguishable from the
+   * four-hundredth, and the first one is not just another view: it is the
+   * moment the thing the person built starts working. Naming it costs nothing
+   * and is the single most encouraging true sentence we can put on a screen.
+   */
+  firstEver?: boolean;
 }): CardEventNotice | null {
   const { eventType } = input;
   const name = (input.visitorName ?? "").trim();
@@ -54,9 +64,12 @@ export function cardEventNotice(input: {
     // explicit surface field.
     const isLinks = input.surface === "links" || source === "swift_links";
     const surfaceLabel = isLinks ? "your Swift Links" : "your card";
+    // Both fit the 40-character lock-screen title budget (push-policy.ts), so
+    // neither gets trimmed mid-word.
+    const firstTitle = isLinks ? "Your Swift Links' first view!" : "Your card's first view!";
     return {
       type: "card_viewed",
-      title: isLinks ? "Swift Links viewed" : "Card viewed",
+      title: input.firstEver ? firstTitle : isLinks ? "Swift Links viewed" : "Card viewed",
       // "Someone" when we genuinely don't know. A visitor is only named once
       // they have shared their details, so this never guesses at an identity.
       body: `${name || "Someone"} viewed ${surfaceLabel}${near}.`,

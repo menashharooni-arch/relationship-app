@@ -15,9 +15,9 @@ import { join } from "node:path";
 //      it can be audited; nothing branches on it. The per-plan cases below are
 //      byte-identical apart from the plan string — that repetition IS the test.
 //
-//   2. A CLOSED LIST. Only new_lead, lead_reply, first_view, meeting_booked and
-//      billing_problem may reach a phone, under a daily cap, inside quiet hours,
-//      with copy that fits a lock screen.
+//   2. A CLOSED LIST. Only new_lead, lead_reply, contact_saved, card_view,
+//      meeting_booked and billing_problem may reach a phone, under a daily cap,
+//      inside quiet hours, with copy that fits a lock screen.
 
 type Row = Record<string, unknown>;
 
@@ -151,8 +151,8 @@ describe("a switched-off category", () => {
 
 describe("the daily cap", () => {
   it("stops the 6th capped push of the day", async () => {
-    pushLog = Array.from({ length: DAILY_CAP }, () => ({ category: "first_view", created_at: MIDDAY }));
-    profile = { plan: "free", customization: { _push: { first_view: true } } };
+    pushLog = Array.from({ length: DAILY_CAP }, () => ({ category: "card_view", created_at: MIDDAY }));
+    profile = { plan: "free", customization: { _push: { card_view: true } } };
     await sendPushToUser("u1", {
       category: "meeting_booked", title: "Meeting booked", body: "Tue 3pm with Dana", url: "/x",
     });
@@ -161,26 +161,26 @@ describe("the daily cap", () => {
   });
 
   it("never applies to leads or billing", async () => {
-    pushLog = Array.from({ length: 50 }, () => ({ category: "first_view", created_at: MIDDAY }));
+    pushLog = Array.from({ length: 50 }, () => ({ category: "card_view", created_at: MIDDAY }));
     await sendLead();
     expect(apnsSent.length).toBe(1);
   });
 });
 
-describe("first views are batched to one an hour", () => {
-  it("suppresses a second first-view inside the window", async () => {
-    pushLog = [{ category: "first_view", created_at: "2026-09-06T13:30:00.000Z" }];
+describe("card views are batched to one an hour", () => {
+  it("suppresses a second view push inside the window", async () => {
+    pushLog = [{ category: "card_view", created_at: "2026-09-06T13:30:00.000Z" }];
     await sendPushToUser("u1", {
-      category: "first_view", title: "Your card was opened", body: "Someone in Austin opened your card", url: "/x",
+      category: "card_view", title: "Your card was opened", body: "Someone in Austin opened your card", url: "/x",
     });
     expect(apnsSent.length).toBe(0);
     expect(last()).toMatchObject({ outcome: "batched" });
   });
 
   it("allows one an hour and a minute later", async () => {
-    pushLog = [{ category: "first_view", created_at: "2026-09-06T12:55:00.000Z" }];
+    pushLog = [{ category: "card_view", created_at: "2026-09-06T12:55:00.000Z" }];
     await sendPushToUser("u1", {
-      category: "first_view", title: "Your card was opened", body: "Someone in Austin opened your card", url: "/x",
+      category: "card_view", title: "Your card was opened", body: "Someone in Austin opened your card", url: "/x",
     });
     expect(apnsSent.length).toBe(1);
   });
@@ -318,5 +318,48 @@ describe("the policy itself", () => {
       cappedSentToday: 0,
     });
     expect(verdict).toEqual({ send: false, reason: "category_off" });
+  });
+});
+
+// ── A view push is not a once-in-a-lifetime event ────────────────────────────
+//
+// The producer used to gate the view push on `count === 1` — the first view a
+// card ever received. That meant someone could share their card at a
+// conference, collect forty views, and their phone would stay silent for every
+// one of them. A product that never tells you it is working reads as a product
+// that isn't, and "someone just opened your card" is the best proof SwiftCard
+// has that it is earning its keep.
+//
+// The volume worry behind that gate was real, and its answer was already built
+// and could never engage. These pin that the answer is what does the work now,
+// and that the gate does not come back.
+describe("every view is a push candidate, and the throttles do the limiting", () => {
+  const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
+  const src = read("src/app/api/card-events/route.ts");
+
+  it("does not gate the push on the card's first view ever", () => {
+    // The count survives — it changes the WORDING — but it must never again
+    // decide whether the push happens.
+    expect(src).not.toMatch(/if \(count === 1\) pushCategory/);
+    expect(src).toMatch(/firstEver = count === 1/);
+    expect(src).toMatch(/pushCategory: PushCategory \| undefined = isView\s*\?\s*"card_view"/);
+  });
+
+  it("gives a downloaded contact card its own category", () => {
+    expect(src).toMatch(/event_type === "downloaded_vcard"\s*\?\s*"contact_saved"/);
+  });
+
+  it("keeps the per-IP flood backstop on top of the policy throttles", () => {
+    expect(src).toMatch(/isRateLimited\(`notify-ip:\$\{card_owner_username\}:\$\{ip\}`, 6, 60 \* 60 \* 1000\)/);
+  });
+
+  it("names a card's first view instead of burying it among the rest", () => {
+    const notice = read("src/lib/card-event-notify.ts");
+    expect(notice).toMatch(/input\.firstEver \? firstTitle/);
+    expect(notice).toContain("Your card's first view!");
+    // Lock-screen title budget — the OS cuts anything longer mid-word.
+    for (const t of ["Your card's first view!", "Your Swift Links' first view!"]) {
+      expect(t.length).toBeLessThanOrEqual(MAX_TITLE_CHARS);
+    }
   });
 });

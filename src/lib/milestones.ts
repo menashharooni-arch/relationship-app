@@ -2,20 +2,39 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { SEEDED_VISITOR_PREFIX } from "@/lib/seeded-views";
 
 
-// View-count achievements — game-like nudges that pull owners back into the
-// app as their card gains traction. Fired from the view-tracking API.
+// View-count achievements — the one moment the owner is unambiguously pleased
+// with their card, which makes it the one moment worth asking anything of them.
+// Fired from the view-tracking API. Bell only; a view count never pushes.
+//
+// EVERY BODY ENDS IN ONE THING TO GO AND DO, and it is always something that
+// makes the NEXT milestone more likely: a place to put the card that keeps
+// working unattended, or a number in the dashboard that shows what is working
+// already. A celebration with no next step is a vanity metric with an
+// exclamation mark, and the owner's rule is explicit that we do not ship those.
+//
+// TWO THINGS THE COPY MAY NOT DO:
+//
+//   1. Turn views into people. "Fifty people have seen your card" was here for
+//      months and was never true — card_views counts VISITS, and one person
+//      returning after thirty minutes counts again (lib/view-window.ts). It is
+//      the exact shape of dishonesty that costs a product its credibility the
+//      first time someone checks.
+//   2. Sell. These render inside the iPhone app, where pricing, upgrade and
+//      billing language is forbidden (App Review 3.1.1) — so no plan names, no
+//      referral months, no "unlock". Every action below is a feature the person
+//      already has on whatever plan they are on.
 const MILESTONES: Record<number, { title: string; body: string }> = {
-  5:     { title: "First 5 views!", body: "People are checking out your card. Share it once more to keep the momentum." },
-  10:    { title: "10 views — you're getting noticed!", body: "Double digits! Add your card to your email signature to keep it climbing." },
-  25:    { title: "25 views and climbing!", body: "Your card is doing the networking for you. Next stop: 50." },
-  50:    { title: "50 views — on fire!", body: "Fifty people have seen your card. Keep sharing!" },
-  100:   { title: "100 views!", body: "Triple digits — your card is officially working the room." },
-  250:   { title: "250 views!", body: "You're building serious reach. 500 is in sight." },
-  500:   { title: "500 views!", body: "Most cards never see this. Yours just did." },
-  1000:  { title: "1,000 views!", body: "Four digits. Your card is a networking machine." },
-  2500:  { title: "2,500 views!", body: "Legendary reach — your network sees you everywhere." },
-  5000:  { title: "5,000 views!", body: "Halfway to five figures. Unstoppable." },
-  10000: { title: "10,000 views!", body: "Ten. Thousand. Views. Take a bow." },
+  5:     { title: "First 5 views!", body: "Add Swift Signature to your email footer — your card keeps working without you." },
+  10:    { title: "10 views — you're getting noticed!", body: "Your QR code is on the Links tab. Print it once and it keeps earning views." },
+  25:    { title: "25 views and climbing!", body: "Swift Links turns one link into everything you share — it's on the Links tab." },
+  50:    { title: "50 views — on fire!", body: "Check Locations on your dashboard to see where your reach is coming from." },
+  100:   { title: "100 views!", body: "Your traffic chart shows which source brings the most views. Lean into it." },
+  250:   { title: "250 views!", body: "Reach only counts once it becomes conversations — take a look at Contacts." },
+  500:   { title: "500 views!", body: "Most cards never see this. Check your top source and do more of it." },
+  1000:  { title: "1,000 views!", body: "Four digits. Your best day so far is sitting in the traffic chart." },
+  2500:  { title: "2,500 views!", body: "Your card is a channel now. Keep the sources that actually work." },
+  5000:  { title: "5,000 views!", body: "Still climbing. Worth checking which source got you here." },
+  10000: { title: "10,000 views!", body: "Ten. Thousand. Views. Take a bow — then check your top source." },
 };
 
 // Milestones from largest to smallest — the reached-but-unannounced scan

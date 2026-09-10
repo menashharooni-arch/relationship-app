@@ -9,13 +9,28 @@
 // ALLOWED, and nothing else:
 //   new_lead        someone shared their details          — the whole product
 //   lead_reply      a lead answered a follow-up           — a live conversation
-//   first_view      their card was opened for the 1st time — batched, ≤1/hour
+//   contact_saved   someone saved their contact card      — high intent
+//   card_view       one of their cards was opened         — batched, ≤1/hour
 //   meeting_booked  a meeting was booked from their card
 //   billing_problem a payment failed and access is at risk
 //
 // EXPLICITLY NOT: marketing, tips, product news, view milestones, streaks,
 // referral rewards, digests, "you're doing great" — none of it. Those go to the
 // bell and to email, which the person reads when they choose to.
+//
+// WHY card_view REPLACED first_view. The rule used to be "the first time a card
+// is EVER opened", enforced by a count === 1 check in the events route. That
+// made a view push fire once in a card's entire lifetime: someone could share
+// their card at a conference, collect forty views, and their phone would stay
+// silent for all of them. Silence is its own failure — a product that never
+// tells you it is working reads as a product that isn't — and "someone just
+// opened your card" is the single best proof SwiftCard is earning its keep.
+//
+// The throttle below was always the right answer to the volume worry, and it
+// was already built: at most one view push an hour, inside a five-a-day cap,
+// and at most one per visitor per visit (lib/visit-notify.ts). Under a
+// once-per-lifetime producer none of that machinery could ever engage. Now it
+// does the job it was written for.
 //
 // NO PLAN GATE ANYWHERE IN THIS FILE. A Free account's first lead is the most
 // important notification SwiftCard will ever send them; withholding it to make
@@ -24,14 +39,16 @@
 export type PushCategory =
   | "new_lead"
   | "lead_reply"
-  | "first_view"
+  | "contact_saved"
+  | "card_view"
   | "meeting_booked"
   | "billing_problem";
 
 export const PUSH_CATEGORIES: PushCategory[] = [
   "new_lead",
   "lead_reply",
-  "first_view",
+  "contact_saved",
+  "card_view",
   "meeting_booked",
   "billing_problem",
 ];
@@ -48,7 +65,8 @@ export const PUSH_CATEGORIES: PushCategory[] = [
 export const LIVE_CATEGORIES: PushCategory[] = [
   "new_lead",
   "lead_reply",
-  "first_view",
+  "contact_saved",
+  "card_view",
   "billing_problem",
 ];
 
@@ -56,7 +74,11 @@ export const LIVE_CATEGORIES: PushCategory[] = [
 export const PUSH_CATEGORY_COPY: Record<PushCategory, { label: string; hint: string }> = {
   new_lead: { label: "New contacts", hint: "Someone shares their details with you" },
   lead_reply: { label: "Replies", hint: "A contact answers one of your follow-ups" },
-  first_view: { label: "First view of a card", hint: "The first time a card is opened — at most once an hour" },
+  // "downloaded", not "saved" — we hand the .vcf to the device and never learn
+  // whether they tapped Add. Same honesty rule as the notification copy itself
+  // (lib/card-event-notify.ts); the settings label must not claim more.
+  contact_saved: { label: "Contact downloads", hint: "Someone downloads your contact card" },
+  card_view: { label: "Card views", hint: "Someone opens one of your cards — at most one an hour" },
   meeting_booked: { label: "Meetings booked", hint: "Someone books time with you from your card" },
   billing_problem: { label: "Billing problems", hint: "A payment failed and your plan is at risk" },
   // NOTE: quiet hours apply to this one too — see decidePush().
@@ -75,7 +97,8 @@ export const UNCAPPED: PushCategory[] = ["new_lead", "lead_reply", "billing_prob
 export const DEFAULT_PUSH_PREFS: Record<PushCategory, boolean> = {
   new_lead: true,
   lead_reply: true,
-  first_view: true,
+  contact_saved: true,
+  card_view: true,
   meeting_booked: true,
   billing_problem: true,
 };
@@ -89,7 +112,7 @@ export const MAX_BODY_CHARS = 60;
 // Christopher Fairweather-Blenkinsop" is cut by the OS mid-surname; cutting it
 // ourselves on a word boundary is the difference between a name and a stump.
 export const MAX_TITLE_CHARS = 40;
-export const FIRST_VIEW_BATCH_MS = 60 * 60 * 1000; // ≤ 1 first-view push an hour
+export const VIEW_BATCH_MS = 60 * 60 * 1000; // ≤ 1 view push an hour
 
 export type PushPrefs = Record<PushCategory, boolean> & { quietHours?: boolean; timezone?: string | null };
 
@@ -138,8 +161,8 @@ export type PolicyInput = {
   prefs: PushPrefs;
   /** Pushes already sent today in CAPPED categories. */
   cappedSentToday: number;
-  /** When the last first_view push went out, for the hourly batch. */
-  lastFirstViewAt?: number | null;
+  /** When the last card_view push went out, for the hourly batch. */
+  lastViewPushAt?: number | null;
   now?: number;
 };
 
@@ -155,15 +178,16 @@ export type PolicyResult =
  * that was their call and the email still goes.
  */
 export function decidePush(input: PolicyInput): PolicyResult {
-  const { category, prefs, cappedSentToday, lastFirstViewAt } = input;
+  const { category, prefs, cappedSentToday, lastViewPushAt } = input;
   const now = input.now ?? Date.now();
 
   if (prefs[category] === false) return { send: false, reason: "category_off" };
 
-  // Batch the first-view notification: several people can open a card in the
-  // same minute after one QR is printed on a sign, and that is one piece of
-  // news, not eight.
-  if (category === "first_view" && lastFirstViewAt && now - lastFirstViewAt < FIRST_VIEW_BATCH_MS) {
+  // Batch the view notification: several people can open a card in the same
+  // minute after one QR is printed on a sign, and that is one piece of news,
+  // not eight. This is the throttle that lets every view be a candidate for a
+  // push without a busy afternoon turning into a stream of interruptions.
+  if (category === "card_view" && lastViewPushAt && now - lastViewPushAt < VIEW_BATCH_MS) {
     return { send: false, reason: "batched" };
   }
 
