@@ -20,3 +20,29 @@ export const SEEDED_VISITOR_PREFIX = "demo-visitor";
 export function isSeededView(visitorId: string | null | undefined): boolean {
   return (visitorId ?? "").startsWith(SEEDED_VISITOR_PREFIX);
 }
+
+// ── Cards that exist for US, not for customers ──────────────────────────────
+//
+// The App Review account (created per submission, so there is a new one each
+// time) and the In-App Purchase test cards are internal artifacts. They were
+// being published in sitemap.xml alongside real customer cards and are
+// therefore offered to Google for indexing — three of the thirteen live cards
+// were these. That is junk content under our own domain at exactly the moment
+// ranking is the problem the product has.
+//
+// NOT the demo cards: /demo-sales and /demo-realty are deliberate marketing
+// showcases, linked from the preview page and the marketing components, and
+// they should stay indexable. The distinction is "internal artifact" versus
+// "content we chose to publish".
+const INTERNAL_CARD_PREFIXES = ["apple-review-", "iaptest-"];
+
+/**
+ * True for a card slug that belongs to our own testing rather than to a
+ * customer. Matched on the slug PREFIX because each submission mints a fresh
+ * suffix (apple-review-7c9e9913, apple-review-bd38b805, …), so a list of exact
+ * names would silently stop covering the next one.
+ */
+export function isInternalCardSlug(username: string | null | undefined): boolean {
+  const slug = (username ?? "").toLowerCase();
+  return INTERNAL_CARD_PREFIXES.some((p) => slug.startsWith(p));
+}
