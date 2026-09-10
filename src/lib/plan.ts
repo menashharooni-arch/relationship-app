@@ -3,6 +3,7 @@
 // nothing drifts. If you change a number, change it HERE — every route and
 // component reads from this file.
 import { metaForTemplate } from "./template-style-presets";
+import { isFreeFinish } from "./card-finishes";
 import { freeSafeLook, DEFAULT_SWIFTLINK_LOOK } from "./swiftlink-looks";
 
 export const PLAN_LIMITS = {
@@ -53,7 +54,12 @@ export const FREE_MONTH_DAYS = 30;
 // non-paid accounts so a downgraded or hand-crafted request can't keep an
 // arbitrary custom value. (Free baseline customization — about, address, bio,
 // socials, testimonials, links up to the cap — is never touched.)
-export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font", "bgColor", "textColor", "infoColor", "fontFamily"] as const;
+export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font", "bgColor", "textColor", "infoColor", "fontFamily",
+  // Card FINISH and panel media (lib/card-finishes.ts). `finish` is only
+  // PARTLY Pro — Flat, Sheen and Halo are free — so it is snapped below
+  // rather than dropped. Panel media is Pro outright: an uploaded photo or
+  // video has no free equivalent to snap to.
+  "finish", "panelMedia", "panelMediaType", "panelMediaPoster", "panelDim"] as const;
 
 // Swift Links PAGE design keys ("Social design" step) — deliberately separate
 // from the card's design keys above so styling the card never restyles the
@@ -148,6 +154,20 @@ export function convertCustomizationToFreeClosest(
   const textColor = pickStr(cust.textColor);
   const infoColor = pickStr(cust.infoColor);
   const accentColor = pickStr(cust.accentColor);
+
+  // A Pro FINISH falls back to Flat rather than to another finish: Sheen is not
+  // a "cheaper Brushed", so snapping between them would silently redesign the
+  // card. Flat is the card's own look, which is the honest downgrade.
+  const finish = pickStr(cust.finish);
+  if (finish !== undefined && !isFreeFinish(finish)) delete cust.finish;
+  // Panel media is Pro outright — there is no free photo to snap to — so it is
+  // removed along with the scrim and the video poster that only make sense with
+  // it. The card falls back to its colour, which is never worse than a card
+  // rendering half a feature.
+  delete cust.panelMedia;
+  delete cust.panelMediaType;
+  delete cust.panelMediaPoster;
+  delete cust.panelDim;
 
   // A fully-custom card has no standard-template style keys to snap — leave
   // the target template's baked-in defaults in place rather than guessing.

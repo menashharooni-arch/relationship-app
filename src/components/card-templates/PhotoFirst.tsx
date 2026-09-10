@@ -3,6 +3,7 @@
 // Includes: Profile photo (full-height), name overlay, company, phone, email, website, QR
 // Best for: Real estate, beauty, fitness, coaches, personal brand, healthcare
 
+import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
@@ -18,7 +19,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
   const photoBg = PHOTO_BG_DEFAULT;
   // bgColor now tints the INFO PANEL — the surface behind the contact text.
   // Default is the clean white panel; a dark choice flips the text to light.
-  const infoBg = style.bgColor ?? "#ffffff";
+  const infoBg = panelBackground(style, "#ffffff");
   const darkInfo = isDarkBg(infoBg);
   const infoPalette = darkInfo
     ? { company: "#ffffff", strong: "#ffffff", mid: "#e5e7eb", soft: "#d1d5db", muted: "#9ca3af", border: "rgba(255,255,255,0.14)", qrBg: "#ffffff" }

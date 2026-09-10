@@ -3,6 +3,7 @@
 // Includes: Company logo/monogram, name, phone (prominent), email, website, QR
 // Best for: Restaurants, retail, contractors, salons, home services, local shops
 
+import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
@@ -24,7 +25,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const AMBER  = style.accentColor ?? AMBER_DEFAULT;
   const AMBER2 = style.accentColor ?? AMBER2_DEFAULT;
-  const stripeBg = style.bgColor ?? `linear-gradient(100deg, ${AMBER} 0%, ${AMBER2} 60%, #f59e0b 100%)`;
+  const stripeBg = panelBackground(style, `linear-gradient(100deg, ${AMBER} 0%, ${AMBER2} 60%, #f59e0b 100%)`);
   const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   // Horizontal space the top-right badge occupies, so the name below can reserve

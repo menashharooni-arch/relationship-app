@@ -389,6 +389,15 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       textColor: result.customization.textColor as string | undefined,
       infoColor: result.customization.infoColor as string | undefined,
       fontFamily: result.customization.fontFamily as string | undefined,
+      // Read back from the CONVERTED customization, not from the draft: the
+      // converter keeps a free finish (Sheen, Halo) and drops a Pro one, and
+      // strips panel media outright. Rebuilding from the draft would put a Pro
+      // finish straight back on a card the server is about to strip it from.
+      finish: result.customization.finish as string | undefined,
+      panelMedia: result.customization.panelMedia as string | undefined,
+      panelMediaType: result.customization.panelMediaType as string | undefined,
+      panelMediaPoster: result.customization.panelMediaPoster as string | undefined,
+      panelDim: typeof result.customization.panelDim === "number" ? result.customization.panelDim : undefined,
     });
     return result.changed;
   }

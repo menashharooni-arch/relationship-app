@@ -8,6 +8,7 @@
 // back to its own baked-in design and nothing about existing cards changes.
 
 import type { CardData } from "@/components/card-templates/types";
+import { composePanelBackground } from "@/lib/card-finishes";
 
 export type TemplateStyle = {
   accentColor?: string;
@@ -15,6 +16,17 @@ export type TemplateStyle = {
   textColor?: string;
   infoColor?: string; // color of the contact/details text (phone, email, address…)
   fontFamily?: string;
+  /** Material laid over the panel colour — see lib/card-finishes.ts. */
+  finish?: string;
+  /** A photo behind the panel. Public URL from /api/upload (field "cardbg"). */
+  panelMedia?: string;
+  /** "image" | "video". A video also stores a poster, which is what every
+   *  non-browser surface paints — CSS cannot play one. */
+  panelMediaType?: string;
+  /** First frame of a panel video, used wherever the video cannot run. */
+  panelMediaPoster?: string;
+  /** Scrim over the media, 0–0.85, so a name stays readable on a busy photo. */
+  panelDim?: number;
 };
 
 // Shades of one chosen info color for ContactRows' four levels (phone → address).
@@ -68,14 +80,42 @@ function pick(v: unknown): string | undefined {
 export const CARD_BASE_FONT = "Arial, Helvetica, sans-serif";
 
 export function templateStyle(data: Pick<CardData, "customization">): TemplateStyle {
-  const c = data.customization ?? {};
+  const c = (data.customization ?? {}) as Record<string, unknown>;
+  const dim = typeof c.panelDim === "number" ? c.panelDim : undefined;
   return {
     accentColor: pick(c.accentColor),
     bgColor: pick(c.bgColor),
     textColor: pick(c.textColor),
-    infoColor: pick((c as { infoColor?: unknown }).infoColor),
+    infoColor: pick(c.infoColor),
     fontFamily: pick(c.fontFamily),
+    finish: pick(c.finish),
+    panelMedia: pick(c.panelMedia),
+    panelMediaType: pick(c.panelMediaType),
+    panelMediaPoster: pick(c.panelMediaPoster),
+    ...(dim === undefined ? {} : { panelDim: dim }),
   };
+}
+
+/**
+ * The finished `background` for a template's branding panel.
+ *
+ * Every template used to write `style.bgColor ?? <its own default>` inline, and
+ * that is exactly why this exists: a finish or a photo has to apply whether or
+ * not the owner also picked a colour. Passing the template's own default in as
+ * `fallback` keeps that decision where it belongs — each template still owns
+ * the look it ships with — while the finish composes over whichever one wins.
+ *
+ * A card with no finish and no media gets its base back untouched, so every
+ * card saved before any of this existed renders exactly as it did.
+ */
+export function panelBackground(style: TemplateStyle, fallback: string): string {
+  return composePanelBackground(style.bgColor ?? fallback, style.finish, {
+    // A video paints its poster here. CSS cannot play one, and the live card
+    // page layers the real <video> over this same surface.
+    url: style.panelMediaType === "video" ? undefined : style.panelMedia,
+    poster: style.panelMediaType === "video" ? style.panelMediaPoster : undefined,
+    dim: style.panelDim,
+  });
 }
 
 // Is a background color/gradient dark enough to need light text on top? Reads

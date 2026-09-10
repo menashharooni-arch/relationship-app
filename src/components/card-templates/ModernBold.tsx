@@ -3,6 +3,7 @@
 // Includes: Name (hero), title, company, phone, email, website, social, QR
 // Best for: Tech, agencies, startups, creatives, personal brands
 
+import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
@@ -15,7 +16,7 @@ const DIM          = "#1e3a5f";
 export default function ModernBold({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const BLUE = style.accentColor ?? BLUE_DEFAULT;
-  const bg = style.bgColor ?? BG;
+  const bg = panelBackground(style, BG);
   // Info text sits on the card background, so it defaults to light on a dark
   // card and dark on a light one; an explicit infoColor overrides either way.
   const darkCard = isDarkBg(bg);
