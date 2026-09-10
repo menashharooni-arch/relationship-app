@@ -1148,7 +1148,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                       type="button"
                       onClick={() => updatePhone(i, { showOnCard: !p.showOnCard })}
                       title={p.showOnCard ? "Showing on card" : "Hidden from card"}
-                      className={`shrink-0 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-colors ${p.showOnCard ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-500"}`}
+                      // "Off card" is STATE the owner has to be able to read —
+                      // this number is hidden from their card — not decoration.
+                      // At gray-500 it measured 3.67:1 against gray-900 in the
+                      // dark theme, under the 4.5:1 a 12px label needs. gray-400
+                      // is 6.82:1, still clearly quieter than the blue "on"
+                      // state, and it is the shade the template chips below
+                      // already use for exactly the same unselected job.
+                      className={`shrink-0 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-colors ${p.showOnCard ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-400"}`}
                     >
                       {p.showOnCard ? "On card ✓" : "Off card"}
                     </button>
