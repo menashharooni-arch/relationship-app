@@ -703,6 +703,24 @@ export function SwiftLinkStyleControls({
   // selected.
   const isAvatarHeader = normalizeHeroStyle(value.linkHeroStyle) === "avatar";
 
+  // ── SECTION ORDER IS DELIBERATE: biggest visual change nearest the preview ──
+  //
+  //   Look → Page header → Page background → Text color → Font → Social icons
+  //   → Link buttons
+  //
+  // On a phone this whole step is about 3.3 screens tall and the preview sits at
+  // the top, so a control's DISTANCE from the preview is what it costs to use:
+  // change something, scroll up to see it, scroll back. Measured at 390px wide,
+  // Page background and Text color used to sit ~1,440px and ~1,600px below the
+  // preview — nearly two screens — despite changing the look of the page more
+  // than anything else here. Social icons and Link buttons were above them and
+  // change far less. They have swapped places.
+  //
+  // WHY PAGE HEADER STAYS SECOND, above the palette: the background section's
+  // photo/video upload only appears when the header is the compact circle
+  // (isAvatarHeader below). Putting the palette first would mean discovering the
+  // upload, being told to change the header, scrolling DOWN to do it, then back
+  // UP — the control that unlocks the option has to come before the option.
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-5">
       <div>
@@ -781,40 +799,6 @@ export function SwiftLinkStyleControls({
         )}
       </div>
 
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>Social icons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-        <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">The shape and color of your social chips.</p>
-        <IconStyleControls
-          look={getLook(value.linkLook)}
-          shape={normalizeIconShape(value.linkIconShape)}
-          fill={normalizeIconFill(value.linkIconFill)}
-          onChange={onChange}
-          locked={locked}
-        />
-      </div>
-
-      {/* Per-link looks — only where the caller owns the links (the card
-          editor and the wizard); the marketing mini-builder's sketch has no
-          real links, so it gets no section rather than a dead one. */}
-      {links && onLinksChange && (
-        <div className="border-t border-gray-800 pt-4">
-          <p className={`${rowLabel} mb-0.5`}>Link buttons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-          <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">Choose how each additional link appears. Featured and Grid show a big preview you can swap for your own photo or video; Compact is a slim row you can style.</p>
-          <LinkButtonsControls links={links} onChange={onLinksChange} locked={locked} pageRowStyle={value.linkButtonStyle} />
-          {links.some((l) => l.kind !== "header" && (l.size ?? "grid") === "compact" && resolveRowStyle(l, value.linkButtonStyle) !== "tile") && (
-            <div className="mt-2.5">
-              <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color for Solid and Outline rows — leave Default to use your Look&apos;s accent.</p>
-              <SwatchRow
-                presets={["#1D4ED8", "#111827", "#A8433C", "#0F766E", "#7C3AED", "#B91C1C"]}
-                value={value.linkButtonColor}
-                fallbackHex={getLook(value.linkLook).accent}
-                onPick={(v) => onChange({ linkButtonColor: v })}
-                customLocked={locked}
-              />
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
@@ -878,6 +862,42 @@ export function SwiftLinkStyleControls({
           })}
         </div>
       </div>
+
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>Social icons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
+        <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">The shape and color of your social chips.</p>
+        <IconStyleControls
+          look={getLook(value.linkLook)}
+          shape={normalizeIconShape(value.linkIconShape)}
+          fill={normalizeIconFill(value.linkIconFill)}
+          onChange={onChange}
+          locked={locked}
+        />
+      </div>
+
+      {/* Per-link looks — only where the caller owns the links (the card
+          editor and the wizard); the marketing mini-builder's sketch has no
+          real links, so it gets no section rather than a dead one. */}
+      {links && onLinksChange && (
+        <div className="border-t border-gray-800 pt-4">
+          <p className={`${rowLabel} mb-0.5`}>Link buttons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
+          <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">Choose how each additional link appears. Featured and Grid show a big preview you can swap for your own photo or video; Compact is a slim row you can style.</p>
+          <LinkButtonsControls links={links} onChange={onLinksChange} locked={locked} pageRowStyle={value.linkButtonStyle} />
+          {links.some((l) => l.kind !== "header" && (l.size ?? "grid") === "compact" && resolveRowStyle(l, value.linkButtonStyle) !== "tile") && (
+            <div className="mt-2.5">
+              <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color for Solid and Outline rows — leave Default to use your Look&apos;s accent.</p>
+              <SwatchRow
+                presets={["#1D4ED8", "#111827", "#A8433C", "#0F766E", "#7C3AED", "#B91C1C"]}
+                value={value.linkButtonColor}
+                fallbackHex={getLook(value.linkLook).accent}
+                onPick={(v) => onChange({ linkButtonColor: v })}
+                customLocked={locked}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
 }
