@@ -1,7 +1,7 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { sendPushToUser } from "@/lib/push";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
-import type { PushCategory } from "@/lib/push-policy";
+import { UNCAPPED, type PushCategory } from "@/lib/push-policy";
 
 // ONE NOTIFICATION PER PERSON, PER CARD, PER VISIT.
 //
@@ -17,11 +17,15 @@ import type { PushCategory } from "@/lib/push-policy";
 // that column (supabase/notifications-visit-key.sql) means the second one
 // physically cannot insert. It upgrades the row that exists instead:
 //
-//   viewed your card  →  saved your contact card  →  shared their info
+//   viewed your card  →  downloaded your contact card  →  shared their info
 //
-// and re-pushes under the SAME collapse id, so the lock screen REPLACES the
-// banner rather than adding one. The owner ends a visit with exactly one
-// notification, showing the furthest that person got.
+// under the SAME collapse id, so when an upgrade does re-push the lock screen
+// REPLACES the banner rather than adding one. The owner ends a visit with
+// exactly one notification, showing the furthest that person got.
+//
+// Only an UNCAPPED upgrade re-pushes at all — see push() below. A view being
+// overtaken by a download changes the row in silence; a stranger turning into
+// a named lead is worth the one extra buzz.
 
 /** How newsworthy an event is. A visit only ever moves up this list. */
 export const VISIT_RANK: Record<string, number> = {
@@ -80,11 +84,13 @@ export function visitPushTag(key: string): string {
 export type VisitNotice = {
   /** notifications.type — also the VISIT_RANK lookup ("milestone_5" ranks as "milestone"). */
   type: string;
-  /** Which of the five interrupt-worthy categories this is, if any.
-   *  OMITTED ON PURPOSE for everything else: a saved contact and a repeat view
-   *  still write the bell row and still upgrade the visit, they just do not
-   *  buzz. The caller decides, because only it knows whether a view is the
-   *  card's FIRST (push-policy.ts). */
+  /** Which of the interrupt-worthy categories this is, if any (push-policy.ts).
+   *  OMITTED ON PURPOSE for news that belongs in the bell and nowhere else — a
+   *  view milestone, say: it still writes the row and still upgrades the visit,
+   *  it just never buzzes. Carrying a category is permission to interrupt, not
+   *  a guarantee: the policy layer still applies quiet hours, the daily cap and
+   *  the hourly view batch, and an upgrade mid-visit stays silent unless the
+   *  category is uncapped (see push() below). */
   pushCategory?: PushCategory;
   title: string;
   body: string;
@@ -169,8 +175,24 @@ export async function notifyVisit(opts: {
   const key = open?.visit_key ?? keys.current;
   const tag = visitPushTag(key);
 
-  const push = async () => {
+  // `onUpgrade` = this visit already has a row, so the owner has very likely
+  // already been buzzed once for this same person.
+  //
+  // ONE PERSON'S VISIT IS ONE INTERRUPTION. The collapse id means an upgrade
+  // REPLACES the banner rather than stacking a second one, which keeps the lock
+  // screen tidy — but a replacement still buzzes, and "someone viewed my card"
+  // followed thirty seconds later by "someone downloaded my contact card" is
+  // two buzzes from one visitor. That is the exact complaint this whole file
+  // exists to answer, so a mid-visit upgrade is silent by default.
+  //
+  // The exception is the uncapped categories — a lead, a reply, a billing
+  // failure. Those are the things a person would be genuinely angry to have
+  // held back, and someone handing over their details after browsing is a big
+  // enough change in the news to be worth the second buzz. The capped ones
+  // (a view, a download) are nice to know: they update the row and wait.
+  const push = async (onUpgrade = false) => {
     if (!notice.pushCategory) return;   // bell-only news
+    if (onUpgrade && !UNCAPPED.includes(notice.pushCategory)) return;
     await sendPushToUser(opts.userId, {
       category: notice.pushCategory,
       title: notice.title,
@@ -196,7 +218,7 @@ export async function notifyVisit(opts: {
   // Known open visit: upgrade it, or stay quiet. No second row, no second buzz.
   if (open) {
     if (rankOf(notice.type) <= rankOf(open.type)) return "suppressed";
-    return (await upgrade(admin, open.id, notice)) ? (await push(), "upgraded") : "failed";
+    return (await upgrade(admin, open.id, notice)) ? (await push(true), "upgraded") : "failed";
   }
 
   const { error } = await admin.from("notifications").insert(row);
@@ -236,7 +258,7 @@ export async function notifyVisit(opts: {
       .maybeSingle();
     if (!existing) return "failed";
     if (rankOf(notice.type) <= rankOf(existing.type as string)) return "suppressed";
-    return (await upgrade(admin, existing.id as string, notice)) ? (await push(), "upgraded") : "failed";
+    return (await upgrade(admin, existing.id as string, notice)) ? (await push(true), "upgraded") : "failed";
   }
 
   return "failed";

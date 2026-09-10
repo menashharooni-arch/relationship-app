@@ -173,23 +173,45 @@ describe("iOS shell project wiring", () => {
 
   // Owner order 2026-09-03: turning on notifications is one of the first things
   // the app should offer. New accounts get it on "Your card is live!"; existing
-  // accounts signing in on the iPhone app got nothing — so a first-open banner
-  // at the top of the dashboard, native only, gone once push is on or declined.
-  it("the dashboard offers the push switch on first open in the native app", () => {
-    const nudge = read("src/components/NativePushNudge.tsx");
-    expect(nudge).toMatch(/useIsNativeApp\(\)/);
-    expect(nudge).toMatch(/if \(!native \|\| dismissed \|\| state !== "idle"\) return null/);
+  // accounts signing in got nothing — so a banner at the top of the dashboard,
+  // gone once push is on or declined.
+  //
+  // 2026-09-09: it is no longer native-only. Gating it on the iPhone shell
+  // excluded everyone who signs up on a laptop, which is most people, and the
+  // push table showed it — two registered devices in the whole product. It now
+  // renders wherever the switch can actually succeed (state === "idle"), which
+  // is the honest gate: an iPhone Safari tab that needs installing first, or a
+  // shell with no plugin, still gets nothing here.
+  it("the dashboard offers the push switch on every platform that can accept it", () => {
+    const nudge = read("src/components/PushNudge.tsx");
+    // NOT gated on the native shell — that gate is the bug this replaced.
+    expect(nudge).not.toMatch(/useIsNativeApp/);
+    expect(nudge).toMatch(/state !== "idle"/);
     expect(nudge).toContain("<EnablePushButton onDone={dismiss} />");
     expect(nudge).toContain("Not now");
 
     const dash = read("src/app/dashboard/page.tsx");
-    const nudgeAt = dash.indexOf("<NativePushNudge />");
+    const nudgeAt = dash.indexOf("<PushNudge ");
     const trialAt = dash.indexOf("<TrialBanner");
     const cardsAt = dash.indexOf('data-tour="my-cards"');
     expect(nudgeAt).toBeGreaterThan(-1);
     // Top of the page: above the trial banner and the My Cards box.
     expect(nudgeAt).toBeLessThan(trialAt);
     expect(nudgeAt).toBeLessThan(cardsAt);
+  });
+
+  // At most two asks, ever. A prompt that keeps returning is the same
+  // disrespect as a notification that keeps returning, and it is the reason to
+  // trust the product less, not more.
+  it("asks at most twice and never invents the number it asks with", () => {
+    const nudge = read("src/components/PushNudge.tsx");
+    // Stage 0 = never asked, 1 = cold ask declined, 2 = done for good.
+    expect(nudge).toMatch(/const asking = stage === 0 \|\| \(stage === 1 && hasActivity\)/);
+    expect(nudge).toMatch(/const next = hasActivity \? 2 : 1/);
+    // The second ask quotes real views. It must say "opened N times" — never
+    // "N people", which the view count does not prove (repeat opens count too).
+    expect(nudge).toContain("Your card has been opened");
+    expect(nudge).not.toMatch(/\$\{viewCount\} people/);
   });
   it("official Capacitor plugins are dependencies", () => {
     const pkg = JSON.parse(read("package.json"));

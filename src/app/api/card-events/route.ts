@@ -15,6 +15,7 @@ import { resolveGeo, type GeoResult } from "@/lib/request-geo";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 import { recordView } from "@/lib/record-view";
 import { notifyVisit, visitKey } from "@/lib/visit-notify";
+import type { PushCategory } from "@/lib/push-policy";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -347,6 +348,26 @@ export async function POST(req: NextRequest) {
 
       if (owner?.id) {
         const isView = event_type === "viewed_card";
+
+        // Is this the very first view this card has ever had?
+        //
+        // Counted under the SAME key the view was recorded with: card_views
+        // stores the Swift Links surface as "<slug>__links", so counting the
+        // bare slug here would always return 0 for a links view. 1 = the view
+        // just recorded; a failed count returns null, which is not "first".
+        //
+        // This no longer GATES the push — it only changes the WORDING. A card's
+        // first view is the moment the product proves itself to its owner, and
+        // it is worth naming as one.
+        let firstEver = false;
+        if (isView) {
+          const { count } = await admin
+            .from("card_views")
+            .select("id", { count: "exact", head: true })
+            .eq("username", surface === "links" ? `${card_owner_username}__links` : card_owner_username);
+          firstEver = count === 1;
+        }
+
         // identity, not the raw client field — the notification must name the
         // person who ACTUALLY viewed, never a stale cached identity.
         const notice = cardEventNotice({
@@ -358,6 +379,7 @@ export async function POST(req: NextRequest) {
           // Without this the copy says "near New York, US" for an answer that
           // only ever meant "somewhere in New York State" (lib/location-display).
           geoAccuracy: geo.accuracy,
+          firstEver,
         });
 
         // Flood backstop: the dedup keys on the client-supplied visitor_id, so
@@ -366,29 +388,28 @@ export async function POST(req: NextRequest) {
         // hour — events above the cap still record, they just don't buzz.
         const flooded = await isRateLimited(`notify-ip:${card_owner_username}:${ip}`, 6, 60 * 60 * 1000);
 
-        // FIRST view only, and never a repeat one.
+        // EVERY view is a candidate to buzz; the throttles decide which ones do.
         //
-        // Every visit used to buzz. That is the notification people turn off:
-        // a card shared at an event is opened twenty times in an afternoon and
-        // none of those, after the first, is news. So a view interrupts once —
-        // the first time that card is ever opened — and push-policy.ts batches
-        // even that to one an hour. A saved contact gets no push at all: it
-        // still writes the bell row and still upgrades this visit.
-        let pushCategory: "first_view" | undefined;
-        if (isView) {
-          // Count under the SAME key the view was recorded with: card_views
-          // stores the Swift Links surface as "<slug>__links", so counting the
-          // bare slug here would always return 0 for a links view and silently
-          // never notify.
-          const { count } = await admin
-            .from("card_views")
-            .select("id", { count: "exact", head: true })
-            .eq("username", surface === "links" ? `${card_owner_username}__links` : card_owner_username);
-          // 1 = the view just recorded. Anything more and this card has been
-          // seen before. A failed count returns null, which is not "first" —
-          // the quiet direction, deliberately.
-          if (count === 1) pushCategory = "first_view";
-        }
+        // This used to be first-view-only — the count === 1 above was the gate —
+        // so a view push could fire exactly once in a card's entire lifetime.
+        // Someone could share their card at a conference, collect forty views,
+        // and their phone would never make a sound. The worry behind that rule
+        // was real (nobody wants twenty banners from one printed QR code) but
+        // the answer to it was already built and could never engage:
+        // push-policy.ts batches views to one an hour inside a five-a-day cap,
+        // notifyVisit allows one per visitor per visit, and `flooded` above
+        // holds any single IP to six an hour. Four throttles, all now live.
+        //
+        // A saved contact carries its own category. It is higher intent than a
+        // view — someone who saves your card meant to keep you — and it lands
+        // as its own alert only when it OPENS the visit (a QR that goes
+        // straight to the vCard). Mid-visit it upgrades the row without a
+        // second buzz; see the UNCAPPED rule in lib/visit-notify.ts.
+        const pushCategory: PushCategory | undefined = isView
+          ? "card_view"
+          : event_type === "downloaded_vcard"
+            ? "contact_saved"
+            : undefined;
 
         // How sure we are WHO this was. A session is proof; a name that came
         // from the visitor's own earlier share is an association, not an
@@ -468,7 +489,10 @@ export async function POST(req: NextRequest) {
                 type: milestone.type,
                 milestone: milestone.type,
                 title: milestone.title,
-                body: `${notice.body} That's ${milestone.reached.toLocaleString("en-US")} views on /${milestone.slug}.`,
+                // Who just visited, the number they took the card past, and one
+                // thing to go and do about it. The third sentence is the reason
+                // a milestone is worth writing at all — see lib/milestones.ts.
+                body: `${notice.body} That's ${milestone.reached.toLocaleString("en-US")} views on /${milestone.slug}. ${milestone.body}`,
                 url: `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner_username)}`,
               },
             });
