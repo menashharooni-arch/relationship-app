@@ -101,11 +101,26 @@ describe("wiring — the ingest route actually enforces this server-side", () =>
     expect(insert).not.toMatch(/visitor_name: visitor_name/);
   });
 
-  it("the notification and the CRM mirror use the derived identity too", () => {
+  it("the notification uses the derived identity, and the CRM demands more than that", () => {
+    // The bell still renders the derived identity: for an anonymous visitor
+    // that is an ASSOCIATION from their own earlier share, which the route
+    // records honestly as `identityLevel` and never presents as certain.
     expect(route).toMatch(/visitorName: identity\.visitor_name/);
-    expect(route).toMatch(/name: identity\.visitor_name, email: identity\.visitor_email/);
     // No surface may reach back to the raw client blob for a display name.
     expect(route).not.toMatch(/visitorName: visitor_name/);
+
+    // The CRM is held to a HIGHER bar than the bell, and used to be held to
+    // the same one. This endpoint is public and card slugs are public, so a
+    // stranger could POST any slug with any name and email and have a
+    // fabricated contact written into a customer's Salesforce or HubSpot.
+    // Contact details forwarded there are now re-derived server-side from the
+    // lead the visitor actually submitted to THIS owner — see
+    // corroboratedContact and tests/crm-contact-corroboration.test.ts.
+    expect(route).toMatch(/const crmContact = await corroboratedContact\(/);
+    expect(
+      /contact:\s*\{\s*name:\s*identity\./.test(route),
+      "the CRM is being handed the client-supplied identity again",
+    ).toBe(false);
   });
 
   it("owner self-views are still excluded by SERVER identity (never client-supplied, never IP)", () => {
