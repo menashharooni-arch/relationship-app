@@ -8,6 +8,7 @@ import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import PanelVideo from "./PanelVideo";
 
 const ACCENT_DEFAULT = "#6d28d9";
 const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)";
@@ -122,9 +123,13 @@ export default function PhotoFirst({ data }: { data: CardData }) {
 
       {/* ── Right: info panel — background follows bgColor ──────────── */}
       <div
-        className="flex-1 flex flex-col justify-between"
-        style={{ padding: "15px 17px 13px", background: infoBg, borderLeft: `1px solid ${infoPalette.border}` }}
+        className="relative flex-1 flex flex-col justify-between"
+        style={{ padding: "15px 17px 13px", background: infoBg,
+          // Isolate so PanelVideo's z-index:-1 sits above this background
+          // and below the panel's own content, instead of escaping upward.
+          isolation: "isolate", borderLeft: `1px solid ${infoPalette.border}` }}
       >
+        <PanelVideo style={style} />
         {/* Company header */}
         <div>
           <div className="flex items-center gap-2 mb-1.5 min-w-0">

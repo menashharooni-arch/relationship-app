@@ -14,7 +14,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DashboardLink from "@/components/DashboardLink";
 import { PlanGate } from "@/components/PlanGate";
-import { PLAN_LIMITS } from "@/lib/plan";
+import { PLAN_LIMITS, proFeaturesInUse } from "@/lib/plan";
+import ProRequiredDialog from "@/components/ProRequiredDialog";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
@@ -346,12 +347,36 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const PreviewTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
   const customSelected = template === "custom";
 
-  async function handleSave() {
+  // Pro design on a Free account: the editor lets it all be tried on — every
+  // finish is tappable, the photo/video picker opens, the preview renders it —
+  // and the wall stands here, at Save. Before this the save simply succeeded
+  // and the server quietly stripped the Pro keys, so the person found a flat
+  // card on their live link with nothing having told them why.
+  const [proBlock, setProBlock] = useState<string[] | null>(null);
+
+  async function handleSave(opts?: { allowFreeConversion?: boolean }) {
     if (!name.trim()) {
       setTab("content");
       setError("Full name is required.");
+      setProBlock(null);
       return;
     }
+
+    if (!isPro && !opts?.allowFreeConversion) {
+      // Same detection the converter and the server sanitizer use, so the
+      // dialog can never disagree with what would actually be saved.
+      const proFeatures = proFeaturesInUse(
+        { ...templateStyleState, ...linkStyleState, customLayout },
+        template,
+      );
+      if (proFeatures.length) {
+        setProBlock(proFeatures);
+        setStatus("idle");
+        return;
+      }
+    }
+    setProBlock(null);
+
     setStatus("saving");
     setError("");
     setViewOnly(false);
@@ -1144,7 +1169,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             Cancel
           </DashboardLink>
           <button
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={status === "saving"}
             // Background as a CLASS, not an inline style. The light theme
             // recolours .text-white to ink and makes an exception only when the
@@ -1201,6 +1226,14 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           </>
         )}
       </div>
+      )}
+      {proBlock && (
+        <ProRequiredDialog
+          features={proBlock}
+          busy={status === "saving"}
+          onCancel={() => setProBlock(null)}
+          onSaveWithoutPro={() => handleSave({ allowFreeConversion: true })}
+        />
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom } from "./shared";
+import PanelVideo from "./PanelVideo";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -64,10 +65,14 @@ export default function LocalBusiness({ data }: { data: CardData }) {
         style={{
           height: `${36 - (1 - f) * 14}%`,
           background: stripeBg,
+          // Isolate so PanelVideo's z-index:-1 sits above this background
+          // and below the panel's own content, instead of escaping upward.
+          isolation: "isolate",
           position: "relative",
           flexShrink: 0,
         }}
       >
+        <PanelVideo style={style} />
         {/* Subtle diagonal texture */}
         <div
           className="absolute inset-0 pointer-events-none"

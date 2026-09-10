@@ -13,6 +13,7 @@ import { cardLogoShape,
   cardAspect, ContactRows, contactScale, fitFactor, fitName, fitTitle, fitCompany, heroGrow,
   qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom,
 } from "./shared";
+import PanelVideo from "./PanelVideo";
 
 const NAVY   = "#2C3A52";
 const INK    = "#141B26";
@@ -175,10 +176,14 @@ export default function LogoFirst({ data }: { data: CardData }) {
       style={{
         aspectRatio: cardAspect(data),
         background: bg,
+          // Isolate so PanelVideo's z-index:-1 sits above this background
+          // and below the panel's own content, instead of escaping upward.
+          isolation: "isolate",
         fontFamily: style.fontFamily ?? CARD_BASE_FONT,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
+        <PanelVideo style={style} />
       {/* ── Left: the mark ───────────────────────────────────────────────────
           The container SHRINK-WRAPS the image and CLIPS to its own radius, so a
           3:1 wordmark stays a 3:1 tile and a crest stays square.

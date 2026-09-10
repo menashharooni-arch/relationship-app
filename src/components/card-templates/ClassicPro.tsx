@@ -7,6 +7,7 @@ import { isDarkBg, panelBackground } from "@/lib/template-style";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import PanelVideo from "./PanelVideo";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -58,9 +59,13 @@ export default function ClassicPro({ data }: { data: CardData }) {
         style={{
           width: "40%",
           background: panelBg,
+          // Isolate so PanelVideo's z-index:-1 sits above this background
+          // and below the panel's own content, instead of escaping upward.
+          isolation: "isolate",
           padding: "18px 16px 16px",
         }}
       >
+        <PanelVideo style={style} />
         {/* Subtle dot texture */}
         <div
           className="absolute inset-0 pointer-events-none"
