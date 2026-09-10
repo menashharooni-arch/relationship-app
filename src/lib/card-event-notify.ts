@@ -1,4 +1,6 @@
 import { getSourceLabel } from "@/lib/source-labels";
+import { locationPhrase } from "@/lib/location-display";
+import type { GeoAccuracy } from "@/lib/request-geo";
 
 // What the owner is told when someone touches their card.
 //
@@ -28,14 +30,22 @@ export function cardEventNotice(input: {
   // The event's own stored location — never re-derived, never another
   // visitor's. Absent means absent: the copy simply omits it, no guessing.
   location?: string | null;
+  /**
+   * How much of that location is real (lib/request-geo.ts). Omitted for events
+   * written before the column existed, where the wording stays exactly as it
+   * was — no retro-claiming a confidence nobody recorded.
+   */
+  geoAccuracy?: GeoAccuracy | null;
 }): CardEventNotice | null {
   const { eventType } = input;
   const name = (input.visitorName ?? "").trim();
   const source = input.source ?? null;
-  const location = (input.location ?? "").trim();
-  // Coarse city-level context makes the notification concrete ("near the
-  // conference you're at") without claiming precision we don't have.
-  const near = location ? ` near ${location}` : "";
+  // Coarse context makes the notification concrete ("near the conference you're
+  // at") — but only at the precision actually held. "near New York, US" was
+  // being sent for a STATE-level answer, which reads as New York City; at that
+  // confidence this now says "in the New York area" instead. See
+  // lib/location-display.ts for the full ladder.
+  const near = locationPhrase(input.location, input.geoAccuracy);
 
   if (eventType === "viewed_card") {
     // Swift Links and the card are different surfaces and an owner shares them
@@ -59,9 +69,19 @@ export function cardEventNotice(input: {
     // most frequent notification they get.
     const from = source && source !== "direct_link" ? ` from ${getSourceLabel(source)}` : "";
     return {
+      // The TYPE stays "contact_saved": it is the VISIT_RANK key, the push
+      // category lookup and the CRM event name, and renaming it would be a
+      // breaking change across five consumers for no gain.
       type: "contact_saved",
-      title: "Contact saved",
-      body: `${name ? `${name} saved` : "Someone saved"} your contact card${from}${near}.`,
+      // THE WORDING, THOUGH, WAS A CLAIM WE CANNOT MAKE. What actually happened
+      // is that we built the .vcf and handed it to the device — the browser
+      // download, or the OS "Add to Contacts" sheet. Whether the person then
+      // tapped Add, edited it, or cancelled happens in an operating-system
+      // surface no web or native API reports back. "Contact saved" told the
+      // owner a stranger is now in that person's address book, which we do not
+      // know. A download we DO know, so that is what it says.
+      title: "Contact downloaded",
+      body: `${name || "Someone"} downloaded your contact card${from}${near}.`,
     };
   }
 

@@ -66,7 +66,11 @@ function trackEvent(username: string, eventType: string, source: string) {
   fetch("/api/card-events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ card_owner_username: username, visitor_id: visitorId, event_type: eventType, source }),
+    // surface is always "card": this button renders on the card page only (the
+    // Swift Links page uses ConnectButton). Sent explicitly rather than left to
+    // the route's default so the row says where it happened instead of relying
+    // on one — which is what the whole surface column exists to stop.
+    body: JSON.stringify({ card_owner_username: username, visitor_id: visitorId, event_type: eventType, surface: "card", source }),
   }).catch(() => {});
 }
 
@@ -173,20 +177,19 @@ export default function SaveContactButton({
       markSavedContact(cardOwner);
       if (!suppressTracking) {
         trackEvent(username, "downloaded_vcard", source);
-        fetch("/api/analytics/event", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, event_type: "contact_save" }),
-        }).catch(() => {});
       }
       if (cardOwner && !alreadyShared && !hasSharedWith(cardOwner)) {
         setTimeout(() => setShowSheet(true), 900);
       }
       return;
     }
-    // One action = one activity entry. We record the save once (below, as
-    // "downloaded_vcard" → "saved your contact"); the extra "clicked_save_contact"
-    // event was creating a duplicate line in each contact's conversation timeline.
+    // ONE ACTION = ONE RECORD. The save is recorded once, as "downloaded_vcard"
+    // through /api/card-events — the canonical pipeline. Two other writes for the
+    // same tap have now been removed: "clicked_save_contact" (which put a
+    // duplicate line in each contact's conversation timeline) and a
+    // "contact_save" row in analytics_events, a table with no reader anywhere in
+    // the codebase — only inserts, deletes and an index. A second recording of
+    // one real action is a second recording even when nothing counts it.
     // Escaping + field ordering live in the shared buildVCard (src/lib/vcard.ts),
     // used by the server lead export too so contacts save identically everywhere.
 
@@ -233,11 +236,6 @@ export default function SaveContactButton({
     // recorded — no "saved your contact" event/notification to themselves.
     if (username && !suppressTracking) {
       trackEvent(username, "downloaded_vcard", source);
-      fetch("/api/analytics/event", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, event_type: "contact_save" }),
-      }).catch(() => {});
     }
 
     // Show the "share your info back" lead-capture sheet (card owner's). If it

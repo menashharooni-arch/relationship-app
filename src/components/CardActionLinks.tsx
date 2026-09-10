@@ -1,6 +1,7 @@
 "use client";
 
 import { triggerSignupNudge } from "@/lib/nudge";
+import { trackLinkClick } from "@/lib/track-link-click";
 import LinkMark from "@/components/LinkMark";
 import { fullHref } from "@/lib/link-brand";
 
@@ -23,7 +24,21 @@ type CardLink = { emoji?: string; label: string; url: string };
 //
 // Zero network: the marks are favicons derived from the hostname (lazy, over an
 // always-painted monogram), never an og:image scrape.
-export default function CardActionLinks({ links }: { links: CardLink[] }) {
+export default function CardActionLinks({
+  links,
+  trackFor = null,
+  trackSource = "direct_link",
+  suppressTracking = false,
+}: {
+  links: CardLink[];
+  /** The CARD SLUG these links belong to, for outbound-link tracking. Null (the
+   *  default) records nothing, so a preview render stays silent. */
+  trackFor?: string | null;
+  /** The page's ?source= attribution, inherited by the tap. */
+  trackSource?: string;
+  /** Owner looking at their own card. */
+  suppressTracking?: boolean;
+}) {
   if (!links.length) return null;
 
   return (
@@ -37,7 +52,10 @@ export default function CardActionLinks({ links }: { links: CardLink[] }) {
           href={fullHref(l.url)}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => triggerSignupNudge("link_button")}
+          onClick={() => {
+            trackLinkClick({ username: trackFor, surface: "card", url: fullHref(l.url), source: trackSource, suppress: suppressTracking });
+            triggerSignupNudge("link_button");
+          }}
           // group: lets the chevron lean in on hover without its own listener.
           // Colour change only — NOT a transform. A row inside a shared
           // container must never move independently of its neighbours, or the

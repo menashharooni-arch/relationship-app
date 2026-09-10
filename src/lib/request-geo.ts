@@ -78,9 +78,100 @@ export async function resolveLocation(req: NextRequest, ip: string): Promise<str
   return reconcile(edge, second);
 }
 
-/** The decision table in the header comment. Exported for tests. */
+// ── How much of the answer is actually known ─────────────────────────────────
+//
+// THE BUG THIS EXISTS FOR. The decision table below has always known the
+// difference between "two databases named this town" and "two databases
+// disagreed, so all I can honestly say is the state" — and then threw it away,
+// returning a bare string for both. Those strings are shaped identically:
+//
+//   "Ithaca, NY"      both sources named the town
+//   "Great Neck, US"  one source named the town; nothing confirmed it
+//   "New York, US"    the sources DISAGREED — somewhere in New York State
+//   "US"              country only
+//
+// Production 2026-09-03 → 09-09: 19 of 26 views stored "New York, US", and the
+// owner's push read "viewed your card near New York, US", which every reader
+// takes to mean New York City. It does not mean that, and the pipeline knew.
+//
+// So the confidence now travels WITH the label. The LABEL FORMAT IS UNCHANGED
+// on purpose: it is the Locations tab's grouping key and locationAliases()'
+// input, so re-shaping it would split history in two. lib/location-display.ts
+// composes the pair into the words a person reads.
+export type GeoAccuracy =
+  /** Two independent sources named the same town. The one answer worth stating flat. */
+  | "city"
+  /** A town from a single unconfirmed source. Real signal, but "near", not "in". */
+  | "city_approx"
+  /** Region/state only: the sources disagreed on the town, or the IP is a carrier
+   *  or relay gateway, where naming a town is a coin toss. */
+  | "region"
+  /** Country only. */
+  | "country";
+
+export type GeoResult = {
+  /** Exactly what resolveLocation() has always returned — the stored label. */
+  label: string | null;
+  /** Null only when there is no label at all. */
+  accuracy: GeoAccuracy | null;
+  /** Which databases produced it, so a one-source answer is visible as one. */
+  source: "edge+second" | "edge" | null;
+  /** Network owner, for classification only. NEVER stored or displayed. */
+  org: string | null;
+  /** The network anonymises or relocates its users (Private Relay, VPN, cloud
+   *  egress), so even a confident town is the relay's town, not theirs. */
+  isRelay: boolean;
+};
+
+/**
+ * The full geo answer for one request: the same label as resolveLocation, plus
+ * how much of it is real.
+ *
+ * Same cost as resolveLocation — one cached second-opinion lookup — so the
+ * ingest path pays nothing extra for the honesty.
+ */
+export async function resolveGeo(req: NextRequest, ip: string): Promise<GeoResult> {
+  const edge = edgeGeo(req);
+  const second = await secondOpinion(ip);
+  const org = second?.org ?? null;
+  const isRelay = !!org && RELAY_OR_HOSTING.test(org);
+  const base = reconcileDetailed(edge, second);
+  return {
+    label: base.label,
+    // A relay or cloud egress can never support a town: Private Relay promises
+    // only the right country and rough region, and a datacenter IP is a
+    // building. Downgrade rather than drop — the region is still true.
+    accuracy: isRelay && (base.accuracy === "city" || base.accuracy === "city_approx")
+      ? "region"
+      : base.accuracy,
+    source: base.label === null ? null : second ? "edge+second" : "edge",
+    org,
+    isRelay,
+  };
+}
+
+/**
+ * The decision table in the header comment. Exported for tests.
+ *
+ * Kept returning a bare string so every existing caller and test is untouched;
+ * reconcileDetailed is the same decision with the confidence attached.
+ */
 export function reconcile(edge: GeoGuess, second: GeoGuess | null): string | null {
-  if (!second) return formatLocation(edge);
+  return reconcileDetailed(edge, second).label;
+}
+
+/** reconcile(), plus which rung of the confidence ladder the answer came off. */
+export function reconcileDetailed(
+  edge: GeoGuess,
+  second: GeoGuess | null,
+): { label: string | null; accuracy: GeoAccuracy | null } {
+  if (!second) {
+    // One database, unconfirmed. A town from a single source is exactly the
+    // claim the Bolton Landing incident disproved, so it is never "city".
+    const label = formatLocation(edge);
+    if (label === null) return { label: null, accuracy: null };
+    return { label, accuracy: edge.city ? "city_approx" : "country" };
+  }
   const country = edge.country ?? second.country;
   const regionName = second.regionName ?? edge.regionName ?? (edge.regionCode ? US_STATES[edge.regionCode] ?? null : null);
   // WHOEVER KNOWS THE STATE, KNOWS IT. Both sources are describing the same IP,
@@ -98,24 +189,44 @@ export function reconcile(edge: GeoGuess, second: GeoGuess | null): string | nul
   const regionsClash =
     (!!edge.regionCode && !!second.regionCode && edge.regionCode !== second.regionCode) ||
     (!!edge.regionName && !!second.regionName && !sameCity(edge.regionName, second.regionName));
-  const regional = (): string | null =>
-    regionName && country && !regionsClash ? `${regionName}, ${country}` : country ?? formatLocation(edge);
+  // The region rung. Its accuracy is "region" only when a region is what the
+  // label actually names — when it degrades to a bare country, or all the way
+  // back to the edge answer, the confidence has to degrade with it or the
+  // display would promise a state the label doesn't contain.
+  const regional = (): { label: string | null; accuracy: GeoAccuracy | null } => {
+    if (regionName && country && !regionsClash) return { label: `${regionName}, ${country}`, accuracy: "region" };
+    if (country) return { label: country, accuracy: "country" };
+    const label = formatLocation(edge);
+    if (label === null) return { label: null, accuracy: null };
+    return { label, accuracy: edge.city ? "city_approx" : "country" };
+  };
 
   // A carrier gateway serves a whole region; naming its town is a coin toss.
   if (second.org && CELLULAR.test(second.org)) return regional();
 
   if (edge.city && second.city) {
     // The edge keeps its spelling of the town (accents survive), but the region
-    // and country are the best either source has.
-    if (sameCity(edge.city, second.city)) return formatLocation({ city: edge.city, regionCode, country });
+    // and country are the best either source has. TWO INDEPENDENT SOURCES
+    // NAMING ONE TOWN is the only thing in this file that earns a flat "city".
+    if (sameCity(edge.city, second.city)) {
+      return { label: formatLocation({ city: edge.city, regionCode, country }), accuracy: "city" };
+    }
     // Two databases, two towns: the only thing known is the region.
-    if (edge.country && second.country && edge.country !== second.country) return edge.country;
+    if (edge.country && second.country && edge.country !== second.country) {
+      return { label: edge.country, accuracy: "country" };
+    }
     return regional();
   }
-  // One of them has a city and the other doesn't: no contradiction to act on.
-  if (edge.city) return formatLocation({ city: edge.city, regionCode, country });
-  if (second.city) return formatLocation({ city: second.city, regionCode, country });
-  return formatLocation(edge);
+  // One of them has a city and the other doesn't: no contradiction to act on —
+  // but nothing confirmed it either, so it is a "near", not an "in".
+  if (edge.city) {
+    return { label: formatLocation({ city: edge.city, regionCode, country }), accuracy: "city_approx" };
+  }
+  if (second.city) {
+    return { label: formatLocation({ city: second.city, regionCode, country }), accuracy: "city_approx" };
+  }
+  const label = formatLocation(edge);
+  return label === null ? { label: null, accuracy: null } : { label, accuracy: "country" };
 }
 
 /** "City, ST" for US/CA (the region code IS the address), "City, CC" elsewhere. */
@@ -211,6 +322,30 @@ async function lookup(ip: string): Promise<GeoGuess | null> {
     org: [str(conn.org), str(conn.isp)].filter(Boolean).join(" ") || null,
   };
 }
+
+// ── Networks that move their users ───────────────────────────────────────────
+//
+// Two families, one consequence: the IP belongs to infrastructure, not to a
+// neighbourhood, so a town derived from it is the relay's town.
+//
+//   RELAYS/VPNs — iCloud Private Relay egresses through Cloudflare, Akamai and
+//   Fastly, and Apple promises only the right country and a rough region. A
+//   corporate VPN does the same. These are REAL PEOPLE and must keep counting.
+//   Their location is downgraded to the region; nothing else changes.
+//
+//   CLOUD/HOSTING — a phone is never on AWS. This is where the 7 "Ashburn, US"
+//   views on the `swiftcard` slug came from (seven views, seven different
+//   visitor ids, a fresh browser each time).
+//
+// DELIBERATELY NOT AN EXCLUSION. Private Relay traffic lands on these same
+// operators, so dropping views for a hosting match would silently stop counting
+// a slice of ordinary iPhone users — the exact over-broad filtering that costs
+// an owner real visitors. The match downgrades location confidence and is
+// recorded as a classification in analytics_ingest_log; whether any of it
+// should stop counting is a decision to make from that evidence, not a guess
+// made here.
+const RELAY_OR_HOSTING =
+  /\b(amazon|aws|amazon technologies|google cloud|google llc|microsoft|azure|digitalocean|linode|akamai|cloudflare|fastly|ovh|hetzner|vultr|contabo|m247|datacamp|leaseweb|choopa|quadranet|hostinger|godaddy|namecheap|oracle cloud|alibaba|tencent cloud|scaleway|upcloud|packet|equinix|zenlayer|nordvpn|expressvpn|surfshark|mullvad|private internet access|proton|ipvanish|cyberghost|windscribe|tunnelbear|hosting|datacenter|data center|server|colocation|cloud)\b/i;
 
 // Mobile carriers: an address here is a regional gateway, not a place.
 const CELLULAR =

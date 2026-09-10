@@ -23,7 +23,7 @@ import { clientIp } from "@/lib/client-ip";
 import { notifyVisit } from "@/lib/visit-notify";
 import { CRM_WEBHOOK_TIMEOUT_MS } from "@/lib/crm-events";
 import { isLikelyBot } from "@/lib/bot-detection";
-import { resolveLocation } from "@/lib/request-geo";
+import { resolveGeo } from "@/lib/request-geo";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -90,7 +90,13 @@ export async function POST(req: NextRequest) {
     // a city even when the country header is missing, honest null otherwise —
     // and cross-checked against a second IP database, so two sources that
     // disagree on the town report the state they share instead.
-    const location = await resolveLocation(req, ip);
+    //
+    // resolveGeo, not resolveLocation: it returns the same label PLUS how much
+    // of it is real, so the contact panel can say "Near Great Neck, NY" or
+    // "New York (approximate)" instead of printing a state-level guess under a
+    // map pin next to a phone number the person actually typed in.
+    const geo = await resolveGeo(req, ip);
+    const location = geo.label;
 
     const admin = getAdminSupabase();
 
@@ -195,15 +201,16 @@ export async function POST(req: NextRequest) {
       await bumpUsage(admin, ownerProfile.id, ownerProfile.customization as Record<string, unknown> | null, "leads");
     }
 
-    const { data: insertedLead, error } = await admin
-      .from("leads")
-      .insert({
+    const leadRow = {
         name,
         email: email || null,
         phone: phone || null,
         company: company || null,
         message: message || null,
         location: location || null,
+        // Added by supabase/analytics-accuracy.sql; the insert below degrades
+        // without it so a lead is never lost to an unapplied migration.
+        geo_accuracy: geo.accuracy,
         card_owner,
         // New reach-outs arrive unread; over the free monthly cap they're also
         // tagged locked so the dashboard blurs them behind Pro. SMS consent
@@ -218,9 +225,18 @@ export async function POST(req: NextRequest) {
         ],
         source: source || null,
         visitor_id: visitor_id || null,
-      })
-      .select("id")
-      .single();
+    };
+    let { data: insertedLead, error } = await admin.from("leads").insert(leadRow).select("id").single();
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      // geo_accuracy not migrated yet (supabase/analytics-accuracy.sql). A LEAD
+      // IS THE PRODUCT — losing one to a column that doesn't exist yet would be
+      // the worst possible trade for a display nicety, and the visitor would see
+      // "something went wrong" and submit again. Drop the qualifier, keep the
+      // lead; the panel then renders the label exactly as it does today.
+      const { geo_accuracy: _unused, ...legacyRow } = leadRow;
+      void _unused;
+      ({ data: insertedLead, error } = await admin.from("leads").insert(legacyRow).select("id").single());
+    }
 
     if (error) {
       console.error("Supabase insert error:", error.message);

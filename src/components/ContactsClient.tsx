@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getSourceLabel } from "@/lib/source-labels";
+import { locationLabel } from "@/lib/location-display";
+import type { GeoAccuracy } from "@/lib/request-geo";
 import { CRON_HOUR_UTC } from "@/lib/cron-schedule";
 import AddContactModal from "@/components/AddContactModal";
 import ShareMyInfoButton, { type CardSigner } from "@/components/ShareMyInfoButton";
@@ -21,6 +23,10 @@ type Lead = {
   company: string | null;
   company_description: string | null;
   location: string | null;
+  /** How much of `location` is real — it is IP-derived, unlike every other
+   *  field on this panel, which the contact typed in themselves. Absent on
+   *  leads captured before the column existed; those render unchanged. */
+  geo_accuracy?: string | null;
   notes: string | null;
   source: string | null;
   visitor_id: string | null;
@@ -38,6 +44,10 @@ type Lead = {
 type CardEvent = {
   id: string;
   event_type: string;
+  /** "card" | "links" — absent on events written before the column existed. */
+  surface?: string | null;
+  /** For clicked_link: the destination host the visitor tapped. */
+  target?: string | null;
   source: string | null;
   visitor_name: string | null;
   visitor_email: string | null;
@@ -45,20 +55,48 @@ type CardEvent = {
 };
 
 const EVENT_LABELS: Record<string, { label: string; icon: string }> = {
-  viewed_card:           { label: "Viewed your card",       icon: "·" },
-  clicked_save_contact:  { label: "Clicked Save Contact",   icon: "·" },
-  downloaded_vcard:      { label: "Downloaded your contact", icon: "·" },
-  shared_info:           { label: "Shared their info",       icon: "✓" },
+  viewed_card:           { label: "Viewed your card",           icon: "·" },
+  clicked_save_contact:  { label: "Clicked Save Contact",       icon: "·" },
+  downloaded_vcard:      { label: "Downloaded your contact card", icon: "·" },
+  clicked_link:          { label: "Tapped one of your links",  icon: "·" },
+  shared_info:           { label: "Shared their info",          icon: "✓" },
 };
 
 // Natural-language phrases for the read-only conversation/activity log,
-// prefixed with the contact's first name ("Aaron saved your contact").
+// prefixed with the contact's first name ("Aaron downloaded your contact card").
+//
+// downloaded_vcard USED TO READ "saved your contact", which this very file
+// contradicted one line above by calling the same event a download. A save
+// finishes in the operating system's "Add to Contacts" sheet — a surface no web
+// or native API reports back — so whether they tapped Add, edited it, or
+// cancelled is genuinely unknown. The download is the part we performed and can
+// therefore state.
 const ACTIVITY_PHRASES: Record<string, string> = {
   viewed_card:           "viewed your card",
   clicked_save_contact:  "tapped Save Contact",
-  downloaded_vcard:      "saved your contact",
+  downloaded_vcard:      "downloaded your contact card",
+  clicked_link:          "tapped one of your links",
   shared_info:           "shared their info with you",
 };
+
+// A view carries WHICH PAGE was opened (card_events.surface). Without it every
+// Swift Links view in this timeline read "Viewed your card" — the owner's
+// notification already said "Swift Links viewed", so the bell and the
+// conversation described the same event differently.
+function eventLabel(e: { event_type: string; surface?: string | null }): { label: string; icon: string } {
+  if (e.event_type === "viewed_card" && e.surface === "links") {
+    return { label: "Viewed your Swift Links", icon: "·" };
+  }
+  return EVENT_LABELS[e.event_type] ?? { label: e.event_type, icon: "·" };
+}
+
+function activityPhrase(e: { event_type: string; surface?: string | null; target?: string | null }): string | undefined {
+  if (e.event_type === "viewed_card" && e.surface === "links") return "viewed your Swift Links";
+  // Name the link when the row knows which one — "tapped your calendly.com
+  // link" is the answer a Swift Links owner is actually looking for.
+  if (e.event_type === "clicked_link" && e.target) return `tapped your ${e.target} link`;
+  return ACTIVITY_PHRASES[e.event_type];
+}
 
 
 function formatDate(iso: string) {
@@ -1262,7 +1300,7 @@ export default function ContactsClient({
                   <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                   </svg>
-                  <span className="min-w-0 break-words text-gray-400 text-sm">{selected.location}</span>
+                  <span className="min-w-0 break-words text-gray-400 text-sm">{locationLabel(selected.location, selected.geo_accuracy as GeoAccuracy | null)}</span>
                 </div>
               )}
               <div className="flex items-center gap-3 pt-1 border-t border-gray-800">
@@ -1621,7 +1659,7 @@ export default function ContactsClient({
                   // (same tap) — we stopped emitting it, and we hide the historical
                   // ones so old conversations show one "saved your contact" line too.
                   if (ev.event_type === "clicked_save_contact") continue;
-                  items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: EVENT_LABELS[ev.event_type]?.icon ?? "·", text: `${fname} ${ACTIVITY_PHRASES[ev.event_type] ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
+                  items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: eventLabel(ev).icon, text: `${fname} ${activityPhrase(ev) ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
                 }
                 items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✓", text: `${fname} shared their info with you`, source: selected.source });
                 if (selected.message) items.push({ at: selected.created_at, key: "note", kind: "in", body: selected.message });

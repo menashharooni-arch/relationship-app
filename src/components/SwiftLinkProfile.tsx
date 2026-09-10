@@ -67,6 +67,9 @@ export default function SwiftLinkProfile({
   paidTiles = false,
   showCardLink = true,
   brandingFooter = true,
+  trackFor = null,
+  trackSource = "swift_links",
+  suppressTracking = false,
 }: {
   name: string;
   username: string;
@@ -91,6 +94,14 @@ export default function SwiftLinkProfile({
   /** Paid owner: featured/grid image tiles + inline video. Defaults FALSE —
    *  fails closed to the Free rendering (every link compact). */
   paidTiles?: boolean;
+  /** The CARD SLUG this page belongs to, for outbound-link tracking. Null (the
+   *  default) records nothing — this component also renders inside the live
+   *  designer and the marketing mocks, where a tap is not a visitor's tap. */
+  trackFor?: string | null;
+  /** The page's own ?source= attribution, inherited by every tap on it. */
+  trackSource?: string;
+  /** Owner looking at their own Swift Links page. */
+  suppressTracking?: boolean;
   /** Owner toggle (Social design step): the faint "View SwiftCard →" link at
    *  the bottom. ON by default — hiding it is the owner's explicit choice. */
   showCardLink?: boolean;
@@ -398,6 +409,10 @@ export default function SwiftLinkProfile({
             fill={normalizeIconFill(pageStyle?.iconFill)}
             accent={look.accent}
             accentText={look.accentText}
+            trackFor={embedded ? null : trackFor}
+            trackSurface="links"
+            trackSource={trackSource}
+            suppressTracking={suppressTracking}
           />
 
           {/* Connect (lead capture) — the page's hero action. Its one-line
@@ -418,6 +433,11 @@ export default function SwiftLinkProfile({
             buttonColor={pageStyle?.buttonColor}
             accent={look.accent}
             accentText={look.accentText}
+            // `embedded` is the live-preview/designer rendering, where a tap is
+            // the OWNER arranging their page, not a visitor pressing a link.
+            trackFor={embedded ? null : trackFor}
+            trackSource={trackSource}
+            suppressTracking={suppressTracking}
           />
 
           {/* Faint link to this person's full SwiftCard — owner-toggleable from

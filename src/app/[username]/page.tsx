@@ -475,6 +475,11 @@ export default async function CardPage({
               cardOwner={profile.username}
               ownerFirstName={firstName}
               variant="rail"
+              // Outbound-link tracking inherits the visit's own ?source=; the
+              // owner looking at their own card (or the /preview frame) records
+              // nothing, exactly like the view tracker above.
+              trackSource={source}
+              suppressTracking={isEmbed || isOwnerView}
             />
           )}
           {connectLinks.length > 0 && actionLinks.length > 0 && (
@@ -483,7 +488,12 @@ export default async function CardPage({
           {/* Custom action links: one hairline-ruled table, every row equal.
               Nothing here reads the card's accent — the section is deliberately
               free of saturated blocks. */}
-          <CardActionLinks links={actionLinks} />
+          <CardActionLinks
+            links={actionLinks}
+            trackFor={profile.username}
+            trackSource={source}
+            suppressTracking={isEmbed || isOwnerView}
+          />
         </div>
       )}
 

@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { videoThumbnail, videoEmbed } from "@/lib/video";
 import { triggerSignupNudge } from "@/lib/nudge";
+import { trackLinkClick } from "@/lib/track-link-click";
 import { layoutTiles, resolveRowStyle, tileMedia, type SizedLink } from "@/lib/swiftlink-tiles";
 
 type Preview = { image: string | null; favicon: string | null; title: string | null };
@@ -91,6 +92,9 @@ export default function SwiftLinkButtons({
   buttonColor,
   accent = "#1D4ED8",
   accentText = "#FFFFFF",
+  trackFor = null,
+  trackSource = "swift_links",
+  suppressTracking = false,
 }: {
   links: SizedLink[];
   /** The Look's tile surface — behind a tile while its preview image loads. */
@@ -110,6 +114,14 @@ export default function SwiftLinkButtons({
   /** The Look's accent + its AA-tested text — the row color's default. */
   accent?: string;
   accentText?: string;
+  /** The CARD SLUG these links belong to. Null (the default) in previews and the
+   *  editor, where a tap must record nothing — this component renders inside the
+   *  live designer, so tracking has to be opt-in rather than opt-out. */
+  trackFor?: string | null;
+  /** The page's own ?source= attribution, so a tap inherits the visit's channel. */
+  trackSource?: string;
+  /** Owner looking at their own page. */
+  suppressTracking?: boolean;
 }) {
   // Fetched preview (og:image + favicon fallback) by index. Compact rows use
   // the favicon; image tiles use both — one fetch serves every size.
@@ -262,7 +274,12 @@ export default function SwiftLinkButtons({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => triggerSignupNudge("link_button")}
+              onClick={() => {
+                // No preventDefault anywhere near this: the navigation is the
+                // browser's, and the event is a beacon that cannot delay it.
+                trackLinkClick({ username: trackFor, surface: "links", url: href, source: trackSource, suppress: suppressTracking });
+                triggerSignupNudge("link_button");
+              }}
               className={`w-full mb-2.5 flex items-center gap-3 rounded-[14px] px-3.5 py-3 transition-transform active:scale-[0.98] ${rowClass}`}
               style={rowStyle}
             >
@@ -420,7 +437,13 @@ export default function SwiftLinkButtons({
             <button
               key={i}
               type="button"
-              onClick={() => { triggerSignupNudge("link_button"); setPlaying(i); }}
+              onClick={() => {
+                // Playing an embedded video IS the engagement with that link —
+                // it just happens in place instead of in a new tab.
+                trackLinkClick({ username: trackFor, surface: "links", url: link.url, source: trackSource, suppress: suppressTracking });
+                triggerSignupNudge("link_button");
+                setPlaying(i);
+              }}
               className={`${tileClasses} text-left`}
               style={{ background: tileBg }}
             >
@@ -434,7 +457,10 @@ export default function SwiftLinkButtons({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => triggerSignupNudge("link_button")}
+            onClick={() => {
+              trackLinkClick({ username: trackFor, surface: "links", url: href, source: trackSource, suppress: suppressTracking });
+              triggerSignupNudge("link_button");
+            }}
             className={tileClasses}
             style={{ background: tileBg }}
           >

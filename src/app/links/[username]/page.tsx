@@ -247,6 +247,12 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
         links={actionLinks}
         appUrl={APP_URL}
         pageStyle={pageStyle}
+        // Outbound-link tracking: the RESOLVED slug (same value CardEventTracker
+        // gets), this page's own ?source=, and nothing at all when the owner is
+        // looking at their own page or this is the /preview frame.
+        trackFor={(cardOrLegacy.username as string) || username}
+        trackSource={source}
+        suppressTracking={isEmbed || isOwnerView}
         // Owner's Social-design toggle; absent/false = shown (the default).
         showCardLink={customization.hideCardLink !== true}
         // "Made with swiftcard.me" footer is Free-only (owner order

@@ -19,7 +19,7 @@ const route = read("src/app/api/card-events/route.ts");
 
 describe("input hardening", () => {
   it("only the two real event types are accepted", () => {
-    expect(route).toMatch(/EVENT_TYPES = new Set\(\["viewed_card", "downloaded_vcard"\]\)/);
+    expect(route).toMatch(/EVENT_TYPES = new Set\(\["viewed_card", "downloaded_vcard", "clicked_link"\]\)/);
     expect(route).toMatch(/!EVENT_TYPES\.has\(event_type\)/);
   });
 
@@ -51,12 +51,18 @@ describe("one visit → one event → one notification", () => {
   });
 
   it("a no-visitor-id caller is capped to one event per IP per window", () => {
-    expect(route).toMatch(/events-anon:\$\{ip\}:\$\{card_owner_username\}:\$\{event_type\}`, 1, VIEW_VISIT_WINDOW_MS/);
+    // The target is in the key so a visitor with no browser id can still tap
+    // more than one link in half an hour.
+    expect(route).toMatch(/events-anon:\$\{ip\}:\$\{card_owner_username\}:\$\{event_type\}:\$\{target \?\? ""\}`, 1, VIEW_VISIT_WINDOW_MS/);
   });
 
   it("a failed insert means NO notification — the row and the push must never disagree", () => {
     const failBranch = route.slice(route.indexOf("if (insertErr) {"), route.indexOf("// Fire in-app notification"));
-    expect(failBranch).toMatch(/return NextResponse\.json\(\{ ok: true \}\)/);
+    // Still returns before the notification block; the response body the caller
+    // sees is unchanged (`{ ok: true }`). The only addition is that the failure
+    // now leaves a trace in analytics_ingest_log instead of vanishing.
+    expect(failBranch).toMatch(/return decided\("error", \{\}, geoFields\)/);
+    expect(failBranch).not.toMatch(/notifyVisit/);
   });
 
   it("a unique-index loser is a dedup, not an error", () => {
@@ -74,8 +80,31 @@ describe("one visit → one event → one notification", () => {
 
 describe("the notification carries the right context", () => {
   it("stores this request's own location on the event (with a column-missing fallback)", () => {
-    expect(route).toMatch(/resolveLocation\(req, ip\)/);
+    expect(route).toMatch(/resolveGeo\(req, ip\)/);
     expect(route).toMatch(/withoutLocation/);
+    // location, surface and geo_* all arrived in different migrations, so the
+    // insert has to degrade one step at a time rather than losing the event.
+    expect(route).toMatch(/withoutNew/);
+  });
+
+  it("reuses the view's own geo answer, so the two rows can't disagree", () => {
+    // card_views and card_events used to resolve the location independently and
+    // rely on a per-IP cache to agree. The event now takes the exact object
+    // recordView used; only a vCard save (which records no view) resolves its own.
+    expect(route).toMatch(/const geo = viewGeo \?\? \(await resolveGeo\(req, ip\)\)/);
+  });
+
+  it("records WHICH PAGE the event happened on", () => {
+    // Without a surface, card_events could not tell a Swift Links view from a
+    // card view: the visit-bucket unique index rejected the second surface of
+    // one visit as a duplicate, so the event was lost and the timeline
+    // mislabelled the one that survived. Measured in production 2026-09-09:
+    // 11 visits since 2026-08-14 had two card_views rows and one card_events row.
+    expect(route).toMatch(/^\s+surface,$/m);
+    // ...and the app-level dedup has to ask the surface-aware question too, or
+    // it would still swallow the second surface before the index ever sees it.
+    expect(route).toMatch(/byTarget\.or\("surface\.is\.null,surface\.eq\.card"\)/);
+    expect(route).toMatch(/byTarget\.eq\("surface", surface\)/);
   });
 
   it("deep-links to THE CARD that was viewed, not a bare /dashboard", () => {
@@ -104,7 +133,13 @@ describe("cardEventNotice — surface + location copy", () => {
   });
 
   it("a save keeps its source label and gains the location", () => {
+    // "saved your contact card" was a claim we cannot make — the save happens in
+    // the OS "Add to Contacts" sheet and no API reports the outcome back. The
+    // download is the part SwiftCard performed, so that is what it says.
     expect(cardEventNotice({ eventType: "downloaded_vcard", visitorName: "Mina R", source: "qr_code", location: "Austin, US" })!.body)
-      .toMatch(/^Mina R saved your contact card from .+ near Austin, US\.$/);
+      .toMatch(/^Mina R downloaded your contact card from .+ near Austin, US\.$/);
+    // The TYPE is unchanged: it is the VISIT_RANK key, the push category and the
+    // CRM event name, and renaming it would break five consumers for nothing.
+    expect(cardEventNotice({ eventType: "downloaded_vcard" })!.type).toBe("contact_saved");
   });
 });

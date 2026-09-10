@@ -9,18 +9,25 @@ import { isRateLimited } from "@/lib/rate-limit";
 import { isSelfTraffic, resolveOwnerId } from "@/lib/self-traffic";
 import { authoritativeEventIdentity, resolveSessionViewer } from "@/lib/viewer-identity";
 import { clientIp } from "@/lib/client-ip";
-import { isLikelyBot } from "@/lib/bot-detection";
-import { resolveLocation } from "@/lib/request-geo";
+import { isLikelyBot, botFamily } from "@/lib/bot-detection";
+import { logIngest, type IngestReason, type IngestDecision } from "@/lib/ingest-log";
+import { resolveGeo, type GeoResult } from "@/lib/request-geo";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 import { recordView } from "@/lib/record-view";
-import { notifyVisit } from "@/lib/visit-notify";
+import { notifyVisit, visitKey } from "@/lib/visit-notify";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 // The only event types this public endpoint accepts. Anything else used to be
 // insertable verbatim — including forged "downloaded_vcard" rows that inflated
 // the office contact-save stats and fired un-throttled notifications.
-const EVENT_TYPES = new Set(["viewed_card", "downloaded_vcard"]);
+//
+// clicked_link joined them when Swift Links buttons and card external links got
+// tracking at all (they had none). It deliberately reaches NO notification:
+// cardEventNotice returns null for it, so a tap writes a row, appears in the
+// contact's timeline, and never rings anybody's phone. A page of eight links is
+// eight taps, and none of them is news.
+const EVENT_TYPES = new Set(["viewed_card", "downloaded_vcard", "clicked_link"]);
 
 // A bounded string from an untrusted body, or null. Every stored field goes
 // through this — a non-string or unbounded payload degrades to absent rather
@@ -46,10 +53,45 @@ export async function POST(req: NextRequest) {
     // origin+path, same privacy stance as site-view's host-only referrers.
     const referrer_url = (str(body?.referrer_url, 300) ?? "").split(/[?#]/)[0] || null;
     const device_info = str(body?.device_info, 250);
+    // WHICH link, for clicked_link. Normalised to a bare host on the client
+    // (lib/track-link-click.ts) and re-bounded here like every other stored
+    // field, because a client value is a client value.
+    const target = str(body?.target, 120);
 
     if (!card_owner_username || !event_type || !EVENT_TYPES.has(event_type)) {
+      // Nothing to log: with no slug there is no entity to attribute a decision
+      // to, and a forged event type is noise, not a measurement.
       return NextResponse.json({ ok: true });
     }
+
+    // ── Every exit from here on records WHY ───────────────────────────────────
+    // The pipeline used to decline a request and keep no trace, so "why is that
+    // view missing?" and "is that view real?" were both unanswerable. `decided`
+    // writes one row to analytics_ingest_log and returns the same response the
+    // caller always got — the response shape is unchanged, deliberately, because
+    // a public endpoint must not start describing its internals to the client.
+    // It is fire-and-forget and cannot fail loudly (lib/ingest-log.ts).
+    const entityKey = surface === "links" ? `${card_owner_username}__links` : card_owner_username;
+    const decided = (
+      reason: IngestReason,
+      // Named for what it is rather than `body` — the request body is already in
+      // scope in this function, and shadowing it here is how that becomes a bug.
+      responseFlags: Record<string, boolean> = {},
+      extra: Partial<IngestDecision> = {},
+    ) => {
+      logIngest({
+        product: surface === "links" ? "swiftlinks" : "swiftcard",
+        entityKey,
+        eventType: event_type,
+        surface,
+        counted: reason === "recorded",
+        reason,
+        source,
+        visitorId: visitor_id,
+        ...extra,
+      });
+      return NextResponse.json({ ok: true, ...responseFlags });
+    };
 
     // Public, unauthenticated, and both accepted events reach the card owner's
     // lock screen — cap per (IP, card) so a known/guessed username can't be
@@ -57,27 +99,30 @@ export async function POST(req: NextRequest) {
     const ip = clientIp(req)
       ?? "unknown";
     if (await isRateLimited(`card-events:${ip}:${card_owner_username}`, 20, 10 * 60 * 1000)) {
-      return NextResponse.json({ ok: true, rateLimited: true });
+      return decided("rate_limited", { rateLimited: true });
     }
 
     // Bot/crawler/synthetic-monitor traffic never counts — checked against the
     // real request header, not the client-supplied device_info.
-    if (isLikelyBot(req.headers.get("user-agent"))) {
-      return NextResponse.json({ ok: true, bot: true });
+    const ua = req.headers.get("user-agent");
+    if (isLikelyBot(ua)) {
+      // The FAMILY, never the User-Agent string: a UA is a device fingerprint,
+      // and this log exists to explain decisions, not to profile visitors.
+      return decided("bot", { bot: true }, { classification: botFamily(ua), classificationReason: "user_agent" });
     }
 
     // Speculative loads (prefetch/prerender/link preview) are not people —
     // same guard as /api/views, so the two tables can't disagree about them.
     const purpose = `${req.headers.get("sec-purpose") ?? ""} ${req.headers.get("purpose") ?? ""} ${req.headers.get("x-purpose") ?? ""}`.toLowerCase();
     if (/prefetch|prerender|preview/.test(purpose)) {
-      return NextResponse.json({ ok: true, prefetch: true });
+      return decided("prefetch", { prefetch: true }, { classificationReason: "purpose_header" });
     }
 
     // Only record events for cards that actually serve — /api/views has always
     // enforced this; this route not doing so meant deleted/deactivated slugs
     // still generated events, notifications, and CRM traffic.
     if (!(await isCardActive(card_owner_username))) {
-      return NextResponse.json({ ok: true }); // don't reveal which slugs exist
+      return decided("inactive"); // response says nothing: don't reveal which slugs exist
     }
 
     const admin = getAdminSupabase();
@@ -91,7 +136,7 @@ export async function POST(req: NextRequest) {
     // themselves. (Client components also suppress this; server closes it.)
     // Shared, identity-based check — never IP-based (see self-traffic.ts).
     if (sessionViewer && isSelfTraffic(await resolveOwnerId(admin, card_owner_username), sessionViewer.userId)) {
-      return NextResponse.json({ ok: true, self: true });
+      return decided("self", { self: true }, { identityLevel: "confirmed" });
     }
 
     // VIEWS: record the card_views row (chart, counters, locations) HERE,
@@ -103,13 +148,27 @@ export async function POST(req: NextRequest) {
     // Anything not recorded (same-visit reload, self-view) makes no
     // notification either: the bell can never say something the bars don't.
     let viewOutcome: "recorded" | null = null;
+    // recordView already resolved this request's geo; reusing its answer means
+    // the card_views row and the card_events row can never disagree about where
+    // the visit came from OR about how confident that answer is.
+    let viewGeo: GeoResult | null = null;
     if (event_type === "viewed_card") {
       const viewsKey = surface === "links" ? `${card_owner_username}__links` : card_owner_username;
-      const { outcome } = await recordView({
+      const { outcome, geo: recordedGeo } = await recordView({
         req, username: viewsKey, visitorId: visitor_id, source, ip,
       });
-      if (outcome !== "recorded") return NextResponse.json({ ok: true, [outcome]: true });
+      if (outcome !== "recorded") {
+        // recordView's own verdict: deduped (same visit), self, inactive, or a
+        // failed write. Its geo answer rides along so even a declined attempt
+        // records at what confidence the location WOULD have been known.
+        return decided(outcome as IngestReason, { [outcome]: true }, {
+          geoAccuracy: recordedGeo?.accuracy ?? null,
+          geoSource: recordedGeo?.source ?? null,
+          isRelay: recordedGeo?.isRelay ?? null,
+        });
+      }
       viewOutcome = "recorded";
+      viewGeo = recordedGeo ?? null;
     }
 
     // ONE VISIT = ONE EVENT. The same visitor re-touching
@@ -124,21 +183,56 @@ export async function POST(req: NextRequest) {
     if (viewOutcome === "recorded") {
       // Already deduped against card_views above (surface-aware).
     } else if (visitor_id) {
-      const { data: dup } = await admin
+      // SURFACE-AWARE, like the card_views dedup. Without the surface term this
+      // query answered "has this visitor done this event on this card" and so
+      // treated a Swift Links view and a card view as the same event — which is
+      // the defect the surface column exists to fix. `.is(null)` is included
+      // because every row written before the column existed carries NULL and
+      // was, in practice, a card-surface event.
+      // TARGET too, for the same reason as surface: two taps on two DIFFERENT
+      // links in one visit are two events, and without this the second would be
+      // swallowed as a duplicate of the first — the same bug, one day later.
+      const base = admin
         .from("card_events")
         .select("id")
         .eq("card_owner_username", card_owner_username)
         .eq("visitor_id", visitor_id)
         .eq("event_type", event_type)
-        .gte("created_at", windowStart)
-        .limit(1)
-        .maybeSingle();
-      if (dup) return NextResponse.json({ ok: true, deduped: true });
+        .gte("created_at", windowStart);
+      // Typed .eq()/.is() rather than an .or() filter STRING: these are
+      // client-supplied values, and a PostgREST or() takes a comma-separated
+      // expression, so a comma or quote inside one would change the query's
+      // shape instead of failing to match (the same reasoning the events GET
+      // below already spells out).
+      const byTarget = target ? base.eq("target", target) : base.is("target", null);
+      const { data: dup, error: dupErr } = await (
+        surface === "card"
+          ? byTarget.or("surface.is.null,surface.eq.card")
+          : byTarget.eq("surface", surface)
+      ).limit(1).maybeSingle();
+      // Column not migrated yet → fall back to the pre-surface question rather
+      // than letting a failed filter read as "no duplicate" and record twice.
+      if (dupErr && (dupErr.code === "42703" || dupErr.code === "PGRST204")) {
+        const { data: legacyDup } = await admin
+          .from("card_events")
+          .select("id")
+          .eq("card_owner_username", card_owner_username)
+          .eq("visitor_id", visitor_id)
+          .eq("event_type", event_type)
+          .gte("created_at", windowStart)
+          .limit(1)
+          .maybeSingle();
+        if (legacyDup) return decided("deduped", { deduped: true }, { classificationReason: "event_window_legacy" });
+      } else if (dup) {
+        return decided("deduped", { deduped: true }, { classificationReason: "event_window" });
+      }
     } else {
       // No visitor id → nothing to dedupe rows on; hold this path to one event
       // per (IP, card, type) per window so a stripped-down client can't spam.
-      if (await isRateLimited(`events-anon:${ip}:${card_owner_username}:${event_type}`, 1, VIEW_VISIT_WINDOW_MS)) {
-        return NextResponse.json({ ok: true, deduped: true });
+      // The target is part of the key so a visitor with no id can still tap more
+      // than one link in half an hour.
+      if (await isRateLimited(`events-anon:${ip}:${card_owner_username}:${event_type}:${target ?? ""}`, 1, VIEW_VISIT_WINDOW_MS)) {
+        return decided("deduped", { deduped: true }, { classificationReason: "no_visitor_id_ip_window" });
       }
     }
 
@@ -157,8 +251,12 @@ export async function POST(req: NextRequest) {
     // second IP database — never client-supplied (request-geo.ts). Stored on
     // the event so the notification, the contact timeline, and the dashboard
     // all read the same value; missing data stays null, never a placeholder.
-    // Same IP as the recordView call above, so this is a cache hit.
-    const location = await resolveLocation(req, ip);
+    //
+    // For a view this is the IDENTICAL object recordView used, so the two rows
+    // cannot drift. For a vCard save (which records no view) it is resolved
+    // here, and the per-IP cache in request-geo makes that a cache hit anyway.
+    const geo = viewGeo ?? (await resolveGeo(req, ip));
+    const location = geo.label;
 
     const row = {
       card_owner_username,
@@ -175,23 +273,62 @@ export async function POST(req: NextRequest) {
       // conversation sort both filter on this; no dependency on a column
       // DEFAULT existing in production.
       created_at: new Date().toISOString(),
+      // ── The columns supabase/analytics-accuracy.sql adds ──────────────────
+      // WHICH PAGE. Without this, card_events could not tell a Swift Links view
+      // from a card view: the visit-bucket unique index rejected the second
+      // surface of one visit as a duplicate, so the event was lost and the
+      // contact's timeline said "Viewed your card" for a links view. It is
+      // written on every event type, not just views, so a vCard saved off the
+      // links page is attributed to the page it happened on.
+      surface,
+      // Which link was pressed (clicked_link only; NULL for views and saves).
+      target,
+      // HOW MUCH OF THE LOCATION IS REAL. The label alone cannot say whether
+      // "New York, US" is a city or the state two disagreeing databases fell
+      // back to — see lib/request-geo.ts and lib/location-display.ts.
+      geo_accuracy: geo.accuracy,
+      geo_source: geo.source,
     };
     let { error: insertErr } = await admin.from("card_events").insert(row);
     if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
-      // location column not migrated yet (supabase/view-visit-window.sql) —
-      // record the event without it rather than dropping it.
-      const { location: _unused, ...withoutLocation } = row;
-      void _unused;
-      ({ error: insertErr } = await admin.from("card_events").insert(withoutLocation));
+      // A column this row carries isn't migrated yet — record the event without
+      // the optional ones rather than dropping it. Ordered newest-first so the
+      // retry is the widest row production can actually accept: location came
+      // with view-visit-window.sql, surface/geo_* with analytics-accuracy.sql.
+      const { surface: _s, target: _t, geo_accuracy: _ga, geo_source: _gs, ...withoutNew } = row;
+      void _s; void _t; void _ga; void _gs;
+      ({ error: insertErr } = await admin.from("card_events").insert(withoutNew));
+      if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
+        const { location: _unused, ...withoutLocation } = withoutNew;
+        void _unused;
+        ({ error: insertErr } = await admin.from("card_events").insert(withoutLocation));
+      }
     }
+    const geoFields: Partial<IngestDecision> = {
+      geoAccuracy: geo.accuracy,
+      geoSource: geo.source,
+      isRelay: geo.isRelay,
+    };
     if (insertErr) {
       // 23505 = the visit-bucket unique index caught a concurrent duplicate —
       // a normal dedup; the racing request already recorded (and notified).
-      if (insertErr.code === "23505") return NextResponse.json({ ok: true, deduped: true });
+      // NOTE this is the one place the log and card_views can honestly differ:
+      // for a VIEW the row is already written (recordView committed it) and only
+      // the event lost the race, so the decision is recorded as "deduped" while
+      // a bar exists. That is the truth, and it is why the reason is stored.
+      if (insertErr.code === "23505") {
+        return decided("deduped", { deduped: true }, { ...geoFields, classificationReason: "event_unique_index" });
+      }
       console.error("card_events insert failed:", insertErr.message, { card_owner_username });
       // No event row → no notification: the two must never disagree.
-      return NextResponse.json({ ok: true });
+      return decided("error", {}, geoFields);
     }
+
+    // What the notification layer did with this event, for the decision log:
+    // the one question the audit could not answer was "this view recorded — did
+    // the owner hear about it, and if not, why?".
+    let notified: IngestDecision["notified"] = "not_eligible";
+    let identityLevel: IngestDecision["identityLevel"] = "anonymous";
 
     // Fire in-app notification — the dedup above already decided this event is
     // genuine news, so every recorded view/save notifies exactly once.
@@ -213,6 +350,9 @@ export async function POST(req: NextRequest) {
           source,
           surface,
           location,
+          // Without this the copy says "near New York, US" for an answer that
+          // only ever meant "somewhere in New York State" (lib/location-display).
+          geoAccuracy: geo.accuracy,
         });
 
         // Flood backstop: the dedup keys on the client-supplied visitor_id, so
@@ -245,11 +385,22 @@ export async function POST(req: NextRequest) {
           if (count === 1) pushCategory = "first_view";
         }
 
+        // How sure we are WHO this was. A session is proof; a name that came
+        // from the visitor's own earlier share is an association, not an
+        // identification (the browser is shared, the link is forwardable); no
+        // name at all is anonymous. Recorded, never displayed as certainty.
+        identityLevel = sessionViewer
+          ? "confirmed"
+          : identity.visitor_name || identity.visitor_email || identity.visitor_phone
+            ? "associated"
+            : "anonymous";
+
+        if (flooded) notified = "suppressed";
         if (notice && !flooded) {
           // ONE NOTIFICATION PER PERSON PER VISIT. A view then a save by the
           // same visitor upgrades the notification the owner already has
           // (and replaces the banner) instead of buzzing a second time.
-          await notifyVisit({
+          notified = await notifyVisit({
             userId: owner.id,
             cardOwner: card_owner_username,
             visitorId: visitor_id,
@@ -281,8 +432,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true });
+    // The success path. visitKey ties this row to the notification ledger so one
+    // visit can be read end to end: the bars, the event, and the buzz.
+    return decided("recorded", {}, {
+      ...geoFields,
+      identityLevel,
+      notified,
+      visitKey: visitKey({ cardOwner: card_owner_username, visitorId: visitor_id, ip }),
+      classification: "human",
+      classificationReason: "passed_ingest_gates",
+    });
   } catch {
+    // The visitor is never told an analytics failure happened, and never will
+    // be. Nothing is logged here either: with the body unparsed there is no
+    // entity to attribute a decision to.
     return NextResponse.json({ ok: true });
   }
 }
@@ -335,7 +498,17 @@ export async function GET(req: NextRequest) {
     // who shared their details in Safari and later opens the link from
     // Messages is two ids, and matching only the first would show their
     // conversation as empty. Matching what they TOLD us survives the change.
-    const cols = "id, event_type, source, visitor_name, visitor_email, created_at";
+    // `surface` tells the conversation timeline whether a view was the card or
+    // the Swift Links page — without it every links view read "Viewed your
+    // card" while the owner's notification said "Swift Links viewed". Requested
+    // defensively: selecting a column that isn't migrated yet fails the whole
+    // query, and an empty conversation is worse than an unlabelled one.
+    const WANT = "id, event_type, source, visitor_name, visitor_email, created_at";
+    let cols = `${WANT}, surface, target`;
+    {
+      const probe = await admin.from("card_events").select("surface").limit(1);
+      if (probe.error && (probe.error.code === "42703" || probe.error.code === "PGRST204")) cols = WANT;
+    }
     const lookups = [
       visitorId ? admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("visitor_id", visitorId) : null,
       email ? admin.from("card_events").select(cols).in("card_owner_username", usernames).ilike("visitor_email", email) : null,
@@ -344,7 +517,14 @@ export async function GET(req: NextRequest) {
 
     const results = await Promise.all(lookups as NonNullable<(typeof lookups)[number]>[]);
     const byId = new Map<string, Record<string, unknown>>();
-    for (const r of results) for (const row of r.data ?? []) byId.set(row.id as string, row);
+    // `cols` is built at runtime (the surface probe above), so PostgREST can no
+    // longer infer a row type from it — rows are read as the plain records this
+    // route already serialised them as.
+    for (const r of results) {
+      for (const row of (r.data ?? []) as unknown as Record<string, unknown>[]) {
+        byId.set(row.id as string, row);
+      }
+    }
 
     const merged = [...byId.values()].sort(
       (a, b) => String(a.created_at).localeCompare(String(b.created_at)),

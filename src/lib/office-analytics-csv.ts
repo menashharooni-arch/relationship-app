@@ -33,7 +33,7 @@ const HEADER = [
   "Unique visitors",
   "QR/NFC scans",
   "Leads captured",
-  "Contacts saved",
+  "Contact downloads",
   "SwiftLink views",
   "Conversion rate",
   "Most recent activity",

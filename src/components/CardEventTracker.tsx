@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { getVisitorId, getVisitorInfo } from "@/lib/visitor";
 import { whenIdentityReconciled } from "@/lib/account-state";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
+import { waitForHuman } from "@/lib/human-gate";
 
 // Fire-at-most-once-per-visit guard, per (username+surface). A Map of last-fire
 // times, not a Set: the old Set was never cleared, so in a long-lived SPA tab
@@ -30,41 +31,13 @@ export default function CardEventTracker({
     let cancelled = false;
 
     const fire = async () => {
-      // Chrome speculation-rules prerender loads the page (and runs effects)
-      // before the visitor ever sees it — that must not count as a view. Wait
-      // for the page to become real; an abandoned prerender simply never fires.
-      const doc = document as Document & { prerendering?: boolean };
-      if (doc.prerendering) {
-        await new Promise<void>((resolve) =>
-          document.addEventListener("prerenderingchange", () => resolve(), { once: true })
-        );
-        if (cancelled) return;
-      }
-
       // ── Human gate (owner order 2026-08-26: views "cannot have
-      // misinformation"). Three checks, each killing a different bot family
-      // that slips past the server's User-Agent list by presenting a normal
-      // browser UA:
-      //   1. navigator.webdriver — automation frameworks (Playwright,
-      //      Puppeteer, Selenium, and crawler renderers built on them).
-      //   2. The page must actually be VISIBLE — link-preview renderers
-      //      often paint into a hidden surface.
-      //   3. A 2.5s dwell, still visible at the end — preview crawlers
-      //      snapshot and destroy the page in well under that; a person
-      //      reading a card they just opened is always still there.
-      // A real visitor who bounces inside 2.5 seconds loses the view — the
-      // deliberate trade: an owner must never be told someone viewed their
-      // card when no one did.
-      if ((navigator as Navigator & { webdriver?: boolean }).webdriver) return;
-      if (document.visibilityState !== "visible") {
-        await new Promise<void>((resolve) => {
-          const onVis = () => { if (document.visibilityState === "visible") { document.removeEventListener("visibilitychange", onVis); resolve(); } };
-          document.addEventListener("visibilitychange", onVis);
-        });
-        if (cancelled) return;
-      }
-      await new Promise((r) => setTimeout(r, 2500));
-      if (cancelled || document.visibilityState !== "visible") return;
+      // misinformation") ───────────────────────────────────────────────────
+      // webdriver + visible + dwell, and the prerender wait in front of it.
+      // MOVED TO lib/human-gate.ts, unchanged, because it lived only here: the
+      // QR save path (ScanSaveContact) fired a contact-download event with no
+      // gate at all, so one surface was protected and the other wasn't.
+      if (!(await waitForHuman(() => cancelled))) return;
 
       // After an account switch, AccountIsolationGuard wipes the previous
       // person's visitor id + identity blob asynchronously — reading them

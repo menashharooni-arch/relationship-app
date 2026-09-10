@@ -1,6 +1,7 @@
 "use client";
 
 import { triggerSignupNudge } from "@/lib/nudge";
+import { trackLinkClick } from "@/lib/track-link-click";
 import LinkMark from "@/components/LinkMark";
 import { brandBackground, hostLabel } from "@/lib/link-brand";
 // The SHARED icon — it accepts a className. The file-local PlatformIcon below
@@ -74,10 +75,16 @@ export default function SocialLinkIntercept({
   cardOwner,
   ownerFirstName,
   variant = "bars",
+  trackSource = "direct_link",
+  suppressTracking = false,
 }: {
   links: SocialLinkData[];
   cardOwner: string;
   ownerFirstName: string;
+  /** The page's ?source= attribution, inherited by the tap. */
+  trackSource?: string;
+  /** Owner looking at their own card, or a marketing mockup. */
+  suppressTracking?: boolean;
   /**
    * "rail" is the card page's current design — website capsule + brand discs.
    * The three marketing mockups that show the card page (via site/DemoSwiftLinks)
@@ -96,7 +103,15 @@ export default function SocialLinkIntercept({
   // owner judged it cost more goodwill than it captured. The click still
   // fires the incidental signup nudge (once per session, shown when they
   // come back to this tab), so the moment isn't wasted.
-  function handleClick() {
+  // The event carries the href, so every call site stays a bare
+  // `onClick={handleClick}` — the three marketing mockups that render this
+  // component included. They pass suppressTracking, so a mockup tap records
+  // nothing.
+  function handleClick(e?: React.MouseEvent<HTMLAnchorElement>) {
+    const href = e?.currentTarget?.getAttribute("href");
+    if (href) {
+      trackLinkClick({ username: cardOwner, surface: "card", url: href, source: trackSource, suppress: suppressTracking });
+    }
     triggerSignupNudge("link_button");
   }
 

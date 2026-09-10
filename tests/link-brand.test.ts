@@ -194,7 +194,7 @@ describe("the marketing mockups show the card page's real Swift Links design", (
     const c = code("src/components/CardActionLinks.tsx");
     const map = c.slice(c.indexOf("links.map("));
     expect(map, "the nudge is no longer attached to each row").toMatch(
-      /onClick=\{\(\) => triggerSignupNudge\("link_button"\)\}/,
+      /triggerSignupNudge\("link_button"\)/,
     );
     expect((c.match(/triggerSignupNudge\(/g) ?? []).length).toBe(1);
   });
