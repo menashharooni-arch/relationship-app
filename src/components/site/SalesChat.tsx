@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useIsNativeApp } from "@/lib/platform";
+import { CHAT_AVOID_ATTR, shouldYield } from "@/lib/chat-avoid";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -33,10 +34,45 @@ export default function SalesChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  // True while the launcher is sitting on a control that asked not to be sat
+  // on. See lib/chat-avoid.ts for why this is measured rather than positioned
+  // around.
+  const [yielding, setYielding] = useState(false);
 
   useEffect(() => {
     if (open) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, open, loading]);
+
+  // Yield while the launcher covers a `data-chat-avoid` control, and come back
+  // the moment it does not. Re-checked on scroll and resize because both move
+  // the page under a fixed element; rAF-coalesced so a scroll costs one
+  // measurement per frame at most. Runs only while the launcher is on screen —
+  // when the panel is open there is no launcher to be in the way.
+  useEffect(() => {
+    if (open || native) return;
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      const el = launcherRef.current;
+      if (!el) return;
+      const zones = Array.from(document.querySelectorAll(`[${CHAT_AVOID_ATTR}]`)).map((z) =>
+        z.getBoundingClientRect(),
+      );
+      setYielding(shouldYield(el.getBoundingClientRect(), zones));
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(check);
+    };
+    check();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule, { passive: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
+  }, [open, native]);
 
   async function send(text: string) {
     const question = text.trim();
@@ -70,11 +106,21 @@ export default function SalesChat() {
       {/* Floating launcher */}
       {!open && (
         <button
+          ref={launcherRef}
           type="button"
           onClick={() => setOpen(true)}
           title="Questions? Chat with us"
           aria-label="Open chat"
-          className="fixed bottom-5 right-4 z-40 rounded-full flex items-center justify-center transition-all hover:scale-105"
+          // While yielding it is fully out of the way: invisible, untappable,
+          // and hidden from assistive tech, so a covered button gets its whole
+          // tap target back rather than a launcher that is merely see-through.
+          // Any scroll brings it straight back — the CTA it was covering has
+          // moved by then. `transition-all` is already here, so it fades.
+          aria-hidden={yielding || undefined}
+          tabIndex={yielding ? -1 : undefined}
+          className={`fixed bottom-5 right-4 z-40 rounded-full flex items-center justify-center transition-all hover:scale-105 ${
+            yielding ? "opacity-0 pointer-events-none" : ""
+          }`}
           style={{ width: 52, height: 52, background: "#2563eb", boxShadow: "0 8px 24px rgba(37,99,235,0.45)" }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={1.9} className="w-6 h-6">

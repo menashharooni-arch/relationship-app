@@ -293,9 +293,21 @@ body {
      (unlayered rules revert into @layer utilities), so the floor only ever
      raises. Nothing in src/ is currently sized this way; this is here so the
      first one added doesn't quietly break. */
-  :is(input, select, textarea, [contenteditable]):is(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl) {
+  :is(input, select, textarea, [contenteditable]):is(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl, .sc-claim-field) {
     font-size: revert-layer;
   }
+  /* `.sc-claim-field` is the homepage hero's name box, and it is the first
+     control in src/ the paragraph above was written for. It sits inline inside
+     the sentence "SwiftCard.me/<name>", so it has to render at the size of the
+     words beside it — 16px on a phone, 17px from `sm` up. The floor's `max(16px,
+     1em)` resolves to a flat 16px and, being unlayered, beat the 17px utility:
+     on any coarse-pointer device 640px or wider (an iPad, a phone turned
+     sideways) the typed name came out a pixel smaller than "SwiftCard.me/" and
+     sat a pixel low — the misalignment the owner reported, in the one place it
+     survived the first fix. Reverting hands the size back to Tailwind, which
+     asks for 16px or 17px and so can never reintroduce the zoom. Pinned at both
+     ends by tests/render/hero-claim.test.ts (measured on a touch iPad) and
+     tests/hero-claim.test.ts (no size below text-base may be added here). */
 
   /* Double-tap-to-zoom is back now that user-scalable=no is gone, and on a
      tab bar or a list row an accidental second tap reads as the app breaking.
@@ -853,6 +865,47 @@ summary.list-none::-webkit-details-marker { display: none; }
   outline: 3px solid #1D4ED8;
   outline-offset: 2px;
 }
+/* ── The homepage claim pill ─────────────────────────────────────────────────
+   The focus ring belongs on the PILL, not on the bare input inside it.
+
+   The global rule above puts a 3px ring 2px outside whatever is focused. On a
+   text input that ring always shows — a text field matches :focus-visible even
+   for a mouse click, by spec — so tapping this field drew a thick blue
+   rectangle inside a white rounded pill, cutting across it (owner, 2026-09-10:
+   "there's an outline around that box. It looks so awkward").
+
+   This does not remove the indicator, it moves and enlarges it: the pill's own
+   1px hairline becomes a 2px brand ring with a soft brand halo, around the
+   whole control the person is actually typing into. Bigger target, same
+   contrast, and it reads as designed rather than as a browser default.
+
+   Unlayered and after the rule it overrides, which is what lets it win: both
+   selectors compute to the same specificity, so source order decides. Tailwind's
+   `focus:outline-none` on the input cannot do this on its own — it is layered,
+   and the global rule is not. */
+.sc-claim {
+  box-shadow: 0 16px 40px -12px rgba(15, 23, 42, 0.28), inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+  transition: box-shadow 0.18s ease;
+}
+.sc-claim:focus-within {
+  box-shadow:
+    0 16px 40px -12px rgba(15, 23, 42, 0.28),
+    inset 0 0 0 2px #1D4ED8,
+    0 0 0 4px rgba(29, 78, 216, 0.18);
+}
+/* Specificity, counted rather than guessed. The rule above is
+   `:is(a[href], button, input, …, [tabindex]:not([tabindex="-1"]), …)
+   :focus-visible`; :is() takes its MOST specific argument, which is that
+   [tabindex]:not([tabindex]) pair at (0,2,0), so the whole selector is (0,3,0).
+   `.sc-claim input:focus-visible` is only (0,2,1) and loses — measured: the
+   input still reported outline-style "solid". Adding :focus-within on the pill
+   brings this to (0,3,1), which wins on both specificity and source order. */
+.sc-claim:focus-within input:focus-visible { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-claim { transition: none; }
+}
+
 /* On the dark app chrome the brand blue is too close to the surface to read. */
 html:not([data-sc-theme="light"]) .sc-app :is(
   a[href], button, input, select, textarea, summary,
