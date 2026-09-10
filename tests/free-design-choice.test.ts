@@ -119,6 +119,22 @@ describe("the wizard decides before it converts", () => {
   });
 });
 
+describe("the plan step never offers two different things under one label", () => {
+  it("the Free button does not wear the Pro trial's words", () => {
+    // The Pro card's button reads "Start free →" — it starts the free TRIAL,
+    // which takes a card and renews. The wizard passed the same string as the
+    // Free plan's label, so this one screen had two identical buttons: one
+    // genuinely free, one a paid subscription. Nothing on either told them
+    // apart.
+    const wizard = read("src/app/cards/new/NewCardWizard.tsx");
+    const label = /freeLabel="([^"]+)"/.exec(wizard)?.[1];
+    expect(label, "the wizard stopped setting a free label").toBeTruthy();
+    const proLabel = /busy === "pro" \? "Loading…" : "([^"]+)"/.exec(read("src/components/PlanCards.tsx"))?.[1];
+    expect(proLabel, "PlanCards' Pro button label moved").toBeTruthy();
+    expect(label).not.toBe(proLabel);
+  });
+});
+
 describe("the panel itself", () => {
   const src = read("src/components/FreeDesignChoice.tsx");
 
