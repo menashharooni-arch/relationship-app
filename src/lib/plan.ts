@@ -275,6 +275,56 @@ export function describeFreeDesignChanges(
   return lines;
 }
 
+/**
+ * The Pro-only design choices a card is currently using, named.
+ *
+ * describeFreeDesignChanges() answers "what will be taken away if you save on
+ * Free", which is the right question at the end of the build wizard, where the
+ * card is about to be converted. The edit screen asks a different one: someone
+ * has deliberately tried Brushed or dropped in a background video, pressed Save
+ * Changes, and needs to know WHAT they picked is Pro — not a list of losses.
+ *
+ * Same detection as the describer, so the two can never disagree about whether
+ * a card is using Pro design; only the wording differs. Empty array means the
+ * card saves on Free untouched.
+ */
+export function proFeaturesInUse(
+  customization: Record<string, unknown>,
+  template: string | undefined,
+): string[] {
+  const before = customization;
+  const { customization: after, changed } = convertCustomizationToFreeClosest(customization, template);
+  if (!changed) return [];
+
+  const names: string[] = [];
+
+  if (template === "custom") names.push("Your own custom design");
+
+  const finish = pickStr(before.finish);
+  if (finish && !isFreeFinish(finish)) names.push(`${getFinish(finish).name} finish`);
+
+  if (pickStr(before.panelMedia)) {
+    names.push(before.panelMediaType === "video" ? "Background video" : "Background photo");
+  }
+
+  const COLOUR_KEYS = ["bgColor", "surfaceColor", "textColor", "infoColor", "accentColor"] as const;
+  if (COLOUR_KEYS.some((k) => {
+    const b = pickStr(before[k]);
+    return b !== undefined && b !== pickStr(after[k]);
+  })) names.push("Your own colors");
+
+  if (pickStr(before.fontFamily) && pickStr(before.fontFamily) !== pickStr(after.fontFamily)) {
+    names.push("Your own font");
+  }
+
+  // Something the specifics above do not cover — a key added later. Never
+  // return an empty list while the converter says the card changes, or the
+  // save would be blocked with nothing shown to explain it.
+  if (!names.length) names.push("Premium design settings");
+
+  return names;
+}
+
 // Enforce Free limits on a card's customization blob: snap Pro-only design keys
 // to the nearest Free-safe preset and cap link buttons. Returns a NEW object;
 // never mutates the input. Paid accounts pass through untouched. `template` is
