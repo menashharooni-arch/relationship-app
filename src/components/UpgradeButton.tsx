@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PLAN_PRICES } from "@/lib/plan";
 import { formatUsd } from "@/lib/currency";
-import { trackCta } from "@/lib/events";
+import { track, trackCta } from "@/lib/events";
 import { useIsNativeApp } from "@/lib/platform";
 
 // The price is read from PLAN_PRICES — the same constant the checkout route
@@ -32,6 +32,10 @@ export default function UpgradeButton({ variant = "banner", placement = "unknown
     if (loading) return;
     setLoading(true);
     trackCta("upgrade_to_pro", placement, { plan: "pro" });
+    // This is a <button> that navigates, not an <a href="/upgrade">, so the
+    // delegated anchor listener in AnalyticsProvider cannot see it. Fired here
+    // so the funnel step counts every route to /upgrade, not most of them.
+    track("upgrade_started", { placement, plan: "pro" });
     window.location.href = "/upgrade";
   }
 

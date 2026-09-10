@@ -4,7 +4,19 @@ import { useEffect, useState } from "react";
 import { getSignupSourceLabel, getSourceLabel } from "@/lib/source-labels";
 import Link from "next/link";
 
+type Funnel = {
+  available: boolean;
+  d30: Record<string, number>;
+  d7: Record<string, number>;
+  internal30: number;
+  topCtas: [string, number][];
+  lockedFeatures: [string, number][];
+};
+
 type Analytics = {
+  /** The click funnel (product_events). `available: false` means
+   *  supabase/product-events.sql hasn't been run yet. */
+  funnel?: Funnel;
   /** Ingest DECISIONS, not traffic — see lib/ingest-log.ts. `available: false`
    *  means supabase/analytics-accuracy.sql hasn't been run yet. */
   ingest?: {
@@ -105,6 +117,115 @@ function Bars({ rows, color = "#3b82f6", labeler }: { rows: [string, number][]; 
   );
 }
 
+/**
+ * The journey, in the order a real person walks it.
+ *
+ * Labelled in plain words rather than event names: this panel exists to answer
+ * "where do people give up?", and "card_creation_started" does not answer that
+ * to anyone reading it quickly. `key` is the event name from lib/events.ts.
+ */
+const FUNNEL_STEPS: { key: string; label: string; hint: string; fromAccounts?: boolean }[] = [
+  { key: "page_viewed", label: "Landed on the site", hint: "Home, pricing, signup or the card builder" },
+  { key: "card_creation_started", label: "Started building a card", hint: "Typed the first field in the builder" },
+  { key: "card_creation_completed", label: "Finished the card", hint: "Got to the end of the builder" },
+  // Counted from the accounts table, not an event: a real row is exact, can't
+  // double-count a revisit, and can't be lost to a blocked request. Never
+  // measure with an event something the database already knows for certain.
+  { key: "account_created", label: "Created an account", hint: "Counted from real accounts, not clicks", fromAccounts: true },
+  { key: "plan_selected", label: "Picked a plan", hint: "Free or paid — the choice itself" },
+  { key: "upgrade_prompt_viewed", label: "Hit a Pro-only feature", hint: "Bumped into something locked" },
+  { key: "upgrade_started", label: "Clicked upgrade", hint: "Went looking for the paid plan" },
+  { key: "checkout_started", label: "Opened checkout", hint: "Reached the payment step" },
+  { key: "checkout_completed", label: "Paid", hint: "Money in" },
+];
+
+function FunnelPanel({ funnel, signups }: { funnel: Funnel; signups: { d30: number; d7: number } }) {
+  if (!funnel.available) {
+    return (
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+        <p className="text-white font-semibold text-sm mb-1">The journey · last 30 days</p>
+        <p className="text-amber-400/90 text-xs leading-relaxed">
+          Not switched on yet — run <code className="text-amber-300">supabase/product-events.sql</code> in the Supabase SQL editor and this fills in on its own.
+        </p>
+      </div>
+    );
+  }
+
+  const rows = FUNNEL_STEPS.map((s) => ({
+    ...s,
+    n30: s.fromAccounts ? signups.d30 : funnel.d30[s.key] ?? 0,
+    n7: s.fromAccounts ? signups.d7 : funnel.d7[s.key] ?? 0,
+  }));
+  const top = Math.max(1, ...rows.map((r) => r.n30));
+  const anyData = rows.some((r) => r.n30 > 0);
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <p className="text-white font-semibold text-sm">The journey <span className="text-gray-600 font-normal">· last 30 days</span></p>
+        {funnel.internal30 > 0 && (
+          <span className="text-gray-600 text-[0.6875rem] shrink-0">{funnel.internal30.toLocaleString()} of your own events hidden</span>
+        )}
+      </div>
+      <p className="text-gray-600 text-[0.6875rem] mb-4">
+        Every step someone takes before they pay. The number on the right is how many of the previous step made it this far — that&apos;s where you&apos;re losing people.
+      </p>
+
+      {!anyData ? (
+        <p className="text-gray-600 text-xs">Nothing yet. Numbers appear here as soon as real visitors move through the site.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {rows.map((r, i) => {
+            const prev = i === 0 ? null : rows[i - 1].n30;
+            // Only meaningful once the step above actually happened.
+            const pct = prev && prev > 0 ? Math.round((r.n30 / prev) * 100) : null;
+            return (
+              <div key={r.key} className="flex items-center gap-3">
+                <div className="w-44 shrink-0 min-w-0">
+                  <p className="text-gray-200 text-xs truncate" title={r.label}>{r.label}</p>
+                  <p className="text-gray-600 text-[0.625rem] truncate" title={r.hint}>{r.hint}</p>
+                </div>
+                <div className="flex-1 h-6 bg-gray-800/60 rounded-lg overflow-hidden min-w-0">
+                  <div
+                    className="h-full rounded-lg flex items-center justify-end pr-2"
+                    style={{ width: `${Math.max((r.n30 / top) * 100, r.n30 ? 6 : 0)}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)" }}
+                  >
+                    {r.n30 > 0 && <span className="text-white text-[0.625rem] font-bold tabular-nums">{r.n30.toLocaleString()}</span>}
+                  </div>
+                </div>
+                <span className="w-16 text-right text-[0.6875rem] tabular-nums shrink-0">
+                  {pct === null ? <span className="text-gray-600">—</span> : (
+                    <span className={pct >= 50 ? "text-green-400" : pct >= 20 ? "text-amber-400" : "text-red-400"}>{pct}%</span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {(funnel.lockedFeatures.length > 0 || funnel.topCtas.length > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-6 pt-5 border-t border-gray-800">
+          {funnel.lockedFeatures.length > 0 && (
+            <div>
+              <p className="text-white font-semibold text-xs mb-1">Which Pro features they want</p>
+              <p className="text-gray-600 text-[0.625rem] mb-3">What Free users bump into most. The top one is your best upgrade pitch.</p>
+              <Bars rows={funnel.lockedFeatures} color="#f59e0b" />
+            </div>
+          )}
+          {funnel.topCtas.length > 0 && (
+            <div>
+              <p className="text-white font-semibold text-xs mb-1">Most-clicked buttons</p>
+              <p className="text-gray-600 text-[0.625rem] mb-3">Which calls to action people actually press.</p>
+              <Bars rows={funnel.topCtas} color="#38bdf8" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AnalyticsClient() {
   const [a, setA] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -147,6 +268,11 @@ export default function AnalyticsClient() {
               />
               <Kpi label="Contacts captured" value={a.leads.total} sub={`+${a.leads.d7} this week`} />
             </div>
+
+            {/* The click funnel. Sits directly under the KPIs because it is the
+                only panel on this page that can see people who have NOT signed
+                up — everything below counts rows that already exist. */}
+            {a.funnel && <FunnelPanel funnel={a.funnel} signups={{ d30: a.accounts.d30, d7: a.accounts.d7 }} />}
 
             {/* Growth */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">

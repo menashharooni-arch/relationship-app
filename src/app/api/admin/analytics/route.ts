@@ -217,7 +217,53 @@ export async function GET() {
     }
   }
 
+  // ── The click funnel (product_events) ─────────────────────────────────────
+  // Everything above this point counts rows that already exist — accounts,
+  // cards, leads, views — so it can only see people who already signed up.
+  // This is the part BEFORE that: visited → started a card → finished it →
+  // saw pricing → clicked upgrade → paid.
+  //
+  // Excludes our own traffic (is_internal), which is how testing the wizard
+  // signed out stops looking like demand. See supabase/product-events.sql.
+  let funnel: {
+    available: boolean;
+    d30: Record<string, number>;
+    d7: Record<string, number>;
+    internal30: number;
+    topCtas: [string, number][];
+    lockedFeatures: [string, number][];
+  } = { available: false, d30: {}, d7: {}, internal30: 0, topCtas: [], lockedFeatures: [] };
+  {
+    const { data: evRows, error: evErr } = await admin
+      .from("product_events")
+      .select("name, props, is_internal, created_at")
+      .gte("created_at", iso(30))
+      .order("created_at", { ascending: false })
+      .limit(20_000);
+    // Table not migrated yet (supabase/product-events.sql) — the rest of the
+    // admin page must still render, exactly like the ingest block above.
+    if (!evErr && evRows) {
+      const d30: Record<string, number> = {};
+      const d7: Record<string, number> = {};
+      const ctas: Record<string, number> = {};
+      const features: Record<string, number> = {};
+      let internal30 = 0;
+      for (const r of evRows) {
+        if (r.is_internal) { internal30++; continue; }
+        const name = r.name as string;
+        d30[name] = (d30[name] ?? 0) + 1;
+        if (new Date(r.created_at as string).getTime() >= now - 7 * DAY) d7[name] = (d7[name] ?? 0) + 1;
+        const props = (r.props ?? {}) as { cta?: string; feature?: string };
+        if (name === "cta_clicked" && props.cta) ctas[props.cta] = (ctas[props.cta] ?? 0) + 1;
+        if (name === "upgrade_prompt_viewed" && props.feature) features[props.feature] = (features[props.feature] ?? 0) + 1;
+      }
+      const top = (m: Record<string, number>) => Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 8) as [string, number][];
+      funnel = { available: true, d30, d7, internal30, topCtas: top(ctas), lockedFeatures: top(features) };
+    }
+  }
+
   return NextResponse.json({
+    funnel,
     ingest,
     accounts: {
       total: totalAccounts,

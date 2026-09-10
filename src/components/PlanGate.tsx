@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useIsNativeApp } from "@/lib/platform";
 import IapSubscribeButton from "@/components/NativePaywall";
+import TrackEvent from "@/components/TrackEvent";
 
 /**
  * PlanGate — the single component every locked-feature surface renders through.
@@ -57,14 +58,26 @@ export function PlanGate({
 }) {
   const native = useIsNativeApp();
 
+  // Records that a Free account bumped into THIS locked feature — the moment
+  // that predicts an upgrade better than any page view does, and the reason
+  // `feature` has always been on this component's props. Rendered in every
+  // branch, because a gate is a gate on either platform.
+  //
+  // TrackEvent returns null, so this adds no DOM and cannot move a pixel: the
+  // web branch stays byte-for-byte identical, which its test asserts exactly.
+  const seen = <TrackEvent event="upgrade_prompt_viewed" props={{ feature }} />;
+
   if (!native) {
     // WEB PATH — unchanged, byte-for-byte.
-    return <>{children}</>;
+    return <>{children}{seen}</>;
   }
 
   // NATIVE PATH.
-  if (nativeContent !== undefined) return <>{nativeContent}</>;
-  return <PlanNotice tier={tier} copy={nativeCopy} />;
+  if (nativeContent !== undefined) return <>{nativeContent}{seen}</>;
+  return <>
+    <PlanNotice tier={tier} copy={nativeCopy} />
+    {seen}
+  </>;
 
   /*
    * A `nativeContent` override bypasses PlanNotice, so those call sites do NOT

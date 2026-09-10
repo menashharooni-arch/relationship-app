@@ -1,22 +1,27 @@
 // ── Product event tracking ──────────────────────────────────────────────────
-// The conversion funnel (visit → build → publish → account → plan → pay) was
-// instrumented at ZERO points: PostHog was mounted but only ever fired
-// $pageview, and its instance wasn't exported, so no call site could fire an
-// event even if it wanted to. This is that missing seam.
+// The conversion funnel (visit → build → publish → account → plan → pay).
+//
+// Events go to OUR OWN database (api/events → product_events → the funnel on
+// /admin/analytics) and, if a key is ever configured, to PostHog as well. The
+// first-party sink is the one that matters: PostHog was never configured in
+// production, so for the whole life of this file every track() call was a
+// no-op and the funnel showed nothing. First-party also survives the ad
+// blockers that eat third-party analytics scripts, and needs no consent
+// banner, since nothing leaves our own systems.
 //
 // Design rules, in order of importance:
 //
 //  1. NEVER block a user action. Every call here is fire-and-forget. An event
-//     that fails, or an SDK that isn't configured, must not stop a card from
-//     publishing or a checkout from starting. `track()` returns void, is safe to
-//     call without awaiting, and swallows everything.
-//  2. Inert without a key. With no NEXT_PUBLIC_POSTHOG_KEY the SDK is never
-//     imported — no bundle cost, no network, no cookies. Calls become no-ops.
-//  3. Names are a closed union, not free strings. A typo'd event name is an
+//     that fails must not stop a card from publishing or a checkout from
+//     starting. `track()` returns void, is safe to call without awaiting, and
+//     swallows everything.
+//  2. Names are a closed union, not free strings. A typo'd event name is an
 //     event you never see and a funnel that silently under-reports, so the
-//     compiler owns the vocabulary.
-//  4. No PII. Never pass a name, email, phone, or lead content through here.
-//     Ids and enums only — see EventProps.
+//     compiler owns the vocabulary — and the ingest route rejects any name
+//     that isn't in it.
+//  3. No PII. Never pass a name, email, phone, or lead content through here.
+//     Enums and counts only — see EventProps. The ingest route allow-lists the
+//     keys it stores, so this rule is enforced server-side too.
 
 import type { PostHog } from "posthog-js";
 
@@ -27,6 +32,11 @@ const HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
 // One name per meaningful funnel step. Ordered by where they sit in the journey
 // so the list reads as the funnel it measures.
 export const EVENTS = [
+  // Top of funnel. Fired ONLY on the funnel pages in FUNNEL_PATHS below — not
+  // on card or Swift Links pages, which are counted properly in card_views and
+  // would otherwise be most of this table.
+  "page_viewed",
+
   // CTA surface
   "cta_clicked",
 
@@ -98,6 +108,74 @@ export type EventProps = {
   variant?: string;
 };
 
+// ── First-party sink ─────────────────────────────────────────────────────────
+
+const SESSION_KEY = "sc_evt_session";
+const INTERNAL_KEY = "sc_evt_internal";
+
+/**
+ * A random id for THIS visit, used only to group one visitor's steps into a
+ * funnel. sessionStorage, not a cookie: it dies with the tab, never crosses a
+ * browser session, and is never joined to an account.
+ */
+function sessionKey(): string | undefined {
+  try {
+    let k = sessionStorage.getItem(SESSION_KEY);
+    if (!k) {
+      k = (crypto.randomUUID?.() ?? String(Math.random()).slice(2)).slice(0, 36);
+      sessionStorage.setItem(SESSION_KEY, k);
+    }
+    return k;
+  } catch {
+    return undefined; // Private mode / storage blocked — events still count.
+  }
+}
+
+/**
+ * Has this browser been told it belongs to us?
+ *
+ * The server marks an event internal when it carries an admin or demo session.
+ * That alone would miss the case that pollutes the numbers most: testing the
+ * product SIGNED OUT — building a guest card to check the wizard — which is
+ * indistinguishable from a real visitor. So the first internal answer is
+ * remembered here and sent with every later event, signed in or not.
+ */
+function internalFlag(): boolean {
+  try {
+    return localStorage.getItem(INTERNAL_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function sendFirstParty(name: EventName, props: EventProps): void {
+  if (typeof window === "undefined") return;
+  void (async () => {
+    try {
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // keepalive so an event fired on the click that navigates away still
+        // lands — this is the whole point of measuring a funnel.
+        keepalive: true,
+        body: JSON.stringify({
+          name,
+          props,
+          sessionKey: sessionKey(),
+          path: window.location.pathname,
+          internal: internalFlag(),
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as { internal?: boolean } | null;
+      if (data?.internal) {
+        try { localStorage.setItem(INTERNAL_KEY, "1"); } catch { /* storage blocked */ }
+      }
+    } catch {
+      // Offline, blocked, or the route is down: the user must never know.
+    }
+  })();
+}
+
 let ph: PostHog | null = null;
 let loadPromise: Promise<PostHog | null> | null = null;
 
@@ -142,8 +220,9 @@ async function getPostHog(): Promise<PostHog | null> {
  * handler, and never gate navigation on it.
  */
 export function track(name: EventName, props: EventProps = {}): void {
-  if (!KEY) return;
   if (typeof window === "undefined") return; // server components / SSR: no-op
+  sendFirstParty(name, props);
+  if (!KEY) return; // PostHog is optional; the first-party sink above is not.
   void (async () => {
     try {
       const client = await getPostHog();
@@ -184,9 +263,28 @@ export function resetIdentity(): void {
   })();
 }
 
+/**
+ * The pages that ARE the funnel. A first-party `page_viewed` is recorded on
+ * these and nowhere else.
+ *
+ * Deliberately a short allow-list rather than "every route": card and Swift
+ * Links pages are the highest-traffic routes in the product and already have
+ * their own counted, de-duplicated, bot-filtered table (card_views). Letting
+ * them in here would make the funnel table mostly visitor traffic, with one
+ * row per public username — high cardinality, no new information.
+ */
+export const FUNNEL_PATHS = ["/", "/pricing", "/upgrade", "/cards/new", "/welcome", "/login", "/dashboard"] as const;
+
+export function isFunnelPath(pathname: string): boolean {
+  return (FUNNEL_PATHS as readonly string[]).includes(pathname);
+}
+
 /** Manual pageview — used by AnalyticsProvider on every route change. */
 export function trackPageview(): void {
-  if (!KEY || typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
+  // First-party: funnel pages only (see FUNNEL_PATHS).
+  if (isFunnelPath(window.location.pathname)) sendFirstParty("page_viewed", {});
+  if (!KEY) return;
   void (async () => {
     try {
       const client = await getPostHog();
@@ -195,5 +293,9 @@ export function trackPageview(): void {
   })();
 }
 
-/** True when analytics is actually configured — for debug surfaces only. */
+/**
+ * True when the OPTIONAL PostHog leg is configured — for debug surfaces only.
+ * Product events are recorded either way: the first-party sink has no key and
+ * is never off, so this is not a question of whether tracking works.
+ */
 export const analyticsEnabled = !!KEY;
