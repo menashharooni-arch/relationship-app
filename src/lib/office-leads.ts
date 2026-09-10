@@ -1,5 +1,8 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOfficeUserIds } from "@/lib/office-cards";
+// Used by getOfficeUncontactedLeadCount below. A re-export at the foot of this
+// file makes the name available to IMPORTERS, not to this module itself.
+import { leadStatusView } from "@/lib/lead-status";
 
 // ── Org-wide leads, with attribution that survives member removal ───────────
 // Leads are keyed by card slug, and a removed member's slugs drop out of the
@@ -97,42 +100,14 @@ export async function getOfficeUncontactedLeadCount(officeId: string): Promise<n
 // values that can never occur, so every row fell through to grey. Map the real
 // vocabulary to owner-readable labels, with anything unknown treated as New.
 
-export type LeadStatusLabel = "New" | "Contacted" | "Closed" | "Not interested";
-
-export type LeadStatusView = {
-  label: LeadStatusLabel;
-  worked: boolean; // has someone on the team already handled this lead?
-};
-
-// The stored values the owner can set from the Leads tab. `status` is plain text
-// with no CHECK constraint, so this needs no migration — but every value here is
-// also renderable by the personal Contacts UI (LeadCard / ContactsClient), so a
-// lead marked here never shows up blank there.
-export const LEAD_STATUS_VALUES = ["new_contact", "touch", "dissolved", "not_interested"] as const;
-export type LeadStatusValue = (typeof LEAD_STATUS_VALUES)[number];
-
-export function isLeadStatusValue(v: string | null | undefined): v is LeadStatusValue {
-  return !!v && (LEAD_STATUS_VALUES as readonly string[]).includes(v);
-}
-
-export function leadStatusView(status: string | null | undefined): LeadStatusView {
-  switch ((status ?? "").toLowerCase()) {
-    case "touch":
-      return { label: "Contacted", worked: true };
-    case "dissolved":
-      return { label: "Closed", worked: true };
-    case "not_interested":
-      return { label: "Not interested", worked: true };
-    case "new_contact":
-    default:
-      return { label: "New", worked: false };
-  }
-}
-
-// Label → stored value, for the owner-facing status picker.
-export const LEAD_STATUS_OPTIONS: { value: LeadStatusValue; label: LeadStatusLabel }[] = [
-  { value: "new_contact", label: "New" },
-  { value: "touch", label: "Contacted" },
-  { value: "dissolved", label: "Closed" },
-  { value: "not_interested", label: "Not interested" },
-];
+// The status vocabulary now lives in lib/lead-status (client-safe). Re-exported
+// so server callers that already import it from here keep working — but a
+// CLIENT component must import from "@/lib/lead-status" directly, or it pulls
+// this module, and the service-role client, onto its bundle path.
+export {
+  LEAD_STATUS_VALUES,
+  isLeadStatusValue,
+  leadStatusView,
+  LEAD_STATUS_OPTIONS,
+} from "@/lib/lead-status";
+export type { LeadStatusLabel, LeadStatusView, LeadStatusValue } from "@/lib/lead-status";
