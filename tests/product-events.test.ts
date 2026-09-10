@@ -131,6 +131,27 @@ describe("every step the admin funnel draws can actually fill", () => {
   });
 });
 
+describe("the admin page can name every gate a user can hit", () => {
+  it("has plain words for every PlanGate feature key in the product", () => {
+    // "Which Pro features they want" is the panel's answer to what to build
+    // and what to sell. A key with no entry falls back to the raw slug, which
+    // is the one row on that chart nobody can read at a glance.
+    const client = read("src/app/admin/analytics/AnalyticsClient.tsx");
+    const labelled = new Set(
+      [...client.slice(client.indexOf("const GATE_LABEL"), client.indexOf("const gateLabel")).matchAll(/"?([a-z0-9-]+)"?:\s*"/g)].map((m) => m[1]),
+    );
+    const srcFiles = ["src/app/cards/[id]/edit/CardEditForm.tsx", "src/app/cards/new/NewCardWizard.tsx", "src/app/dashboard/page.tsx"];
+    const used = new Set<string>();
+    for (const f of srcFiles) {
+      for (const m of read(f).matchAll(/feature="([a-z0-9-]+)"/g)) used.add(m[1]);
+    }
+    expect(used.size, "no PlanGate feature keys found — did the prop get renamed?").toBeGreaterThan(3);
+    for (const key of used) {
+      expect(labelled.has(key), `GATE_LABEL has no plain-English name for "${key}"`).toBe(true);
+    }
+  });
+});
+
 describe("the migration matches what the code writes", () => {
   const sql = read("supabase/product-events.sql");
 
