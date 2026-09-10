@@ -120,6 +120,47 @@ describe("the plan line", () => {
   });
 });
 
+describe("every Swift Links design key survives a round trip through the editor", () => {
+  // THE BUG THIS EXISTS FOR (found 2026-09-10, during verification):
+  // CardEditForm does not spread the link style — it names every key twice,
+  // once to hydrate from the stored card and once in the save payload, because
+  // the save has to send an explicit null to CLEAR a key. Add a key to the
+  // feature and forget one of those two lists and there is no error anywhere:
+  // the control works, the live preview updates, and the value is dropped the
+  // moment Save is pressed. All four background keys shipped that way for an
+  // hour. This makes the next one impossible to miss.
+  const form = read("src/app/cards/[id]/edit/CardEditForm.tsx");
+  const ALL = [...LINK_STYLE_KEYS, ...LINK_STRUCTURAL_KEYS];
+
+  it.each(ALL)("%s is hydrated from the stored card", (key) => {
+    expect(form).toContain(`${key}: card.customization?.${key} ??`);
+  });
+
+  it.each(ALL)("%s is sent on save", (key) => {
+    expect(form).toContain(`${key}: linkStyleState.${key} ??`);
+  });
+
+  it.each(ALL)("%s is declared on the customization type", (key) => {
+    expect(form).toMatch(new RegExp(`${key}\\?:`));
+  });
+
+  it("the wizard carries them too", () => {
+    // It spreads rather than naming keys, which is why it never had the bug —
+    // but the spread has to actually be there.
+    const wizard = read("src/app/cards/new/NewCardWizard.tsx");
+    expect(wizard).toMatch(/\.\.\.linkStyleState,/);
+  });
+
+  it("a page-only key never invalidates the Swift Signature's card image", () => {
+    // The signature re-renders when the CARD changes. A background photo is
+    // not on the card, so it must be stripped before the change hash.
+    const sig = read("src/lib/signature-content.ts");
+    for (const key of ["linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass"]) {
+      expect(sig, key).toContain(`"${key}"`);
+    }
+  });
+});
+
 describe("the URL is never trusted", () => {
   it("accepts https and nothing else", () => {
     expect(pageMediaUrl("https://cdn.example.com/a.jpg")).toBe("https://cdn.example.com/a.jpg");

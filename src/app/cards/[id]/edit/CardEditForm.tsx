@@ -93,7 +93,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkButtonStyle?: string; linkButtonColor?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkButtonStyle?: string; linkButtonColor?: string; linkBgMedia?: string; linkBgMediaType?: string; linkBgDim?: number; linkGlass?: boolean };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -229,6 +229,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     linkHeroImage: card.customization?.linkHeroImage ?? undefined,
     linkButtonStyle: card.customization?.linkButtonStyle ?? undefined,
     linkButtonColor: card.customization?.linkButtonColor ?? undefined,
+    linkBgMedia: card.customization?.linkBgMedia ?? undefined,
+    linkBgMediaType: card.customization?.linkBgMediaType ?? undefined,
+    linkBgDim: card.customization?.linkBgDim ?? undefined,
+    // NOT `?? undefined` on a boolean by accident: false is a real stored
+    // value here ("frosting explicitly turned off"), and ?? passes it through.
+    linkGlass: card.customization?.linkGlass ?? undefined,
   });
   function patchLinkStyle(patch: Partial<SwiftLinkStyle>) {
     setLinkStyleState((prev) => ({ ...prev, ...patch }));
@@ -384,6 +390,15 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             linkHeroImage: linkStyleState.linkHeroImage ?? null,
             linkButtonStyle: linkStyleState.linkButtonStyle ?? null,
             linkButtonColor: linkStyleState.linkButtonColor ?? null,
+            // Page background media. This list is a WHITELIST, not a spread —
+            // every key has to be named or it is silently dropped on save,
+            // which is exactly what happened to these four when the feature
+            // landed: the background previewed live in the editor and then
+            // vanished the moment you pressed Save.
+            linkBgMedia: linkStyleState.linkBgMedia ?? null,
+            linkBgMediaType: linkStyleState.linkBgMediaType ?? null,
+            linkBgDim: linkStyleState.linkBgDim ?? null,
+            linkGlass: linkStyleState.linkGlass ?? null,
             // "View SwiftCard →" toggle — sent explicitly (null clears back to shown) so the merge can flip it both ways.
             hideCardLink: showCardLinkBtn ? null : true,
             // Headshot is per-card (explicit key, null when removed).
