@@ -3,6 +3,7 @@
 import { useState } from "react";
 import SocialIcons from "@/components/SocialIcons";
 import { getLook } from "@/lib/swiftlink-looks";
+import PhoneFrame from "@/components/PhoneFrame";
 
 // Marketing phone for the SwiftLinks section. A plain phone frame whose screen
 // replicates the REAL SwiftLink profile (SwiftLinkProfile) — full-bleed hero
@@ -179,24 +180,35 @@ export default function SwiftLinksPhone() {
           mirrors the section's own px-5 (20px each side). Above ~380px viewport
           it exceeds 340 and binds nothing, so every normal phone and desktop
           renders exactly as before. */}
-      <div className="rd-phone w-[340px] max-w-[calc(100vw-40px)]">
-        <div className="rd-phone-screen h-[610px]" style={{ background: PAGE }}>
-          <div className="rd-notch" />
-          {/* Sticky mini header — fades in once the hero scrolls away */}
-          <div className="absolute top-0 inset-x-0 z-30 h-[50px] flex items-center gap-2.5 px-4 transition-opacity duration-300" style={{ background: `${SHEET}D6`, backdropFilter: "blur(14px)", opacity: scrolled ? 1 : 0, pointerEvents: "none" }}>
-            <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/marketing/demo-girl.jpg" alt="" className="w-full h-full object-cover" />
-            </div>
-            <span className="text-white font-bold text-[0.875rem] truncate">Alex Morgan</span>
-            <VerifiedBadge className="w-4 h-4" />
+      {/* One shared iPhone for the whole site — see components/PhoneFrame.
+          maxWidth goes through `style`, not a class: PhoneFrame sets
+          maxWidth:100% inline and spreads `style` after it, so a caller's
+          value wins — a Tailwind class would lose to the inline one. */}
+      <PhoneFrame
+        width={340}
+        statusBar="overlay"
+        statusTone="light"
+        style={{ maxWidth: "calc(100vw - 40px)" }}
+        screenStyle={{ height: 610, background: PAGE }}
+        indicatorTone="light"
+      >
+        {/* Sticky mini header — fades in once the hero scrolls away. It sits
+            UNDER the status bar and the Dynamic Island, which is how a real app
+            behaves: both are the system's, drawn over the app. The 39px top
+            padding is this phone's status-bar height, so the header's content
+            clears it while its blur still reaches the very top edge. */}
+        <div className="absolute top-0 inset-x-0 z-[25] h-[89px] pt-[39px] flex items-center gap-2.5 px-4 transition-opacity duration-300" style={{ background: `${SHEET}D6`, backdropFilter: "blur(14px)", opacity: scrolled ? 1 : 0, pointerEvents: "none" }}>
+          <div className="w-7 h-7 rounded-full overflow-hidden shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/marketing/demo-girl.jpg" alt="" className="w-full h-full object-cover" />
           </div>
-          <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none" onScroll={(e) => setScrolled((e.target as HTMLDivElement).scrollTop > 190)}>
-            <Profile />
-          </div>
-          <div className="pointer-events-none absolute inset-0 z-10" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 26%)" }} />
+          <span className="text-white font-bold text-[0.875rem] truncate">Alex Morgan</span>
+          <VerifiedBadge className="w-4 h-4" />
         </div>
-      </div>
+        <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none" onScroll={(e) => setScrolled((e.target as HTMLDivElement).scrollTop > 190)}>
+          <Profile />
+        </div>
+      </PhoneFrame>
     </div>
   );
 }

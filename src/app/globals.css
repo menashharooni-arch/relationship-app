@@ -764,11 +764,13 @@ summary.list-none::-webkit-details-marker { display: none; }
 
 .rd-hair-d { height: 1px; background: linear-gradient(90deg, transparent, var(--rd-line-dark2), transparent); }
 
-.rd-phone { border-radius: 46px; background: linear-gradient(160deg, #1c2130, #0b0d14); padding: 11px;
-  box-shadow: 0 50px 100px -40px rgba(0,0,0,.75), inset 0 0 0 1px rgba(255,255,255,.06); }
-.rd-phone-screen { border-radius: 36px; overflow: hidden; position: relative; background: #FAF7F2; }
-.rd-notch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 78px; height: 22px;
-  background: #05060a; border-radius: 999px; z-index: 20; }
+/* The CSS phone (.rd-phone / .rd-phone-screen / .rd-notch) is gone. It was one
+   of six phone shells on this site, and being CSS it could not scale its own
+   corner radius or its notch with the frame's width — so a 240px phone and a
+   340px phone wore the same 46px corners and the same 78px "notch", and the
+   240 one ended up with its status icons underneath. components/PhoneFrame.tsx
+   derives every dimension from the body width instead, and is now the only
+   phone on the site. */
 
 .rd-marquee-track { display: inline-flex; animation: marquee 32s linear infinite; }
 .rd-scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }

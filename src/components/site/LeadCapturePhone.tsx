@@ -8,6 +8,7 @@ import type { CardData } from "@/components/card-templates/types";
 import ShareButton from "@/components/ShareButton";
 import DemoSwiftLinks from "./DemoSwiftLinks";
 import { cardPageTheme } from "@/lib/card-page-theme";
+import PhoneFrame, { StatusBar, phoneScreenWidth } from "@/components/PhoneFrame";
 
 // The lead-capture page phone: the REAL card-open experience exactly as a
 // visitor sees it when they open a SwiftCard link — the real card template plus
@@ -24,19 +25,6 @@ const DEMO_URL = "https://swiftcard.me/alexmorgan";
 
 // The live page borrows the card's palette — same derivation, same wash.
 const THEME = cardPageTheme(null, "photo-first");
-
-function StatusBar() {
-  return (
-    <div className="flex items-center justify-between px-6 pt-3 pb-1 text-[0.6875rem] font-semibold text-slate-800">
-      <span>9:41</span>
-      <div className="flex items-center gap-1">
-        <svg viewBox="0 0 18 12" className="w-4 h-3" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1" /><rect x="5" y="4" width="3" height="8" rx="1" /><rect x="10" y="1" width="3" height="11" rx="1" opacity="0.4" /></svg>
-        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><path d="M12 18a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM5 13a10 10 0 0114 0l-1.5 1.5a8 8 0 00-11 0zm-3-3a14 14 0 0120 0l-1.5 1.5a12 12 0 00-17 0z" /></svg>
-        <svg viewBox="0 0 26 13" className="w-6 h-3.5" fill="none" stroke="currentColor" strokeWidth="1"><rect x="0.5" y="0.5" width="22" height="12" rx="3" /><rect x="2" y="2" width="17" height="9" rx="1.5" fill="currentColor" /><rect x="23.5" y="4" width="2" height="5" rx="1" fill="currentColor" /></svg>
-      </div>
-    </div>
-  );
-}
 
 const Panel = "w-full rounded-2xl p-4 shadow-sm";
 const panelStyle = { background: "#fff", border: "1px solid #E4DDD4" } as const;
@@ -144,23 +132,20 @@ export default function LeadCapturePhone() {
         <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 5v14M12 19l-4-4M12 19l4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         Exactly what they see when they open your card
       </div>
-      <div className="rd-phone w-[300px]">
-        {/* 650, not 600. The screen is a scrolling viewport over a ~1270px card
-            page, so where it cuts is a choice — and it should cut on a boundary,
-            not mid-control. Adding the message field and the SMS consent
-            checkbox pushed the "Share my info" button's bottom to 619 and its
-            panel's to 636, so a 600px screen sliced the button in half and read
-            as a rendering bug. 650 lands just past the completed panel, which is
-            the whole point of this page: the capture handshake, finished. */}
-        <div className="rd-phone-screen h-[650px]" style={{ background: "#FAF7F2" }}>
-          <div className="rd-notch" />
-          <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none">
-            <StatusBar />
-            <LinkExperience />
-          </div>
-          <div className="pointer-events-none absolute inset-0 z-10" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 26%)" }} />
+      {/* One shared iPhone for the whole site — see components/PhoneFrame.
+          650, not 600. The screen is a scrolling viewport over a ~1270px card
+          page, so where it cuts is a choice — and it should cut on a boundary,
+          not mid-control. Adding the message field and the SMS consent
+          checkbox pushed the "Share my info" button's bottom to 619 and its
+          panel's to 636, so a 600px screen sliced the button in half and read
+          as a rendering bug. 650 lands just past the completed panel, which is
+          the whole point of this page: the capture handshake, finished. */}
+      <PhoneFrame width={300} statusBar={false} screenStyle={{ height: 650, background: "#FAF7F2" }}>
+        <div className="absolute inset-0 overflow-y-auto rd-scrollbar-none">
+          <StatusBar width={phoneScreenWidth(300)} />
+          <LinkExperience />
         </div>
-      </div>
+      </PhoneFrame>
     </div>
   );
 }

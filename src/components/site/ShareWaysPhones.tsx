@@ -1,6 +1,7 @@
 "use client";
 
 import WalletPassFace, { type WalletPassCard } from "@/components/WalletPassFace";
+import PhoneFrame, { StatusBar, phoneScreenWidth } from "@/components/PhoneFrame";
 
 // Two white-screen iPhones showing the ways to share a SwiftCard:
 //   1) Apple Wallet — the real PASS, credit cards tucked below
@@ -36,29 +37,16 @@ const TUCKED = [
   { grad: "linear-gradient(120deg,#c2410c,#ea580c)", tail: "0090", network: "MC" },
 ];
 
-// iOS-style status bar (dark glyphs for a white screen).
-function StatusBar() {
-  return (
-    <div className="flex items-center justify-between px-5 pt-2.5 pb-1 text-[0.6875rem] font-semibold text-slate-900">
-      <span>9:41</span>
-      <div className="flex items-center gap-1">
-        <svg viewBox="0 0 18 12" className="w-[15px] h-3" fill="currentColor"><rect x="0" y="7" width="3" height="5" rx="1" /><rect x="5" y="4.5" width="3" height="7.5" rx="1" /><rect x="10" y="2" width="3" height="10" rx="1" /><rect x="15" y="0" width="3" height="12" rx="1" opacity="0.35" /></svg>
-        <svg viewBox="0 0 20 14" className="w-[17px] h-3.5" fill="currentColor"><path d="M10 3c2.5 0 4.8 1 6.5 2.6l1.4-1.5A11.5 11.5 0 0010 1 11.5 11.5 0 002.1 4.1l1.4 1.5A9.4 9.4 0 0110 3z" /><path d="M10 7c1.4 0 2.7.5 3.7 1.4l1.4-1.5A7.4 7.4 0 0010 5a7.4 7.4 0 00-5.1 1.9l1.4 1.5A5.4 5.4 0 0110 7z" /><circle cx="10" cy="11.5" r="1.6" /></svg>
-        <svg viewBox="0 0 26 13" className="w-[22px] h-3" fill="none"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="currentColor" opacity="0.4" /><rect x="2" y="2" width="17" height="9" rx="2" fill="currentColor" /><rect x="23.5" y="4" width="2" height="5" rx="1" fill="currentColor" opacity="0.5" /></svg>
-      </div>
-    </div>
-  );
-}
-
 function Phone({ label, labelClass, children }: { label: string; labelClass: string; children: React.ReactNode }) {
   return (
     <div className="shrink-0 flex flex-col items-center gap-3.5 snap-center">
-      <div className="rd-phone w-[240px]">
-        <div className="rd-phone-screen h-[500px]" style={{ background: "#FFFFFF" }}>
-          <div className="rd-notch" style={{ width: 48, height: 18 }} />
-          <div className="absolute inset-0 flex flex-col">{children}</div>
-        </div>
-      </div>
+      {/* One shared iPhone for the whole site — see components/PhoneFrame.
+          The Island used to be hand-sized here (48x18 on a 240px phone); the
+          frame derives it from the real 125x37pt proportion instead, so this
+          phone and the 340px one down the page are the same device. */}
+      <PhoneFrame width={240} statusBar={false} screenStyle={{ height: 500, background: "#FFFFFF" }}>
+        <div className="absolute inset-0 flex flex-col">{children}</div>
+      </PhoneFrame>
       <span className={`${labelClass} text-[0.8125rem] font-semibold`}>{label}</span>
     </div>
   );
@@ -68,7 +56,7 @@ function Phone({ label, labelClass, children }: { label: string; labelClass: str
 function WalletPhone() {
   return (
     <>
-      <StatusBar />
+      <StatusBar width={phoneScreenWidth(240)} />
       <div className="flex items-center justify-between px-4 pt-3">
         <h3 className="text-slate-900 text-[1.625rem] font-bold tracking-tight leading-none">Wallet</h3>
         <span className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
@@ -79,10 +67,10 @@ function WalletPhone() {
           proportion Wallet shows it: a fixed-size object with pass colour
           filling the middle and the barcode anchored at its bottom.
 
-          Width: the frame is 240 but .rd-phone carries an 11px bezel per
-          side, so the SCREEN is 218. 208 (the old value) was sized against the
-          FRAME, so it overflowed 22px past the screen's right edge and was
-          clipped by the bezel. Wallet insets a pass by roughly 2.5% of the
+          Width: the frame is 240 but PhoneFrame's rail and bezel take ~7.8px
+          per side, so the SCREEN is ~224. 208 (the old value) was sized
+          against the FRAME, so it overflowed past the screen's right edge and
+          was clipped by the bezel. Wallet insets a pass by roughly 2.5% of the
           screen per side, which is px-1.5 here — not px-4 — so 194 both fits
           and matches. justify-center keeps it centered rather than silently
           overflowing if either number is ever touched again.
@@ -98,8 +86,8 @@ function WalletPhone() {
 
       {/* Credit cards tucked at the bottom, running OFF the screen edge the
           way Wallet's stack does — every card a sliver, none shown whole. The
-          negative margin pushes the stack past the screen bottom;
-          rd-phone-screen's overflow:hidden clips it. */}
+          negative margin pushes the stack past the screen bottom; the frame's
+          screen has overflow:hidden, which clips it. */}
       {/* px-3 puts the stack on exactly the pass's left and right edges: the
           pass is 194 centred in a 206 box, so it sits 12px in from the screen
           — matching that here is what makes the two read as one stack rather
@@ -151,7 +139,7 @@ function SharePhone() {
   const actions = ["Copy Link", "Add to Home Screen", "Save to Files"];
   return (
     <>
-      <StatusBar />
+      <StatusBar width={phoneScreenWidth(240)} />
       {/* the trigger button */}
       <div className="px-4 pt-3">
         <div className="rounded-full py-2.5 flex items-center justify-center gap-2 text-white text-[0.75rem] font-bold shadow-md" style={{ background: "linear-gradient(to right,#2563eb,#7c3aed)" }}>

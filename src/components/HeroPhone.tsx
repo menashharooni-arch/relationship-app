@@ -1,3 +1,13 @@
+// SUPERSEDED — do not copy this phone shell.
+//
+// Nothing imports this component. The site's one phone is
+// components/PhoneFrame.tsx, which derives real iPhone geometry (Dynamic
+// Island, titanium rail, home indicator, glass) from its width; the shell
+// below is an earlier hand-tuned version kept only because
+// tests/landing-content.test.ts reads this file to assert the demo avatar is
+// an illustration rather than a real person's photo. Retiring it means moving
+// that assertion and retiring public/demo/avatar.svg with it.
+
 "use client";
 
 import { useEffect, useRef } from "react";
