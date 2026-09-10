@@ -144,7 +144,20 @@ export default function HeroPhone() {
               <div style={{ padding: "44px 12px 0" }}>
                 {/* The live business card */}
                 <div style={{ height: "150px", overflow: "hidden", marginBottom: "9px", borderRadius: "12px" }}>
-                  <div style={{ width: "390px", transform: "scale(0.69)", transformOrigin: "top left" }}>
+                  {/* LAYOUT at 460, the width every other card in the product
+                      is laid out at, then scaled to the same visual size this
+                      always had: 390 x 0.69 = 269.1px, and 460 x 0.585 = 269.1px.
+                      Identical on screen, one less layout width in existence.
+
+                      It used to lay out at 390, and that made this component
+                      the only place in the app where a card was measured at a
+                      width no user's card ever uses. Harmless while nothing
+                      depended on it — but the detail text now grows into the
+                      room a sparse card leaves, calibrated against the real
+                      width, and this one marketing widget was the only thing
+                      forcing that calibration down for everybody. Fixing the
+                      anomaly beats taxing every card for it. */}
+                  <div style={{ width: "460px", transform: "scale(0.585)", transformOrigin: "top left" }}>
                     <PhotoFirst data={HERO_DATA} />
                   </div>
                 </div>

@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
 
 const ACCENT_DEFAULT = "#6d28d9";
 const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)";
@@ -15,6 +15,7 @@ const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28
 export default function PhotoFirst({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const ACCENT = style.accentColor ?? ACCENT_DEFAULT;
+  // The photo panel keeps a fixed brand backdrop (only visible with no photo).
   // The photo panel. bgColor already means the INFO panel on this template,
   // so the brand backdrop behind the photo gets the second surface.
   const photoBg = style.surfaceColor ?? PHOTO_BG_DEFAULT;
@@ -142,7 +143,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
 
         {/* Contact rows — shared block, auto-fits to the amount of info */}
         <div className="flex flex-col" style={{ gap: Math.round(5 * f) }}>
-          <ContactRows data={data} f={f} palette={{ accent: ACCENT, ...rowPal }} />
+          <ContactRows data={data} f={f} scale={contactScale(data)} palette={{ accent: ACCENT, ...rowPal }} />
           {socials.length > 0 && (
             <div className="flex items-center gap-2.5 mt-0.5">
               {socials.map((s, i) => <span key={i} style={{ color: s.color }}>{s.icon}</span>)}

@@ -95,6 +95,39 @@ export function fitFactor(data: CardData): number {
   return Math.max(0.7, 1 - (rows - 4) * 0.075);
 }
 
+/**
+ * How much the CONTACT BLOCK grows beyond the card-wide density factor.
+ *
+ * `fitFactor` has to serve the logo, the QR and the hero text as well, so it
+ * stays conservative — it tops out at 1.18 and only reaches that on a card with
+ * two rows or fewer. The result was the complaint that started this: a card
+ * carrying just an email, a website and an address rendered its details at
+ * roughly the size a full card uses, with a third of the panel empty under
+ * them (owner, 2026-09-10 — "it looks very small... there is more space for
+ * that to take up").
+ *
+ * CALIBRATED, NOT GUESSED. Every template was rendered at 460px across nine
+ * content scenarios and the contact text swept upward until something crossed
+ * the card's edge, giving the real ceiling for each. The tightest template at
+ * each load (min across all six):
+ *
+ *     rows  1.0  →  2.34x     rows  3.3  →  1.53x
+ *     rows  2.0  →  1.60x     rows  4.9  →  1.19x
+ *     rows  2.9  →  1.59x     rows  6.9  →  1.07x
+ *
+ * This curve stays at or under ~80% of that ceiling everywhere, and returns
+ * exactly 1 from 4.5 rows up — a full card keeps today's rendering byte for
+ * byte, so all the growth happens where there is measured room for it and
+ * nowhere else. tests/render/card-overflow.test.ts holds both halves: nothing
+ * clips, and a sparse card must actually be bigger than a full one.
+ */
+const CONTACT_COMFY_ROWS = 4.5;
+
+export function contactScale(data: CardData): number {
+  const rows = contactRowCount(data);
+  return Math.min(1.35, Math.max(1, 1 + (CONTACT_COMFY_ROWS - rows) * 0.11));
+}
+
 // Cap used for HERO text (names/companies) — they grow with sparseness but a
 // touch less than rows so the layout stays balanced.
 export function heroGrow(f: number): number {
@@ -445,13 +478,17 @@ export type RowPalette = {
   phoneWeight?: number; // default 700; refined templates can use 600
 };
 
-export function ContactRows({ data, palette, f }: { data: CardData; palette: RowPalette; f: number }) {
+export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; palette: RowPalette; f: number; scale?: number }) {
   const ic = (rowColor: string) => ({ color: palette.accent ?? rowColor });
-  const gap = Math.round(5 * f);
+  // `f` is the card-wide density factor, shared with the logo, QR and hero text.
+  // `scale` is the contact block's OWN growth, so detail text can take up the
+  // room a sparse card leaves without also inflating the logo and the QR.
+  const s = f * scale;
+  const gap = Math.round(5 * s);
   // Email/website grow a bit less than the rest (capped at 1.1) and shrink on a
   // tighter budget — sized for the narrowest contact panel (ModernBold) so a
   // grown email can never poke past the card edge.
-  const rowGrow = Math.min(f, 1.1);
+  const rowGrow = Math.min(s, 1.1 * scale);
   const emailSize = fitPx(13 * rowGrow, data.email, 22);
   const webSize = fitPx(11.5 * rowGrow, data.website, 24);
 
@@ -475,9 +512,9 @@ export function ContactRows({ data, palette, f }: { data: CardData; palette: Row
               than shrinking it — so it must be FITTED. It previously had a fixed
               size with nowrap, which meant an extension ("...ext. 8891") could
               neither shrink nor wrap and ran ~50px past the card edge. */}
-          <span style={{ fontSize: fitPx(14.5 * f, formatPhone(p.number), 16), fontWeight: palette.phoneWeight ?? 700, whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: fitPx(14.5 * s, formatPhone(p.number), 16), fontWeight: palette.phoneWeight ?? 700, whiteSpace: "nowrap" }}>
             {formatPhone(p.number)}
-            {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9 * f, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+            {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9 * s, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
           </span>
         </a>
       ))}
@@ -498,16 +535,16 @@ export function ContactRows({ data, palette, f }: { data: CardData; palette: Row
       {cardFax(data) && (
         <div className="flex items-center gap-2" style={{ color: palette.soft }}>
           <span className="shrink-0" style={ic(palette.soft)}><IcoPhone /></span>
-          <span style={{ fontSize: 11 * f, fontWeight: 500 }}>
+          <span style={{ fontSize: 11 * s, fontWeight: 500 }}>
             {formatPhone(cardFax(data))}
-            <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5 * f, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+            <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5 * s, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
           </span>
         </div>
       )}
       {data.address && (
         <div className="flex items-start gap-2" style={{ color: palette.muted }}>
           <span className="shrink-0" style={{ ...ic(palette.muted), marginTop: 1 }}><IcoPin /></span>
-          <span style={{ fontSize: 10.5 * f, lineHeight: 1.3, whiteSpace: "pre-line" }}>{data.address}</span>
+          <span style={{ fontSize: 10.5 * s, lineHeight: 1.3, whiteSpace: "pre-line" }}>{data.address}</span>
         </div>
       )}
     </div>

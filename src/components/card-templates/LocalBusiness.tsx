@@ -7,7 +7,7 @@ import { isDarkBg, panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom } from "./shared";
 
 const AMBER_DEFAULT  = "#b45309";
 const AMBER2_DEFAULT = "#d97706";
@@ -52,6 +52,8 @@ export default function LocalBusiness({ data }: { data: CardData }) {
       className="sc-card relative w-full flex flex-col rounded-2xl overflow-hidden"
       style={{
         aspectRatio: cardAspect(data, 6.5),
+        // The card body below the stripe. Was a fixed cream — the owner could
+        // colour the stripe and nothing else.
         background: bodySurface,
         fontFamily: style.fontFamily ?? CARD_BASE_FONT,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
@@ -139,7 +141,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
           </div>
 
           {/* Contact rows — shared block (address included), auto-fits to the amount of info */}
-          <ContactRows data={data} f={f} palette={style.infoColor ? { accent: AMBER, ...infoPaletteFrom(style.infoColor) } : { accent: AMBER, ...bodyInk }} />
+          <ContactRows data={data} f={f} scale={contactScale(data)} palette={style.infoColor ? { accent: AMBER, ...infoPaletteFrom(style.infoColor) } : { accent: AMBER, ...bodyInk }} />
         </div>
 
         {/* Right: QR — always on the card; gives up a little room when dense */}

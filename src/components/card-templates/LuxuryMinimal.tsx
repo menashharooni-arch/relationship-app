@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom } from "./shared";
 
 const GOLD_DEFAULT  = "#b08d57";
 const GOLD2_DEFAULT = "#c9a96e";
@@ -145,7 +145,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
         </p>
 
         {/* Contact rows — shared block, auto-fits; lighter phone weight keeps the refined feel */}
-        <ContactRows data={data} f={f} palette={{ accent: GOLD, ...infoPal, phoneWeight: 600 }} />
+        <ContactRows data={data} f={f} scale={contactScale(data)} palette={{ accent: GOLD, ...infoPal, phoneWeight: 600 }} />
 
         {/* QR — always on the card; gives up a little room when dense */}
         <div className="flex flex-col items-end gap-1">
