@@ -189,6 +189,18 @@ const SENT = statSync(`${RAW}/dashboard.png`).mtime.toLocaleDateString("en-US", 
 // caption and the island both left alone. UPPER is the natural resting place
 // (just below the island); LOWER is measured from the bottom of the body so
 // both track the device if GLASS_W ever changes.
+//
+// THEY OVERHANG THE PHONE, NOT THE CANVAS. The body is 1016 wide on a 1320
+// frame, so 152px of margin sits either side; a pop-out flush to the frame edge
+// already breaks the silhouette by that much. The first cut of v5 used negative
+// offsets on top of that and sliced five of the ten frames — the "Read" button
+// off Jordan's notification, the right half of the Portland card — which reads
+// as a broken export, not a designed bleed. EDGE is the floor: never negative.
+// Inset from the frame edge. Not 0: a card flush to the edge loses its rounded
+// corner and reads as cut off rather than as a deliberate bleed. At 34 the
+// whole card is visible, shadow and corners included, and it still overhangs
+// the device by ~118px — the silhouette is broken either way.
+const EDGE = 34;
 const UPPER = TOP + Math.round(BODY_H * 0.135);
 const LOWER = TOP + BODY_H - Math.round(BODY_H * 0.30);
 
@@ -200,14 +212,14 @@ const FRAMES = [
     sub: "Text it, show the QR, or tap an NFC card. Opens anywhere, no app needed.",
     bar: { bg: "#e2e0dd", fg: "#111" },
     pops: [
-      { html: notif("Marcus Webb saved your contact", "Webb &amp; Co. · via your link", "1d ago"), at: `top:${LOWER}px; left:-40px`, rot: -3 },
+      { html: notif("Marcus Webb saved your contact", "Webb &amp; Co. · via your link", "1d ago"), at: `top:${LOWER}px; left:${EDGE}px`, rot: -3 },
     ] },
   { n: "02", src: "public-card-shared", y: 850, kicker: "Share back",
     title: "Tap to save.\n<em>They share back.</em>",
     sub: "One tap adds you to their phone. Their details come straight to you.",
     bar: { bg: "#e2e0dd", fg: "#111" },
     pops: [
-      { html: notif("Jordan Rivera shared their info", "Rivera Design Co. · via QR code", "3h ago"), at: `top:${UPPER}px; right:-40px`, rot: 3 },
+      { html: notif("Jordan Rivera shared their info", "Rivera Design Co. · via QR code", "3h ago"), at: `top:${UPPER}px; right:${EDGE}px`, rot: 3 },
     ] },
   { n: "03", src: "contacts", y: 0, kicker: "Contacts",
     title: "Every lead,\n<em>in your pocket</em>",
@@ -221,14 +233,14 @@ const FRAMES = [
     sub: "Notes, context and the next step, all in one place.",
     bar: { bg: "#faf7f2", fg: "#111" },
     pops: [
-      { html: `<div class="pop card note"><span class="lbl">${pin} Where did you meet?</span><b>Rivera Design Co. studio opening, Pearl District</b></div>`, at: `top:${UPPER}px; right:-30px`, rot: 2.5 },
+      { html: `<div class="pop card note"><span class="lbl">${pin} Where did you meet?</span><b>Rivera Design Co. studio opening, Pearl District</b></div>`, at: `top:${UPPER}px; right:${EDGE}px`, rot: 2.5 },
     ] },
   { n: "05", src: "contact-detail-automations", y: 0, kicker: "Follow-ups",
     title: "Follow-ups\n<em>write themselves</em>",
     sub: "An email and text sequence written from your notes, sent on schedule.",
     bar: { bg: "#faf7f2", fg: "#111" },
     pops: [
-      { html: `<div class="pop card mail"><div class="row"><span>Sent ${SENT}, 9:12 AM</span>${check}</div><b>Subject: Great meeting you</b><span class="txt">Hi Jordan, lovely to meet you today. Here’s my portfolio and the 2026 packages we talked about…</span></div>`, at: `top:${UPPER}px; left:-30px`, rot: -2.5 },
+      { html: `<div class="pop card mail"><div class="row"><span>Sent ${SENT}, 9:12 AM</span>${check}</div><b>Subject: Great meeting you</b><span class="txt">Hi Jordan, lovely to meet you today. Here’s my portfolio and the 2026 packages we talked about…</span></div>`, at: `top:${UPPER}px; left:${EDGE}px`, rot: -2.5 },
       { html: chip(`<i class="on"></i><span>On · Medium · 3 emails</span>`), at: `top:${LOWER}px; right:30px`, rot: 3, blue: true },
     ] },
   { n: "06", src: "dashboard", y: 2150, kicker: "Analytics",
@@ -236,7 +248,7 @@ const FRAMES = [
     sub: "Views by day, by source, by town. Who came back, and when.",
     bar: { bg: "#fbf7f1", fg: "#111" },
     pops: [
-      { html: stat("SwiftCard views · Month", "4,345", "Best day <b>Sep 3</b> · 700"), at: `top:${UPPER}px; left:-30px`, rot: -3 },
+      { html: stat("SwiftCard views · Month", "4,345", "Best day <b>Sep 3</b> · 700"), at: `top:${UPPER}px; left:${EDGE}px`, rot: -3 },
       { html: chip(`${pin}<span>Portland, OR · <b>3,193</b> views</span>`), at: `top:${LOWER}px; right:34px`, rot: 2.5 },
     ] },
   { n: "07", src: "dashboard-locations", y: 2270, kicker: "Locations",
@@ -244,14 +256,14 @@ const FRAMES = [
     sub: "Every view placed on the map, split between your card and Swift Links.",
     bar: { bg: "#fbf7f1", fg: "#111" },
     pops: [
-      { html: loc("Portland, OR", "3,193", "2,574", "619"), at: `top:${UPPER}px; right:-30px`, rot: 2.5 },
+      { html: loc("Portland, OR", "3,193", "2,574", "619"), at: `top:${UPPER}px; right:${EDGE}px`, rot: 2.5 },
     ] },
   { n: "08", src: "swift-links", y: 0, kicker: "Swift Links",
     title: "All your links,\n<em>one page</em>",
     sub: "Photo, bio, socials, portfolio and booking at your own link.",
     bar: { overlay: true, fg: "#fff" },
     pops: [
-      { html: `<div class="pop card link"><span class="emoji">🎬</span><b>Watch the 2026 wedding reel</b>${arrow}</div>`, at: `top:${LOWER}px; left:0px`, rot: -2.5 },
+      { html: `<div class="pop card link"><span class="emoji">🎬</span><b>Watch the 2026 wedding reel</b>${arrow}</div>`, at: `top:${LOWER}px; left:${EDGE}px`, rot: -2.5 },
     ] },
   // y=0 on both of these: the captures are exactly one viewport tall (2868), so
   // now that the glass shows a whole viewport there is nothing to scroll past.
@@ -261,7 +273,7 @@ const FRAMES = [
     sub: "A live card under every message you send. Paste it once.",
     bar: { bg: "#4b4948", fg: "#fff" },
     pops: [
-      { html: chip(`${check}<span>Signature copied</span>`), at: `top:${UPPER}px; right:-10px`, rot: 3, big: true },
+      { html: chip(`${check}<span>Signature copied</span>`), at: `top:${UPPER}px; right:${EDGE}px`, rot: 3, big: true },
     ] },
   { n: "10", src: "ways-to-share", y: 0, kicker: "Share",
     title: "QR, NFC and\n<em>Apple Wallet</em>",
@@ -428,7 +440,11 @@ const page = (f, srcH) => `<style>
   .chip b { font-weight: 800; }
   .chip .on { width: 22px; height: 22px; border-radius: 50%; background: #4ADE80; }
   .badge { display: inline-block; padding: 16px 28px; border-radius: 999px; background: #EFF6FF;
-       color: #1D4ED8; font-size: 30px; font-weight: 700; border: 2px solid #DBEAFE; }
+       color: #1D4ED8; font-size: 30px; font-weight: 700; border: 2px solid #DBEAFE;
+       /* Without this the four source badges wrap to three lines EACH and the
+          chip becomes an unreadable block — v4 shipped that way. */
+       white-space: nowrap; }
+  .chip { white-space: nowrap; }
   .loc { width: 860px; padding: 38px 46px; display: flex; flex-direction: column; gap: 14px; }
   .loc .row { display: flex; justify-content: space-between; align-items: baseline; }
   .loc .row b { font-size: 46px; font-weight: 700; letter-spacing: -.02em; }
