@@ -173,10 +173,47 @@ describe("a milestone is a bell row and nothing more", () => {
     expect(milestones()).not.toMatch(/deferPush/);
   });
 
-  it("still writes its own bell row — that row is the once-ever ledger", () => {
+  it("writes NOTHING — it detects, the visit announces", () => {
+    // This is the fix for the pair quoted at the top of this file. milestones.ts
+    // used to insert its own row and dedupe only against itself, so the visit
+    // ledger never saw it and one view produced two notifications a second
+    // apart. It is now detection-only.
     const src = milestones();
-    expect(src).toMatch(/insertNotification\(\{/);
-    expect(src).toMatch(/if \(!created\) return null;/);
+    expect(src).not.toMatch(/insertNotification/);
+    expect(src).not.toMatch(/\.insert\(/);
+    expect(src).toMatch(/NOTHING IS WRITTEN HERE/);
+  });
+
+  it("the milestone rides the visit's OWN row, upgrading it", () => {
+    const src = cardEvents();
+    expect(src).toMatch(/if \(milestone\) \{\s*\n\s*await notifyVisit\(\{/);
+    // Announced AFTER the view: notifyVisit only moves a visit UP the rank
+    // list, so the view (rank 1) creates the row and the milestone (rank 2)
+    // upgrades it. Reversed, the owner would get a bare statistic and never
+    // learn who was on their card.
+    expect(src.indexOf("notified = await notifyVisit(")).toBeLessThan(src.indexOf("if (milestone) {"));
+  });
+
+  it("the merged row still says WHO viewed, not just the number", () => {
+    // The whole risk of merging two rows into one is that the surviving copy
+    // drops the useful half. The body keeps the view sentence and appends the
+    // count; the title carries the celebration.
+    expect(cardEvents()).toMatch(/title: milestone\.title,/);
+    expect(cardEvents()).toMatch(/body: `\$\{notice\.body\} That's \$\{milestone\.reached/);
+  });
+
+  it("the once-ever ledger is a column an upgrade cannot erase", () => {
+    // A lead captured later in the same visit upgrades the SAME row and
+    // rewrites its type — so a type-based ledger would forget the milestone had
+    // been announced and fire it again. upgrade() sets `milestone` and never
+    // clears it.
+    expect(cardEvents()).toMatch(/milestone: milestone\.type,/);
+    const vn = read("src/lib/visit-notify.ts");
+    expect(vn).toMatch(/\.\.\.\(notice\.milestone \? \{ milestone: notice\.milestone \} : \{\}\)/);
+    // ...and the ledger read no longer trusts the type alone.
+    expect(milestones()).toMatch(/milestone\.eq\.\$\{type\},type\.eq\.\$\{type\}/);
+    // The unique index is the race backstop.
+    expect(read("supabase/milestone-one-bell.sql")).toMatch(/notifications_milestone_once_idx_v2/);
   });
 
   it("no longer has a push to defer, so the caller no longer defers one", () => {

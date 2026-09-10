@@ -98,6 +98,17 @@ export type VisitNotice = {
   pushBody?: string;
   /** Attach a one-tap "Save contact" vCard to the push. */
   vcardUrl?: string;
+  /**
+   * THE ONCE-EVER MILESTONE LEDGER, e.g. "milestone_50".
+   *
+   * Written to its own column rather than inferred from `type`, and upgrade()
+   * below never clears it. That is the whole reason the column exists: a visit
+   * that crosses a milestone and then saves a contact gets its type rewritten
+   * from milestone_50 to contact_saved, so a type-based ledger would forget the
+   * milestone had ever been announced and fire it again on the next view. This
+   * survives every later upgrade in the visit.
+   */
+  milestone?: string;
 };
 
 function rankOf(type: string): number {
@@ -179,6 +190,7 @@ export async function notifyVisit(opts: {
     title: notice.title,
     body: notice.body,
     visit_key: key,
+    ...(notice.milestone ? { milestone: notice.milestone } : {}),
   };
 
   // Known open visit: upgrade it, or stay quiet. No second row, no second buzz.
@@ -196,8 +208,16 @@ export async function notifyVisit(opts: {
   const code = (error as { code?: string } | null)?.code;
 
   // Column not migrated yet — behave exactly as before the visit ledger existed.
+  // Tries dropping the NEWER column first (milestone, supabase/milestone-one-bell.sql)
+  // so an environment that has visit_key but not milestone keeps its visit dedupe.
   if (code === "42703" || code === "PGRST204") {
-    const { visit_key: _unused, ...legacy } = row;
+    const { milestone: _m, ...withoutMilestone } = row as typeof row & { milestone?: string };
+    void _m;
+    if ("milestone" in row) {
+      const { error: e1 } = await admin.from("notifications").insert(withoutMilestone);
+      if (!e1) { await push(); return "created"; }
+    }
+    const { visit_key: _unused, ...legacy } = withoutMilestone;
     void _unused;
     const { error: retryError } = await admin.from("notifications").insert(legacy);
     if (retryError) return "failed";
@@ -228,16 +248,26 @@ async function upgrade(
   id: string,
   notice: VisitNotice,
 ): Promise<boolean> {
-  const { error } = await admin
-    .from("notifications")
-    .update({
-      type: notice.type,
-      title: notice.title,
-      body: notice.body,
-      read: false,
-      // Sorts back to the top of the bell: this visit just became news again.
-      created_at: new Date().toISOString(),
-    })
-    .eq("id", id);
-  return !error;
+  const patch = {
+    type: notice.type,
+    title: notice.title,
+    body: notice.body,
+    read: false,
+    // Sorts back to the top of the bell: this visit just became news again.
+    created_at: new Date().toISOString(),
+    // SET, NEVER CLEARED. A visit that crosses a milestone and then captures a
+    // lead upgrades twice; the second upgrade must not wipe the ledger the
+    // first one wrote, or the milestone announces itself again forever.
+    ...(notice.milestone ? { milestone: notice.milestone } : {}),
+  };
+  const { error } = await admin.from("notifications").update(patch).eq("id", id);
+  if (!error) return true;
+  const code = (error as { code?: string } | null)?.code;
+  if (notice.milestone && (code === "42703" || code === "PGRST204")) {
+    const { milestone: _m, ...withoutMilestone } = patch;
+    void _m;
+    const { error: retryError } = await admin.from("notifications").update(withoutMilestone).eq("id", id);
+    return !retryError;
+  }
+  return false;
 }
