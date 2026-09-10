@@ -3,7 +3,7 @@
 // Includes: Company logo/monogram, name, phone (prominent), email, website, QR
 // Best for: Restaurants, retail, contractors, salons, home services, local shops
 
-import { panelBackground } from "@/lib/template-style";
+import { isDarkBg, panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
@@ -26,6 +26,13 @@ export default function LocalBusiness({ data }: { data: CardData }) {
   const AMBER  = style.accentColor ?? AMBER_DEFAULT;
   const AMBER2 = style.accentColor ?? AMBER2_DEFAULT;
   const stripeBg = panelBackground(style, `linear-gradient(100deg, ${AMBER} 0%, ${AMBER2} 60%, #f59e0b 100%)`);
+  // The body below the stripe is restylable now and its presets include deep
+  // shades, so the warm-brown ink has to flip or the details vanish into it.
+  const bodySurface = style.surfaceColor ?? CREAM;
+  const darkBody = isDarkBg(bodySurface);
+  const bodyInk = darkBody
+    ? { strong: "#ffffff", mid: "#f5f5f4", soft: "#e7e5e4", muted: "#d6d3d1" }
+    : { strong: WARM, mid: "#78350f", soft: "#92400e", muted: "#a16207" };
   const initials = data.initials ?? (data.name ?? "").split(" ").map((n) => n[0]).join("").slice(0, 2);
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   // Horizontal space the top-right badge occupies, so the name below can reserve
@@ -45,7 +52,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
       className="sc-card relative w-full flex flex-col rounded-2xl overflow-hidden"
       style={{
         aspectRatio: cardAspect(data, 6.5),
-        background: CREAM,
+        background: bodySurface,
         fontFamily: style.fontFamily ?? CARD_BASE_FONT,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
@@ -125,14 +132,14 @@ export default function LocalBusiness({ data }: { data: CardData }) {
         <div className="flex-1 flex flex-col justify-between">
           {/* Company name */}
           <div className="min-w-0">
-            <p className="font-black leading-tight" style={{ ...companyFit, color: WARM, overflowWrap: "anywhere" }}>
+            <p className="font-black leading-tight" style={{ ...companyFit, color: bodyInk.strong, overflowWrap: "anywhere" }}>
               {data.company}
             </p>
             <div className="w-12 h-[2px] mt-1 rounded-full" style={{ background: `linear-gradient(90deg, ${AMBER2}, #fbbf24)` }} />
           </div>
 
           {/* Contact rows — shared block (address included), auto-fits to the amount of info */}
-          <ContactRows data={data} f={f} palette={style.infoColor ? { accent: AMBER, ...infoPaletteFrom(style.infoColor) } : { accent: AMBER, strong: WARM, mid: "#78350f", soft: "#92400e", muted: "#a16207" }} />
+          <ContactRows data={data} f={f} palette={style.infoColor ? { accent: AMBER, ...infoPaletteFrom(style.infoColor) } : { accent: AMBER, ...bodyInk }} />
         </div>
 
         {/* Right: QR — always on the card; gives up a little room when dense */}

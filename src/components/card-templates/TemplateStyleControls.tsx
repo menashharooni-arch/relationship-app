@@ -31,9 +31,23 @@ function isHex(v?: string): v is string {
 
 const rowLabel = "text-[11px] font-semibold text-gray-300 uppercase tracking-wide";
 
+// Is this Look exactly what the card is wearing right now?
+//
+// Every field a Look SETS has to be compared, or the highlight lies. Once Looks
+// gained a finish and a second surface, comparing only bg/text/font meant
+// picking "Sea Glass" and then switching the finish to Carbon left Sea Glass
+// still lit up — the panel claiming a preset that no longer described the card.
+// Undefined on both sides counts as a match: a Look without a finish means Flat,
+// which is what an unset finish renders as.
 function looksActive(value: TemplateStyle, look: Look): boolean {
-  const fontMatch = (value.fontFamily ?? undefined) === (look.font ?? undefined);
-  return value.bgColor === look.bg && value.textColor === look.text && fontMatch;
+  const same = (a?: string, b?: string) => (a ?? undefined) === (b ?? undefined);
+  return (
+    value.bgColor === look.bg &&
+    value.textColor === look.text &&
+    same(value.fontFamily, look.font) &&
+    same(value.finish, look.finish) &&
+    same(value.surfaceColor, look.surface)
+  );
 }
 
 function LooksGallery({
@@ -394,6 +408,50 @@ function PanelMediaControl({
   );
 }
 
+/**
+ * A group signpost, one level above the field labels.
+ *
+ * The panel was a flat run of seven sections divided by hairlines, so "pick a
+ * whole look", "what the card is made of" and "what colour the text is" all
+ * read as the same weight of decision, and the eye had nowhere to rest. Owner,
+ * 2026-09-10: "much cleaner and make everything more aligned."
+ *
+ * Deliberately quieter than a field label, and identical to the Swift Links
+ * panel's heading, so the two design surfaces read as one system rather than
+ * two screens that happen to live in the same product.
+ */
+function GroupHeading({ children, hint }: { children: string; hint?: string }) {
+  return (
+    <div className="flex items-baseline gap-2 pt-1">
+      <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-gray-500 shrink-0">{children}</span>
+      {hint && <span className="text-[9px] text-gray-600 truncate">{hint}</span>}
+      <span className="flex-1 h-px bg-gray-800" />
+    </div>
+  );
+}
+
+/**
+ * One labelled control.
+ *
+ * Every section used to repeat its own label/help/spacing markup, which is how
+ * they drifted: different bottom margins, one section with a hairline above it
+ * and the next without, and the background field carrying a hand-rolled copy of
+ * the custom-colour + Default row that <Swatches> already draws. One component
+ * means one alignment.
+ */
+function Field({ label, help, pro, children }: { label: string; help: string; pro?: boolean; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className={`${rowLabel} mb-0.5`}>
+        {label}
+        {pro && <span className="ml-1.5 align-middle"><ProTag /></span>}
+      </p>
+      <p className="text-[10px] text-gray-500 mb-2 leading-snug">{help}</p>
+      {children}
+    </div>
+  );
+}
+
 export default function TemplateStyleControls({
   value,
   onChange,
@@ -407,13 +465,25 @@ export default function TemplateStyleControls({
 }) {
   const meta = (template && META[template]) || FALLBACK_META;
 
+  // A Look sets the card's whole scheme in one tap, INCLUDING clearing what it
+  // does not specify. Leaving the previous finish or second surface underneath
+  // is what makes a preset feel like it half-worked.
+  const applyLook = (look: Look) =>
+    onChange({
+      bgColor: look.bg,
+      textColor: look.text,
+      fontFamily: look.font,
+      finish: look.finish,
+      surfaceColor: meta.surface ? look.surface : undefined,
+    });
+
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-5">
-      {/* Per-template intro + live preview swatch */}
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4">
+      {/* Which template this is, and a live chip of the scheme so far. */}
       <div className="flex items-start gap-3">
         <div
           className="w-14 h-9 rounded-lg shrink-0 flex items-center justify-center overflow-hidden border border-gray-700"
-          style={{ background: value.bgColor ?? meta.bg.fallback }}
+          style={{ background: composePanelBackground(value.bgColor ?? meta.bg.fallback, value.finish) }}
           aria-hidden
         >
           <span className="text-[13px] font-bold leading-none" style={{ color: value.textColor ?? meta.text.fallback, fontFamily: value.fontFamily }}>Aa</span>
@@ -424,83 +494,49 @@ export default function TemplateStyleControls({
         </div>
       </div>
 
-      {/* 1) Background — the ONE place for the card's surface. Tapping a theme
-          also coordinates the name color + font; the custom picker and Default
-          adjust just the background. */}
-      <div>
-        <p className={`${rowLabel} mb-0.5`}>{meta.bg.label}</p>
-        <p className="text-[10px] text-gray-500 mb-2 leading-snug">{meta.bg.help}</p>
-        <LooksGallery looks={meta.looks} value={value} onPick={(look) => onChange({ bgColor: look.bg, textColor: look.text, fontFamily: look.font })} />
-        <div className="flex items-center gap-2 mt-2">
-          <label
-            className={`flex items-center gap-1 text-[10px] text-gray-500 ${locked ? "opacity-50 pointer-events-none select-none" : "cursor-pointer"}`}
-            aria-disabled={locked}
-          >
-            Custom color{locked && <ProTag />}
-            <input
-              type="color"
-              value={isHex(value.bgColor) ? value.bgColor : meta.bg.fallback}
-              onChange={(e) => onChange({ bgColor: e.target.value })}
-              disabled={locked}
-              className="w-7 h-7 rounded bg-transparent border border-gray-700 cursor-pointer disabled:cursor-default"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => onChange({ bgColor: undefined })}
-            className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
-              value.bgColor === undefined ? "border-blue-600 text-blue-300" : "border-gray-700 text-gray-500 hover:text-gray-300"
-            }`}
-          >
-            Default
-          </button>
-        </div>
-      </div>
+      {/* ── Looks: the whole card in one tap ─────────────────────────────── */}
+      <GroupHeading hint="The whole card, in one tap">Looks</GroupHeading>
+      <LooksGallery looks={meta.looks} value={value} onPick={applyLook} />
 
-      {/* 2) Finish — a MODIFIER of the surface above, so it sits with it rather
-          than at the bottom with the text colours. Owner, 2026-09-10: the same
-          "biggest visual change nearest the preview" rule the Swift Links panel
-          was reordered around. */}
-      <div>
-        <p className={`${rowLabel} mb-0.5`}>Finish</p>
-        <p className="text-[10px] text-gray-500 mb-2 leading-snug">The material laid over your {meta.bg.label.toLowerCase()}. Reads strongest on deeper colours.</p>
+      {/* ── Surfaces: what the card is made of ───────────────────────────── */}
+      <GroupHeading hint="What the card is made of">Surfaces</GroupHeading>
+      <Field label={meta.bg.label} help={meta.bg.help}>
+        <Swatches presets={meta.bg.presets} value={value.bgColor} fallbackHex={meta.bg.fallback} onPick={(v) => onChange({ bgColor: v })} customLocked={locked} />
+      </Field>
+
+      {/* Only three of the six templates have a second surface. On the rest,
+          bgColor already paints the whole card and this would do nothing. */}
+      {meta.surface && (
+        <Field label={meta.surface.label} help={meta.surface.help}>
+          <Swatches presets={meta.surface.presets} value={value.surfaceColor} fallbackHex={meta.surface.fallback} onPick={(v) => onChange({ surfaceColor: v })} customLocked={locked} />
+        </Field>
+      )}
+
+      <Field label="Finish" help={`The material laid over your ${meta.bg.label.toLowerCase()}. Reads strongest on deeper colours.`}>
         <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} locked={locked} />
-      </div>
+      </Field>
 
-      {/* 3) Panel photo or video */}
-      <div>
-        <p className={`${rowLabel} mb-0.5`}>Panel photo or video{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-        <p className="text-[10px] text-gray-500 mb-2 leading-snug">Sits behind your {meta.bg.label.toLowerCase()}, under the finish.</p>
+      <Field label="Photo or video" help={`Sits behind your ${meta.bg.label.toLowerCase()}, under the finish.`} pro={locked}>
         <PanelMediaControl value={value} onChange={onChange} locked={locked} />
-      </div>
+      </Field>
 
-      {/* 4) Name color */}
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>{meta.text.label}</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.text.help}</p>
+      {/* ── Text: what it says, and how it reads ─────────────────────────── */}
+      <GroupHeading hint="Colour and typeface">Text</GroupHeading>
+      <Field label={meta.text.label} help={meta.text.help}>
         <Swatches presets={meta.text.presets} value={value.textColor} fallbackHex={meta.text.fallback} onPick={(v) => onChange({ textColor: v })} customLocked={locked} />
-      </div>
+      </Field>
 
-      {/* 5) Details color — the actual contact information text */}
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>{meta.info.label}</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.info.help}</p>
+      <Field label={meta.info.label} help={meta.info.help}>
         <Swatches presets={meta.info.presets} value={value.infoColor} fallbackHex={meta.info.fallback} onPick={(v) => onChange({ infoColor: v })} customLocked={locked} />
-      </div>
+      </Field>
 
-      {/* 6) Accent / icon color — the phone/email/address icons (the purple) */}
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>{meta.accent.label}</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">{meta.accent.help}</p>
+      <Field label={meta.accent.label} help={meta.accent.help}>
         <Swatches presets={meta.accent.presets} value={value.accentColor} fallbackHex={meta.accent.fallback} onPick={(v) => onChange({ accentColor: v })} customLocked={locked} />
-      </div>
+      </Field>
 
-      {/* 7) Font */}
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>Font</p>
-        <p className="text-[10px] text-gray-500 mb-1.5 leading-snug">Sets the typeface for your name and details across the whole card.</p>
+      <Field label="Font" help="Sets the typeface for your name and details across the whole card.">
         <FontPills value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} />
-      </div>
+      </Field>
     </div>
   );
 }

@@ -5,7 +5,22 @@
 // a "use client" component into server bundles. Mirrors why template-style.ts
 // is its own module.
 
-export type Look = { name: string; bg: string; text: string; font?: string };
+/**
+ * A curated one-tap look for a template.
+ *
+ * `bg`/`text`/`font` were the whole of it, which meant a Look could set a
+ * colour scheme but never the CARD'S MATERIAL — so the finishes and the second
+ * surface, the two things that change a card most, were reachable only by
+ * hand. A Look now carries them too, the way a Swift Links Look carries its
+ * whole scheme: one tap, a complete card.
+ *
+ * `finish` and `surface` are optional. A Look that omits `finish` CLEARS it
+ * (back to Flat) rather than leaving the last one on — half of the previous
+ * look surviving underneath is exactly what makes a preset feel broken. A Look
+ * that omits `surface` leaves that template's own default, since three of the
+ * six templates have no second surface at all.
+ */
+export type Look = { name: string; bg: string; text: string; font?: string; finish?: string; surface?: string };
 
 export type StyleField = {
   label: string;
@@ -19,6 +34,19 @@ export type TemplateMeta = {
   blurb: string;
   looks: Look[];
   bg: StyleField;
+  /**
+   * The card's SECOND surface, on the templates that have one.
+   *
+   * `bg` is the brand surface — Classic Pro's left panel, Local Business's
+   * header stripe, Photo First's info panel. The rest of those cards was a
+   * hard-coded constant: a cream body, a white info panel, a purple photo
+   * panel. Owners could restyle half a card and not the other half.
+   *
+   * OMITTED, deliberately, on Modern Bold, Luxury Minimal and Logo First: `bg`
+   * already paints their whole card. Offering a second colour picker there
+   * would be a control that changes nothing, which is worse than no control.
+   */
+  surface?: StyleField;
   text: StyleField;
   info: StyleField;
   accent: StyleField;
@@ -42,12 +70,20 @@ export const META: Record<string, TemplateMeta> = {
       { name: "Forest", bg: "#052e2b", text: "#ffffff" },
       { name: "Burgundy", bg: "#3f1d2e", text: "#f3d9c6" },
       { name: "Sky", bg: "linear-gradient(160deg, #0e1b35 0%, #2563eb 100%)", text: "#ffffff" },
+      { name: "Sea Glass", bg: "linear-gradient(160deg, #1c3a5e 0%, #2f6f8f 100%)", text: "#f2fbff", finish: "frosted", surface: "#f8fafc" },
+      { name: "Titanium", bg: "#2a3140", text: "#ffffff", finish: "brushed", surface: "#f1f5f9" },
     ],
     bg: {
       label: "Branding panel",
-      help: "The colored left panel behind your logo and name. The right info panel always stays white.",
+      help: "The colored left panel behind your logo and name. The info panel beside it has its own colour below.",
       presets: ["#0e1b35", "#070d1c", "#111827", "#1c1612", "#052e2b", "#3f1d2e", "linear-gradient(160deg, #0e1b35 0%, #2563eb 100%)"],
       fallback: "#0e1b35",
+    },
+    surface: {
+      label: "Info panel",
+      help: "The panel your phone, email and address sit on. White by default; a deep shade flips the details to light automatically.",
+      presets: ["#ffffff", "#f8fafc", "#f1f5f9", "#0e1b35", "#111827", "#1c1612"],
+      fallback: "#ffffff",
     },
     text: {
       label: "Name color",
@@ -78,6 +114,8 @@ export const META: Record<string, TemplateMeta> = {
       { name: "Deep Blue", bg: "linear-gradient(135deg, #0e1b35 0%, #2563eb 100%)", text: "#ffffff" },
       { name: "Emerald", bg: "#052e2b", text: "#6ee7b7" },
       { name: "Ember", bg: "#1c1010", text: "#fca5a5" },
+      { name: "Frostbite", bg: "linear-gradient(150deg, #10243f 0%, #1d4e6b 100%)", text: "#eaf7ff", finish: "frosted" },
+      { name: "Carbon", bg: "#0b0f16", text: "#ffffff", finish: "carbon" },
     ],
     bg: {
       label: "Card background",
@@ -113,6 +151,8 @@ export const META: Record<string, TemplateMeta> = {
       { name: "Pearl", bg: "#ffffff", text: "#0e1b35", font: SERIF },
       { name: "Sand", bg: "#f5efe3", text: "#1c1612", font: SERIF },
       { name: "Charcoal Luxe", bg: "#1c1612", text: "#d4af7a", font: SERIF },
+      { name: "Opaline", bg: "linear-gradient(160deg, #eef2f6 0%, #dbe6ee 100%)", text: "#1c2733", finish: "frosted" },
+      { name: "Gilded", bg: "#14110d", text: "#f0e2c4", finish: "gilt" },
     ],
     bg: {
       label: "Card background",
@@ -149,12 +189,20 @@ export const META: Record<string, TemplateMeta> = {
       { name: "Midnight", bg: "#0e1b35", text: "#ffffff" },
       { name: "Cherry", bg: "#be123c", text: "#ffffff" },
       { name: "Slate", bg: "#334155", text: "#ffffff" },
+      { name: "Sea Glass", bg: "linear-gradient(100deg, #2f7f8f 0%, #3f9fae 60%, #56b8c4 100%)", text: "#f4feff", finish: "frosted", surface: "#ffffff" },
+      { name: "Slate & Linen", bg: "linear-gradient(100deg, #3b4451 0%, #4b5563 60%, #5b6675 100%)", text: "#ffffff", finish: "linen", surface: "#f5f5f4" },
     ],
     bg: {
       label: "Header stripe",
-      help: "The colored banner across the top. The body below always stays warm cream.",
+      help: "The colored banner across the top. The body below it has its own colour, next.",
       presets: ["linear-gradient(100deg, #b45309 0%, #d97706 60%, #f59e0b 100%)", "#b45309", "#166534", "#0f766e", "#0e1b35", "#be123c"],
       fallback: "#b45309",
+    },
+    surface: {
+      label: "Card body",
+      help: "The area below the header stripe, where your details sit. Cream by default.",
+      presets: ["#fffbf0", "#ffffff", "#fef3c7", "#f5f5f4", "#1c1612", "#292524"],
+      fallback: "#fffbf0",
     },
     text: {
       label: "Name color",
@@ -185,12 +233,20 @@ export const META: Record<string, TemplateMeta> = {
       { name: "Rose", bg: "linear-gradient(145deg, #be123c 0%, #f43f5e 100%)", text: "#ffffff" },
       { name: "Emerald", bg: "linear-gradient(145deg, #064e3b 0%, #10b981 100%)", text: "#ffffff" },
       { name: "Onyx", bg: "#0a0a0a", text: "#ffffff" },
+      { name: "Sea Glass", bg: "#ffffff", text: "#ffffff", finish: "frosted", surface: "linear-gradient(145deg, #2f7f8f 0%, #3f9fae 60%, #56b8c4 100%)" },
+      { name: "Graphite", bg: "#111827", text: "#ffffff", finish: "brushed", surface: "#1f2937" },
     ],
     bg: {
       label: "Info panel background",
-      help: "The panel behind your contact details on the right. A dark shade flips the text to light automatically; the photo stays on the left.",
+      help: "The panel behind your contact details on the right. A dark shade flips the text to light automatically; the photo panel on the left has its own colour below.",
       presets: ["#ffffff", "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)", "#4f46e5", "linear-gradient(145deg, #be123c 0%, #f43f5e 100%)", "#064e3b", "#0a0a0a"],
       fallback: "#ffffff",
+    },
+    surface: {
+      label: "Photo panel",
+      help: "The colored panel behind your photo — it shows through around the edges, and fills the panel when there's no photo yet.",
+      presets: ["linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)", "#4f46e5", "#0e1b35", "#111827", "#052e2b", "#3f1d2e"],
+      fallback: "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)",
     },
     text: {
       label: "Name color",
@@ -221,6 +277,8 @@ export const META: Record<string, TemplateMeta> = {
       { name: "Forest", bg: "#16352c", text: "#ffffff" },
       { name: "Oxblood", bg: "#3a1d22", text: "#ffffff" },
       { name: "Bone", bg: "#f4f2ed", text: "#141b26" },
+      { name: "Sea Glass", bg: "linear-gradient(160deg, #24506b 0%, #3a7f96 100%)", text: "#f2fbff", finish: "frosted" },
+      { name: "Brushed Steel", bg: "#39414f", text: "#ffffff", finish: "brushed" },
     ],
     bg: {
       label: "Card background",

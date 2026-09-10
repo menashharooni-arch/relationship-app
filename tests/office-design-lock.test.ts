@@ -84,7 +84,12 @@ describe("extractDesign — pulls just the design keys from a card (brand seedin
     expect(employee.bio).toBe("employee bio"); // their own content survives
   });
 
-  // ADDED DELIBERATELY, 2026-09-10: finish + panel media (lib/card-finishes.ts).
+  // ADDED DELIBERATELY, 2026-09-10: finish + panel media (lib/card-finishes.ts),
+  // then surfaceColor — the card's SECOND surface (Local Business's body,
+  // Classic Pro's info panel, Photo First's photo panel), which was a
+  // hard-coded constant until now. A firm that controls its teammates' cards
+  // has to control the whole card, not the half of it that happened to be
+  // wired up.
   //
   // They belong in the office look for the same reason a font does — a firm that
   // wants every card brushed metal on its building photo is describing its
@@ -95,7 +100,7 @@ describe("extractDesign — pulls just the design keys from a card (brand seedin
   // nothing (OfficeBranding.tsx reads exactly these).
   it("covers exactly the colour/font keys — a new design key must be added deliberately", () => {
     expect([...OFFICE_DESIGN_KEYS]).toEqual([
-      "accentColor", "font", "bgColor", "textColor", "infoColor", "fontFamily",
+      "accentColor", "font", "bgColor", "surfaceColor", "textColor", "infoColor", "fontFamily",
       "finish", "panelMedia", "panelMediaType", "panelMediaPoster", "panelDim",
     ]);
   });

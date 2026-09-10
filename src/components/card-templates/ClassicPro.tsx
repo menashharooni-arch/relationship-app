@@ -3,7 +3,7 @@
 // Includes: Logo, name, title, phone, email, website, social row, QR
 // Best for: Finance, consulting, legal, corporate, healthcare
 
-import { panelBackground } from "@/lib/template-style";
+import { isDarkBg, panelBackground } from "@/lib/template-style";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
@@ -15,6 +15,14 @@ export default function ClassicPro({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const BLUE = style.accentColor ?? BLUE_DEFAULT;
   const panelBg = panelBackground(style, `linear-gradient(160deg, ${NAVY} 0%, #162947 100%)`);
+  // The info panel is restylable now, and its presets include deep shades.
+  // Offering a dark surface while the details stay navy ink would hand
+  // someone an unreadable card, so the whole right side flips together.
+  const infoSurface = style.surfaceColor ?? "#fff";
+  const darkInfo = isDarkBg(infoSurface);
+  const infoInk = darkInfo
+    ? { strong: "#ffffff", mid: "#e5e7eb", soft: "#d1d5db", muted: "#9ca3af" }
+    : { strong: NAVY, mid: "#334155", soft: "#475569", muted: "#64748b" };
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   // Row is 152 design px: panel 40% of 460 = 184, less 16px padding either side.
   // The logo keeps 48% of it for an ordinary name and gives ground only as the
@@ -37,7 +45,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
       className="sc-card relative w-full flex rounded-2xl overflow-hidden"
       style={{
         aspectRatio: cardAspect(data),
-        background: "#fff",
+        background: infoSurface,
         fontFamily: style.fontFamily ?? CARD_BASE_FONT,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
       }}
@@ -127,14 +135,14 @@ export default function ClassicPro({ data }: { data: CardData }) {
       >
         {/* Contact rows — shared block, auto-fits to the amount of info */}
         <div className="mt-0.5">
-          <ContactRows data={data} f={f} palette={style.infoColor ? infoPaletteFrom(style.infoColor) : { strong: NAVY, mid: "#334155", soft: "#475569", muted: "#64748b" }} />
+          <ContactRows data={data} f={f} palette={style.infoColor ? infoPaletteFrom(style.infoColor) : infoInk} />
         </div>
 
         {/* Social handles (compact, if space) */}
         {socials.length > 0 && (
           <div className="flex flex-wrap gap-x-4 gap-y-[4px]">
             {socials.slice(0, 2).map((s, i) => (
-              <div key={i} className="flex items-center gap-1.5" style={{ color: "#64748b" }}>
+              <div key={i} className="flex items-center gap-1.5" style={{ color: infoInk.muted }}>
                 {s.icon}
                 <span style={{ fontSize: 9.5 }}>{s.handle}</span>
               </div>

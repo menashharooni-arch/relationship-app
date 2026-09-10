@@ -106,7 +106,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
     const pick = (k: string) => (typeof d[k] === "string" && (d[k] as string).trim() ? (d[k] as string) : undefined);
     const dim = typeof d.panelDim === "number" ? d.panelDim : undefined;
     return {
-      accentColor: pick("accentColor"), bgColor: pick("bgColor"), textColor: pick("textColor"),
+      accentColor: pick("accentColor"), bgColor: pick("bgColor"), surfaceColor: pick("surfaceColor"), textColor: pick("textColor"),
       infoColor: pick("infoColor"), fontFamily: pick("fontFamily"),
       finish: pick("finish"),
       panelMedia: pick("panelMedia"), panelMediaType: pick("panelMediaType"),

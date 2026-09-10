@@ -93,7 +93,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; finish?: string; panelMedia?: string; panelMediaType?: string; panelMediaPoster?: string; panelDim?: number; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkButtonStyle?: string; linkButtonColor?: string; linkBgMedia?: string; linkBgMediaType?: string; linkBgDim?: number; linkGlass?: boolean; linkAccentColor?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; surfaceColor?: string; finish?: string; panelMedia?: string; panelMediaType?: string; panelMediaPoster?: string; panelDim?: number; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkButtonStyle?: string; linkButtonColor?: string; linkBgMedia?: string; linkBgMediaType?: string; linkBgDim?: number; linkGlass?: boolean; linkAccentColor?: string };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -208,6 +208,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const [templateStyleState, setTemplateStyleState] = useState<TemplateStyle>({
     accentColor: card.customization?.accentColor ?? undefined,
     bgColor: card.customization?.bgColor ?? undefined,
+    surfaceColor: card.customization?.surfaceColor ?? undefined,
     textColor: card.customization?.textColor ?? undefined,
     infoColor: card.customization?.infoColor ?? undefined,
     fontFamily: card.customization?.fontFamily ?? undefined,
@@ -385,6 +386,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             // Sent explicitly (undefined → key cleared to the template default).
             accentColor: templateStyleState.accentColor ?? null,
             bgColor: templateStyleState.bgColor ?? null,
+            surfaceColor: templateStyleState.surfaceColor ?? null,
             textColor: templateStyleState.textColor ?? null,
             infoColor: templateStyleState.infoColor ?? null,
             fontFamily: templateStyleState.fontFamily ?? null,

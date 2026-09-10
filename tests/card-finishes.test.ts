@@ -8,6 +8,7 @@ import {
 import { templateStyle, panelBackground } from "@/lib/template-style";
 import { overlayOfficeDesign } from "@/lib/office-brand";
 import { isPaidPlan } from "@/lib/plan";
+import { META } from "@/lib/template-style-presets";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
@@ -295,5 +296,94 @@ describe("office admin and sub-user accounts", () => {
   it("applies the office look AFTER the plan sanitiser, so the brand always wins", () => {
     const src = read("src/app/api/cards/[id]/route.ts");
     expect(src.indexOf("sanitizeCustomizationForPlan")).toBeLessThan(src.indexOf("overlayOfficeDesign(updates.customization"));
+  });
+});
+
+// ── The second surface, and Looks that set a whole card ──────────────────────
+//
+// Owner, 2026-09-10: "for local business, it's only letting them choose the
+// color of the header stripe, but not the color of the bottom part of the card.
+// You have to think of all types of things like this."
+describe("every template lets you style all of it", () => {
+  const read2 = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+
+  it("declares a second surface on exactly the templates that have one", () => {
+    // Three do; three paint the whole card from bgColor already, and a control
+    // that changes nothing is worse than no control.
+    for (const t of ["classic-pro", "local-business", "photo-first"]) {
+      expect(META[t].surface, `${t} has no second surface`).toBeTruthy();
+    }
+    for (const t of ["modern-bold", "luxury-minimal", "logo-first"]) {
+      expect(META[t].surface, `${t} should not offer a second surface`).toBeUndefined();
+    }
+  });
+
+  it("wires that surface into the three templates' own markup", () => {
+    for (const t of ["ClassicPro", "LocalBusiness", "PhotoFirst"]) {
+      expect(read2(`src/components/card-templates/${t}.tsx`), `${t} ignores surfaceColor`).toMatch(/style\.surfaceColor \?\?/);
+    }
+  });
+
+  it("flips the details to light when that surface is set dark", () => {
+    // Each of those three offers deep presets. Painting a dark panel while the
+    // ink stays dark hands someone an unreadable card.
+    for (const t of ["ClassicPro", "LocalBusiness"]) {
+      const src = read2(`src/components/card-templates/${t}.tsx`);
+      expect(src, `${t} never checks whether its surface is dark`).toMatch(/isDarkBg\(/);
+    }
+    // Photo First already derived this from its info panel before today.
+    expect(read2("src/components/card-templates/PhotoFirst.tsx")).toMatch(/darkInfo/);
+  });
+
+  it("gives every template a glass Look and a material Look", () => {
+    for (const t of Object.keys(META)) {
+      const withFinish = META[t].looks.filter((l) => l.finish);
+      expect(withFinish.length, `${t} has no Look carrying a finish`).toBeGreaterThanOrEqual(2);
+      expect(META[t].looks.some((l) => l.finish === "frosted"), `${t} has no glass Look`).toBe(true);
+    }
+  });
+
+  it("a Look clears what it does not set, so no half of the last one survives", () => {
+    const src = read2("src/components/card-templates/TemplateStyleControls.tsx");
+    expect(src).toMatch(/finish: look\.finish/);
+    expect(src).toMatch(/surfaceColor: meta\.surface \? look\.surface : undefined/);
+  });
+
+  it("only highlights a Look that matches every field it sets", () => {
+    const src = read2("src/components/card-templates/TemplateStyleControls.tsx");
+    expect(src).toMatch(/same\(value\.finish, look\.finish\)/);
+    expect(src).toMatch(/same\(value\.surfaceColor, look\.surface\)/);
+  });
+
+  it("snaps a Free account's surface to that template's presets, or drops it", () => {
+    const src = read2("src/lib/plan.ts");
+    expect(src).toMatch(/if \(meta\.surface\) cust\.surfaceColor = nearestPreset\(/);
+    expect(src).toMatch(/else delete cust\.surfaceColor;/);
+  });
+
+  it("carries surfaceColor through both flows and the office look", () => {
+    expect(read2("src/app/cards/[id]/edit/CardEditForm.tsx")).toMatch(/surfaceColor: templateStyleState\.surfaceColor/);
+    expect(read2("src/app/cards/new/NewCardWizard.tsx")).toMatch(/surfaceColor: result\.customization\.surfaceColor/);
+    expect(read2("src/components/OfficeBranding.tsx")).toMatch(/surfaceColor: pick\("surfaceColor"\)/);
+  });
+});
+
+describe("the panel never describes a surface as fixed once it is not", () => {
+  // The Header stripe help read "the body below always stays warm cream" and
+  // Classic Pro's read "the right info panel always stays white" — both true
+  // until the second surface got a control, and both then actively wrong.
+  it("no background help promises an unchangeable other half", () => {
+    for (const [id, m] of Object.entries(META)) {
+      for (const field of [m.bg, m.surface]) {
+        if (!field) continue;
+        expect(field.help, `${id} still claims a surface is fixed`).not.toMatch(/always stays|stays white|always white|cannot be changed/i);
+      }
+    }
+  });
+
+  it("each second surface names itself in plain language", () => {
+    expect(META["local-business"].surface!.label).toBe("Card body");
+    expect(META["classic-pro"].surface!.label).toBe("Info panel");
+    expect(META["photo-first"].surface!.label).toBe("Photo panel");
   });
 });

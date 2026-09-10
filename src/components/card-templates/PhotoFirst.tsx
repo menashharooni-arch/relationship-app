@@ -15,8 +15,9 @@ const PHOTO_BG_DEFAULT = "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28
 export default function PhotoFirst({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const ACCENT = style.accentColor ?? ACCENT_DEFAULT;
-  // The photo panel keeps a fixed brand backdrop (only visible with no photo).
-  const photoBg = PHOTO_BG_DEFAULT;
+  // The photo panel. bgColor already means the INFO panel on this template,
+  // so the brand backdrop behind the photo gets the second surface.
+  const photoBg = style.surfaceColor ?? PHOTO_BG_DEFAULT;
   // bgColor now tints the INFO PANEL — the surface behind the contact text.
   // Default is the clean white panel; a dark choice flips the text to light.
   const infoBg = panelBackground(style, "#ffffff");
