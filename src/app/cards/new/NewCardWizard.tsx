@@ -1857,7 +1857,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   ? (plan, annual, seats) => pickPlanThenSignUp({ plan, annual, seats, ...(presetPromo ? { promo: presetPromo } : {}) })
                   : handleAuthedFirstCardPaid}
                 busy={null}
-                freeLabel="Start free →"
+                // NOT "Start free →": that is the PRO card's button label too
+                // (it starts the free trial), so this screen had two buttons
+                // reading exactly the same words — one genuinely free, one a
+                // paid subscription with a card taken at checkout. Someone
+                // reaching for Free could land in checkout, and the label gave
+                // them no way to tell. Found while driving the live flow.
+                freeLabel="Continue with Free →"
                 // Native IAP: the entitlement is synced before this fires, so the
                 // server keeps the Pro design; no checkout hop, straight to save.
                 onIapPurchased={() => { setShowPlan(false); handleCreate(); }}
