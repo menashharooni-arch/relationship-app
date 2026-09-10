@@ -125,13 +125,13 @@ function Bars({ rows, color = "#3b82f6", labeler }: { rows: [string, number][]; 
  * to anyone reading it quickly. `key` is the event name from lib/events.ts.
  */
 const FUNNEL_STEPS: { key: string; label: string; hint: string; fromAccounts?: boolean }[] = [
-  { key: "page_viewed", label: "Landed on the site", hint: "Home, pricing, signup or the card builder" },
-  { key: "card_creation_started", label: "Started building a card", hint: "Typed the first field in the builder" },
-  { key: "card_creation_completed", label: "Finished the card", hint: "Got to the end of the builder" },
+  { key: "page_viewed", label: "Landed on the site", hint: "Home, pricing or the builder" },
+  { key: "card_creation_started", label: "Started building a card", hint: "Typed the first field" },
+  { key: "card_creation_completed", label: "Finished the card", hint: "Reached the end of the builder" },
   // Counted from the accounts table, not an event: a real row is exact, can't
   // double-count a revisit, and can't be lost to a blocked request. Never
   // measure with an event something the database already knows for certain.
-  { key: "account_created", label: "Created an account", hint: "Counted from real accounts, not clicks", fromAccounts: true },
+  { key: "account_created", label: "Created an account", hint: "From real accounts, not clicks", fromAccounts: true },
   { key: "plan_selected", label: "Picked a plan", hint: "Free or paid — the choice itself" },
   { key: "upgrade_prompt_viewed", label: "Hit a Pro-only feature", hint: "Bumped into something locked" },
   { key: "upgrade_started", label: "Clicked upgrade", hint: "Went looking for the paid plan" },
@@ -139,7 +139,35 @@ const FUNNEL_STEPS: { key: string; label: string; hint: string; fromAccounts?: b
   { key: "checkout_completed", label: "Paid", hint: "Money in" },
 ];
 
-function FunnelPanel({ funnel, signups }: { funnel: Funnel; signups: { d30: number; d7: number } }) {
+export /**
+ * The `feature` key on every PlanGate, in plain words.
+ *
+ * These keys are written for the code ("swift-links-cap"), and this panel's
+ * whole job is to say which Pro feature Free users want most. A raw key needs
+ * decoding before it can answer that, which is one step too many for a number
+ * you glance at.
+ */
+const GATE_LABEL: Record<string, string> = {
+  "colors-fonts": "Any color & finishes",
+  "custom-designer": "The custom designer",
+  customization: "Card customization",
+  "second-card": "A second card",
+  "leads-cap": "More than 5 leads a month",
+  "leads-locked": "Seeing a locked lead",
+  "swift-links-cap": "More Swift Links",
+  "link-off-badge": "Removing the SwiftCard badge",
+  scanner: "Scanning a paper card",
+  "ai-sequences": "Automated follow-ups",
+  "analytics-locations": "Who viewed & where",
+  "card-view-only": "Full card analytics",
+  "csv-export": "Exporting contacts",
+  "integration-crm": "CRM sync",
+  "integration-google": "Google Contacts sync",
+  "integration-zapier": "Zapier",
+};
+const gateLabel = (k: string) => GATE_LABEL[k] ?? k.replace(/-/g, " ");
+
+export function FunnelPanel({ funnel, signups }: { funnel: Funnel; signups: { d30: number; d7: number } }) {
   if (!funnel.available) {
     return (
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
@@ -174,30 +202,37 @@ function FunnelPanel({ funnel, signups }: { funnel: Funnel; signups: { d30: numb
       {!anyData ? (
         <p className="text-gray-600 text-xs">Nothing yet. Numbers appear here as soon as real visitors move through the site.</p>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-2.5 sm:space-y-1.5">
           {rows.map((r, i) => {
             const prev = i === 0 ? null : rows[i - 1].n30;
             // Only meaningful once the step above actually happened.
             const pct = prev && prev > 0 ? Math.round((r.n30 / prev) * 100) : null;
             return (
-              <div key={r.key} className="flex items-center gap-3">
-                <div className="w-44 shrink-0 min-w-0">
+              // Stacks on a phone. Side by side, a fixed label column left the
+              // bar about 80px wide, so every step drew nearly the same length
+              // and the funnel stopped showing the drop-off it exists to show —
+              // and the count inside the bar clipped to a single digit.
+              <div key={r.key} className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3">
+                <div className="sm:w-44 shrink-0 min-w-0">
                   <p className="text-gray-200 text-xs truncate" title={r.label}>{r.label}</p>
                   <p className="text-gray-600 text-[0.625rem] truncate" title={r.hint}>{r.hint}</p>
                 </div>
-                <div className="flex-1 h-6 bg-gray-800/60 rounded-lg overflow-hidden min-w-0">
-                  <div
-                    className="h-full rounded-lg flex items-center justify-end pr-2"
-                    style={{ width: `${Math.max((r.n30 / top) * 100, r.n30 ? 6 : 0)}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)" }}
-                  >
-                    {r.n30 > 0 && <span className="text-white text-[0.625rem] font-bold tabular-nums">{r.n30.toLocaleString()}</span>}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex-1 h-5 bg-gray-800/60 rounded-lg overflow-hidden min-w-0">
+                    <div
+                      className="h-full rounded-lg"
+                      style={{ width: `${(r.n30 / top) * 100}%`, background: "linear-gradient(90deg, #2563eb, #7c3aed)" }}
+                    />
                   </div>
+                  {/* The count sits OUTSIDE the bar: inside, a small step's own
+                      number is wider than the bar drawn for it. */}
+                  <span className="w-12 text-right text-[0.6875rem] font-semibold text-gray-200 tabular-nums shrink-0">{r.n30.toLocaleString()}</span>
+                  <span className="w-10 text-right text-[0.6875rem] tabular-nums shrink-0">
+                    {pct === null ? <span className="text-gray-600">—</span> : (
+                      <span className={pct >= 50 ? "text-green-400" : pct >= 20 ? "text-amber-400" : "text-red-400"}>{pct}%</span>
+                    )}
+                  </span>
                 </div>
-                <span className="w-16 text-right text-[0.6875rem] tabular-nums shrink-0">
-                  {pct === null ? <span className="text-gray-600">—</span> : (
-                    <span className={pct >= 50 ? "text-green-400" : pct >= 20 ? "text-amber-400" : "text-red-400"}>{pct}%</span>
-                  )}
-                </span>
               </div>
             );
           })}
@@ -210,7 +245,7 @@ function FunnelPanel({ funnel, signups }: { funnel: Funnel; signups: { d30: numb
             <div>
               <p className="text-white font-semibold text-xs mb-1">Which Pro features they want</p>
               <p className="text-gray-600 text-[0.625rem] mb-3">What Free users bump into most. The top one is your best upgrade pitch.</p>
-              <Bars rows={funnel.lockedFeatures} color="#f59e0b" />
+              <Bars rows={funnel.lockedFeatures} color="#f59e0b" labeler={gateLabel} />
             </div>
           )}
           {funnel.topCtas.length > 0 && (
