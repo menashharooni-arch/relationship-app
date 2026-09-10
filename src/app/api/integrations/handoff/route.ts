@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
-import { signState } from "@/lib/oauth-state";
+import { signConnectHandoff } from "@/lib/oauth-state";
 
 // Mint a short-lived handoff token so the shell can start an OAuth connect in
 // the system browser sheet without the app's session cookies. See
@@ -10,5 +10,5 @@ export async function POST() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  return NextResponse.json({ h: signState(user.id) });
+  return NextResponse.json({ h: signConnectHandoff(user.id) });
 }
