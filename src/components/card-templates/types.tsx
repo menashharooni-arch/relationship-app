@@ -124,6 +124,16 @@ export type CardCustomization = {
   bgColor?: string;      // primary branding surface (navy panel, dark bg, stripe…)
   textColor?: string;    // hero/name text color
   fontFamily?: string;   // card typography (a full CSS font stack)
+  // ── Finish + panel media (lib/card-finishes.ts) ───────────────────────────
+  // The material laid over bgColor, and an optional photo or video behind it.
+  // Composed into one `background` by panelBackground(), so all six templates
+  // pick them up without knowing they exist. Absent = the card renders exactly
+  // as it did before any of this.
+  finish?: string;             // "sheen" | "brushed" | … ; absent/"flat" = plain
+  panelMedia?: string;         // uploaded photo or video URL
+  panelMediaType?: string;     // "image" | "video"
+  panelMediaPoster?: string;   // a video's first frame — what non-browser surfaces paint
+  panelDim?: number;           // scrim over the media, 0–0.85
   // Socials that live ONLY here, with no top-level CardData field: the save
   // writes them into customization and CustomCard reads them back out of it.
   // They were missing from this type, so CustomCard had to reach them through

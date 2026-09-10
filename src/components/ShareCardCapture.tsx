@@ -148,6 +148,21 @@ export default function ShareCardCapture({
   const proxy = (u?: string | null) => (u && /^https?:\/\//.test(u) ? `/api/img-proxy?url=${encodeURIComponent(u)}` : u ?? null);
   const captureData = {
     ...cardData,
+    // The panel photo lives in customization and is painted through a CSS
+    // url(), so html-to-image has to be able to read it into the canvas too —
+    // a cross-origin one taints it and the whole capture comes back blank.
+    // A panel VIDEO cannot rasterise at all, so its poster frame is what the
+    // downloaded card shows; that is the same still every non-browser surface
+    // already paints (lib/template-style.ts, panelBackground).
+    customization: (() => {
+      const c = (cardData as { customization?: Record<string, unknown> }).customization;
+      if (!c || (!c.panelMedia && !c.panelMediaPoster)) return c;
+      return {
+        ...c,
+        ...(c.panelMedia ? { panelMedia: proxy(c.panelMedia as string) } : {}),
+        ...(c.panelMediaPoster ? { panelMediaPoster: proxy(c.panelMediaPoster as string) } : {}),
+      };
+    })(),
     // Prefer the pre-resolved data URL; fall back to the proxied URL so the
     // node still renders (and inlineImages can still try) if resolving failed.
     photoUrl: resolved?.photoUrl ?? proxy(cardData.photoUrl),

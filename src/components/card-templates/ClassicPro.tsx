@@ -3,6 +3,7 @@
 // Includes: Logo, name, title, phone, email, website, social row, QR
 // Best for: Finance, consulting, legal, corporate, healthcare
 
+import { panelBackground } from "@/lib/template-style";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
@@ -13,7 +14,7 @@ const BLUE_DEFAULT = "#2563eb";
 export default function ClassicPro({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const BLUE = style.accentColor ?? BLUE_DEFAULT;
-  const panelBg = style.bgColor ?? `linear-gradient(160deg, ${NAVY} 0%, #162947 100%)`;
+  const panelBg = panelBackground(style, `linear-gradient(160deg, ${NAVY} 0%, #162947 100%)`);
   const f = fitFactor(data); // auto-fit: more info → everything sizes down together
   // Row is 152 design px: panel 40% of 460 = 184, less 16px padding either side.
   // The logo keeps 48% of it for an ordinary name and gives ground only as the

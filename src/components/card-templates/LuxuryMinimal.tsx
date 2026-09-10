@@ -3,6 +3,7 @@
 // Includes: Name, title, phone, email, website, QR — stripped back, refined
 // Best for: Luxury real estate, wealth management, executives, high-end services, attorneys
 
+import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
@@ -18,7 +19,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const GOLD  = style.accentColor ?? GOLD_DEFAULT;
   const GOLD2 = style.accentColor ?? GOLD2_DEFAULT;
-  const bg = style.bgColor ?? IVORY;
+  const bg = panelBackground(style, IVORY);
   const nameColor = style.textColor ?? TEXT;
   // Info text sits on the card, so on a dark canvas (e.g. Charcoal Luxe) it
   // defaults to a soft light tone; an explicit infoColor overrides it.

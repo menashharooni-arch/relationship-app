@@ -5,6 +5,7 @@
 // Best for: firms that lead with a brand mark rather than a face — agencies,
 // practices, contractors, funds, anyone whose logo is the recognisable thing.
 
+import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
@@ -102,7 +103,7 @@ function qrInk(accent: string, qrBg: string): string {
 
 export default function LogoFirst({ data }: { data: CardData }) {
   const style = templateStyle(data);
-  const bg = style.bgColor ?? NAVY;
+  const bg = panelBackground(style, NAVY);
   const dark = isDarkBg(bg);
   const accent = readableAccent(style.accentColor, bg, dark);
   const nameColor = style.textColor ?? (dark ? "#FFFFFF" : INK);

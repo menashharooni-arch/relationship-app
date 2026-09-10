@@ -84,8 +84,20 @@ describe("extractDesign — pulls just the design keys from a card (brand seedin
     expect(employee.bio).toBe("employee bio"); // their own content survives
   });
 
+  // ADDED DELIBERATELY, 2026-09-10: finish + panel media (lib/card-finishes.ts).
+  //
+  // They belong in the office look for the same reason a font does — a firm that
+  // wants every card brushed metal on its building photo is describing its
+  // brand, not an individual's taste. And it is not really a choice: this list
+  // is PRO_CUSTOMIZATION_KEYS, and the Branding page renders the card editor's
+  // own TemplateStyleControls, so the admin already has these controls in front
+  // of them. Leaving the keys out would have given them pickers that save
+  // nothing (OfficeBranding.tsx reads exactly these).
   it("covers exactly the colour/font keys — a new design key must be added deliberately", () => {
-    expect([...OFFICE_DESIGN_KEYS]).toEqual(["accentColor", "font", "bgColor", "textColor", "infoColor", "fontFamily"]);
+    expect([...OFFICE_DESIGN_KEYS]).toEqual([
+      "accentColor", "font", "bgColor", "textColor", "infoColor", "fontFamily",
+      "finish", "panelMedia", "panelMediaType", "panelMediaPoster", "panelDim",
+    ]);
   });
 });
 

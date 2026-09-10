@@ -93,7 +93,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkButtonStyle?: string; linkButtonColor?: string; linkBgMedia?: string; linkBgMediaType?: string; linkBgDim?: number; linkGlass?: boolean; linkAccentColor?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; finish?: string; panelMedia?: string; panelMediaType?: string; panelMediaPoster?: string; panelDim?: number; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkButtonStyle?: string; linkButtonColor?: string; linkBgMedia?: string; linkBgMediaType?: string; linkBgDim?: number; linkGlass?: boolean; linkAccentColor?: string };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -211,6 +211,15 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     textColor: card.customization?.textColor ?? undefined,
     infoColor: card.customization?.infoColor ?? undefined,
     fontFamily: card.customization?.fontFamily ?? undefined,
+    // Finish + panel media (lib/card-finishes.ts). Every key TemplateStyle
+    // carries has to be listed in BOTH this reader and the save payload below:
+    // the controls come from the shared TemplateStyleControls, so a key missing
+    // here renders a picker that opens blank and forgets what it is told.
+    finish: card.customization?.finish ?? undefined,
+    panelMedia: card.customization?.panelMedia ?? undefined,
+    panelMediaType: card.customization?.panelMediaType ?? undefined,
+    panelMediaPoster: card.customization?.panelMediaPoster ?? undefined,
+    panelDim: typeof card.customization?.panelDim === "number" ? card.customization.panelDim : undefined,
   });
   function patchTemplateStyle(patch: Partial<TemplateStyle>) {
     setTemplateStyleState((prev) => ({ ...prev, ...patch }));
@@ -379,6 +388,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             textColor: templateStyleState.textColor ?? null,
             infoColor: templateStyleState.infoColor ?? null,
             fontFamily: templateStyleState.fontFamily ?? null,
+            finish: templateStyleState.finish ?? null,
+            panelMedia: templateStyleState.panelMedia ?? null,
+            panelMediaType: templateStyleState.panelMediaType ?? null,
+            panelMediaPoster: templateStyleState.panelMediaPoster ?? null,
+            panelDim: templateStyleState.panelDim ?? null,
             // Swift Links page design ("Social design" — Pro, stripped on Free).
             linkLook: linkStyleState.linkLook ?? null,
             linkIconShape: linkStyleState.linkIconShape ?? null,

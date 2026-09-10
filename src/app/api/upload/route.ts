@@ -73,7 +73,7 @@ export async function POST(req: Request) {
   // the DB-write branches below never see them. Videos do NOT come through
   // here for a link tile or a page background: they exceed the request-body
   // limit and go straight to storage via /api/upload/link-video.
-  if (field !== "photo" && field !== "logo" && field !== "hero" && field !== "link" && field !== "pagebg") return NextResponse.json({ error: "Invalid field" }, { status: 400 });
+  if (field !== "photo" && field !== "logo" && field !== "hero" && field !== "link" && field !== "pagebg" && field !== "cardbg") return NextResponse.json({ error: "Invalid field" }, { status: 400 });
   if (!ALLOWED.includes(file.type)) return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
 
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
       // long edge is stretched to the full scroll height (often 3-4x the
       // viewport) rather than to a tile. 1600 is the most the 5 MB cap will
       // carry at a sane JPEG quality.
-      const MAXDIM = field === "photo" ? 1000 : field === "pagebg" ? 1600 : field === "hero" || field === "link" ? 1200 : 800;
+      const MAXDIM = field === "photo" ? 1000 : field === "pagebg" ? 1600 : field === "cardbg" ? 1400 : field === "hero" || field === "link" ? 1200 : 800;
       const img = sharp(Buffer.from(arrayBuffer)).rotate().resize(MAXDIM, MAXDIM, { fit: "inside", withoutEnlargement: true });
       if (field === "logo") {
         body = await img.png({ compressionLevel: 9 }).toBuffer();

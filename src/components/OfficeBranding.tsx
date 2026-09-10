@@ -97,11 +97,22 @@ export default function OfficeBranding({ office }: { office: Brand }) {
   const [company, setCompany] = useState(office.brand_company ?? "");
   const [website, setWebsite] = useState(office.brand_website ?? "");
   const [template, setTemplate] = useState(office.brand_template ?? "classic-pro");
-  // The team look (colors & fonts) — same keys the card editor writes.
+  // The team look — the same keys the card editor writes, and it must stay that
+  // way: this page renders the card editor's OWN TemplateStyleControls, so any
+  // control added there appears here automatically. A key missing from this
+  // reader is a control an admin can see and touch that saves nothing.
   const [design, setDesign] = useState<TemplateStyle>(() => {
     const d = (office.brand_design ?? {}) as Record<string, unknown>;
     const pick = (k: string) => (typeof d[k] === "string" && (d[k] as string).trim() ? (d[k] as string) : undefined);
-    return { accentColor: pick("accentColor"), bgColor: pick("bgColor"), textColor: pick("textColor"), infoColor: pick("infoColor"), fontFamily: pick("fontFamily") };
+    const dim = typeof d.panelDim === "number" ? d.panelDim : undefined;
+    return {
+      accentColor: pick("accentColor"), bgColor: pick("bgColor"), textColor: pick("textColor"),
+      infoColor: pick("infoColor"), fontFamily: pick("fontFamily"),
+      finish: pick("finish"),
+      panelMedia: pick("panelMedia"), panelMediaType: pick("panelMediaType"),
+      panelMediaPoster: pick("panelMediaPoster"),
+      ...(dim === undefined ? {} : { panelDim: dim }),
+    };
   });
   const patchDesign = (p: Partial<TemplateStyle>) => setDesign((prev) => ({ ...prev, ...p }));
   const [phone, setPhone] = useState(office.brand_phone ?? "");
