@@ -76,10 +76,16 @@ const TEMPLATES: Array<[string, React.ComponentType<{ data: CardData }>]> = [
 ];
 
 // Matches card-overflow.test.ts: 460 is the real layout width for every card
-// (CardScaler lays out at 460 and only scales the pixels); 390 is carried
-// because HeroPhone genuinely lays PhotoFirst out there, and holding the others
-// to it too is free insurance.
-const WIDTHS = [460, 390];
+// (CardScaler lays out at 460 and only scales the pixels), and 390 is real in
+// exactly one place — HeroPhone.tsx:147 lays PhotoFirst out there, with fixed
+// sample data.
+//
+// 390 is gone entirely as of 2026-09-10, because the one place it existed was
+// fixed rather than worked around: HeroPhone laid its card out at 390 and
+// scaled it 0.69, and now lays out at 460 and scales 0.585 — the same pixels on
+// screen, one less layout width in the codebase. There is now exactly one width
+// a card is ever measured at.
+const WIDTHS = [460];
 const TOL = 1;
 
 async function inspect(

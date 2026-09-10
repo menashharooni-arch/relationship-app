@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const BG           = "#070d1c";
 const BLUE_DEFAULT = "#3b82f6";
@@ -137,7 +137,7 @@ export default function ModernBold({ data }: { data: CardData }) {
       >
         {/* Contact rows — shared block, auto-fits to the amount of info */}
         <div className="mt-1">
-          <ContactRows data={data} f={f} palette={{ accent: BLUE, ...infoPal }} />
+          <ContactRows data={data} f={f} scale={contactScale(data)} palette={{ accent: BLUE, ...infoPal }} />
         </div>
 
         {/* QR + label — always on the card; gives up a little room when dense */}

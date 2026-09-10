@@ -6,7 +6,7 @@
 import { isDarkBg, panelBackground } from "@/lib/template-style";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
 
 const NAVY = "#0e1b35";
 const BLUE_DEFAULT = "#2563eb";
@@ -45,6 +45,8 @@ export default function ClassicPro({ data }: { data: CardData }) {
       className="sc-card relative w-full flex rounded-2xl overflow-hidden"
       style={{
         aspectRatio: cardAspect(data),
+        // The info panel — white by default, and restylable since 2026-09-10
+        // (it was a hard-coded constant, so half the card could not be themed).
         background: infoSurface,
         fontFamily: style.fontFamily ?? CARD_BASE_FONT,
         boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)",
@@ -135,7 +137,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
       >
         {/* Contact rows — shared block, auto-fits to the amount of info */}
         <div className="mt-0.5">
-          <ContactRows data={data} f={f} palette={style.infoColor ? infoPaletteFrom(style.infoColor) : infoInk} />
+          <ContactRows data={data} f={f} scale={contactScale(data)} palette={style.infoColor ? infoPaletteFrom(style.infoColor) : infoInk} />
         </div>
 
         {/* Social handles (compact, if space) */}
@@ -153,6 +155,8 @@ export default function ClassicPro({ data }: { data: CardData }) {
         {/* QR + scan label — always on the card; gives up a little room when dense */}
         <div className="flex items-end justify-end">
           <div className="flex flex-col items-end gap-1">
+            {/* The QR keeps a light plate on a dark panel: a scanner needs the
+                contrast, and inverting it is the one thing that stops it scanning. */}
             <QR size={qrSize(f)} bg="#f0f5ff" fg={NAVY} url={data.cardUrl} />
           </div>
         </div>

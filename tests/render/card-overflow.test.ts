@@ -8,7 +8,7 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
-import type { CardData } from "@/components/card-templates/types";
+import { SAMPLE_DATA, withoutSocials, type CardData } from "@/components/card-templates/types";
 
 // Nothing on a card should ever be cut off. The card root sets aspectRatio and
 // overflow-hidden, so content that doesn't fit is CLIPPED SILENTLY — no error, no
@@ -43,7 +43,22 @@ const TEMPLATES: Array<[string, React.ComponentType<{ data: CardData }>]> = [
 //
 // 390 is the one genuine exception: HeroPhone renders PhotoFirst at 390 with its
 // own scale(0.69), so that layout width is real and worth holding.
-const WIDTHS = [460, 390];
+// 460 is the ONLY layout width a user's card is ever rendered at. Re-verified
+// 2026-09-10 by grepping every render path: CardScaler's DEFAULT_NATURAL is
+// 460, the sole `natural={390}` override is SwiftLinkLivePreview (which renders
+// a Swift Links page, not a card), and ShareCardCapture, EmailSignatureBox and
+// CardPreviewDownload each hard-code 460.
+//
+// There is no second width any more. HeroPhone was the only component laying a
+// card out at 390; on 2026-09-10 it moved to 460 and scaled 0.585 instead of
+// 0.69, which is the same pixels on screen and one less layout width in
+// existence. Fixing the anomaly beat carrying a calibration penalty for it on
+// every card.
+//
+// Coverage went UP with that change, not down: card-detail-fit.test.ts now runs
+// eleven content scenarios against all six templates and additionally checks
+// that nothing overlaps.
+const WIDTHS = [460];
 
 // A 288px case used to live here, skipped, described as a known gap where "type
 // does not scale with card width". Deleted rather than fixed: it followed from
@@ -75,6 +90,9 @@ const WIDTHS = [460, 390];
  * regression at 460 fail instead of passing quietly — worth doing deliberately.
  */
 const CARD_SLACK = 2;
+
+/** Exactly what HeroPhone renders: SAMPLE_DATA without socials, plus a photo. */
+const HERO: CardData = { ...withoutSocials(SAMPLE_DATA), photoUrl: "/demo/avatar.svg" };
 
 const BASE: CardData = {
   name: "Alex Morgan",
@@ -140,4 +158,11 @@ describe("card templates never clip their content", () => {
       }, 60_000);
     }
   }
+
+  // The marketing hero's exact card, at the width it is now laid out at.
+  it("photo-first fits the marketing hero's card", async () => {
+    const m = await measureCard(browser, PhotoFirst, HERO, 460);
+    expect(m.offenders, describeFailure("photo-first (hero)", 460, m)).toEqual([]);
+    expect(m.overflowY, describeFailure("photo-first (hero)", 460, m)).toBeLessThanOrEqual(CARD_SLACK);
+  }, 60_000);
 });
