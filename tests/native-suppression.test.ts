@@ -46,6 +46,14 @@ const GUARDS: Guard[] = [
     patterns: [/useIsNativeApp/, /if \(native\) \{/],
   },
   {
+    // The "your card uses Pro design" moment is a selling surface: it offers
+    // the trial by name and states the billing terms. Inside the shell it has
+    // to fall back to the description plus Continue, with no trial CTA, no
+    // day count and no billing line (App Store 3.1.1).
+    file: "src/components/FreeDesignChoice.tsx",
+    patterns: [/useIsNativeApp/, /\{!native && \(/],
+  },
+  {
     file: "src/components/site/SiteNav.tsx",
     patterns: [/useIsNativeApp/, /\{!native && <Link href="\/pricing"/],
   },

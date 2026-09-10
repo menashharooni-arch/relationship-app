@@ -38,10 +38,11 @@ import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, PREFILL_LINK_STYL
 import { normalizeSocial } from "@/lib/social-url";
 import { writePlanIntent } from "@/lib/plan-intent";
 import { track } from "@/lib/events";
-import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, LINK_STRUCTURAL_KEYS, convertCustomizationToFreeClosest } from "@/lib/plan";
+import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, LINK_STRUCTURAL_KEYS, convertCustomizationToFreeClosest, describeFreeDesignChanges } from "@/lib/plan";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import PlanCards from "@/components/PlanCards";
+import FreeDesignChoice from "@/components/FreeDesignChoice";
 import GuestGateModal from "@/components/GuestGateModal";
 
 type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
@@ -403,22 +404,74 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     return result.changed;
   }
 
+  /**
+   * What Free would change about this card, WITHOUT changing it.
+   *
+   * The conversion used to be applied the moment Free was clicked, and the
+   * notice shown afterwards — so the card was already rewritten behind a panel
+   * that was still asking. Deciding first and converting second is what makes
+   * "keep it exactly like this" a real offer rather than an undo.
+   */
+  function freeDesignChanges(): string[] {
+    const draftStyle: Record<string, unknown> = { ...templateStyleState, ...(template === "custom" ? { customLayout } : {}) };
+    return describeFreeDesignChanges(draftStyle, template);
+  }
+
   function handleAuthedFirstCardFree() {
-    const changed = applyFreeDesignConversion();
-    if (changed) { setPendingFreeConfirm(true); return; }
+    if (freeDesignChanges().length) { setPendingFreeConfirm(true); return; }
     setShowPlan(false);
     handleCreate();
   }
 
+  // They chose Free with their eyes open: NOW convert, then save.
   function confirmFreeDesignAndCreate() {
+    applyFreeDesignConversion();
     setPendingFreeConfirm(false);
     setShowPlan(false);
     handleCreate();
   }
 
+  /**
+   * "Keep my card exactly like this" — the trial.
+   *
+   * Deliberately routed through the SAME handlers a Pro pick uses, rather than
+   * a shortcut of its own: a signed-in owner goes to checkout with the design
+   * intact, and a guest stores a Pro plan intent, which is what makes the
+   * draft claim treat them as paid and keep the Pro design on the saved card.
+   * A bespoke path here would be the thing that quietly stops matching however
+   * Pro is sold next.
+   */
+  function keepDesignWithTrial() {
+    track("upgrade_started", { placement: "wizard_free_design_choice", plan: "pro" });
+    setPendingFreeConfirm(false);
+    if (guest) { pickPlanThenSignUp({ plan: "pro", ...(presetPromo ? { promo: presetPromo } : {}) }); return; }
+    handleAuthedFirstCardPaid("pro", false, 1);
+  }
+
   function handleAuthedFirstCardPaid(plan: "pro" | "office", annual: boolean, seats: number) {
     setShowPlan(false);
     handleCreate({ plan, annual, seats });
+  }
+
+  /**
+   * A GUEST picking Free. Same moment as handleAuthedFirstCardFree, different
+   * mechanics: nothing is converted here at all — the design travels in the
+   * guest draft and the claim converts it server-side after signup. So this
+   * only has to ask before the plan intent is written, because a Pro intent is
+   * what makes the claim keep the design.
+   *
+   * Without this, a guest saw nothing at this step and met the news on
+   * /welcome, after the account existed and the card had already been
+   * flattened — too late to be a choice.
+   */
+  function handleGuestFree() {
+    if (freeDesignChanges().length) { setPendingFreeConfirm(true); return; }
+    pickPlanThenSignUp({ plan: "free" });
+  }
+
+  function confirmGuestFree() {
+    setPendingFreeConfirm(false);
+    pickPlanThenSignUp({ plan: "free" });
   }
 
   function pickPlanThenSignUp(intent: Parameters<typeof writePlanIntent>[0]) {
@@ -1772,31 +1825,34 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         <div className="min-h-full flex items-start justify-center px-5 pb-10 pt-[max(2.5rem,calc(env(safe-area-inset-top)+2.5rem))]">
           <div className="w-full max-w-6xl">
             <div className="text-center mb-6">
-              <button onClick={() => { setShowPlan(false); setPendingFreeConfirm(false); }} className="text-gray-500 hover:text-white text-sm mb-4 inline-flex items-center gap-1.5">
+              {/* From the design choice, Back returns to the PLAN CARDS rather
+                  than all the way out to the card. They opened this to pick a
+                  plan; sending them back to the editor would make them start
+                  the whole choice again to reach the other plans. */}
+              <button
+                onClick={() => { if (pendingFreeConfirm) { setPendingFreeConfirm(false); return; } setShowPlan(false); }}
+                className="text-gray-500 hover:text-white text-sm mb-4 inline-flex items-center gap-1.5"
+              >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                Back to your card
+                {pendingFreeConfirm ? "Back to plans" : "Back to your card"}
               </button>
-              <h2 className="text-white font-bold text-2xl">Choose your plan</h2>
+              <h2 className="text-white font-bold text-2xl">{pendingFreeConfirm ? "Before you go Free" : "Choose your plan"}</h2>
               <p className="text-gray-400 text-sm mt-1.5">
-                {guest ? "Pick a plan, then create your free account. Free to start — upgrade anytime." : "Pick a plan for this card. Free to start — upgrade anytime."}
+                {pendingFreeConfirm
+                  ? "One thing to know about the card you just designed."
+                  : guest ? "Pick a plan, then create your free account. Free to start — upgrade anytime." : "Pick a plan for this card. Free to start — upgrade anytime."}
               </p>
             </div>
-            {!guest && pendingFreeConfirm ? (
-              <div className="max-w-md mx-auto text-center">
-                <p className="rounded-xl border border-blue-800/40 bg-blue-950/30 px-4 py-3 text-left text-blue-200/90 text-sm leading-relaxed">
-                  Custom colors and premium design options are available on Pro. Your card content will be saved, but we&apos;ll apply a basic Free design that you can still customize.
-                </p>
-                <button
-                  onClick={confirmFreeDesignAndCreate}
-                  disabled={status === "loading"}
-                  className="mt-5 w-full py-3.5 rounded-full text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors"
-                >
-                  {status === "loading" ? "Saving…" : "Continue →"}
-                </button>
-              </div>
+            {pendingFreeConfirm ? (
+              <FreeDesignChoice
+                changes={freeDesignChanges()}
+                onKeepWithTrial={keepDesignWithTrial}
+                onContinueFree={guest ? confirmGuestFree : confirmFreeDesignAndCreate}
+                busy={status === "loading"}
+              />
             ) : (
               <PlanCards
-                onFree={guest ? () => pickPlanThenSignUp({ plan: "free" }) : handleAuthedFirstCardFree}
+                onFree={guest ? handleGuestFree : handleAuthedFirstCardFree}
                 onPaid={guest
                   ? (plan, annual, seats) => pickPlanThenSignUp({ plan, annual, seats, ...(presetPromo ? { promo: presetPromo } : {}) })
                   : handleAuthedFirstCardPaid}

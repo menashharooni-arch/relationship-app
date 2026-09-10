@@ -3,7 +3,7 @@
 // nothing drifts. If you change a number, change it HERE — every route and
 // component reads from this file.
 import { metaForTemplate, freeSafeValues } from "./template-style-presets";
-import { isFreeFinish } from "./card-finishes";
+import { isFreeFinish, getFinish } from "./card-finishes";
 import { freeSafeLook, DEFAULT_SWIFTLINK_LOOK } from "./swiftlink-looks";
 
 export const PLAN_LIMITS = {
@@ -217,6 +217,62 @@ export function convertCustomizationToFreeClosest(
 
 function pickStr(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() ? v : undefined;
+}
+
+/**
+ * Name, in plain words, exactly what Free will change about this card.
+ *
+ * "Custom colors and premium design options are available on Pro" was the
+ * whole of what someone got told before their card was rewritten — a sentence
+ * about the PLAN, not about their card, which leaves them to discover what
+ * actually happened by looking at the result. A person who spent ten minutes
+ * on a card is owed the specifics before they choose, not a category.
+ *
+ * Derived from the converter itself rather than written by hand, so a new
+ * Pro-only design key can never quietly stop being mentioned here.
+ */
+export function describeFreeDesignChanges(
+  customization: Record<string, unknown>,
+  template: string | undefined,
+): string[] {
+  const before = customization;
+  const { customization: after, changed } = convertCustomizationToFreeClosest(customization, template);
+  if (!changed) return [];
+
+  const lines: string[] = [];
+
+  if (template === "custom") {
+    lines.push("Your custom design becomes the Classic Pro template");
+  }
+
+  const finish = pickStr(before.finish);
+  if (finish && !isFreeFinish(finish)) {
+    lines.push(`Your ${getFinish(finish).name} finish becomes Flat`);
+  }
+
+  if (pickStr(before.panelMedia)) {
+    lines.push(before.panelMediaType === "video" ? "Your background video is removed" : "Your background photo is removed");
+  }
+
+  // One line for colours however many moved: listing four near-identical
+  // hex swaps reads as a wall of noise, and the person cannot picture any of
+  // them anyway. What matters is that the colours shift, not which.
+  const COLOUR_KEYS = ["bgColor", "surfaceColor", "textColor", "infoColor", "accentColor"] as const;
+  const movedColours = COLOUR_KEYS.filter((k) => {
+    const b = pickStr(before[k]);
+    const a = pickStr(after[k]);
+    return b !== undefined && b !== a;
+  }).length;
+  if (movedColours > 0) {
+    lines.push(movedColours === 1 ? "One of your colors moves to the closest free one" : "Your colors move to the closest free ones");
+  }
+
+  // A conversion the specifics above didn't cover — a key added later, or the
+  // legacy `font` drop. Better a vague line than a confident empty list under
+  // a heading that says something is about to change.
+  if (!lines.length) lines.push("Some of your design settings change");
+
+  return lines;
 }
 
 // Enforce Free limits on a card's customization blob: snap Pro-only design keys
