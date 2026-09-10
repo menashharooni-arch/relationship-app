@@ -47,6 +47,15 @@ export type CardPrefill = {
   /** The Connect button / accent colour. Carried like the other five so a
    *  colour picked in the marketing sketch survives the hand-off. */
   linkAccentColor?: string;
+  /** The page header shape and what it shows. The mini-builder offers both
+   *  (they are structural, so they are not Pro-gated and not upload-gated),
+   *  which means a visitor can pick "Compact circle" there — and it has to
+   *  still be picked when they land in the real builder.
+   *
+   *  linkHeroImage is deliberately NOT here: it is an uploaded URL, and the
+   *  sketch has canUpload={false}, so a visitor can never set one. */
+  linkHeroStyle?: string;
+  linkHeroContent?: string;
   logoUrl?: string | null;     // data URL from the guest crop — claimed on signup
   headshotUrl?: string | null; // data URL from the guest crop — claimed on signup
   /** Which product the visitor was building — picks the step the wizard opens
@@ -61,7 +70,7 @@ export const PREFILL_STYLE_KEYS = ["accentColor", "bgColor", "textColor", "infoC
 
 // Swift Links page design keys — separate list so the wizard can hydrate them
 // into its OWN "Social design" state instead of the card's style state.
-export const PREFILL_LINK_STYLE_KEYS = ["linkLook", "linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill", "linkAccentColor"] as const;
+export const PREFILL_LINK_STYLE_KEYS = ["linkLook", "linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill", "linkAccentColor", "linkHeroStyle", "linkHeroContent"] as const;
 
 const KEY = "swiftcard_prefill";
 

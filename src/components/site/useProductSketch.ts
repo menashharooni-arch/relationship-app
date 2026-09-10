@@ -132,6 +132,8 @@ function fromPrefill(p: CardPrefill): Sketch {
       linkTextColor: p.linkTextColor,
       linkFontFamily: p.linkFontFamily,
       linkAccentColor: p.linkAccentColor,
+      linkHeroStyle: p.linkHeroStyle,
+      linkHeroContent: p.linkHeroContent,
     },
     socials: { ...EMPTY_SOCIALS, ...(p.socials ?? {}) } as SketchSocials,
     links: p.links ?? [],
