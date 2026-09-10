@@ -20,7 +20,15 @@ export async function POST(req: Request) {
 
   // Cap invite emails per caller — otherwise this endpoint is an unthrottled
   // spam-email relay (loop with different target emails, never accept any).
-  if (await isRateLimited(`office-invite:${user.id}`, 10, 10 * 60 * 1000)) {
+  // 60, not 10. Ten per ten minutes made the product's own core scenario
+  // impossible: onboarding a 15-person office is 14 invites in one sitting, and
+  // the eleventh returned "Too many invites sent" with no countdown, ten minutes
+  // from invite #1. The abuse this guards against is a spam relay — but reaching
+  // this line already requires an authenticated caller holding invite_members in
+  // a PAID office, and the seat check below is the real bound on how many
+  // invites can exist at all. A cap that stops a customer before it stops an
+  // attacker is the wrong cap.
+  if (await isRateLimited(`office-invite:${user.id}`, 60, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many invites sent — try again in a few minutes." }, { status: 429 });
   }
 
@@ -84,6 +92,28 @@ export async function POST(req: Request) {
 
   if (existing?.status === "active") {
     return NextResponse.json({ error: "This person is already a member." }, { status: 400 });
+  }
+
+  // THE OWNER CANNOT INVITE THEMSELVES. Nothing stopped it, and the damage was
+  // permanent: /api/join blocks owning a DIFFERENT office but lets the owner
+  // accept into their own, which creates an office_members row for them. Seat
+  // accounting then counts that row on top of the hardcoded +1 for the owner
+  // (lib/office-seats), so they silently burn two of their seats — and the
+  // Team list gates Remove on `!person.isOwner`, so there is no way back
+  // without a database edit. It also runs the join-time rebrand across the
+  // owner's own cards, which office-brand-targets exists specifically to
+  // prevent. Plausible in a demo: "let me show you what they receive."
+  const ownerEmails = new Set(
+    [
+      (await admin.auth.admin.getUserById(ctx.ownerId).catch(() => null))?.data?.user?.email,
+      user.email,
+    ].filter(Boolean).map((e) => String(e).toLowerCase()),
+  );
+  if (ownerEmails.has(email.trim().toLowerCase())) {
+    return NextResponse.json(
+      { error: "That's your own account — you already hold a seat. Invite a teammate's address instead." },
+      { status: 400 },
+    );
   }
 
   // Seat gate — required for a NEW invite AND for a resend that would newly
@@ -170,28 +200,57 @@ export async function POST(req: Request) {
   }
 
   const inviteUrl = `${APP_URL}/join/${token}`;
-  const ownerFirst = (ownerProfile?.name ?? "Your team").split(" ")[0];
 
   // Company logo when branding is set — the email should look like it comes
   // from THEIR company, not from us. If the Branding page has no logo yet, fall
   // back to the OWNER's own card logo (the same mark their cards already carry)
   // so a team that never opened Branding still gets a branded invite.
+  //
+  // WHO IT IS FROM AND WHICH COMPANY, on the same fallback ladder.
+  //
+  // profiles.name and profiles.company are EMPTY for every account created
+  // through normal signup — verified against real production rows; only seeded
+  // test accounts have them. The card wizard writes the person's name and
+  // company to the CARD, never to the profile, and /profile is not linked from
+  // anywhere. So the old code produced, verbatim:
+  //
+  //     " invited you to create your My Office digital business card"
+  //
+  // ("" for the name because `??` does not catch an empty string, and "My
+  // Office" because offices.name was seeded from the same empty company. With
+  // a null name it read "Your invited you to…" instead.)
+  //
+  // The card is the reliable source, which is exactly why the logo already
+  // falls back to it. Name and company now use the same ladder.
   let brandLogoUrl: string | null = null;
+  let ownerCardName: string | null = null;
+  let ownerCardCompany: string | null = null;
+  let brandCompany: string | null = null;
   try {
     const brand = await getOfficeBrand(office.id as string);
     brandLogoUrl = brand?.logoUrl ?? null;
-    if (!brandLogoUrl) {
-      const { data: ownerCard } = await admin
-        .from("cards")
-        .select("logo_url")
-        .eq("user_id", ctx.ownerId)
-        .not("logo_url", "is", null)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      brandLogoUrl = (ownerCard?.logo_url as string | null) ?? null;
-    }
-  } catch { /* logo is a nicety, never block the invite */ }
+    brandCompany = (brand?.company as string | null) || null;
+    const { data: ownerCard } = await admin
+      .from("cards")
+      .select("logo_url, name, company")
+      .eq("user_id", ctx.ownerId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    ownerCardName = (ownerCard?.name as string | null) || null;
+    ownerCardCompany = (ownerCard?.company as string | null) || null;
+    if (!brandLogoUrl) brandLogoUrl = (ownerCard?.logo_url as string | null) ?? null;
+  } catch { /* a nicety, never block the invite */ }
+
+  // "A colleague" rather than "Your team": whatever we fall back to is read as
+  // a person's name in "X invited you", and "Your" is not a name.
+  const ownerFirst = ((ownerProfile?.name as string | null) || ownerCardName || "A colleague").split(" ")[0];
+  // The company the invitee will recognise: what the admin set on Branding,
+  // then what the owner's own card says, then the stored office name — and
+  // never the "My Office" placeholder, which means nothing to the recipient.
+  const storedOfficeName = (office.name as string | null) || null;
+  const officeDisplayName =
+    brandCompany || ownerCardCompany || (storedOfficeName && storedOfficeName !== "My Office" ? storedOfficeName : null) || "your new team";
 
   // contactUnsubUrl throws when no signing secret is configured (deliberate
   // fail-closed on SIGNING — never sign with a public constant). Degrade to "no
@@ -206,7 +265,7 @@ export async function POST(req: Request) {
 
   const invite = buildInviteEmail({
     ownerFirst,
-    officeName: office.name as string,
+    officeName: officeDisplayName,
     inviteeFirst,
     inviteUrl,
     brandLogoUrl,

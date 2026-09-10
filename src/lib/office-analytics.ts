@@ -50,7 +50,13 @@ async function getOfficeTeam(admin: Admin, officeId: string, ownerId: string): P
     const slugs = cardsByUser.get(uid) ?? [];
     return {
       userId: uid,
-      name: (prof?.name as string) || (prof?.username as string) || "Member",
+      // The CARD's name before the account handle. profiles.name is empty for
+      // every account created through normal signup — the wizard writes the
+      // person's name to their CARD, and /profile is not linked from anywhere —
+      // so this fell through to profiles.username and the admin's Team list
+      // read "dana-3f9a2c" instead of "Dana Lee". Same reasoning as the slug
+      // below: prefer the real card over the account handle.
+      name: (prof?.name as string) || (slugs[0]?.name as string) || (prof?.username as string) || "Member",
       // The member's PUBLIC card slug, preferring a real card over the account
       // handle. The team drawer builds /<this> for its View, Copy and QR
       // actions — including a QR the admin is invited to print — and every one

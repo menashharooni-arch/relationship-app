@@ -182,28 +182,54 @@ export async function getTeamOverview(
     return count ?? 0;
   };
 
-  // Per-person latest activity: newest view + newest lead on their slugs. Two
-  // tiny (limit 1) queries per person, all in parallel — team size is bounded by
-  // purchased seats, so this stays small.
-  const lastActive = async (uid: string): Promise<string | null> => {
-    const slugs = perUserSlugs.get(uid) ?? [];
-    if (!slugs.length) return null;
+  // Per-person latest activity: newest view + newest lead on their slugs.
+  //
+  // TWO QUERIES FOR THE WHOLE TEAM, not two per person. This used to be two
+  // `limit 1` queries per member, "all in parallel — team size is bounded by
+  // purchased seats, so this stays small". Measured on a real 15-seat office,
+  // that is 30 round-trips and the admin console — the first screen an owner
+  // opens — took 2.4 to 5.8 seconds to render. The bound grows with exactly
+  // the thing we are selling.
+  //
+  // Rows come back newest-first, so the FIRST time a slug appears is its most
+  // recent activity. The cap is a backstop against an enormous office, and it
+  // degrades in the safe direction: a slug beyond it simply reads as older
+  // activity, and any team busy enough to hit it is active by definition.
+  const ACTIVITY_SCAN_CAP = 5000;
+  const newestBySlug = new Map<string, string>();
+  const noteNewest = (slug: string | null | undefined, at: string | null | undefined) => {
+    if (!slug || !at) return;
+    // A view key carries the "__links" suffix; both surfaces belong to the
+    // same person, so they collapse onto the owning slug.
+    const key = slug.endsWith("__links") ? slug.slice(0, -"__links".length) : slug;
+    const prev = newestBySlug.get(key);
+    if (!prev || at > prev) newestBySlug.set(key, at);
+  };
+  {
     const [v, l] = await Promise.all([
-      admin.from("card_views").select("viewed_at").in("username", viewKeys(slugs))
-        .order("viewed_at", { ascending: false }).limit(1).maybeSingle(),
-      admin.from("leads").select("created_at").in("card_owner", slugs)
-        .order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      admin.from("card_views").select("username, viewed_at").in("username", viewKeys(allSlugs))
+        .order("viewed_at", { ascending: false }).limit(ACTIVITY_SCAN_CAP),
+      admin.from("leads").select("card_owner, created_at").in("card_owner", allSlugs)
+        .order("created_at", { ascending: false }).limit(ACTIVITY_SCAN_CAP),
     ]);
-    const times = [v.data?.viewed_at, l.data?.created_at].filter(Boolean) as string[];
-    if (!times.length) return null;
-    return times.sort().at(-1) ?? null;
+    for (const r of v.data ?? []) noteNewest(r.username as string, r.viewed_at as string);
+    for (const r of l.data ?? []) noteNewest(r.card_owner as string, r.created_at as string);
+  }
+
+  const lastActive = (uid: string): string | null => {
+    const slugs = perUserSlugs.get(uid) ?? [];
+    let newest: string | null = null;
+    for (const slug of slugs) {
+      const at = newestBySlug.get(slug);
+      if (at && (!newest || at > newest)) newest = at;
+    }
+    return newest;
   };
 
   const [
     viewsCur, viewsPrev, leadsCur, leadsPrev,
     { data: memberRows }, { data: profileRows }, { data: cardRows },
     seats,
-    ...lastActives
   ] = await Promise.all([
     countViews(thisMonth),
     countViews(lastMonth, thisMonth),
@@ -218,7 +244,6 @@ export async function getTeamOverview(
     admin.from("profiles").select("id, title, email, photo_url").in("id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
     admin.from("cards").select("user_id, is_offline").in("user_id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
     getOfficeSeatUsage(officeId, purchasedSeats),
-    ...userIds.map((id) => lastActive(id)),
   ]);
 
   const rows = (memberRows ?? []) as MemberRow[];
@@ -240,11 +265,24 @@ export async function getTeamOverview(
   const people: TeamPerson[] = analytics.employees.map((e, i) => {
     const counts = cardCounts.get(e.userId) ?? { total: 0, live: 0 };
     const prof = profById.get(e.userId);
-    const lastActiveAt = lastActives[i] ?? null;
+    const lastActiveAt = lastActive(e.userId);
+    // A member who joined but has not built a card yet has no card name to
+    // fall back to, so the analytics name lands on the account handle. The
+    // admin typed a real name when inviting them — office_members.invite_name —
+    // and it was being dropped the moment they accepted, so the row visibly
+    // degraded from "Dana Lee" to "dana-3f9a2c".
+    const memberRow = rowByUser.get(e.userId);
+    // No username column in this select — and none is needed: when the
+    // analytics name fell through to the account handle it equals the member's
+    // public slug, which IS on the record.
+    const displayName = e.name && e.name !== e.username
+      ? e.name
+      : (memberRow?.invite_name as string | null) || e.name;
     return {
       ...e,
+      name: displayName,
       kind: "member" as const,
-      memberRowId: rowByUser.get(e.userId)?.id ?? null,
+      memberRowId: memberRow?.id ?? null,
       title: (prof?.title as string | null) || null,
       // A member's identity is their AUTH signup email — profiles.email drifts
       // to the card's public contact email and is only the fallback.
