@@ -5,6 +5,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { isAdminEmail } from "@/lib/admin";
 import { EVENTS, type EventName } from "@/lib/events";
+import { isLikelyBot } from "@/lib/bot-detection";
 
 // ── Product-event ingest ────────────────────────────────────────────────────
 // Receives the funnel events lib/events.ts fires (card started, plan picked,
@@ -43,6 +44,20 @@ export async function POST(req: NextRequest) {
     // someone scripting the endpoint. Over the cap we still answer 202 so the
     // client never retries or logs.
     if (await isRateLimited(`product-events:${ip}`, 200, 5 * 60 * 1000)) {
+      return NextResponse.json({ ok: true }, { status: 202 });
+    }
+
+    // Crawlers, headless browsers, uptime monitors and scripted clients are
+    // not people, and the top of a funnel is exactly where they pile up: the
+    // first thing this table collected included runs of single-event "visits"
+    // seconds apart, each on a fresh session. Counting those would inflate
+    // "Landed on the site" and make every conversion rate below it look worse
+    // than it is — the one number on the page you would actually act on.
+    //
+    // The same rule the five other public ingest routes already apply (views,
+    // card-events, analytics/event, leads, site-view). The User-Agent is READ
+    // to classify and never stored — see the insert below.
+    if (isLikelyBot(req.headers.get("user-agent"))) {
       return NextResponse.json({ ok: true }, { status: 202 });
     }
 
