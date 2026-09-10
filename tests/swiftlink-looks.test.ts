@@ -225,9 +225,18 @@ describe("social icon shape & fill", () => {
 // component; the invariant is the shape of the patch it emits).
 import { readFileSync } from "node:fs";
 describe("Look press resets fine-tune overrides", () => {
-  it("LookPicker's onPick clears linkBgColor, linkTextColor and linkButtonColor", () => {
+  it("LookPicker's onPick clears every fine-tune colour override", () => {
+    // Named individually rather than matched loosely: each one wins over the
+    // Look at render time, so a key left off this list is a Look that visibly
+    // "doesn't work" until the owner finds the stale override themselves.
+    // linkAccentColor joined them on 2026-09-10 with the Connect button colour.
     const src = readFileSync("src/components/SwiftLinkDesign.tsx", "utf8");
-    expect(src).toMatch(/onPick=\{\(v\) => onChange\(\{ linkLook: v, linkBgColor: undefined, linkTextColor: undefined, linkButtonColor: undefined \}\)\}/);
+    const m = /onPick=\{\(v\) => onChange\(\{ linkLook: v, ([^}]*)\}\)\}/.exec(src);
+    expect(m, "LookPicker onPick patch not found").not.toBeNull();
+    const cleared = m![1].split(",").map((p) => p.trim().split(":")[0].trim()).filter(Boolean);
+    expect(cleared.sort()).toEqual(
+      ["linkAccentColor", "linkBgColor", "linkButtonColor", "linkTextColor"],
+    );
   });
 });
 

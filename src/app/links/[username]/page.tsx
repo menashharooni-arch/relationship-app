@@ -157,6 +157,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     linkBgMediaType?: string;
     linkBgDim?: number;
     linkGlass?: boolean;
+    linkAccentColor?: string;
   };
   // The named Look renders for EVERY plan — Free is snapped to the free pair
   // at render time (a Pro Look kept in storage after a downgrade is hidden,
@@ -183,6 +184,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
           bgMediaType: customization.linkBgMediaType,
           bgDim: customization.linkBgDim,
           glass: customization.linkGlass,
+          accent: customization.linkAccentColor,
         }
       : {}),
   };

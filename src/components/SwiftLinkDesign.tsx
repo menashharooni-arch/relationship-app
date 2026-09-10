@@ -64,8 +64,11 @@ export type SwiftLinkStyle = {
    *  pre-2026-09-09 "Link buttons" control. Still read as the fallback for a
    *  link with no rowStyle of its own; nothing writes it any more. */
   linkButtonStyle?: string;
-  /** Solid/outline row color — defaults to the Look's accent. */
+  /** Solid/outline row color — defaults to the accent below. */
   linkButtonColor?: string;
+  /** THE ACCENT: the Connect button, and social icons set to "Accent".
+   *  Overrides the Look's own accent. Pro (LINK_STYLE_KEYS). */
+  linkAccentColor?: string;
 };
 
 export const LINK_DEFAULT_BG = "#191a1a"; // the page's stock dark sheet
@@ -76,12 +79,40 @@ export const LINK_DEFAULT_TEXT = "#ffffff";
 // that family; the custom picker (Pro) allows anything.
 const BG_PRESETS = ["#191a1a", "#0b1220", "#14203a", "#1d1330", "#052e2b", "#2a1414", "#1f2937"];
 const TEXT_PRESETS = ["#ffffff", "#f8fafc", "#fde68a", "#a7f3d0", "#bfdbfe", "#fbcfe8"];
+// Action colours — the Connect button, and the Solid/Outline link rows that
+// fall back to it. One list, because they are the same decision at two scales:
+// offering different swatches for each would imply they are unrelated.
+const ACCENT_PRESETS = ["#1D4ED8", "#111827", "#A8433C", "#0F766E", "#7C3AED", "#B91C1C"];
 
 function isHex(v?: string): v is string {
   return !!v && /^#[0-9a-fA-F]{6}$/.test(v);
 }
 
 const rowLabel = "text-[0.6875rem] font-semibold text-gray-300 uppercase tracking-wide";
+
+/**
+ * A group heading, one level above the section labels.
+ *
+ * The panel used to be a flat run of eight sections with nothing to say which
+ * were whole-page decisions and which were parts, so it read as a list to get
+ * through rather than a sequence to follow (owner, 2026-09-10: "things in
+ * general just aren't aligned... I get to the end and I see something that
+ * should have been at the top"). Two headings turn the same controls into a
+ * route: set the page, then walk down it.
+ *
+ * Deliberately quieter than `rowLabel`, not louder — it is a signpost, and a
+ * signpost that outshouts the thing it points at makes the panel busier, which
+ * is the problem it exists to solve.
+ */
+function GroupHeading({ children, hint }: { children: string; hint?: string }) {
+  return (
+    <div className="flex items-baseline gap-2 pt-1">
+      <span className="text-[0.5625rem] font-bold uppercase tracking-[0.18em] text-gray-500 shrink-0">{children}</span>
+      {hint && <span className="text-[0.5625rem] text-gray-600 truncate">{hint}</span>}
+      <span className="flex-1 h-px bg-gray-800" />
+    </div>
+  );
+}
 
 function ProTag() {
   return <span className="text-[0.5rem] font-bold px-1 py-0.5 rounded-full bg-blue-600 text-white leading-none">PRO</span>;
@@ -703,39 +734,136 @@ export function SwiftLinkStyleControls({
   // selected.
   const isAvatarHeader = normalizeHeroStyle(value.linkHeroStyle) === "avatar";
 
-  // ── SECTION ORDER IS DELIBERATE: biggest visual change nearest the preview ──
+  // ── SECTION ORDER IS DELIBERATE: the panel is a route, not a list ─────────
   //
-  //   Look → Page header → Page background → Text color → Font → Social icons
-  //   → Link buttons
+  //   THE PAGE       Look → Page background → Text color → Font
+  //   ON THE PAGE    Page header → Social icons → Connect button → Link buttons
   //
-  // On a phone this whole step is about 3.3 screens tall and the preview sits at
-  // the top, so a control's DISTANCE from the preview is what it costs to use:
-  // change something, scroll up to see it, scroll back. Measured at 390px wide,
-  // Page background and Text color used to sit ~1,440px and ~1,600px below the
-  // preview — nearly two screens — despite changing the look of the page more
-  // than anything else here. Social icons and Link buttons were above them and
-  // change far less. They have swapped places.
+  // Two ideas, in that order. First the whole surface: the preset that sets
+  // everything at once, then the three things that repaint all of it. Then the
+  // page's own PARTS, in the order a visitor scrolls past them — the header at
+  // the top, the social row, the Connect button, the links.
   //
-  // WHY PAGE HEADER STAYS SECOND, above the palette: the background section's
-  // photo/video upload only appears when the header is the compact circle
-  // (isAvatarHeader below). Putting the palette first would mean discovering the
-  // upload, being told to change the header, scrolling DOWN to do it, then back
-  // UP — the control that unlocks the option has to come before the option.
+  // That second group is the thing worth protecting. Its order is not a
+  // judgement call anyone has to re-litigate; it is the page read top to
+  // bottom, so there is exactly one right answer and it is visible on screen.
+  //
+  // Two constraints this satisfies that the old order could not:
+  //
+  //   • Page background and Text color sit next to the Look (owner, 2026-09-10:
+  //     they belong together). They also change the page more than anything
+  //     else here, and on a phone this step is ~3.3 screens tall with the
+  //     preview pinned at the top — so distance from the preview is what a
+  //     control costs to use. They used to sit ~1,440px and ~1,600px down.
+  //   • The accent lands BETWEEN the social icons and the link buttons, which
+  //     is both where the Connect button sits on the page and where it has to
+  //     be so that nobody sets a row colour before meeting the master control
+  //     those rows fall back to.
+  //
+  // The background's photo/video upload still needs the compact-circle header,
+  // which now sits BELOW it. That used to force Page header to come first; the
+  // background section now offers the switch inline instead, so the dependency
+  // costs one button rather than the whole panel's order.
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-5">
+      <GroupHeading hint="the whole surface">The page</GroupHeading>
+
       <div>
         <p className={`${rowLabel} mb-0.5`}>Look</p>
         <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">One tap sets the whole page — background, text, and button color, composed to read well together. Open a style below to see its designs.</p>
         {/* Picking a Look also clears the fine-tune background/text overrides:
             they'd win over the Look at render time, so a stale custom color
             would make every Look "not work" until the user found and reset it. */}
-        <LookPicker value={value.linkLook} onPick={(v) => onChange({ linkLook: v, linkBgColor: undefined, linkTextColor: undefined, linkButtonColor: undefined })} locked={locked} />
+        <LookPicker value={value.linkLook} onPick={(v) => onChange({ linkLook: v, linkBgColor: undefined, linkTextColor: undefined, linkButtonColor: undefined, linkAccentColor: undefined })} locked={locked} />
         {locked && (
           <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">Paper and Onyx are included free — the rest of the library comes with Pro.</p>
         )}
       </div>
 
+
+
       <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
+        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">
+          {isAvatarHeader
+            ? "A colour, or a photo or video filling the whole page behind your links."
+            : "The surface behind your photo, bio, socials and links."}
+        </p>
+        <SwatchRow
+          presets={BG_PRESETS}
+          value={value.linkBgColor}
+          fallbackHex={LINK_DEFAULT_BG}
+          onPick={(v) => onChange({ linkBgColor: v })}
+          customLocked={locked}
+        />
+        {/* Only with the compact circle. The cover and banner headers already
+            lead with a big photo, and "No header" is the deliberately flat
+            page — see lib/swiftlink-looks. */}
+        {isAvatarHeader && canUpload && <PageBackgroundMedia value={value} onChange={onChange} locked={locked} />}
+        {/* …and under any other header, the switch is offered RIGHT HERE.
+            This pairing used to dictate the whole panel's order: Page header
+            had to come first, because the only way to reach the photo option
+            was to read about it, scroll down to the header, change it, and
+            scroll back. Doing it in place costs one button and frees the
+            background and text controls to sit where they belong, next to the
+            Look (owner, 2026-09-10).
+
+            A stored background is HIDDEN by another header, never deleted, so
+            the same line doubles as the answer to "where did my photo go". */}
+        {!isAvatarHeader && canUpload && (
+          <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">
+            {value.linkBgMedia
+              ? "Your background photo or video is saved and shows with the compact-circle header."
+              : "Want a photo or video filling the whole page instead?"}{" "}
+            <button
+              type="button"
+              onClick={() => onChange({ linkHeroStyle: "avatar" })}
+              className="font-semibold text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors"
+            >
+              {value.linkBgMedia ? "Show it" : "Use the compact circle"}
+            </button>
+          </p>
+        )}
+      </div>
+
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>Text color</p>
+        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Your name, bio and link labels.</p>
+        <SwatchRow
+          presets={TEXT_PRESETS}
+          value={value.linkTextColor}
+          fallbackHex={LINK_DEFAULT_TEXT}
+          onPick={(v) => onChange({ linkTextColor: v })}
+          customLocked={locked}
+        />
+      </div>
+
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>Font</p>
+        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Sets the typeface across your Swift Links page.</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {[{ label: "Default", value: undefined as string | undefined }, ...CARD_FONT_OPTIONS].map((o) => {
+            const active = value.linkFontFamily === o.value || (value.linkFontFamily == null && o.value == null);
+            return (
+              <button
+                key={o.label}
+                type="button"
+                onClick={() => onChange({ linkFontFamily: o.value })}
+                className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
+                  active ? "border-blue-600 bg-blue-600/10" : "border-gray-700 hover:border-gray-600 bg-gray-800/40"
+                }`}
+              >
+                <span className={`text-xs ${active ? "text-blue-200" : "text-gray-300"}`}>{o.label}</span>
+                <span className="text-base leading-none text-white" style={{ fontFamily: o.value }}>Ag</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <GroupHeading hint="in the order visitors see them">On the page</GroupHeading>
+
+      <div>
         {/* Every plan — structural, like the Look picker, so never disabled. */}
         <p className={`${rowLabel} mb-0.5`}>Page header</p>
         <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">How your photo sits at the top — a full cover, or a compact circle that leaves more room for your links.</p>
@@ -799,70 +927,6 @@ export function SwiftLinkStyleControls({
         )}
       </div>
 
-
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">
-          {isAvatarHeader
-            ? "A colour, or a photo or video filling the whole page behind your links."
-            : "The surface behind your photo, bio, socials and links."}
-        </p>
-        <SwatchRow
-          presets={BG_PRESETS}
-          value={value.linkBgColor}
-          fallbackHex={LINK_DEFAULT_BG}
-          onPick={(v) => onChange({ linkBgColor: v })}
-          customLocked={locked}
-        />
-        {/* Only with the compact circle. The cover and banner headers already
-            lead with a big photo, and "No header" is the deliberately flat
-            page — see lib/swiftlink-looks. */}
-        {isAvatarHeader && canUpload && <PageBackgroundMedia value={value} onChange={onChange} locked={locked} />}
-        {/* A background stored under the compact circle is HIDDEN by another
-            header, not deleted. Saying so is the difference between "my photo
-            vanished" and "I know where it went". */}
-        {!isAvatarHeader && value.linkBgMedia && (
-          <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">
-            Your background photo or video is saved. It shows when the page header is set to <span className="text-gray-400 font-semibold">Compact circle</span>.
-          </p>
-        )}
-      </div>
-
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>Text color</p>
-        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Your name, bio and link labels.</p>
-        <SwatchRow
-          presets={TEXT_PRESETS}
-          value={value.linkTextColor}
-          fallbackHex={LINK_DEFAULT_TEXT}
-          onPick={(v) => onChange({ linkTextColor: v })}
-          customLocked={locked}
-        />
-      </div>
-
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>Font</p>
-        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Sets the typeface across your Swift Links page.</p>
-        <div className="grid grid-cols-2 gap-1.5">
-          {[{ label: "Default", value: undefined as string | undefined }, ...CARD_FONT_OPTIONS].map((o) => {
-            const active = value.linkFontFamily === o.value || (value.linkFontFamily == null && o.value == null);
-            return (
-              <button
-                key={o.label}
-                type="button"
-                onClick={() => onChange({ linkFontFamily: o.value })}
-                className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
-                  active ? "border-blue-600 bg-blue-600/10" : "border-gray-700 hover:border-gray-600 bg-gray-800/40"
-                }`}
-              >
-                <span className={`text-xs ${active ? "text-blue-200" : "text-gray-300"}`}>{o.label}</span>
-                <span className="text-base leading-none text-white" style={{ fontFamily: o.value }}>Ag</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Social icons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
         <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">The shape and color of your social chips.</p>
@@ -872,6 +936,25 @@ export function SwiftLinkStyleControls({
           fill={normalizeIconFill(value.linkIconFill)}
           onChange={onChange}
           locked={locked}
+        />
+      </div>
+
+      {/* The accent. It sits between the social icons and the link buttons
+          because that is where the Connect button sits on the page, and
+          because it is the colour BOTH of its neighbours fall back to —
+          reaching it after the icons and before the rows means you never set
+          a row colour and then discover the master control underneath it. */}
+      <div className="border-t border-gray-800 pt-4">
+        <p className={`${rowLabel} mb-0.5`}>Connect button{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
+        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">
+          Your page&apos;s action color — the Connect button, and your social icons when they&apos;re set to Accent. Default uses your Look&apos;s own.
+        </p>
+        <SwatchRow
+          presets={ACCENT_PRESETS}
+          value={value.linkAccentColor}
+          fallbackHex={getLook(value.linkLook).accent}
+          onPick={(v) => onChange({ linkAccentColor: v })}
+          customLocked={locked}
         />
       </div>
 
@@ -885,11 +968,14 @@ export function SwiftLinkStyleControls({
           <LinkButtonsControls links={links} onChange={onLinksChange} locked={locked} pageRowStyle={value.linkButtonStyle} />
           {links.some((l) => l.kind !== "header" && (l.size ?? "grid") === "compact" && resolveRowStyle(l, value.linkButtonStyle) !== "tile") && (
             <div className="mt-2.5">
-              <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color for Solid and Outline rows — leave Default to use your Look&apos;s accent.</p>
+              <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color for Solid and Outline rows — leave Default to match your Connect button.</p>
               <SwatchRow
-                presets={["#1D4ED8", "#111827", "#A8433C", "#0F766E", "#7C3AED", "#B91C1C"]}
+                presets={ACCENT_PRESETS}
                 value={value.linkButtonColor}
-                fallbackHex={getLook(value.linkLook).accent}
+                // The EFFECTIVE accent, not the Look's raw one: with a custom
+                // Connect colour set, a "Default" swatch showing the Look's
+                // would preview a colour these rows never render.
+                fallbackHex={value.linkAccentColor || getLook(value.linkLook).accent}
                 onPick={(v) => onChange({ linkButtonColor: v })}
                 customLocked={locked}
               />

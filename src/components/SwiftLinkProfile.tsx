@@ -24,6 +24,10 @@ export type SwiftLinkPageStyle = {
   iconShape?: string; iconFill?: string;
   heroStyle?: string; heroContent?: string; heroImage?: string;
   buttonStyle?: string; buttonColor?: string;
+  /** Overrides the Look's accent: the Connect button, and social icons set to
+   *  "Accent". Link rows fall back to it when they have no colour of their
+   *  own, so one choice moves every call to action together. */
+  accent?: string;
   /** Page BACKGROUND media — a photo or short video behind the whole page,
    *  and only with the compact-circle header. See lib/swiftlink-looks. */
   bgMedia?: string; bgMediaType?: string; bgDim?: number; glass?: boolean;
@@ -237,6 +241,18 @@ export default function SwiftLinkProfile({
   // Neutral chrome (rings, hover wells, the icon set) follows the SURFACE in
   // use. Over dimmed media that surface is dark, whatever the Look says.
   const light = bgMedia ? false : pageStyle?.bg ? isLightHex(pageStyle.bg) : look.mode === "light";
+
+  // The accent — the Connect button and any social chip set to "Accent".
+  //
+  // The Look's own accent/accentText pair is AA-tested against each other
+  // (swiftlink-looks). An owner's custom colour cannot be, so its label colour
+  // is DERIVED from its lightness the same way the Solid/Outline link rows
+  // already derive theirs. Anything that is not a plain 6-digit hex falls back
+  // to the Look rather than reaching a public page: this value arrives through
+  // client-writable customization.
+  const customAccent = pageStyle?.accent && /^#[0-9a-fA-F]{6}$/.test(pageStyle.accent) ? pageStyle.accent : null;
+  const accent = customAccent ?? look.accent;
+  const accentText = customAccent ? (isLightHex(customAccent) ? "#111827" : "#FFFFFF") : look.accentText;
 
   // Hero → sheet fade: an EASED multi-stop ramp of the same sheet color the
   // old two-stop linear fade used (owner order 2026-09-02: the hard band
@@ -592,8 +608,8 @@ export default function SwiftLinkProfile({
             mode={light ? "light" : "dark"}
             shape={normalizeIconShape(pageStyle?.iconShape)}
             fill={normalizeIconFill(pageStyle?.iconFill)}
-            accent={look.accent}
-            accentText={look.accentText}
+            accent={accent}
+            accentText={accentText}
             trackFor={embedded ? null : trackFor}
             trackSurface="links"
             trackSource={trackSource}
@@ -604,7 +620,7 @@ export default function SwiftLinkProfile({
               value prompt below the button was removed 2026-08-18 on the
               owner's request; the button stands alone. */}
           <div className="w-full mt-6">
-            <ConnectButton cardOwner={username} ownerFirstName={firstName} accent={look.accent} accentText={look.accentText} />
+            <ConnectButton cardOwner={username} ownerFirstName={firstName} accent={accent} accentText={accentText} />
           </div>
 
           {/* Featured links — rich preview cards */}
@@ -622,8 +638,8 @@ export default function SwiftLinkProfile({
             // compact-circle header, so this follows it.
             glass={!!bgMedia && !!pageStyle?.glass}
             overMedia={!!bgMedia}
-            accent={look.accent}
-            accentText={look.accentText}
+            accent={accent}
+            accentText={accentText}
             // `embedded` is the live-preview/designer rendering, where a tap is
             // the OWNER arranging their page, not a visitor pressing a link.
             trackFor={embedded ? null : trackFor}
