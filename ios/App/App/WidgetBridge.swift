@@ -18,6 +18,11 @@ import WidgetKit
 // to refresh — without the reload the widget would keep its stale snapshot for
 // up to the 6-hour timeline policy in SwiftCardWidget.swift.
 //
+// The same write also feeds the Apple Watch app. The watch is a separate
+// device and cannot see this App Group at all, so WatchSessionBridge reads the
+// slot back and pushes it over WatchConnectivity. One call from the webview,
+// three surfaces in step: home screen, watch face, wrist.
+//
 // The App target and the SwiftCardWidget target must both carry the
 // `group.me.swiftcard.app` App Groups entitlement for the suite to resolve.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,12 +80,22 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
 
         defaults.set(json, forKey: Self.storeKey)
         reloadWidgets()
+        // Same card, second screen. The Apple Watch cannot read this App Group
+        // — it is a different device — so the card is pushed over
+        // WatchConnectivity from the slot we just wrote. See
+        // WatchSessionBridge.swift. No paired watch is the normal case and
+        // costs nothing.
+        WatchSessionBridge.shared.publishCurrentCard()
         call.resolve()
     }
 
     @objc func clearCard(_ call: CAPPluginCall) {
         shared?.removeObject(forKey: Self.storeKey)
         reloadWidgets()
+        // Sign-out has to reach the wrist too: a watch left showing the
+        // previous account's QR is the same handed-on-device problem the
+        // widget's clearCard exists to prevent.
+        WatchSessionBridge.shared.publishCurrentCard()
         call.resolve()
     }
 

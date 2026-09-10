@@ -23,6 +23,16 @@
 		AA000000000000000000000E /* SwiftCardWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000A /* SwiftCardWidget.swift */; };
 		AA000000000000000000000F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AA000000000000000000000B /* PrivacyInfo.xcprivacy */; };
 		AA0000000000000000000011 /* SwiftCardWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* SwiftCardWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DD0000000000000000000005 /* WatchSessionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0000000000000000000006 /* WatchSessionBridge.swift */; };
+		DD0000000000000000000002 /* SwiftCardWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000002 /* SwiftCardWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BB0000000000000000000020 /* SwiftCardWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000000000000000000000A /* SwiftCardWatchApp.swift */; };
+		BB0000000000000000000021 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000000000000000000000B /* ContentView.swift */; };
+		BB0000000000000000000022 /* WatchCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000000000000000000000C /* WatchCard.swift */; };
+		BB0000000000000000000023 /* WatchCardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000000000000000000000D /* WatchCardStore.swift */; };
+		BB0000000000000000000024 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB0000000000000000000010 /* Assets.xcassets */; };
+		BB0000000000000000000031 /* SwiftCardWatchWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CC0000000000000000000002 /* SwiftCardWatchWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CC0000000000000000000020 /* SwiftCardWatchWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC000000000000000000000A /* SwiftCardWatchWidget.swift */; };
+		CC0000000000000000000022 /* WatchCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB000000000000000000000C /* WatchCard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +42,20 @@
 			proxyType = 1;
 			remoteGlobalIDString = AA0000000000000000000001;
 			remoteInfo = SwiftCardWidgetExtension;
+		};
+		DD0000000000000000000004 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BB0000000000000000000001;
+			remoteInfo = SwiftCardWatch;
+		};
+		BB0000000000000000000033 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CC0000000000000000000001;
+			remoteInfo = SwiftCardWatchWidgetExtension;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -56,6 +80,19 @@
 		AA000000000000000000000B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AA000000000000000000000C /* SwiftCardWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SwiftCardWidget.entitlements; sourceTree = "<group>"; };
 		AA000000000000000000000D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		DD0000000000000000000006 /* WatchSessionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSessionBridge.swift; sourceTree = "<group>"; };
+		BB0000000000000000000002 /* SwiftCardWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftCardWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB000000000000000000000A /* SwiftCardWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftCardWatchApp.swift; sourceTree = "<group>"; };
+		BB000000000000000000000B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		BB000000000000000000000C /* WatchCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchCard.swift; sourceTree = "<group>"; };
+		BB000000000000000000000D /* WatchCardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchCardStore.swift; sourceTree = "<group>"; };
+		BB000000000000000000000E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BB000000000000000000000F /* SwiftCardWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SwiftCardWatch.entitlements; sourceTree = "<group>"; };
+		BB0000000000000000000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CC0000000000000000000002 /* SwiftCardWatchWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SwiftCardWatchWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC000000000000000000000A /* SwiftCardWatchWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftCardWatchWidget.swift; sourceTree = "<group>"; };
+		CC000000000000000000000E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		CC000000000000000000000F /* SwiftCardWatchWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SwiftCardWatchWidget.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -66,6 +103,28 @@
 			dstSubfolderSpec = 13;
 			files = (
 				AA0000000000000000000011 /* SwiftCardWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DD0000000000000000000001 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				DD0000000000000000000002 /* SwiftCardWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB0000000000000000000030 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				BB0000000000000000000031 /* SwiftCardWatchWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -88,6 +147,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB0000000000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC0000000000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -97,6 +170,8 @@
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				AA0000000000000000000003 /* SwiftCardWidget */,
+				BB0000000000000000000003 /* SwiftCardWatch */,
+				CC0000000000000000000003 /* SwiftCardWatchWidget */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -106,6 +181,8 @@
 			children = (
 				504EC3041FED79650016851F /* App.app */,
 				AA0000000000000000000002 /* SwiftCardWidgetExtension.appex */,
+				BB0000000000000000000002 /* SwiftCardWatch.app */,
+				CC0000000000000000000002 /* SwiftCardWatchWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -127,6 +204,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				AA0000000000000000000015 /* WidgetBridge.swift */,
+				DD0000000000000000000006 /* WatchSessionBridge.swift */,
 				AA0000000000000000000017 /* MainViewController.swift */,
 				AA0000000000000000000019 /* ExternalPurchase.swift */,
 				AA0000000000000000000031 /* AppReview.swift */,
@@ -141,6 +219,30 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		BB0000000000000000000003 /* SwiftCardWatch */ = {
+			isa = PBXGroup;
+			children = (
+				BB000000000000000000000A /* SwiftCardWatchApp.swift */,
+				BB000000000000000000000B /* ContentView.swift */,
+				BB000000000000000000000C /* WatchCard.swift */,
+				BB000000000000000000000D /* WatchCardStore.swift */,
+				BB0000000000000000000010 /* Assets.xcassets */,
+				BB000000000000000000000E /* Info.plist */,
+				BB000000000000000000000F /* SwiftCardWatch.entitlements */,
+			);
+			path = SwiftCardWatch;
+			sourceTree = "<group>";
+		};
+		CC0000000000000000000003 /* SwiftCardWatchWidget */ = {
+			isa = PBXGroup;
+			children = (
+				CC000000000000000000000A /* SwiftCardWatchWidget.swift */,
+				CC000000000000000000000E /* Info.plist */,
+				CC000000000000000000000F /* SwiftCardWatchWidget.entitlements */,
+			);
+			path = SwiftCardWatchWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -152,11 +254,13 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				AA0000000000000000000010 /* Embed Foundation Extensions */,
+				DD0000000000000000000001 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				AA0000000000000000000012 /* PBXTargetDependency */,
+				DD0000000000000000000003 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -183,6 +287,42 @@
 			productReference = AA0000000000000000000002 /* SwiftCardWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		BB0000000000000000000001 /* SwiftCardWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB0000000000000000000007 /* Build configuration list for PBXNativeTarget "SwiftCardWatch" */;
+			buildPhases = (
+				BB0000000000000000000004 /* Sources */,
+				BB0000000000000000000005 /* Frameworks */,
+				BB0000000000000000000006 /* Resources */,
+				BB0000000000000000000030 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BB0000000000000000000032 /* PBXTargetDependency */,
+			);
+			name = SwiftCardWatch;
+			productName = SwiftCardWatch;
+			productReference = BB0000000000000000000002 /* SwiftCardWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CC0000000000000000000001 /* SwiftCardWatchWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC0000000000000000000007 /* Build configuration list for PBXNativeTarget "SwiftCardWatchWidgetExtension" */;
+			buildPhases = (
+				CC0000000000000000000004 /* Sources */,
+				CC0000000000000000000005 /* Frameworks */,
+				CC0000000000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SwiftCardWatchWidgetExtension;
+			productName = SwiftCardWatchWidgetExtension;
+			productReference = CC0000000000000000000002 /* SwiftCardWatchWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -198,6 +338,14 @@
 						ProvisioningStyle = Automatic;
 					};
 					AA0000000000000000000001 = {
+						CreatedOnToolsVersion = 26.6;
+						ProvisioningStyle = Automatic;
+					};
+					BB0000000000000000000001 = {
+						CreatedOnToolsVersion = 26.6;
+						ProvisioningStyle = Automatic;
+					};
+					CC0000000000000000000001 = {
 						CreatedOnToolsVersion = 26.6;
 						ProvisioningStyle = Automatic;
 					};
@@ -221,6 +369,8 @@
 			targets = (
 				504EC3031FED79650016851F /* App */,
 				AA0000000000000000000001 /* SwiftCardWidgetExtension */,
+				BB0000000000000000000001 /* SwiftCardWatch */,
+				CC0000000000000000000001 /* SwiftCardWatchWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -248,6 +398,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB0000000000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB0000000000000000000024 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC0000000000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -257,6 +422,7 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				AA0000000000000000000014 /* WidgetBridge.swift in Sources */,
+				DD0000000000000000000005 /* WatchSessionBridge.swift in Sources */,
 				AA0000000000000000000016 /* MainViewController.swift in Sources */,
 				AA0000000000000000000018 /* ExternalPurchase.swift in Sources */,
 				AA0000000000000000000030 /* AppReview.swift in Sources */,
@@ -271,6 +437,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB0000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB0000000000000000000020 /* SwiftCardWatchApp.swift in Sources */,
+				BB0000000000000000000021 /* ContentView.swift in Sources */,
+				BB0000000000000000000022 /* WatchCard.swift in Sources */,
+				BB0000000000000000000023 /* WatchCardStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC0000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC0000000000000000000020 /* SwiftCardWatchWidget.swift in Sources */,
+				CC0000000000000000000022 /* WatchCard.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -278,6 +464,16 @@
 			isa = PBXTargetDependency;
 			target = AA0000000000000000000001 /* SwiftCardWidgetExtension */;
 			targetProxy = AA0000000000000000000013 /* PBXContainerItemProxy */;
+		};
+		DD0000000000000000000003 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BB0000000000000000000001 /* SwiftCardWatch */;
+			targetProxy = DD0000000000000000000004 /* PBXContainerItemProxy */;
+		};
+		BB0000000000000000000032 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CC0000000000000000000001 /* SwiftCardWatchWidgetExtension */;
+			targetProxy = BB0000000000000000000033 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -519,6 +715,124 @@
 			};
 			name = Release;
 		};
+		BB0000000000000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SwiftCardWatch/SwiftCardWatch.entitlements;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = NHK8FA2RR2;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SwiftCardWatch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = me.swiftcard.app.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		BB0000000000000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SwiftCardWatch/SwiftCardWatch.entitlements;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = NHK8FA2RR2;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SwiftCardWatch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = me.swiftcard.app.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				PROVISIONING_PROFILE_SPECIFIER = "SwiftCard Watch App Store";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+			};
+			name = Release;
+		};
+		CC0000000000000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SwiftCardWatchWidget/SwiftCardWatchWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = NHK8FA2RR2;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SwiftCardWatchWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = me.swiftcard.app.watchkitapp.complication;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CC0000000000000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SwiftCardWatchWidget/SwiftCardWatchWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 11;
+				DEVELOPMENT_TEAM = NHK8FA2RR2;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SwiftCardWatchWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = me.swiftcard.app.watchkitapp.complication;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
+				PROVISIONING_PROFILE_SPECIFIER = "SwiftCard Watch Complication App Store";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -545,6 +859,24 @@
 			buildConfigurations = (
 				AA0000000000000000000008 /* Debug */,
 				AA0000000000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BB0000000000000000000007 /* Build configuration list for PBXNativeTarget "SwiftCardWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB0000000000000000000008 /* Debug */,
+				BB0000000000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC0000000000000000000007 /* Build configuration list for PBXNativeTarget "SwiftCardWatchWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC0000000000000000000008 /* Debug */,
+				CC0000000000000000000009 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

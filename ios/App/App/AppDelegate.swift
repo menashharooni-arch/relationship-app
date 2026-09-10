@@ -7,7 +7,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Apple Watch link. Activation must happen at launch, not when the card
+        // first changes: WCSession delivers the application context only once
+        // it is activated, and the webview may never call setCard in a session
+        // where nothing about the card changed. Activating here means a watch
+        // that missed the last update still converges on the right card the
+        // next time the phone app is opened. No-op without a paired watch.
+        WatchSessionBridge.shared.activate()
         return true
     }
 
@@ -27,6 +33,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidBecomeActive(_ application: UIApplication) {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        //
+        // Re-publish the card on every foreground. This is the cheap, reliable
+        // catch-all for the states WatchConnectivity cannot notify us about:
+        // the watch app was reinstalled and lost its cache, the phone was
+        // rebooted, or the pair simply had no chance to talk since the last
+        // change. The payload carries a timestamp so an identical card is
+        // still accepted rather than skipped as a duplicate.
+        WatchSessionBridge.shared.publishCurrentCard()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

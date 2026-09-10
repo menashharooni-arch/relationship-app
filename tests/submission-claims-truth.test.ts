@@ -101,17 +101,25 @@ describe("version numbers line up for upload", () => {
 
     const marketing = [...proj.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map((m) => m[1]);
     const current = [...proj.matchAll(/CURRENT_PROJECT_VERSION = ([^;]+);/g)].map((m) => m[1]);
-    // App Debug/Release + widget Debug/Release
-    expect(marketing).toHaveLength(4);
-    expect(current).toHaveLength(4);
+    // Debug + Release for each of the four targets: the app, the home-screen
+    // widget, the Apple Watch app and the watch complication. Every one of
+    // them ends up inside the same .ipa, and Apple rejects the upload if any
+    // two disagree.
+    expect(marketing).toHaveLength(8);
+    expect(current).toHaveLength(8);
     expect(new Set(marketing)).toEqual(new Set([version]));
     expect(new Set(current)).toEqual(new Set([build]));
   });
 
-  it("the widget inherits its version instead of hardcoding one", () => {
+  it("every embedded bundle inherits its version instead of hardcoding one", () => {
     // Hardcoding here is how app and extension drift apart between releases.
-    const plist = read("ios/App/SwiftCardWidget/Info.plist");
-    expect(plist).toContain("$(MARKETING_VERSION)");
-    expect(plist).toContain("$(CURRENT_PROJECT_VERSION)");
+    for (const path of [
+      "ios/App/SwiftCardWidget/Info.plist",
+      "ios/App/SwiftCardWatch/Info.plist",
+      "ios/App/SwiftCardWatchWidget/Info.plist",
+    ]) {
+      expect(read(path), path).toContain("$(MARKETING_VERSION)");
+      expect(read(path), path).toContain("$(CURRENT_PROJECT_VERSION)");
+    }
   });
 });

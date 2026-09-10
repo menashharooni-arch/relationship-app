@@ -171,6 +171,96 @@ Remaining verification (needs a signed-in build on a device or simulator):
 long-press the home screen → add the "My SwiftCard QR" widget; it populates
 once the app is opened signed-in.
 
+## 6c. Apple Watch app (SwiftCardWatch + SwiftCardWatchWidget)
+
+✅ **Built, and verified on the watch simulator.** Two targets are committed in
+`App.xcodeproj`:
+
+| Target | Bundle id | What it is |
+|---|---|---|
+| `SwiftCardWatch` | `me.swiftcard.app.watchkitapp` | The watch app. Full-screen QR of the active card. |
+| `SwiftCardWatchWidgetExtension` | `me.swiftcard.app.watchkitapp.complication` | Watch-face complication, one tap into the app. |
+
+Nesting inside the shipped `.ipa`:
+
+    App.app/Watch/SwiftCardWatch.app/PlugIns/SwiftCardWatchWidgetExtension.appex
+
+### How the card reaches the wrist
+
+The watch is a SEPARATE DEVICE. It cannot read `group.me.swiftcard.app` — an
+App Group is shared between an app and its extensions on one device, never
+across the pair. WatchConnectivity is the only channel.
+
+    NativeAppBridge.tsx  →  WidgetBridge.setCard()          (unchanged)
+                         →  UserDefaults(suiteName: …) "widget_card"
+                         →  WatchSessionBridge.publishCurrentCard()
+                            reads that slot back, encodes the QR,
+                            WCSession.updateApplicationContext(…)
+                         →  WatchCardStore (watch) persists + reloads the
+                            complication
+                         →  ContentView draws it
+
+`updateApplicationContext` rather than `sendMessage` (needs the watch app
+running) or `transferUserInfo` (queues a backlog of stale cards): it is a
+single latest-value slot delivered in the background, which is exactly what
+"the current card" is. It is re-published on app launch, on every foreground,
+and whenever the watch pairs or installs the app.
+
+### ⚠️ watchOS has no CoreImage
+
+`CIFilter.qrCodeGenerator()` does not exist on watchOS — a watch target that
+imports CoreImage fails to resolve the module before compiling a line. So the
+PHONE encodes the QR into a grid of black/white modules
+(`WatchSessionBridge.qrMatrix`, ~150 bytes) and the watch draws it as vector
+rectangles in a SwiftUI `Canvas`. That is sharper than an upscaled bitmap and
+smaller to send. `tests/apple-watch.test.ts` fails if anyone moves it back.
+
+### Owner steps before the next submission
+
+Nothing here is needed to keep developing; all of it is needed to SHIP.
+
+1. `node scripts/asc-provision.mjs` — it now registers the two new bundle ids
+   (with App Groups) if they are missing, and mints all four App Store
+   profiles. Note this DELETES and recreates the existing profiles by name,
+   which is normal and is the documented fix for capability changes.
+2. In App Store Connect the watch app rides along with the iPhone app — there
+   is no separate submission — but the listing gains an **Apple Watch**
+   screenshot slot. Apple requires at least one 410×502 screenshot to show the
+   app on watch. There is no such screenshot in `app-store/` yet.
+3. On device: iPhone Watch app → Available Apps → install SwiftCard, then add
+   the "My SwiftCard" complication to a face.
+
+### Verifying it without a device
+
+`npm run ios:release` refuses to ship a build whose `.ipa` has no watch app or
+no complication in it, and checks the App Group entitlement on both — the same
+gate that exists for the phone and its widget, for the same reason (builds 1-10
+shipped with entitlements that were silently dropped).
+
+To see it running:
+
+```bash
+xcodebuild -project ios/App/App.xcodeproj -target SwiftCardWatch \
+  -configuration Debug -sdk watchsimulator -arch arm64 \
+  CODE_SIGNING_ALLOWED=NO build
+xcrun simctl boot "Apple Watch Ultra 3 (49mm)"
+xcrun simctl install booted ios/App/build/Debug-watchsimulator/SwiftCardWatch.app
+xcrun simctl launch booted me.swiftcard.app.watchkitapp
+```
+
+With no paired iPhone the app shows its empty state after a 3-second timeout.
+To see a real card, write one into the app's defaults first:
+
+```bash
+xcrun simctl spawn booted defaults write me.swiftcard.app.watchkitapp \
+  watch_card -string '{"url":"…","name":"…","company":"…","qrWidth":35,"qrBits":"…"}'
+```
+
+`qrBits` comes from `WatchSessionBridge.qrMatrix`. The QR in a
+`xcrun simctl io booted screenshot` scans back to the card URL with any QR
+reader — that is the real check, because a mirrored or inverted grid still
+looks perfectly like a QR code.
+
 ## 7. Build, run, verify
 
 ```bash

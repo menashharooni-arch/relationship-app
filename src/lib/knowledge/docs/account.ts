@@ -18,7 +18,7 @@ export const accountDocs = defineDocs([
     answer:
       "Settings is the gear icon at the top right of the app (or the \"Settings\" tab in the mobile bottom bar) — it opens /settings/flows. Its sections, in order: Profile, Cards and sharing, Plan and billing, Notifications and preferences, Security, Help and referrals, and Advanced account settings. One section opens at a time.",
     detail:
-      "Watch out for old names — there is NO section called Billing, Integrations, General, Account, or Danger Zone. In particular: CRM integrations live inside \"Notifications and preferences\", not in a section of their own; account deletion is under \"Advanced account settings\"; the plan lives under \"Plan and billing\". \"Cards and sharing\" is the only place a card can be edited. Section descriptions: Profile — \"Your account details at a glance.\" Cards and sharing — \"Edit, open, or remove a card, and share your links.\" Plan and billing — \"Your plan, seats, invoices and payment method.\" Security — password and sign out. Advanced account settings — \"Account ownership and deletion. Deleting is permanent.\"",
+      "Watch out for old names — there is NO section called Billing, Integrations, General, Account, or Danger Zone. In particular: CRM integrations live inside \"Notifications and preferences\", not in a section of their own; account deletion is under \"Advanced account settings\"; the plan lives under \"Plan and billing\". \"Cards and sharing\" is the only place a card can be edited. Sign out moved: it is at the BOTTOM of the Profile section now, not in Security, and it asks for confirmation before it signs you out. Section descriptions: Profile — \"Your account details at a glance.\" Cards and sharing — \"Edit, open, or remove a card, and share your links.\" Plan and billing — \"Your plan, seats, invoices and payment method.\" Security — the account password only. Advanced account settings — \"Account ownership and deletion. Deleting is permanent.\"",
     commerce: true,
     nativeAnswer:
       "Settings is the gear icon at the top right of the app (or the \"Settings\" tab in the bottom bar). Its sections: Profile, Cards and sharing, Plan and billing, Notifications and preferences, Security, Help and referrals, and Advanced account settings. One section opens at a time.",
@@ -42,10 +42,11 @@ export const accountDocs = defineDocs([
     audience: ["user"],
     triggers: [
       "password", "change password", "reset password", "forgot password", "new password",
-      "sign out", "log out", "logout", "two factor", "2fa", "security",
+      "sign out", "log out", "logout", "where is sign out", "sign out button gone",
+      "two factor", "2fa", "security",
     ],
     answer:
-      "Settings → Security has two rows: \"Password\" with a \"Change password\" link, and \"Sign out\" for this device. If you've forgotten your password, use \"Forgot password?\" on the sign-in screen — type your email in the box first, then tap the link.",
+      "To sign out: Settings → Profile, then the red \"Sign out\" button at the bottom of that section. It asks \"Sign out of SwiftCard?\" first — tap \"Sign out\" again to confirm, or Cancel. It is no longer in the top-right corner of the screen, and it is not in Security. Settings → Security now holds only \"Password\", with a \"Change password\" link. If you've forgotten your password, use \"Forgot password?\" on the sign-in screen — type your email in the box first, then tap the link.",
     detail:
       "Changing the password from Settings does not ask for the current one; it takes you to the set-a-new-password page with your existing session. There is no two-factor authentication, no session list, and no API keys anywhere in the product — say so plainly rather than hunting for a setting. An account created with Google or Apple has no password at first, but running a password reset will set one, which then also allows email + password sign-in.",
   },
