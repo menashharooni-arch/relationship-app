@@ -66,7 +66,10 @@ export const LINK_STYLE_KEYS = ["linkBgColor", "linkTextColor", "linkFontFamily"
   // page, its scrim, and the frosted link rows that go with it. Pro, like
   // every other look-and-feel key here — the compact-circle header itself
   // stays structural and every-plan (LINK_STRUCTURAL_KEYS).
-  "linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass"] as const;
+  "linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass",
+  // The accent: the Connect button, and social icons set to Accent. Pro,
+  // like every other colour here.
+  "linkAccentColor"] as const;
 
 // Swift Links keys that are STRUCTURAL and every-plan — never stripped by the
 // sanitizer (the named Look has its own free-snap rule above). One list so the

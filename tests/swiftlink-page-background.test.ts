@@ -53,9 +53,18 @@ describe("the header pairing", () => {
     // Switching header styles must not destroy an upload. The editor says so
     // in words, and nothing in the switch path clears the key.
     const design = read("src/components/SwiftLinkDesign.tsx");
-    expect(design).toMatch(/It shows when the page header is set to/);
+    expect(design).toMatch(/saved and shows with the compact-circle header/);
     // The header buttons write ONLY linkHeroStyle.
     expect(design).toMatch(/onChange\(\{ linkHeroStyle: o\.id === "cover" \? undefined : o\.id \}\)/);
+  });
+
+  it("offers the compact circle from inside Page background, not by scrolling", () => {
+    // Page header sits BELOW Page background since 2026-09-10, so the option
+    // has to be reachable from where it is described. Without this button the
+    // panel order would have to go back to leading with the header.
+    const design = read("src/components/SwiftLinkDesign.tsx");
+    expect(design).toMatch(/Want a photo or video filling the whole page instead\?/);
+    expect(design).toMatch(/onClick=\{\(\) => onChange\(\{ linkHeroStyle: "avatar" \}\)\}/);
   });
 });
 
@@ -158,6 +167,48 @@ describe("every Swift Links design key survives a round trip through the editor"
     for (const key of ["linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass"]) {
       expect(sig, key).toContain(`"${key}"`);
     }
+  });
+});
+
+describe("the accent — one colour for every call to action", () => {
+  it("is Pro, like every other colour on this panel", () => {
+    expect(LINK_STYLE_KEYS).toContain("linkAccentColor");
+  });
+
+  it("the sanitizer strips it for Free", () => {
+    const free = sanitizeCustomizationForPlan(
+      { linkAccentColor: "#0F766E" }, false, "modern",
+    ) as Record<string, unknown>;
+    expect(free.linkAccentColor).toBeUndefined();
+  });
+
+  it("reaches the Connect button, the social chips and the link rows", () => {
+    // One accent, three consumers. If a future edit passes the Look's raw
+    // accent to any of them again, the owner's choice silently stops applying
+    // to that one thing — which reads as a bug in the control, not in a prop.
+    const profile = read("src/components/SwiftLinkProfile.tsx");
+    expect(profile).toMatch(/const accent = customAccent \?\? look\.accent/);
+    expect(profile).not.toMatch(/accent=\{look\.accent\}/);
+    expect(profile).not.toMatch(/accentText=\{look\.accentText\}/);
+  });
+
+  it("derives its label colour rather than trusting a pair nobody tested", () => {
+    const profile = read("src/components/SwiftLinkProfile.tsx");
+    expect(profile).toMatch(/isLightHex\(customAccent\) \? "#111827" : "#FFFFFF"/);
+  });
+
+  it("picking a Look clears it, like every other fine-tune override", () => {
+    // A stale accent would win at render time and make every Look "not work"
+    // until the owner found and reset it.
+    const design = read("src/components/SwiftLinkDesign.tsx");
+    expect(design).toMatch(/linkLook: v,[^}]*linkAccentColor: undefined/);
+  });
+
+  it("the Solid/Outline rows preview the accent actually in use", () => {
+    // Their "Default" swatch falls back to the accent, so showing the Look's
+    // raw one would preview a colour those rows never render.
+    const design = read("src/components/SwiftLinkDesign.tsx");
+    expect(design).toMatch(/fallbackHex=\{value\.linkAccentColor \|\| getLook\(value\.linkLook\)\.accent\}/);
   });
 });
 

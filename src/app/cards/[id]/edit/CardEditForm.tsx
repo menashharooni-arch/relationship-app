@@ -93,7 +93,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkButtonStyle?: string; linkButtonColor?: string; linkBgMedia?: string; linkBgMediaType?: string; linkBgDim?: number; linkGlass?: boolean };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkButtonStyle?: string; linkButtonColor?: string; linkBgMedia?: string; linkBgMediaType?: string; linkBgDim?: number; linkGlass?: boolean; linkAccentColor?: string };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -235,6 +235,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     // NOT `?? undefined` on a boolean by accident: false is a real stored
     // value here ("frosting explicitly turned off"), and ?? passes it through.
     linkGlass: card.customization?.linkGlass ?? undefined,
+    linkAccentColor: card.customization?.linkAccentColor ?? undefined,
   });
   function patchLinkStyle(patch: Partial<SwiftLinkStyle>) {
     setLinkStyleState((prev) => ({ ...prev, ...patch }));
@@ -399,6 +400,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             linkBgMediaType: linkStyleState.linkBgMediaType ?? null,
             linkBgDim: linkStyleState.linkBgDim ?? null,
             linkGlass: linkStyleState.linkGlass ?? null,
+            linkAccentColor: linkStyleState.linkAccentColor ?? null,
             // "View SwiftCard →" toggle — sent explicitly (null clears back to shown) so the merge can flip it both ways.
             hideCardLink: showCardLinkBtn ? null : true,
             // Headshot is per-card (explicit key, null when removed).
