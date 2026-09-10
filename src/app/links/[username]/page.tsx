@@ -153,6 +153,10 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     /** Link rows: "solid"/"outline" replace the rich tiles (Pro). */
     linkButtonStyle?: string;
     linkButtonColor?: string;
+    linkBgMedia?: string;
+    linkBgMediaType?: string;
+    linkBgDim?: number;
+    linkGlass?: boolean;
   };
   // The named Look renders for EVERY plan — Free is snapped to the free pair
   // at render time (a Pro Look kept in storage after a downgrade is hidden,
@@ -173,6 +177,12 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
           iconFill: customization.linkIconFill,
           buttonStyle: customization.linkButtonStyle,
           buttonColor: customization.linkButtonColor,
+          // Page background media — Pro, and rendered only with the
+          // compact-circle header (SwiftLinkProfile enforces that).
+          bgMedia: customization.linkBgMedia,
+          bgMediaType: customization.linkBgMediaType,
+          bgDim: customization.linkBgDim,
+          glass: customization.linkGlass,
         }
       : {}),
   };

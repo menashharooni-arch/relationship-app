@@ -106,7 +106,7 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
       title: "Style your page",
       subtitle: "Pick a Look — solid, gradient, or your own photo — then style your social icons and font. Updates live.",
       previewFirst: true,
-      content: <SwiftLinkStyleControls value={sketch.linkStyle} onChange={patchLinkStyle} />,
+      content: <SwiftLinkStyleControls value={sketch.linkStyle} onChange={patchLinkStyle} canUpload={false} />,
     },
   ];
 

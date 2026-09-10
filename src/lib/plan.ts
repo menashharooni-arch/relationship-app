@@ -61,7 +61,12 @@ export const PRO_CUSTOMIZATION_KEYS = ["accentColor", "font", "bgColor", "textCo
 // looks). Pro-gated the same way: stripped server-side for non-paid accounts.
 // linkHeroStyle is deliberately NOT here — the header style (cover/avatar) is
 // structural and every-plan, the same rule as linkLook and the card-link toggle.
-export const LINK_STYLE_KEYS = ["linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill", "linkButtonStyle", "linkButtonColor"] as const;
+export const LINK_STYLE_KEYS = ["linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill", "linkButtonStyle", "linkButtonColor",
+  // Page background media (2026-09-10): the photo/video behind the whole
+  // page, its scrim, and the frosted link rows that go with it. Pro, like
+  // every other look-and-feel key here — the compact-circle header itself
+  // stays structural and every-plan (LINK_STRUCTURAL_KEYS).
+  "linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass"] as const;
 
 // Swift Links keys that are STRUCTURAL and every-plan — never stripped by the
 // sanitizer (the named Look has its own free-snap rule above). One list so the

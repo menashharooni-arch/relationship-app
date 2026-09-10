@@ -23,9 +23,9 @@ import LinkPreviewThumb from "@/components/LinkPreviewThumb";
 import type { CardLink } from "@/components/card-templates/types";
 import { TILE_SIZES, resolveRowStyle, type RowStyle, type TileSize } from "@/lib/swiftlink-tiles";
 import { BUTTON_STYLES } from "@/lib/swiftlink-looks";
-
-const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
+// One uploader for every owner-supplied photo/video — see lib/upload-media for
+// why a video cannot go through /api/upload the way a photo does.
+import { isAllowedMedia, uploadMedia, uploadErrorMessage, WRONG_TYPE_MESSAGE, IMAGE_TYPES, VIDEO_TYPES } from "@/lib/upload-media";
 
 /** Mini glyph for a row style: standard = quiet translucent row; solid =
  *  filled row; outline = bordered row. */
@@ -57,40 +57,6 @@ const pick = "flex flex-col items-center gap-1.5 px-2 py-2 rounded-lg border tex
 const pickOn = "border-blue-600 bg-blue-600/10 text-blue-200";
 const pickOff = "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600";
 
-/** Uploads a photo (through /api/upload, resized) or a short video (straight
- *  to storage through a signed URL — too big for a function body). Returns
- *  the public URL to persist in the link. */
-async function uploadLinkMedia(file: File): Promise<{ url: string; type: "image" | "video" }> {
-  if (VIDEO_TYPES.includes(file.type)) {
-    const r = await fetch("/api/upload/link-video", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contentType: file.type, size: file.size }),
-    });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok || !d?.signedUrl || !d?.url) throw new UploadError(r.status, d?.error);
-    const put = await fetch(d.signedUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
-    if (!put.ok) throw new UploadError(put.status);
-    return { url: d.url, type: "video" };
-  }
-  const fd = new FormData();
-  fd.append("file", file);
-  fd.append("field", "link");
-  fd.append("defer", "true");
-  const r = await fetch("/api/upload", { method: "POST", body: fd });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok || !d?.url) throw new UploadError(r.status, d?.error);
-  return { url: d.url, type: "image" };
-}
-
-class UploadError extends Error {
-  status: number;
-  constructor(status: number, message?: unknown) {
-    super(typeof message === "string" ? message : "Upload failed — please try again.");
-    this.status = status;
-  }
-}
-
 function LinkMediaControl({
   link,
   locked,
@@ -106,21 +72,18 @@ function LinkMediaControl({
   const media = link.media;
 
   async function pickFile(file: File) {
-    if (![...IMAGE_TYPES, ...VIDEO_TYPES].includes(file.type)) {
-      setError("Use a JPG, PNG, WebP or GIF photo, or an MP4, MOV or WebM video.");
+    if (!isAllowedMedia(file)) {
+      setError(WRONG_TYPE_MESSAGE);
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      onChange({ media: await uploadLinkMedia(file) });
+      onChange({ media: await uploadMedia(file, "link") });
     } catch (e) {
-      // A guest in the wizard can't reach the upload routes (401) — say what
-      // to do instead of parroting "Unauthorized".
-      const status = e instanceof UploadError ? e.status : 0;
-      setError(status === 401
-        ? "Sign in to upload — finish creating your card first, then add it here."
-        : e instanceof Error && e.message ? e.message : "Upload failed — please try again.");
+      // A guest in the wizard can't reach the upload routes (401) — the shared
+      // helper turns that into "sign in first" rather than "Unauthorized".
+      setError(uploadErrorMessage(e));
     } finally {
       setBusy(false);
     }

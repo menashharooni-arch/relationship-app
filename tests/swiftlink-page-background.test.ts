@@ -1,0 +1,260 @@
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { LINK_STYLE_KEYS, LINK_STRUCTURAL_KEYS, sanitizeCustomizationForPlan } from "@/lib/plan";
+import {
+  pageMediaUrl,
+  normalizePageMediaType,
+  normalizePageDim,
+  DEFAULT_PAGE_DIM,
+  MAX_PAGE_DIM,
+  PAGE_MEDIA_BASE,
+  normalizeHeroStyle,
+} from "@/lib/swiftlink-looks";
+
+// ── Swift Links PAGE BACKGROUND — a photo or video behind the whole page ────
+//
+// Owner request 2026-09-10, referencing linktr.ee/kelsieblevinsrealestate: with
+// the compact-circle header, let the whole background be a picture or a video
+// of the owner's choosing, or stay a flat colour — and let the link buttons go
+// frosted over it.
+//
+// The LOOK of it is measured in a real browser by
+// tests/render/swiftlink-page-background.test.ts. This file guards the things a
+// browser cannot show: the plan line, the URL rule, the clamps, and the wiring
+// that carries four new keys from the editor to the public page without any of
+// them being quietly dropped on the way.
+
+const root = process.cwd();
+const read = (p: string) => readFileSync(join(root, p), "utf8");
+
+describe("the header pairing", () => {
+  it("is offered ONLY with the compact circle, in the editor and at render", () => {
+    // Both sides, because either alone is a bug: controls with no render is a
+    // dead switch, and render with no controls is a page nobody can turn off.
+    const design = read("src/components/SwiftLinkDesign.tsx");
+    expect(design).toMatch(/const isAvatarHeader = normalizeHeroStyle\(value\.linkHeroStyle\) === "avatar"/);
+    expect(design).toMatch(/\{isAvatarHeader && canUpload && <PageBackgroundMedia/);
+
+    const profile = read("src/components/SwiftLinkProfile.tsx");
+    expect(profile).toMatch(/const bgMedia = heroAvatar \? pageMediaUrl\(pageStyle\?\.bgMedia\) : null/);
+  });
+
+  it('"avatar" is what the compact circle is called in stored data', () => {
+    // The render gate above compares against this exact id. If the vocabulary
+    // ever changes, the gate silently stops matching and every page loses its
+    // background at once.
+    expect(normalizeHeroStyle("avatar")).toBe("avatar");
+    expect(normalizeHeroStyle("cover")).toBe("cover");
+    expect(normalizeHeroStyle(undefined)).toBe("cover");
+  });
+
+  it("hides a stored background under another header rather than deleting it", () => {
+    // Switching header styles must not destroy an upload. The editor says so
+    // in words, and nothing in the switch path clears the key.
+    const design = read("src/components/SwiftLinkDesign.tsx");
+    expect(design).toMatch(/It shows when the page header is set to/);
+    // The header buttons write ONLY linkHeroStyle.
+    expect(design).toMatch(/onChange\(\{ linkHeroStyle: o\.id === "cover" \? undefined : o\.id \}\)/);
+  });
+});
+
+describe("the plan line", () => {
+  it("all four keys are Pro, so a Free page stores none of them", () => {
+    for (const key of ["linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass"]) {
+      expect(LINK_STYLE_KEYS, key).toContain(key);
+    }
+  });
+
+  it("the compact-circle header itself stays every-plan", () => {
+    // The background is the premium part. The header is structure, and Free
+    // keeps every header — same rule as the named Look.
+    expect(LINK_STRUCTURAL_KEYS).toContain("linkHeroStyle");
+    expect(LINK_STYLE_KEYS).not.toContain("linkHeroStyle");
+  });
+
+  it("the sanitizer actually strips them for a Free account", () => {
+    const cust = {
+      linkHeroStyle: "avatar",
+      linkBgMedia: "https://example.com/a.jpg",
+      linkBgMediaType: "image",
+      linkBgDim: 40,
+      linkGlass: true,
+    };
+    const free = sanitizeCustomizationForPlan(cust, false, "modern") as Record<string, unknown>;
+    expect(free.linkBgMedia).toBeUndefined();
+    expect(free.linkBgMediaType).toBeUndefined();
+    expect(free.linkBgDim).toBeUndefined();
+    expect(free.linkGlass).toBeUndefined();
+    // …and keeps the header, which is not a paid feature.
+    expect(free.linkHeroStyle).toBe("avatar");
+
+    const paid = sanitizeCustomizationForPlan(cust, true, "modern") as Record<string, unknown>;
+    expect(paid.linkBgMedia).toBe("https://example.com/a.jpg");
+  });
+
+  it("a downgraded Pro keeps the upload in storage, hidden not deleted", () => {
+    // Same philosophy as the links cap: re-subscribing must bring the page
+    // back, so nothing is destroyed on write.
+    const cust = { linkBgMedia: "https://example.com/a.jpg", linkGlass: true };
+    const kept = sanitizeCustomizationForPlan(cust, false, "modern", { preserveDowngraded: true }) as Record<string, unknown>;
+    expect(kept.linkBgMedia).toBe("https://example.com/a.jpg");
+  });
+
+  it("the public page gates the four keys behind ownerPaid", () => {
+    const page = read("src/app/links/[username]/page.tsx");
+    const paidBlock = page.slice(page.indexOf("...(ownerPaid"), page.indexOf("const bio ="));
+    for (const key of ["bgMedia:", "bgMediaType:", "bgDim:", "glass:"]) {
+      expect(paidBlock, key).toContain(key);
+    }
+  });
+
+  it("the live preview previews them on exactly the same terms", () => {
+    // A Free pick that previewed live but was stripped on save is the audit
+    // bug the custom pickers already had once.
+    const preview = read("src/components/SwiftLinkLivePreview.tsx");
+    expect(preview).toMatch(/paid \?[\s\S]{0,600}bgMedia: style\?\.linkBgMedia/);
+    expect(preview).toMatch(/bgMediaType: style\?\.linkBgMediaType/);
+    expect(preview).toMatch(/bgDim: style\?\.linkBgDim/);
+    expect(preview).toMatch(/glass: style\?\.linkGlass/);
+  });
+});
+
+describe("the URL is never trusted", () => {
+  it("accepts https and nothing else", () => {
+    expect(pageMediaUrl("https://cdn.example.com/a.jpg")).toBe("https://cdn.example.com/a.jpg");
+    // Everything below arrives through client-writable customization and would
+    // be printed into a src on a PUBLIC page.
+    expect(pageMediaUrl("http://cdn.example.com/a.jpg")).toBeNull();
+    expect(pageMediaUrl("javascript:alert(1)")).toBeNull();
+    expect(pageMediaUrl("data:text/html,<script>alert(1)</script>")).toBeNull();
+    expect(pageMediaUrl("//cdn.example.com/a.jpg")).toBeNull();
+    expect(pageMediaUrl("")).toBeNull();
+    expect(pageMediaUrl(undefined)).toBeNull();
+    expect(pageMediaUrl(null)).toBeNull();
+  });
+
+  it("treats anything but the exact string \"video\" as an image", () => {
+    // Fails toward <img>: an <img> pointed at an mp4 shows a broken image,
+    // while a <video> pointed at a jpg is a silent black rectangle that
+    // autoplays nothing.
+    expect(normalizePageMediaType("video")).toBe("video");
+    expect(normalizePageMediaType("image")).toBe("image");
+    expect(normalizePageMediaType("VIDEO")).toBe("image");
+    expect(normalizePageMediaType(undefined)).toBe("image");
+  });
+});
+
+describe("the scrim is the readability control, so it is clamped", () => {
+  it("keeps a sane value out of any input", () => {
+    expect(normalizePageDim(undefined)).toBe(DEFAULT_PAGE_DIM);
+    expect(normalizePageDim(null)).toBe(DEFAULT_PAGE_DIM);
+    expect(normalizePageDim(Number.NaN)).toBe(DEFAULT_PAGE_DIM);
+    expect(normalizePageDim("not a number")).toBe(DEFAULT_PAGE_DIM);
+    expect(normalizePageDim(-40)).toBe(0);
+    expect(normalizePageDim(9999)).toBe(MAX_PAGE_DIM);
+    expect(normalizePageDim("55")).toBe(55);
+    expect(normalizePageDim(42.6)).toBe(43);
+  });
+
+  it("never darkens all the way to black", () => {
+    // 100% would hide the photo the owner just uploaded and leave them with a
+    // black page and no idea why.
+    expect(MAX_PAGE_DIM).toBeLessThan(100);
+    expect(DEFAULT_PAGE_DIM).toBeGreaterThan(0);
+  });
+});
+
+describe("text can never end up invisible over a photo", () => {
+  const profile = read("src/components/SwiftLinkProfile.tsx");
+
+  it("forces white text and dark-mode chrome over media", () => {
+    // A light Look's body text is #111827 — unreadable on a dimmed photo.
+    expect(profile).toMatch(/const textColor = pageStyle\?\.text \|\| \(bgMedia \? "#ffffff" : look\.text\)/);
+    expect(profile).toMatch(/const light = bgMedia \? false :/);
+  });
+
+  it("pins the surface behind the media dark, to match that white text", () => {
+    // It is what shows while the photo decodes, or forever if it 404s.
+    expect(profile).toMatch(/const sheetBg = bgMedia \? PAGE_MEDIA_BASE :/);
+    expect(PAGE_MEDIA_BASE).toMatch(/^#[0-9A-Fa-f]{6}$/);
+  });
+
+  it("carries a text shadow over media and nowhere else", () => {
+    expect(profile).toMatch(/\.\.\.\(bgMedia \? \{ textShadow:/);
+  });
+
+  it("turns Aura off — the two are the same surface", () => {
+    expect(profile).toMatch(/const auraOn = !pageStyle\?\.bg && !bgMedia &&/);
+  });
+
+  it("stops the sheet painting over the photo", () => {
+    // The single mistake that would make the whole feature look broken.
+    expect(profile).toMatch(/background: bgMedia\s*\n?\s*\? "transparent"/);
+  });
+});
+
+describe("frosted link rows", () => {
+  const buttons = read("src/components/SwiftLinkButtons.tsx");
+  const profile = read("src/components/SwiftLinkProfile.tsx");
+
+  it("only ever arrive together with media", () => {
+    expect(profile).toMatch(/glass=\{!!bgMedia && !!pageStyle\?\.glass\}/);
+  });
+
+  it("restyle the stock row only, never a colour the owner chose", () => {
+    expect(buttons).toMatch(/const glassRow = glass && variant === "compact"/);
+  });
+
+  it("section headers get their contrast from the media, not from the frosting", () => {
+    // They sit directly on the photo whether or not the ROWS are frosted.
+    expect(profile).toMatch(/overMedia=\{!!bgMedia\}/);
+    expect(buttons).toMatch(/opacity: overMedia \? 0\.85 : 0\.55/);
+  });
+});
+
+describe("uploads", () => {
+  it("one shared uploader, so the two pickers cannot drift", () => {
+    const lib = read("src/lib/upload-media.ts");
+    expect(lib).toMatch(/export async function uploadMedia/);
+    // A video cannot ride /api/upload — the function body cap is ~4.5 MB.
+    expect(lib).toMatch(/\/api\/upload\/link-video/);
+    expect(lib).toMatch(/createSignedUploadUrl|signedUrl/);
+    for (const f of ["src/components/LinkButtonsControls.tsx", "src/components/SwiftLinkDesign.tsx"]) {
+      expect(read(f), f).toMatch(/from "@\/lib\/upload-media"/);
+    }
+  });
+
+  it("the page background uses its own allow-listed field", () => {
+    const route = read("src/app/api/upload/route.ts");
+    // The field becomes part of the storage object key, so it is allow-listed
+    // rather than trusted.
+    expect(route).toMatch(/field !== "pagebg"/);
+    // …and it has NO database column, so it must return before the write
+    // branches or a caller that forgets defer=true clobbers logo_url.
+    expect(route).toMatch(/field === "hero" \|\| field === "link" \|\| field === "pagebg"/);
+    expect(read("src/components/SwiftLinkDesign.tsx")).toMatch(/uploadMedia\(file, "pagebg"\)/);
+  });
+
+  it("writes the url and its type in ONE patch", () => {
+    // Two patches can interleave and leave a video url flagged as an image,
+    // which renders an <img> pointed at an mp4.
+    const design = read("src/components/SwiftLinkDesign.tsx");
+    expect(design).toMatch(/linkBgMedia: media\.url,\s*\n\s*linkBgMediaType: media\.type,/);
+    expect(design).toMatch(/onChange\(\{ linkBgMedia: undefined, linkBgMediaType: undefined \}\)/);
+  });
+
+  it("frosting defaults on for a first background, and stays off once turned off", () => {
+    const design = read("src/components/SwiftLinkDesign.tsx");
+    expect(design).toMatch(/linkGlass: value\.linkGlass \?\? true/);
+    // An explicit false, not undefined — otherwise replacing the photo would
+    // silently switch frosting back on.
+    expect(design).toMatch(/onChange\(\{ linkGlass: e\.target\.checked \}\)/);
+  });
+
+  it("is not offered where there is no account to upload against", () => {
+    // The marketing mini-builder's sketch belongs to a visitor; every upload
+    // route answers 401 there.
+    expect(read("src/components/site/SwiftLinkMiniBuilder.tsx")).toMatch(/canUpload=\{false\}/);
+  });
+});

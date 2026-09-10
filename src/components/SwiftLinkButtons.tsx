@@ -89,6 +89,8 @@ export default function SwiftLinkButtons({
   textColor = "#ffffff",
   paid = false,
   buttonStyle = "tile",
+  glass = false,
+  overMedia = false,
   buttonColor,
   accent = "#1D4ED8",
   accentText = "#FFFFFF",
@@ -109,6 +111,15 @@ export default function SwiftLinkButtons({
   /** "tile" (default) = the original tile system. "solid"/"outline" render
    *  EVERY link as a Linktree-style full-width row in the button color. */
   buttonStyle?: "tile" | "solid" | "outline";
+  /** Frost the plain rows: translucent white over a blur of whatever is
+   *  behind them. Only ever passed with page background media — over a flat
+   *  colour a backdrop-filter has nothing to blur and the row would just look
+   *  washed out. Set by the owner ("Blur the link buttons"). */
+  glass?: boolean;
+  /** There is a photo or video behind this list. Independent of `glass`:
+   *  section headers sit directly on that media whether or not the ROWS are
+   *  frosted, so they need the contrast either way. */
+  overMedia?: boolean;
   /** Custom row color (Pro fine-tune) — defaults to the Look's accent. */
   buttonColor?: string;
   /** The Look's accent + its AA-tested text — the row color's default. */
@@ -226,7 +237,13 @@ export default function SwiftLinkButtons({
             <p
               key={i}
               className="w-full text-left text-[0.6875rem] font-bold uppercase tracking-[0.14em] mt-4 mb-1.5 px-0.5"
-              style={{ color: textColor, opacity: 0.55 }}
+              // A section header is the lightest-weight text on the page:
+              // small, uppercase, and deliberately faint so it reads as a
+              // divider rather than a link. On a flat sheet 0.55 is right. On
+              // a photo it is the first thing to disappear — measured against
+              // a bright sky patch, where it was barely legible — so over
+              // media it comes up to 0.85 and keeps the sheet's text shadow.
+              style={{ color: textColor, opacity: overMedia ? 0.85 : 0.55 }}
             >
               {link.emoji ? `${link.emoji} ` : ""}{link.label}
             </p>
@@ -247,20 +264,40 @@ export default function SwiftLinkButtons({
         if (size === "compact") {
           const pickedRow = resolveRowStyle(link, buttonStyle);
           const variant = pickedRow === "solid" || pickedRow === "outline" ? pickedRow : "compact";
+          // Glass applies to the STOCK row only. Solid and outline are colour
+          // choices the owner made on purpose; frosting them would throw that
+          // colour away. Featured/grid tiles are unaffected either way — they
+          // paint their own image over the surface, so a backdrop blur behind
+          // them would never be visible.
+          const glassRow = glass && variant === "compact";
           const rowClass =
             variant === "solid"
               ? "shadow-[0_2px_10px_rgba(15,23,42,0.10)]"
               : variant === "outline"
                 ? ""
-                : light
-                  ? "ring-1 bg-white ring-black/[0.08] shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
-                  : "ring-1 bg-white/[0.07] ring-white/10";
+                : glassRow
+                  ? "ring-1 ring-white/[0.14]"
+                  : light
+                    ? "ring-1 bg-white ring-black/[0.08] shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
+                    : "ring-1 bg-white/[0.07] ring-white/10";
           const rowStyle =
             variant === "solid"
               ? { background: btnColor }
               : variant === "outline"
                 ? { boxShadow: `inset 0 0 0 1.5px ${btnColor}` }
-                : undefined;
+                : glassRow
+                  ? {
+                      // Measured off the reference page (linktr.ee, 2026-09-10):
+                      // a 10% white fill over blur(20px) with a slight
+                      // brightness lift and contrast drop. The lift is what
+                      // stops the row going muddy over a dark photo; the
+                      // contrast drop keeps a busy photo from reading THROUGH
+                      // the row and fighting the label.
+                      background: "rgba(255,255,255,0.10)",
+                      backdropFilter: "blur(20px) brightness(1.1) contrast(0.9)",
+                      WebkitBackdropFilter: "blur(20px) brightness(1.1) contrast(0.9)",
+                    }
+                  : undefined;
           // Solid rows carry their own text; outline/compact labels sit on the
           // sheet, so they keep the page's (AA-tested) text color.
           const labelColor = variant === "solid" ? btnText : textColor;
