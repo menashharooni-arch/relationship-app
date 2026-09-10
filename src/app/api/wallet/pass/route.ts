@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasWalletConfig } from "@/lib/wallet-config";
+import { isRateLimited } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
 
 // Signing needs Node (node-forge + fetch of assets) — never the edge runtime.
 export const runtime = "nodejs";
@@ -16,6 +18,30 @@ export async function GET(req: NextRequest) {
 
   const username = req.nextUrl.searchParams.get("card");
   if (!username) return NextResponse.json({ error: "missing_card" }, { status: 400 });
+
+  // Building a pass is the most expensive thing this app does per request: it
+  // signs a bundle with node-forge and fetches the card's images first, and the
+  // response is `no-store`, so nothing is absorbed by the CDN. The route is
+  // public by design (anyone viewing a card can add it to Wallet), so it was an
+  // unauthenticated, uncapped way to make the server do real work — fine at ten
+  // users, not at thousands.
+  //
+  // THE NUMBER IS SET BY THE BOOTH, NOT BY THE ATTACKER. The product's best
+  // moment is a conference stand where fifty people on ONE venue wifi each add
+  // the same pass, so they share an IP. A tight cap would break exactly the
+  // scenario this product exists for. 120 per IP per 10 minutes sits far above
+  // the busiest realistic stand and still turns "unlimited" into 12/minute for
+  // a script. If a real crowd ever trips it, raise it — do not tighten it.
+  //
+  // Deliberately NOT applied to the other two public endpoints an audit
+  // flagged: card-signature is CDN-cached (s-maxage=300) so email image
+  // proxies never reach the function, and an IP cap there would break embedded
+  // signatures for everyone behind Gmail's proxy; the vCard is cheap and is
+  // fetched once per visitor saving a contact — the same booth problem, with
+  // none of the cost.
+  if (await isRateLimited(`wallet-pass:${clientIp(req) ?? "anon"}`, 120, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
 
   try {
     // One builder, shared with the web service that serves updates — so the
