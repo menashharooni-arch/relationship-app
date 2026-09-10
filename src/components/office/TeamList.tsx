@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { relativeTime, shortDate } from "@/lib/relative-time";
-import { MEMBER_STATUS_LABEL, type TeamPerson, type TeamInvite, type MemberStatus } from "@/lib/office-team";
+// MEMBER_STATUS_LABEL comes from lib/member-status, NOT lib/office-team:
+// office-team reaches for the service-role database client, and importing a
+// value from it here would put that module on this client bundle's path. The
+// row types stay TYPE imports, which the compiler erases entirely.
+import { MEMBER_STATUS_LABEL, type MemberStatus } from "@/lib/member-status";
+import type { TeamPerson, TeamInvite } from "@/lib/office-team";
 import { InviteRowActions, RemoveMemberButton } from "@/components/office/TeamActions";
 
 // One list for real members and pending invitations, plus the detail drawer.

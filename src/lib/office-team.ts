@@ -3,6 +3,7 @@ import { getAccountEmailMap } from "@/lib/account-email";
 import { getOfficeAnalytics, type EmployeeAnalytics } from "@/lib/office-analytics";
 import { getOfficeSeatUsage, type SeatUsage } from "@/lib/office-seats";
 import { isInviteExpired } from "@/lib/office-invite";
+import type { MemberStatus } from "@/lib/member-status";
 
 // ── Team-tab data: monthly stats, per-person activity, setup progress ───────
 // Everything the Team tab shows beyond what getOfficeAnalytics already counts.
@@ -25,24 +26,12 @@ export type MonthStat = {
   deltaPct: number | null;
 };
 
-// The six states an owner can see. Deliberately a closed set — no raw enums
-// reach the UI, and every one of them implies a different next action.
-export type MemberStatus =
-  | "active"            // live card + activity in the window
-  | "card_incomplete"   // accepted the invite, never built a card
-  | "card_deactivated"  // has cards, all of them switched off
-  | "idle"              // live card, but nothing has happened lately
-  | "invite_sent"       // pending invitation, still valid
-  | "invite_expired";   // pending invitation, past its window
-
-export const MEMBER_STATUS_LABEL: Record<MemberStatus, string> = {
-  active: "Active",
-  card_incomplete: "Card not completed",
-  card_deactivated: "Card deactivated",
-  idle: "Not using it yet",
-  invite_sent: "Pending",
-  invite_expired: "Invite expired",
-};
+// The status vocabulary now lives in lib/member-status (client-safe).
+// Re-exported so existing server-side importers are untouched — but a CLIENT
+// component must import from "@/lib/member-status" directly, or it pulls this
+// module, and the service-role client, onto its bundle path.
+export { MEMBER_STATUS_LABEL } from "@/lib/member-status";
+export type { MemberStatus } from "@/lib/member-status";
 
 export type TeamPerson = EmployeeAnalytics & {
   kind: "member";

@@ -1,6 +1,27 @@
+// This module holds the service-role key, which bypasses every row-level
+// security policy in the database — the most dangerous value in the product.
+// "Only use server-side" was a comment, and a comment is a hope.
+//
+// WHAT ENFORCES IT: tests/server-only-boundary.test.ts, which walks the import
+// graph out of every "use client" entry and fails CI with the offending chain
+// if any of them can reach this file. Verified to fire by injecting a
+// violation and watching it fail, then pass again once removed.
+//
+// WHAT DOES NOT: `import "server-only"`, the React-official marker, was tried
+// here first and does nothing under Turbopack — a client component that
+// imports AND CALLS getAdminSupabase built with exit code 0 and loaded in a
+// real browser with no build error and no console error. It also broke the
+// test runner, which resolves the package to its throwing path. A guard that
+// looks like protection and isn't is worse than none, so it is gone.
+//
+// Nothing has ever leaked: Next does not inline a non-NEXT_PUBLIC_ env var
+// into client code, so the key itself cannot travel even along a bad import.
+// The two modules that had drifted onto a client path (office-leads,
+// office-team, each via a display constant) now keep those constants in
+// lib/lead-status and lib/member-status.
 import { createClient } from "@supabase/supabase-js";
 
-// Service-role client — bypasses RLS. Only use server-side, never expose to client.
+// Service-role client — bypasses RLS. Server-side only; see above.
 export function getAdminSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

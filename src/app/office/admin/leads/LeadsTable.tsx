@@ -2,12 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { relativeTime } from "@/lib/relative-time";
-import {
-  leadStatusView,
-  LEAD_STATUS_OPTIONS,
-  type OfficeLead,
-  type LeadStatusValue,
-} from "@/lib/office-leads";
+// The status vocabulary comes from lib/lead-status, NOT lib/office-leads:
+// office-leads reaches for the service-role database client, and importing a
+// value from it here would put that module on this client bundle's path.
+// OfficeLead stays a TYPE import, which the compiler erases entirely.
+import { leadStatusView, LEAD_STATUS_OPTIONS, type LeadStatusValue } from "@/lib/lead-status";
+import type { OfficeLead } from "@/lib/office-leads";
 
 // Client-side filter + search over the (already server-authorized) team leads.
 // The volume is capped server-side, so filtering in the browser keeps this
