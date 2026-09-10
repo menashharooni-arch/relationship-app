@@ -79,6 +79,12 @@ describe("the Glass family renders as glass", () => {
           washCovers: !!wr && Math.abs(wr.width - sr.width) <= 1 && Math.abs(wr.height - sr.height) <= 1,
           washImage: wash ? getComputedStyle(wash).backgroundImage.slice(0, 40) : null,
           sheetBg: cs.backgroundColor,
+          // Under a cover/banner hero the glass tint is a 64px ramp rather
+          // than a flat fill, so it lives in background-IMAGE and
+          // background-color reads transparent. Both shapes are the sheet's
+          // tint; a test that only knew one of them would call the ramp a
+          // missing surface.
+          sheetImage: cs.backgroundImage === "none" ? null : cs.backgroundImage,
           sheetBackdrop: cs.backdropFilter || "none",
           nameColor: getComputedStyle(name).color,
         };
@@ -88,17 +94,39 @@ describe("the Glass family renders as glass", () => {
     }
   }
 
+  /** Every alpha the sheet's tint uses, whichever property carries it. */
+  function tintAlphas(r: { sheetBg: string; sheetImage: string | null }): number[] {
+    const source = r.sheetImage ?? r.sheetBg;
+    return [...source.matchAll(/rgba?\((?:[^)]*?,\s*)([\d.]+)\)/g)].map((m) => Number(m[1]));
+  }
+
   it("paints a full-bleed colour wash behind a translucent, blurred sheet", async () => {
-    const r = await probe({ look: "aurora" });
+    // Compact circle: no hero above, so the sheet is a flat translucent fill.
+    const r = await probe({ look: "aurora", heroStyle: "avatar" });
     expect(r.hasWash).toBe(true);
     expect(r.washCovers).toBe(true);
     expect(r.washImage).toContain("gradient");
+    expect(r.sheetImage).toBeNull();
     // TRANSLUCENT: an opaque sheet would hide the wash completely.
     expect(r.sheetBg).toMatch(/^rgba\(/);
-    const alpha = Number(/rgba\([^)]*,\s*([\d.]+)\)/.exec(r.sheetBg)![1]);
+    const alpha = tintAlphas(r).at(-1)!;
     expect(alpha).toBeGreaterThan(0.2);
     expect(alpha).toBeLessThan(1);
     // FROSTED: without the blur it is a tinted pane, not glass.
+    expect(r.sheetBackdrop).toContain("blur");
+  }, 60_000);
+
+  it("ramps that tint in under a hero, instead of starting it at a hard edge", async () => {
+    // The other half of the seam fix. A flat fill here is the 24-40 point
+    // luminance step the test at the bottom of this file measures.
+    const r = await probe({ look: "aurora", heroStyle: "cover" });
+    expect(r.sheetImage, "the tint must be a gradient under a hero").toContain("gradient");
+    const alphas = tintAlphas(r);
+    // Starts fully transparent…
+    expect(Math.min(...alphas)).toBe(0);
+    // …and lands on the same translucent tint the flat version uses.
+    expect(Math.max(...alphas)).toBeGreaterThan(0.2);
+    expect(Math.max(...alphas)).toBeLessThan(1);
     expect(r.sheetBackdrop).toContain("blur");
   }, 60_000);
 
@@ -107,8 +135,9 @@ describe("the Glass family renders as glass", () => {
       const r = await probe({ look });
       expect(r.hasWash, look).toBe(false);
       expect(r.sheetBackdrop, look).toBe("none");
-      // Opaque: rgb(), or an rgba with alpha 1.
+      // Opaque: rgb(), or an rgba with alpha 1 — and never the glass ramp.
       expect(r.sheetBg, look).not.toMatch(/rgba\([^)]*,\s*0?\.\d+\)/);
+      expect(tintAlphas(r).filter((a) => a < 1), look).toHaveLength(0);
     }
   }, 60_000);
 
@@ -200,4 +229,88 @@ describe("the Look picker's three dropdowns", () => {
     expect(r.open).toEqual(["Solid"]);
     expect(r.swatchCount).toBe(looksInFamily("solid").length);
   }, 60_000);
+});
+
+// ── No line across the page where the hero meets the sheet ──────────────────
+//
+// A frosted sheet has a hard top edge, and under a cover or banner photo that
+// edge is a horizontal line straight across someone's page.
+//
+// Found by measuring, not by looking: at 390px the sheet starts at y=353 (it
+// overlaps the hero's last 40px) and its tint used to appear there all at once
+// — a row-to-row luminance step of 24 on Aurora, 33 on Frost and 40 on AURA,
+// which had shipped that way since it launched. An opaque look never shows it,
+// because its hero fade reaches full sheet colour before the edge; a
+// translucent one cannot, because it never reaches full opacity at all.
+//
+// The fix was two things — dissolving the hero's own alpha into the wash, and
+// ramping the sheet's tint in over 64px — and this is what proves they are both
+// still there. It measures the SEAM REGION only, and compares every look
+// against an opaque one rendered identically, so it cannot be satisfied by
+// making the whole page flat.
+describe("the hero dissolves into a glass page with no seam", () => {
+  let browser: Browser;
+  beforeAll(async () => { browser = await launchBrowser(); }, 120_000);
+  afterAll(async () => { await browser?.close(); });
+
+  // A local, opaque, high-contrast photo stand-in. Deterministic and offline:
+  // a remote image would make this test a network coin-flip, and a photo that
+  // happened to be dark at the bottom would hide the very defect it guards.
+  const PHOTO = "data:image/svg+xml;utf8," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="600" height="600" fill="#FFF3C4"/></svg>',
+  );
+
+  /** The largest row-to-row luminance step in the page's gutters, and where. */
+  async function seam(look: string): Promise<{ step: number; y: number }> {
+    const css = await appCss();
+    const markup = renderToStaticMarkup(
+      createElement(SwiftLinkProfile, { ...BASE, photoUrl: "https://media.test/p", pageStyle: { look, heroStyle: "cover" } }),
+    ).replaceAll("https://media.test/p", PHOTO);
+    const page = await browser.newPage();
+    try {
+      await page.setViewportSize({ width: 390, height: 1000 });
+      await page.setContent(
+        `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style>
+         <style>body{margin:0;background:#000}</style></head>
+         <body><div style="width:390px">${markup}</div></body></html>`,
+        { waitUntil: "load" },
+      );
+      await page.waitForTimeout(400);
+      // The band around the sheet's top edge, in the gutters where no text sits.
+      const buf = await page.screenshot({ clip: { x: 0, y: 280, width: 390, height: 160 } });
+      const sharp = (await import("sharp")).default;
+      const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
+      const xs = [4, 8, 12, 16, 374, 378, 382, 386];
+      const rowLum = (y: number) => {
+        let t = 0;
+        for (const x of xs) {
+          const i = (y * info.width + x) * info.channels;
+          t += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+        }
+        return t / xs.length;
+      };
+      let step = 0, at = 0;
+      for (let y = 1; y < info.height; y++) {
+        const d = Math.abs(rowLum(y) - rowLum(y - 1));
+        if (d > step) { step = d; at = y + 280; }
+      }
+      return { step, y: at };
+    } finally {
+      await page.close();
+    }
+  }
+
+  it("every glass look is as smooth through the seam as an opaque one", async () => {
+    // Ink is the control: an ordinary gradient look, same photo, same layout,
+    // whose hero fade has always blended correctly. Anything materially worse
+    // than it is a seam.
+    const control = await seam("ink");
+    for (const look of ["aurora", "frost", "mist", "ember", "aura"]) {
+      const r = await seam(look);
+      expect(
+        r.step,
+        `${look} steps ${r.step.toFixed(1)} at y=${r.y} vs control ink ${control.step.toFixed(1)}`,
+      ).toBeLessThan(control.step + 6);
+    }
+  }, 120_000);
 });

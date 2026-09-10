@@ -42,6 +42,18 @@ function isLightHex(hex: string): boolean {
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.5;
 }
 
+/**
+ * The alpha ramp that dissolves a cover/banner photo into a GLASS look's wash.
+ *
+ * Eased rather than linear, and fully transparent by 92% rather than 100%: a
+ * straight ramp leaves a faint but perfectly straight band of photo at the very
+ * bottom edge, which reads as a line for the same reason the colour fade did.
+ * Ending early means the last few percent are already empty when the sheet's
+ * top edge overlaps them.
+ */
+const HERO_DISSOLVE =
+  "linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 38%, rgba(0,0,0,0.88) 52%, rgba(0,0,0,0.6) 66%, rgba(0,0,0,0.28) 80%, rgba(0,0,0,0) 92%, rgba(0,0,0,0) 100%)";
+
 function initialsOf(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
@@ -241,6 +253,26 @@ export default function SwiftLinkProfile({
   // there made the sheet's edge itself read as a line. Full opacity by 72%
   // covers the worst case; everything below it is one solid sheet color.
   const fadeMax = glassOn ? glassAlpha : 1;
+
+  // A frosted sheet has a HARD TOP EDGE, and under a cover/banner hero that
+  // edge is a line across the page.
+  //
+  // Measured on a 390px render: the sheet starts at y=353 (it overlaps the
+  // hero's last 40px), and its tint appears there all at once — a row-to-row
+  // luminance step of 24 on Aurora, 33 on Frost and 40 on AURA, which has
+  // shipped with it since the day it launched. An opaque look has no step
+  // because its hero fade has already reached the sheet colour by then; a
+  // translucent one cannot, because it never reaches full opacity at all.
+  //
+  // Ramping the tint in over the first 64px removes the edge without touching
+  // a single colour: same hex, same alpha from 64px down, and `hexAlpha(.., 0)`
+  // starts from the SAME hue at zero alpha so nothing shifts on the way in.
+  // Only where a hero sits above it — with the compact-circle and no-header
+  // layouts the sheet starts at the top of the page, where there is no edge to
+  // hide and a ramp would just wash the first 64px out.
+  const sheetGlassBg = flatTop
+    ? sheetMeet
+    : `linear-gradient(180deg, ${hexAlpha(sheetBg, 0)} 0px, ${sheetMeet} 64px)`;
   const heroFade = `linear-gradient(180deg, ${[
     [0, 0], [10, 0.04], [20, 0.12], [30, 0.25], [40, 0.4], [50, 0.56], [58, 0.7], [65, 0.83], [69, 0.94], [72, 1], [100, 1],
   ].map(([stop, a]) => `${hexAlpha(sheetBg, a * fadeMax)} ${stop}%`).join(", ")})`;
@@ -369,7 +401,29 @@ export default function SwiftLinkProfile({
             overflow-hidden clips these corners, and on the phone the page is
             full-bleed square. */}
         {(heroStyle === "cover" || heroBanner) && (
-        <div className={`relative w-full overflow-hidden ${heroBanner ? "h-[260px]" : "aspect-square max-h-[520px]"}`}>
+        <div
+          className={`relative w-full overflow-hidden ${heroBanner ? "h-[260px]" : "aspect-square max-h-[520px]"}`}
+          // GLASS looks dissolve the hero into the page instead of washing it
+          // with a sheet-coloured overlay.
+          //
+          // The colour fade below cannot work here, and the failure was ugly:
+          // it ramps to `sheetMeet`, which for a glass look is the sheet at
+          // ~50% alpha. So the photo was still half-visible where it ended,
+          // while immediately below it the same 50% tint sat over the WASH
+          // instead of over the photo — two different colours meeting at the
+          // photo's bottom edge, i.e. a hard horizontal line across the page.
+          // Aura never showed it because the blurred photo behind the sheet is
+          // the same image the hero is fading into, so both sides matched.
+          //
+          // Masking the hero's own alpha removes the colour-matching problem
+          // rather than solving it: the photo fades to TRANSPARENT and what
+          // shows through is the wash itself, which is exactly what continues
+          // below. There is nothing left to mismatch.
+          style={wash ? {
+            maskImage: HERO_DISSOLVE,
+            WebkitMaskImage: HERO_DISSOLVE,
+          } : undefined}
+        >
           {hero.kind === "photo" ? (
             // A headshot is a photo of a person: fill the frame and crop, which
             // is what makes the link.me hero look right. The BANNER anchors the
@@ -426,10 +480,14 @@ export default function SwiftLinkProfile({
               2026-09-02: link.me's Daps page) — the page color gradually
               takes the image over, and the squared sheet below continues it
               invisibly, so the content just emerges out of the photo. */}
-          <div
-            className="absolute inset-x-0 bottom-0 h-[55%] pointer-events-none"
-            style={{ background: heroFade }}
-          />
+          {/* Skipped for glass looks — the mask above does this job, and an
+              overlay inside a masked box would simply be masked with it. */}
+          {!wash && (
+            <div
+              className="absolute inset-x-0 bottom-0 h-[55%] pointer-events-none"
+              style={{ background: heroFade }}
+            />
+          )}
         </div>
         )}
 
@@ -450,7 +508,7 @@ export default function SwiftLinkProfile({
             background: bgMedia
               ? "transparent"
               : glassOn
-                ? sheetMeet
+                ? sheetGlassBg
                 : sheetTo
                   ? `linear-gradient(180deg, ${sheetBg} 0%, ${sheetTo} 100%)`
                   : sheetBg,
