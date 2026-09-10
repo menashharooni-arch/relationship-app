@@ -15,6 +15,7 @@ const BADGE = "src/components/AppStoreBadge.tsx";
 
 // Every consumer, and what each one is for.
 const CONSUMERS: [string, string][] = [
+  ["src/app/page.tsx", "homepage hero, right of See how it works — phones only"],
   ["src/components/site/SiteNav.tsx", "desktop header, left of Log in"],
   ["src/components/site/SiteFooter.tsx", "footer"],
   ["src/components/WelcomePlan.tsx", "/welcome — card is live (new signup)"],
@@ -63,19 +64,29 @@ describe("the shine", () => {
 });
 
 describe("placement", () => {
-  // Owner decision 2026-09-03 (evening): NO badge in the homepage hero. The
-  // morning's request had put one directly right of "See how it works"; the
-  // owner then removed exactly that one — the header and footer badges stay.
-  // "See how it works" itself and the claim box are untouched.
-  it("hero: there is no App Store badge next to 'See how it works'", () => {
+  // Owner decision 2026-09-03 (evening): no badge in the homepage hero AT ANY
+  // WIDTH, reversing that morning's request — the header and footer badges
+  // stay. Superseded 2026-09-10, and narrowly: the hero badge is back on
+  // PHONES ONLY.
+  //
+  // Not a flip-flop. The 2026-09-03 reasoning was "the desktop header already
+  // carries one next to Log in, and the footer another, so a third in the hero
+  // was clutter", and that is still true on desktop — the badge below is
+  // `lg:hidden`, so desktop is exactly as that decision left it. Below lg it
+  // was never true: the header badge is inside a `hidden lg:flex` cluster, so
+  // removing the hero one left a phone with no App Store link above the fold
+  // at all. Measured on the live site at 390px before the change: one painted
+  // badge on the whole page, in the footer, 13,071px down.
+  it("hero: the badge is beside 'See how it works', and only on phones", () => {
     const src = read("src/app/page.tsx");
-    expect(src).not.toContain("<AppStoreBadge");
-    expect(src).not.toMatch(/from "@\/components\/AppStoreBadge"/);
-    // The button and the claim box are still there, in that order.
     const cta = src.indexOf('id="hero-cta"');
     expect(cta).toBeGreaterThan(-1);
     expect(src.slice(cta)).toContain("See how it works");
-    expect(src.indexOf("<HeroClaim", cta)).toBeGreaterThan(cta);
+    // Order: the button, then the badge, then the claim box.
+    const badge = src.indexOf("<AppStoreBadge", cta);
+    expect(badge, "the badge must come after the CTA").toBeGreaterThan(cta);
+    expect(src.indexOf("<HeroClaim", cta), "the claim box stays last").toBeGreaterThan(badge);
+    expect(src.slice(badge, badge + 120)).toContain('className="lg:hidden"');
   });
 
   // Owner kept the header badge on desktop (2026-09-03) — but ONLY there. The
@@ -152,5 +163,55 @@ describe("self-activating contract", () => {
     expect(out).toContain("rd-appstore-shine");
     // Opens out of the site; never without noopener.
     expect(out).toContain('rel="noopener noreferrer"');
+  });
+});
+
+// ── Exactly one badge above the fold, at every width ───────────────────────
+//
+// The nav badge lives in a `hidden lg:flex` cluster, because a 375px bar has no
+// room for the logo, the CTA, the menu trigger AND a badge. That left phones
+// with no App Store link above the fold at all — the nearest one was in the
+// footer, measured 13,000px down the homepage — while SiteNav's own comment
+// said "Phones get the hero badge beside 'See how it works' instead". It had
+// been saying that with no hero badge to point at.
+//
+// So the hero badge is `lg:hidden`: the exact complement of that cluster. The
+// pair has to stay complementary or the site gets two badges in one viewport
+// (which is what the 2026-09-03 removal was avoiding) or none (which is what it
+// caused). Both halves are pinned here because either one alone reads as
+// arbitrary.
+describe("the hero badge and the nav badge are complements", () => {
+  const hero = read("src/app/page.tsx");
+  const nav = read("src/components/site/SiteNav.tsx");
+
+  it("the hero carries a phone-only badge beside See how it works", () => {
+    const row = hero.slice(hero.indexOf('id="hero-cta"') - 900, hero.indexOf("<HeroClaim"));
+    expect(row, "the badge must sit in the same row as the CTA").toContain("<AppStoreBadge");
+    expect(row).toMatch(/<AppStoreBadge[^>]*className="lg:hidden"/);
+    // size="lg" is the one built for this slot — 50px tall, matching the
+    // .rd-btn-lg beside it to the pixel. Any other size and the two sit a
+    // couple of pixels off, which is the sort of thing you cannot unsee.
+    expect(row).toMatch(/<AppStoreBadge[^>]*size="lg"/);
+  });
+
+  it("the nav badge stays desktop-only, so the two never both show", () => {
+    // Anchored on the badge and read BACKWARDS to its wrapper: the file has
+    // more than one `hidden lg:flex`, and slicing from the first found the
+    // desktop links row instead of the button cluster.
+    const at = nav.indexOf("<AppStoreBadge");
+    expect(at, "the nav must still carry a badge").toBeGreaterThan(-1);
+    const before = nav.slice(0, at);
+    const wrapper = before.lastIndexOf('<div className="hidden lg:flex');
+    expect(wrapper, "the nav badge must sit inside a hidden lg:flex cluster").toBeGreaterThan(-1);
+    // …and nothing closes that div between the wrapper and the badge.
+    expect(before.slice(wrapper).includes("</div>")).toBe(false);
+    expect(nav.slice(at, at + 80)).toContain('size="sm"');
+  });
+
+  it("lg is used by the hero and nowhere else", () => {
+    // It is tuned to one specific neighbour. Reusing it somewhere without that
+    // 50px button beside it would inherit padding chosen for a 343px column.
+    const users = CONSUMERS.map(([f]) => f).filter((f) => /size="lg"/.test(read(f)));
+    expect(users).toEqual(["src/app/page.tsx"]);
   });
 });
