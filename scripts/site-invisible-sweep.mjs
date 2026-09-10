@@ -8,6 +8,7 @@
 // paint check reported "invisible content" when the site was perfectly fine. A
 // check that cries wolf is worse than no check.
 import { chromium } from "playwright";
+import { markInternal } from "./qa-internal.mjs";
 
 const BASE = process.env.SWEEP_BASE || "https://swiftcard.me";
 const PAGES = ["/", "/pricing", "/templates", "/compare", "/testimonials", "/preview", "/cards/new", "/login", "/checkout?plan=pro", "/upgrade", "/privacy", "/contact"];
@@ -58,7 +59,7 @@ async function sweep(page) {
 
 for (const path of PAGES) {
   for (const [label, vp] of [["desktop", { width: 1280, height: 800 }], ["phone", { width: 390, height: 844 }]]) {
-    const ctx = await browser.newContext({ viewport: vp });
+    const ctx = await markInternal(await browser.newContext({ viewport: vp }));
     const page = await ctx.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(String(e.message).slice(0, 80)));
