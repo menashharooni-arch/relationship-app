@@ -20,7 +20,7 @@ import type { TemplateStyle } from "./shared";
 import { META, FALLBACK_META, type Look } from "@/lib/template-style-presets";
 import { useRef, useState } from "react";
 import {
-  CARD_FINISHES, FINISH_FAMILIES, getFinish,
+  CARD_FINISHES, FINISH_FAMILIES, getFinish, isFreeFinish,
   composePanelBackground, PANEL_DIM_DEFAULT,
 } from "@/lib/card-finishes";
 import { isAllowedMedia, uploadMedia, uploadErrorMessage, WRONG_TYPE_MESSAGE, IMAGE_TYPES, VIDEO_TYPES } from "@/lib/upload-media";
@@ -54,15 +54,23 @@ function LooksGallery({
   looks,
   value,
   onPick,
+  locked = false,
 }: {
   looks: Look[];
   value: TemplateStyle;
   onPick: (look: Look) => void;
+  locked?: boolean;
 }) {
   return (
     <div className="grid grid-cols-3 gap-2">
       {looks.map((look) => {
         const active = looksActive(value, look);
+        // A Look built on a Pro finish still SHOWS its finish here and still
+        // applies on tap — the card previews exactly as it would. The save path
+        // drops the finish for a Free account (lib/plan.ts), so the tag says so
+        // in advance rather than letting the card quietly come back flatter
+        // than the swatch promised.
+        const needsPro = locked && !!look.finish && !isFreeFinish(look.finish);
         return (
           <button
             key={look.name}
@@ -70,11 +78,16 @@ function LooksGallery({
             onClick={() => onPick(look)}
             className="group text-left"
             aria-pressed={active}
+            title={look.finish ? `${look.name} — ${getFinish(look.finish).name.toLowerCase()} finish` : look.name}
           >
             <div
               className="h-11 rounded-lg flex items-center px-2.5 transition-transform group-hover:scale-[1.03]"
               style={{
-                background: look.bg,
+                // The FINISH, not just the colour. A Look whose whole point is
+                // the material rendered as a flat chip identical to the plain
+                // colour beside it, so the two reads that matter — sea glass,
+                // brushed metal — were invisible until after you picked one.
+                background: composePanelBackground(look.bg, look.finish),
                 border: active ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.12)",
                 boxShadow: active ? "0 0 0 2px rgba(59,130,246,0.25)" : undefined,
               }}
@@ -82,7 +95,10 @@ function LooksGallery({
               {/* Aa uses a legible color for the picker even on light themes */}
               <span className="text-sm font-bold leading-none" style={{ color: isDarkBg(look.bg) ? look.text : "#111827", fontFamily: look.font }}>Aa</span>
             </div>
-            <p className={`mt-1 text-[10px] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-500"}`}>{look.name}</p>
+            <span className="mt-1 flex items-center gap-1 min-w-0">
+              <span className={`text-[10px] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-500"}`}>{look.name}</span>
+              {needsPro && <span className="text-[8px] font-bold text-blue-400 shrink-0">PRO</span>}
+            </span>
           </button>
         );
       })}
@@ -496,7 +512,7 @@ export default function TemplateStyleControls({
 
       {/* ── Looks: the whole card in one tap ─────────────────────────────── */}
       <GroupHeading hint="The whole card, in one tap">Looks</GroupHeading>
-      <LooksGallery looks={meta.looks} value={value} onPick={applyLook} />
+      <LooksGallery looks={meta.looks} value={value} onPick={applyLook} locked={locked} />
 
       {/* ── Surfaces: what the card is made of ───────────────────────────── */}
       <GroupHeading hint="What the card is made of">Surfaces</GroupHeading>
