@@ -1,5 +1,4 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { getAccountEmailMap } from "@/lib/account-email";
 import { getOfficeAnalytics, type EmployeeAnalytics } from "@/lib/office-analytics";
 import { getOfficeSeatUsage, type SeatUsage } from "@/lib/office-seats";
 import { isInviteExpired } from "@/lib/office-invite";
@@ -261,7 +260,24 @@ export async function getTeamOverview(
     cardCounts.set(uid, cur);
   }
 
-  const authEmails = await getAccountEmailMap();
+  // The OWNER's signup address, and only the owner's — one lookup.
+  //
+  // This used to be getAccountEmailMap(), which pages through EVERY auth user
+  // in the project (up to 50 pages of 1000) on every single admin console load,
+  // to resolve fifteen addresses. It is a management-API call, not a query, and
+  // its cost grows with total signups rather than with team size — so the
+  // console gets slower for this customer every time an unrelated person signs
+  // up for SwiftCard.
+  //
+  // Members do not need it at all: office_members.invite_email IS the address
+  // they were invited at, and /api/join enforces that the accepting account
+  // matches it, so it is exactly as authoritative as the auth record. Only the
+  // owner has no member row.
+  let ownerAuthEmail: string | null = null;
+  try {
+    const { data: ownerUser } = await admin.auth.admin.getUserById(ownerId);
+    ownerAuthEmail = ownerUser?.user?.email ?? null;
+  } catch { /* falls back to profiles.email below */ }
   const people: TeamPerson[] = analytics.employees.map((e, i) => {
     const counts = cardCounts.get(e.userId) ?? { total: 0, live: 0 };
     const prof = profById.get(e.userId);
@@ -286,7 +302,10 @@ export async function getTeamOverview(
       title: (prof?.title as string | null) || null,
       // A member's identity is their AUTH signup email — profiles.email drifts
       // to the card's public contact email and is only the fallback.
-      email: authEmails.get(e.userId) || (prof?.email as string | null) || null,
+      // profiles.email drifts to the card's public contact address, so it is
+      // the last resort for both branches.
+      email: (e.isOwner ? ownerAuthEmail : (memberRow?.invite_email as string | null))
+        || (prof?.email as string | null) || null,
       photoUrl: (prof?.photo_url as string | null) || null,
       lastActiveAt,
       liveCards: counts.live,
