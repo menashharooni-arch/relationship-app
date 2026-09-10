@@ -67,10 +67,23 @@ describe("the wizard's top control goes BACK once there is a step behind you", (
   });
 
   it("looks identical to the link it replaced, so nothing moves on the page", () => {
-    // Same type scale, same colour, same icon gap, same 2rem gap to the content
-    // below. A different class here shifts the whole step down or across.
-    const cls = 'className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8"';
-    expect(topControl.split(cls).length - 1, "the Back button lost the shared link styling").toBeGreaterThanOrEqual(2);
+    // ONE class string for all three branches — Back, Home and Dashboard. They
+    // are the same slot in the same place; a second literal here is how they
+    // drift apart. Measured on production: same x, same y, same height, same
+    // font, same colour, same 2rem gap to the content below.
+    expect(topControl.split("className={topControlCls}").length - 1).toBe(3);
+    expect(topControl).not.toMatch(/className="text-gray-500/);
+  });
+
+  it("the shared class keeps the click target on the text, and the cursor a hand", () => {
+    const cls = wizard.slice(wizard.indexOf("const topControlCls ="), wizard.indexOf("const topControlCls =") + 400);
+    // w-fit: a bare flex container is a BLOCK, so "Home" stretched the full
+    // width of the column and every pixel of that invisible strip navigated
+    // away AND wiped the draft. Measured at 896px wide before this.
+    expect(cls, "w-fit is gone — the Home link is a full-width click target again").toMatch(/w-fit/);
+    // The slot is an <a> on step 1 and a <button> on 2–4; without this the
+    // cursor changes between steps on the very same control.
+    expect(cls).toMatch(/cursor-pointer/);
   });
 });
 

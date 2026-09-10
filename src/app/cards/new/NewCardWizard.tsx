@@ -81,6 +81,24 @@ const TEMPLATES = [
 const inputCls =
   "w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors";
 
+// The control at the top-left of every wizard step — "Back" on steps 2–4, the
+// way out ("Home" / "Dashboard") on step 1 and the success screen. ONE string
+// for all three so they cannot drift: it is the same slot in the same place, and
+// it must look and feel identical whichever one is rendered.
+//
+// `w-fit` is load-bearing. A bare flex container is a BLOCK, so the "Home" link
+// stretched the full 896px of the column and every pixel of that invisible strip
+// was a live click target — and clicking it wipes the whole unfinished draft
+// (resetGuestFlow). A stray click well to the right of the word "Home" silently
+// destroyed the card. The target is now the text and its arrow, nothing more.
+//
+// `cursor-pointer` because the same slot renders as an <a> on step 1 and a
+// <button> on steps 2–4, and a button would otherwise show the plain arrow
+// cursor while the link shows a hand. Same control, same place — it has to feel
+// the same on every step.
+const topControlCls =
+  "text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8 w-fit cursor-pointer";
+
 // Company information owned by the user's Office organization (sub-users only).
 // Managed fields are shown as already prepared instead of asked for; blanks the
 // office left stay editable. `lockDesign` mirrors the office's Lock Card Design.
@@ -905,7 +923,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           <button
             type="button"
             onClick={() => setStep(step - 1)}
-            className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8"
+            className={topControlCls}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -922,7 +940,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             // localStorage; a signed-in user's saved cards live in the DB and
             // are unaffected (and this link is guest-only anyway).
             onClick={() => resetGuestFlow()}
-            className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8"
+            className={topControlCls}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -930,7 +948,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             Home
           </Link>
         ) : (
-          <DashboardLink className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8">
+          <DashboardLink className={topControlCls}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
