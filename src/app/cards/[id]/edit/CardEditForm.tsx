@@ -817,8 +817,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   <ManagedTag />
                 </div>
                 <p className="text-gray-400 text-sm leading-relaxed">
-                  Your organization keeps every card matching, so the template, colors and fonts
-                  are set by your Office admin. If they turn off the design lock, you&apos;ll be able
+                  Your organization keeps every card matching, so the template, colors, fonts,
+                  finish and panel background are set by your Office admin. If they turn off the design lock, you&apos;ll be able
                   to customize your card&apos;s look right here.
                 </p>
               </div>

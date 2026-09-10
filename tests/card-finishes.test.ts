@@ -6,6 +6,8 @@ import {
   getFinish, isFreeFinish, cssUrl, composePanelBackground,
 } from "@/lib/card-finishes";
 import { templateStyle, panelBackground } from "@/lib/template-style";
+import { overlayOfficeDesign } from "@/lib/office-brand";
+import { isPaidPlan } from "@/lib/plan";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
@@ -243,5 +245,55 @@ describe("every TemplateStyle key survives a round trip in both flows", () => {
   it("the stored shape declares them, so the compiler catches the next one", () => {
     const types = read("src/components/card-templates/types.tsx");
     for (const k of KEYS) expect(types, `CardCustomization is missing ${k}`).toContain(`${k}?:`);
+  });
+});
+
+// ── Every plan and every account type ────────────────────────────────────────
+//
+// Owner question, 2026-09-10: "these changes also had to have been put in all
+// types of plans and accounts — office plan admin account and sub-user
+// accounts. Did you consider this?" One real bug came out of asking it: the
+// office brand route filtered design values to STRINGS ONLY, so an admin could
+// move the Darken slider, save, and have every member's card render the photo
+// at a dim they never chose.
+describe("office admin and sub-user accounts", () => {
+  it("the brand route stores panelDim, the one numeric design key", () => {
+    const src = read("src/app/api/office/brand/route.ts");
+    expect(src, "a string-only filter silently drops the Darken slider").toMatch(
+      /key === "panelDim" && typeof v === "number" && Number\.isFinite\(v\)/
+    );
+    // Clamped on the way in, not just at render — the stored value is what
+    // every member card inherits.
+    expect(src).toMatch(/Math\.min\(0\.85, Math\.max\(0, v\)\)/);
+  });
+
+  it("the office look carries the new keys to every member card", () => {
+    // overlayOfficeDesign is type-agnostic (Record<string, unknown>), so a
+    // number rides along with the strings. This proves it rather than assuming.
+    const brand = { design: { finish: "brushed", panelMedia: "/u/hq.jpg", panelDim: 0.5 }, lockTemplate: true };
+    const member = overlayOfficeDesign({ finish: "gilt", bio: "mine" }, brand);
+    expect(member.finish).toBe("brushed");        // the office's look wins
+    expect(member.panelMedia).toBe("/u/hq.jpg");
+    expect(member.panelDim).toBe(0.5);            // the NUMBER survives
+    expect(member.bio).toBe("mine");              // their own content does not move
+  });
+
+  it("clears a key the office chose to omit, so nothing off-brand survives", () => {
+    const member = overlayOfficeDesign({ finish: "carbon" }, { design: { bgColor: "#111" }, lockTemplate: true });
+    expect(member.finish).toBeUndefined();
+  });
+
+  it("an office member is on a paid plan, so nothing of theirs is stripped", () => {
+    // Joining a team writes plan: "enterprise" (api/join). If that were not a
+    // paid plan, every member would lose the office's own finish on first save.
+    expect(isPaidPlan("enterprise")).toBe(true);
+    expect(isPaidPlan("pro")).toBe(true);
+    expect(isPaidPlan("free")).toBe(false);
+    expect(read("src/app/api/join/route.ts")).toContain('plan: "enterprise"');
+  });
+
+  it("applies the office look AFTER the plan sanitiser, so the brand always wins", () => {
+    const src = read("src/app/api/cards/[id]/route.ts");
+    expect(src.indexOf("sanitizeCustomizationForPlan")).toBeLessThan(src.indexOf("overlayOfficeDesign(updates.customization"));
   });
 });

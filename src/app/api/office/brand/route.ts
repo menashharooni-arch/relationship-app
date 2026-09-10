@@ -60,8 +60,15 @@ export async function PATCH(req: NextRequest) {
     : OFFICE_TEMPLATES.includes(templateIn) ? templateIn
     : ((office.brand_template as string | null) ?? null);
 
-  // The locked look — only known design keys, only string values, so a crafted
-  // request can't smuggle arbitrary JSON into every member card's customization.
+  // The locked look — only known design keys, and only scalar values, so a
+  // crafted request can't smuggle arbitrary JSON into every member card's
+  // customization.
+  //
+  // panelDim is the one NUMBER in this set (the scrim over a panel photo, from
+  // lib/card-finishes). A string-only filter dropped it silently, so an admin
+  // could move the Darken slider, save, and have every member's card render the
+  // photo at a dim they never chose. Clamped to the same 0-0.85 the renderer
+  // clamps to, which is also what keeps a hostile value from being stored.
   let design: Record<string, unknown> | null | undefined = undefined;
   if ("design" in body) {
     const d = body.design;
@@ -70,6 +77,9 @@ export async function PATCH(req: NextRequest) {
       for (const key of OFFICE_DESIGN_KEYS) {
         const v = (d as Record<string, unknown>)[key];
         if (typeof v === "string" && v.trim()) clean[key] = v.trim();
+        else if (key === "panelDim" && typeof v === "number" && Number.isFinite(v)) {
+          clean[key] = Math.min(0.85, Math.max(0, v));
+        }
       }
       design = Object.keys(clean).length ? clean : null;
     } else {
