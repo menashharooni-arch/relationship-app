@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   SWIFTLINK_LOOKS, FREE_SWIFTLINK_LOOKS, DEFAULT_SWIFTLINK_LOOK,
   getLook, isFreeLook, freeSafeLook,
+  LOOK_FAMILIES, looksInFamily, familyOfLook, washGradient,
 } from "@/lib/swiftlink-looks";
 
 // ── WCAG relative luminance / contrast ──────────────────────────────────────
@@ -41,6 +42,114 @@ describe("every Look is readable (WCAG AA)", () => {
   it("ids are unique", () => {
     const ids = SWIFTLINK_LOOKS.map((l) => l.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  // A GRADIENT look's sheet is two colours, and the text sits on both of them.
+  it.each(SWIFTLINK_LOOKS.filter((l) => l.sheetTo))("$id: text on the second gradient stop ≥ 4.5:1", (l) => {
+    const c = contrast(l.text, l.sheetTo!);
+    expect(c, `${l.id} text/sheetTo = ${c.toFixed(2)}`).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+// ── The GLASS family's real surface ─────────────────────────────────────────
+//
+// This is the check that keeps the see-through family honest. Text on a glass
+// look does NOT sit on `sheet`: it sits on `sheet` painted at `frost` alpha
+// over the colour wash, and the surface therefore changes down the page. The
+// worst stop is what a reader is actually up against.
+//
+// Without this, a wash could be darkened one shade at a time until a light
+// look's near-black text was sitting on a mid-grey, with every existing
+// assertion still green — because they all measure a colour that is never
+// fully on screen.
+function blend(over: string, under: string, alpha: number): string {
+  const [o, u] = [over, under].map((h) => {
+    const n = parseInt(h.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  });
+  const mix = o.map((c, i) => Math.round(c * alpha + u[i] * (1 - alpha)));
+  return "#" + mix.map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+
+describe("glass looks are readable through their own frosting", () => {
+  const glass = SWIFTLINK_LOOKS.filter((l) => l.wash?.length);
+
+  it("the family actually has glass looks with a wash", () => {
+    // Guards against the family surviving as a label after its content is
+    // refactored away.
+    expect(glass.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it.each(glass)("$id: text stays ≥ 4.5:1 over every wash stop", (l) => {
+    for (const stop of l.wash!) {
+      const surface = blend(l.sheet, stop, l.frost!);
+      const c = contrast(l.text, surface);
+      expect(c, `${l.id} over ${stop} → ${surface} = ${c.toFixed(2)}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.each(glass)("$id: the frosting never flips the look's own mode", (l) => {
+    // A "light" look whose surface goes dark under its wash would render its
+    // chrome (rings, hover wells) invisible — the same lie the mode test above
+    // catches for the sheet hex.
+    for (const stop of l.wash!) {
+      const surface = blend(l.sheet, stop, l.frost!);
+      expect(lum(surface) > 0.5, `${l.id} over ${stop} → ${surface}`).toBe(l.mode === "light");
+    }
+  });
+
+  it.each(glass)("$id: declares a frost alpha that leaves the wash visible", (l) => {
+    // Fully opaque is not glass, and near-transparent cannot carry text.
+    expect(l.frost, l.id).toBeGreaterThanOrEqual(0.45);
+    expect(l.frost, l.id).toBeLessThanOrEqual(0.9);
+  });
+
+  it("washGradient builds a real CSS gradient, and nothing for a solid look", () => {
+    expect(washGradient(getLook("frost"))).toMatch(/^linear-gradient\(160deg, #[0-9A-F]{6} 0%.*100%\)$/i);
+    expect(washGradient(getLook("paper"))).toBeNull();
+    // Aura is in the glass FAMILY but its "wash" is the owner's photo, which
+    // the renderer supplies — it must not also paint a gradient.
+    expect(washGradient(getLook("aura"))).toBeNull();
+  });
+});
+
+// ── The three families ──────────────────────────────────────────────────────
+describe("look families", () => {
+  it("every look declares a family the picker knows about", () => {
+    const known = new Set(LOOK_FAMILIES.map((f) => f.id));
+    for (const l of SWIFTLINK_LOOKS) {
+      expect(known.has(l.family), `${l.id} → ${l.family}`).toBe(true);
+    }
+  });
+
+  it("no family is empty — an empty dropdown is a dead control", () => {
+    for (const f of LOOK_FAMILIES) {
+      expect(looksInFamily(f.id).length, f.id).toBeGreaterThan(0);
+    }
+  });
+
+  it("every look is reachable from exactly one family", () => {
+    const total = LOOK_FAMILIES.reduce((n, f) => n + looksInFamily(f.id).length, 0);
+    expect(total).toBe(SWIFTLINK_LOOKS.length);
+  });
+
+  it("both free looks sit in the same group, so Free is never sent hunting", () => {
+    const fams = new Set(FREE_SWIFTLINK_LOOKS.map((id) => familyOfLook(id)));
+    expect(fams.size).toBe(1);
+    // …and it is the group the default opens on.
+    expect(familyOfLook(DEFAULT_SWIFTLINK_LOOK)).toBe([...fams][0]);
+  });
+
+  it("familyOfLook falls back with getLook rather than throwing", () => {
+    expect(familyOfLook("nonsense")).toBe(familyOfLook(DEFAULT_SWIFTLINK_LOOK));
+    expect(familyOfLook(null)).toBe(familyOfLook(DEFAULT_SWIFTLINK_LOOK));
+  });
+
+  it("each family is named and described for the dropdown row", () => {
+    for (const f of LOOK_FAMILIES) {
+      expect(f.name.length, f.id).toBeGreaterThan(2);
+      expect(f.blurb.length, f.id).toBeGreaterThan(10);
+    }
   });
 });
 

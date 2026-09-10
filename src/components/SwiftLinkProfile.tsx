@@ -12,7 +12,7 @@ import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
 import SwiftLinksPromoBadge from "@/components/SwiftLinksPromoBadge";
-import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeHeroContent, normalizeButtonStyle, pageMediaUrl, normalizePageMediaType, normalizePageDim, PAGE_MEDIA_BASE } from "@/lib/swiftlink-looks";
+import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeHeroContent, normalizeButtonStyle, pageMediaUrl, normalizePageMediaType, normalizePageDim, PAGE_MEDIA_BASE, washGradient } from "@/lib/swiftlink-looks";
 
 // Owner-picked "Social design": a named Look (every plan — Free gets the free
 // pair, see lib/swiftlink-looks) plus optional Pro fine-tuning (bg/text/font)
@@ -203,10 +203,22 @@ export default function SwiftLinkProfile({
   // media replaces exactly that surface, so the two cannot both run — the
   // same reason a custom background colour turns Aura off.
   const auraOn = !pageStyle?.bg && !bgMedia && !!look.aura && !!photoUrl;
+  // The GLASS family's colour wash — the same mechanic as Aura with a designed
+  // gradient behind the frost instead of the owner's photo, so it needs no
+  // headshot to look like anything. Turned off by the same two things that
+  // turn Aura off, for the same reason: both replace this exact surface.
+  const wash = !pageStyle?.bg && !bgMedia && !auraOn ? washGradient(look) : null;
+  // One flag for "the sheet is frosted glass over something", so every piece
+  // of chrome that has to meet that surface is computed once rather than
+  // asking about Aura and the wash separately and eventually disagreeing.
+  const glassOn = auraOn || !!wash;
+  // Aura's 0.42 is kept exactly — existing Aura pages must not shift. A wash
+  // look carries its own alpha, which is part of its AA sum (swiftlink-looks).
+  const glassAlpha = auraOn ? 0.42 : (look.frost ?? 0.7);
   // The one color the sheet's chrome (hero fade end-stop, glass tint) meets:
-  // solid for normal looks, a translucent tint of the same hex for Aura so
-  // the blurred photo glows through.
-  const sheetMeet = auraOn ? hexAlpha(sheetBg, 0.42) : sheetBg;
+  // solid for normal looks, a translucent tint of the same hex for glass ones
+  // so what is behind glows through.
+  const sheetMeet = glassOn ? hexAlpha(sheetBg, glassAlpha) : sheetBg;
   // A custom Pro background can flip the effective mode out from under the
   // Look, and the neutral chrome (rings, hovers, hero fade edge) must follow
   // the SURFACE, not the label — judge the sheet actually in use.
@@ -228,7 +240,7 @@ export default function SwiftLinkProfile({
   // fade on a cover, ~72% on the short banner — so a ramp still translucent
   // there made the sheet's edge itself read as a line. Full opacity by 72%
   // covers the worst case; everything below it is one solid sheet color.
-  const fadeMax = auraOn ? 0.42 : 1;
+  const fadeMax = glassOn ? glassAlpha : 1;
   const heroFade = `linear-gradient(180deg, ${[
     [0, 0], [10, 0.04], [20, 0.12], [30, 0.25], [40, 0.4], [50, 0.56], [58, 0.7], [65, 0.83], [69, 0.94], [72, 1], [100, 1],
   ].map(([stop, a]) => `${hexAlpha(sheetBg, a * fadeMax)} ${stop}%`).join(", ")})`;
@@ -294,6 +306,14 @@ export default function SwiftLinkProfile({
                 controlled (0-80%) with a sane default rather than fixed. */}
             <div data-sc-scrim className="absolute inset-0" style={{ background: `rgba(0,0,0,${bgDim / 100})` }} />
           </div>
+        )}
+
+        {/* The GLASS family's colour wash — the page's atmosphere, behind the
+            frosted sheet and everything on it. A designed gradient rather than
+            the owner's photo, which is the whole point: it looks composed on a
+            card that has no headshot at all. */}
+        {wash && (
+          <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ background: wash }} />
         )}
 
         {/* Aura — the owner's own photo, blurred and dimmed, as the page
@@ -429,12 +449,15 @@ export default function SwiftLinkProfile({
             // avatar down, which is the whole page.
             background: bgMedia
               ? "transparent"
-              : auraOn
+              : glassOn
                 ? sheetMeet
                 : sheetTo
                   ? `linear-gradient(180deg, ${sheetBg} 0%, ${sheetTo} 100%)`
                   : sheetBg,
-            ...(auraOn ? { backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)" } : {}),
+            // The blur is what makes it frosted glass rather than a tinted
+            // pane: without it the wash reads as a flat colour behind a flat
+            // colour, and the whole family loses its reason to exist.
+            ...(glassOn ? { backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)" } : {}),
             // A soft shadow under every piece of text on the page, but only
             // over media. The scrim alone cannot cover the case that actually
             // happens: one bright patch of an otherwise dark photo landing
