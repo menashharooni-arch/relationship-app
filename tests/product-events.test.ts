@@ -67,6 +67,17 @@ describe("the ingest route is a hardened public endpoint", () => {
     }
   });
 
+  it("drops bots, like every other public ingest route", () => {
+    // Crawlers pile up at the TOP of a funnel, which is the denominator for
+    // every rate below it. Five other public ingest routes already apply this
+    // exact rule; this one shipped without it and immediately collected runs
+    // of single-event "visits" seconds apart on fresh sessions.
+    expect(route).toContain("isLikelyBot(req.headers.get(\"user-agent\"))");
+    // Read to classify, never stored.
+    const insert = route.slice(route.indexOf('from("product_events").insert'));
+    expect(insert).not.toMatch(/user-agent/i);
+  });
+
   it("marks anything that is not the production deployment as internal", () => {
     // A dev server and a preview build share the production database. Without
     // this, two local `next dev` servers write real-looking page views into
