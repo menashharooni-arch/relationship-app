@@ -88,14 +88,24 @@ export default async function ContactsPage({
 
   // Leads depend on the card list above; the office-admin gate doesn't depend
   // on leads — so they share one round trip instead of stacking two.
-  const [{ data: rawLeads }, showOfficeAdmin] = await Promise.all([
-    admin
-      .from("leads")
-      .select("id, name, email, phone, company, company_description, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, message, follow_up_sequence, created_at")
-      .in("card_owner", allUsernames)
-      .order("name", { ascending: true }),
+  // geo_accuracy is requested so the detail panel can qualify the one inferred
+  // line on it (see lib/location-display.ts). Selecting a column that isn't
+  // migrated yet fails the WHOLE query and would empty the contacts list, so a
+  // 42703/PGRST204 retries without it — contacts matter far more than a label.
+  const LEAD_COLS = "id, name, email, phone, company, company_description, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, message, follow_up_sequence, created_at";
+  const loadLeads = async (cols: string) =>
+    admin.from("leads").select(cols).in("card_owner", allUsernames).order("name", { ascending: true });
+  const [leadsRes, showOfficeAdmin] = await Promise.all([
+    (async () => {
+      const withGeo = await loadLeads(`${LEAD_COLS}, geo_accuracy`);
+      if (withGeo.error && (withGeo.error.code === "42703" || withGeo.error.code === "PGRST204")) {
+        return loadLeads(LEAD_COLS);
+      }
+      return withGeo;
+    })(),
     canViewOfficeAdmin(authedUserId, profile.plan),
   ]);
+  const rawLeads = leadsRes.data as unknown as (Record<string, unknown> & { tags?: unknown })[] | null;
 
   // Free plan: leads captured beyond the 5/month cap are locked — hide them here
   // too (same as the dashboard) so they're never revealed until the account is Pro.

@@ -114,7 +114,7 @@ export default async function OfficeAnalyticsPage({
         <StatTile label="Unique visitors" value={totalUnique} hint={officeUnique != null ? "Distinct visitors across the whole team" : "Summed per employee"} />
         <StatTile label="Card/QR scans" value={totalScans} hint={deltaLabel(totalScans, prevTotalScans)} />
         <StatTile label="Leads captured" value={totalLeads} hint={deltaLabel(totalLeads, prevTotalLeads)} />
-        <StatTile label="Contacts saved" value={totalContacts} hint={deltaLabel(totalContacts, prevTotalContacts)} />
+        <StatTile label="Contact downloads" value={totalContacts} hint={deltaLabel(totalContacts, prevTotalContacts)} />
         <StatTile label="SwiftLink views" value={totalSwiftlinkViews} hint="Visits to a Swift Links page" />
         <StatTile
           label="Conversion rate"

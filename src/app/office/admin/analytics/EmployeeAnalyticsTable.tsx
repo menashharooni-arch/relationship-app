@@ -20,7 +20,7 @@ const COLUMNS: { key: SortKey; label: string; hint: string }[] = [
   { key: "uniqueVisitors", label: "Unique visitors", hint: "Distinct visitors in the selected range" },
   { key: "scans", label: "Scans", hint: "Views attributed to a QR code scan or NFC tap" },
   { key: "leads", label: "Leads", hint: "People who shared their contact info" },
-  { key: "contactsSaved", label: "Contacts saved", hint: "Visitors who downloaded this card as a contact" },
+  { key: "contactsSaved", label: "Contact downloads", hint: "Visitors who downloaded this card as a contact. Whether they then tapped Add in their phone's contact sheet is not something any app can see." },
   { key: "swiftlinkViews", label: "SwiftLink views", hint: "Visits to their Swift Links page" },
   { key: "conversionRate", label: "Conversion", hint: "Leads captured ÷ total views" },
   { key: "lastActivityAt", label: "Last activity", hint: "Most recent view, lead, or contact save" },

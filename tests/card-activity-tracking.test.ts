@@ -31,8 +31,13 @@ describe("what the owner is told", () => {
 
   it("keeps the save notification, and names the source only there", () => {
     const saved = cardEventNotice({ eventType: "downloaded_vcard", visitorName: "Aaron", source: "qr_code" });
+    // Type unchanged (VISIT_RANK / push category / CRM event name); WORDING
+    // changed, because a download is all SwiftCard can actually prove — the
+    // "Add to Contacts" sheet belongs to the operating system and never reports
+    // whether the person tapped Add, edited it, or cancelled.
     expect(saved!.type).toBe("contact_saved");
-    expect(saved!.body).toMatch(/^Aaron saved your contact card from /);
+    expect(saved!.body).toMatch(/^Aaron downloaded your contact card from /);
+    expect(saved!.body).not.toMatch(/\bsaved\b/);
 
     // A view's source is noise on the most frequent notification an owner gets.
     expect(cardEventNotice({ eventType: "viewed_card", visitorName: "Aaron", source: "qr_code" })!.body)
@@ -40,7 +45,7 @@ describe("what the owner is told", () => {
 
     // direct_link is the default and reads as clutter.
     expect(cardEventNotice({ eventType: "downloaded_vcard", visitorName: "Aaron", source: "direct_link" })!.body)
-      .toBe("Aaron saved your contact card.");
+      .toBe("Aaron downloaded your contact card.");
   });
 
   it("stays silent for events that are not news", () => {

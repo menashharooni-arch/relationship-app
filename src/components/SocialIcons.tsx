@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import PlatformIcon from "@/components/PlatformIcon";
 import { brandBackground } from "@/lib/link-brand";
 import { triggerSignupNudge } from "@/lib/nudge";
+import { trackLinkClick } from "@/lib/track-link-click";
 
 export type BrandSocial = { label: string; href: string; color?: string; textColor?: string };
 
@@ -54,6 +55,10 @@ export default function SocialIcons({
   fill = "brand",
   accent = "#1D4ED8",
   accentText = "#FFFFFF",
+  trackFor = null,
+  trackSurface = "links",
+  trackSource = "swift_links",
+  suppressTracking = false,
 }: {
   socials: BrandSocial[];
   /** The surface the row sits on — adapts the NEUTRAL chrome (ring, shadow,
@@ -67,6 +72,16 @@ export default function SocialIcons({
   fill?: "brand" | "accent" | "mono";
   accent?: string;
   accentText?: string;
+  /** The CARD SLUG these chips belong to. Null (the default) records nothing —
+   *  this row is reused by the marketing mocks and the live designer, so
+   *  tracking is opt-in, never opt-out. */
+  trackFor?: string | null;
+  /** Which page the chip was pressed on. */
+  trackSurface?: "card" | "links";
+  /** The page's own ?source= attribution, inherited by the tap. */
+  trackSource?: string;
+  /** Owner looking at their own page. */
+  suppressTracking?: boolean;
 }) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -85,6 +100,11 @@ export default function SocialIcons({
     // visitor). Shares the link_button slot, so a visitor who taps a chip AND
     // a tile still sees at most one incidental nudge per session, and the
     // marketing mock is unaffected (no SignupNudgeHost mounted there).
+    // A chip tap is an outbound link tap. Recorded through the SAME canonical
+    // route as views and downloads — and as a beacon, because the app-scheme
+    // handoff below replaces this document and an ordinary fetch would be
+    // cancelled with it (lib/track-link-click.ts).
+    trackLinkClick({ username: trackFor, surface: trackSurface, url: s.href, source: trackSource, suppress: suppressTracking });
     triggerSignupNudge("link_button");
     if (!isMobile) return; // desktop: normal new-tab behavior
     const scheme = appScheme(s.label, s.href);

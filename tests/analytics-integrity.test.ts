@@ -79,13 +79,18 @@ describe("a recorded view is a real visit", () => {
 
   it("takes location from the edge headers, never from the client", () => {
     // A client-supplied location would let anyone write any city into someone
-    // else's analytics. resolveLocation reads ONLY this request's own Vercel
-    // geo headers plus a lookup of ITS OWN IP (see lib/request-geo.ts, which
-    // has its own tests).
-    expect(route).toMatch(/resolveLocation\(req, ip\)/);
+    // else's analytics. resolveGeo reads ONLY this request's own Vercel geo
+    // headers plus a lookup of ITS OWN IP (see lib/request-geo.ts, which has
+    // its own tests) — and it returns HOW MUCH of that answer is real, which the
+    // row now stores, so a state-level guess stops being shown as a town.
+    expect(route).toMatch(/resolveGeo\(req, ip\)/);
+    expect(route).toMatch(/geo_accuracy: geo\.accuracy/);
     const geo = read("src/lib/request-geo.ts");
     expect(geo).toMatch(/x-vercel-ip-city/);
     expect(geo).toMatch(/x-vercel-ip-country/);
+    // The second opinion is looked up by IP and nothing else — a confidence
+    // level must never come from something the client said.
+    expect(geo).not.toMatch(/body\?\.(geo|location|accuracy)/);
     // Only the ROUTE parses the body; the recorder receives already-validated fields.
     const routeOnly = read("src/app/api/views/[username]/route.ts");
     const body = routeOnly.slice(routeOnly.indexOf("const body ="), routeOnly.indexOf("recordView({"));

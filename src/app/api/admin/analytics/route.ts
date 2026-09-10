@@ -160,7 +160,65 @@ export async function GET() {
     if (((v.username as string) || "").endsWith("__links")) linkViews30++; else cardViews30++;
   });
 
+  // ── Ingest decisions (analytics_ingest_log) ───────────────────────────────
+  // "Is that view real?" and "why is that view missing?" were unanswerable: a
+  // declined request left no trace, so judging the classifier meant arguing
+  // about it. This is the last 7 days of DECISIONS — never a customer-facing
+  // number, and card_views stays the one source of counted truth.
+  //
+  // Admin-only by the requireAdmin() gate at the top of this route, and the
+  // table itself is RLS-on-no-policies so nothing but the service role can read
+  // it at all. Returns counts and the most recent declines, never a visitor's
+  // identity, location, IP or User-Agent.
+  let ingest: {
+    available: boolean;
+    byReason: [string, number][];
+    byClassification: [string, number][];
+    byGeoAccuracy: [string, number][];
+    counted7: number;
+    declined7: number;
+    relay7: number;
+    recentDeclines: { at: string; entity: string; event: string; reason: string; classification: string | null }[];
+  } = { available: false, byReason: [], byClassification: [], byGeoAccuracy: [], counted7: 0, declined7: 0, relay7: 0, recentDeclines: [] };
+  {
+    const { data: logRows, error: logErr } = await admin
+      .from("analytics_ingest_log")
+      .select("created_at, entity_key, event_type, counted, reason, classification, geo_accuracy, is_relay")
+      .gte("created_at", iso(7))
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    // Table not migrated yet (supabase/analytics-accuracy.sql) — the rest of the
+    // admin page must still render.
+    if (!logErr && logRows) {
+      const tally = (rows: (string | null)[]) => {
+        const m: Record<string, number> = {};
+        for (const r of rows) { const k = r ?? "—"; m[k] = (m[k] ?? 0) + 1; }
+        return Object.entries(m).sort((a, b) => b[1] - a[1]);
+      };
+      ingest = {
+        available: true,
+        byReason: tally(logRows.map((r) => r.reason as string | null)),
+        byClassification: tally(logRows.map((r) => r.classification as string | null)),
+        byGeoAccuracy: tally(logRows.map((r) => r.geo_accuracy as string | null)),
+        counted7: logRows.filter((r) => r.counted).length,
+        declined7: logRows.filter((r) => !r.counted).length,
+        relay7: logRows.filter((r) => r.is_relay).length,
+        recentDeclines: logRows
+          .filter((r) => !r.counted)
+          .slice(0, 25)
+          .map((r) => ({
+            at: r.created_at as string,
+            entity: (r.entity_key as string) ?? "",
+            event: (r.event_type as string) ?? "",
+            reason: (r.reason as string) ?? "",
+            classification: (r.classification as string | null) ?? null,
+          })),
+      };
+    }
+  }
+
   return NextResponse.json({
+    ingest,
     accounts: {
       total: totalAccounts,
       today: signupToday, d7: signup7, d30: signup30,

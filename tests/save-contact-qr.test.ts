@@ -96,7 +96,7 @@ describe("a QR save notifies the owner exactly like a button save", () => {
     // still under the type the rest of the product keys on.
     // The allowlist is also the flood gate: only these two event types are
     // accepted by the public route at all now.
-    expect(events).toMatch(/EVENT_TYPES = new Set\(\["viewed_card", "downloaded_vcard"\]\)/);
+    expect(events).toMatch(/EVENT_TYPES = new Set\(\["viewed_card", "downloaded_vcard", "clicked_link"\]\)/);
     const block = events.slice(events.indexOf('event_type === "viewed_card"'));
     // The bell row and the push now both go through notifyVisit, which holds
     // one person's visit to a single notification (lib/visit-notify.ts).
@@ -107,9 +107,22 @@ describe("a QR save notifies the owner exactly like a button save", () => {
     expect(cardEventNotice({ eventType: "downloaded_vcard" })?.type).toBe("contact_saved");
   });
 
-  it("both also post the contact_save analytics event", () => {
+  it("both record the save EXACTLY ONCE, through the canonical route only", () => {
+    // This test used to require a SECOND write — a "contact_save" row in
+    // analytics_events — on the reasoning that both save paths must fire the
+    // same pair. They must be identical, and they are; but analytics_events has
+    // no reader anywhere in the codebase (only inserts, deletes and an index),
+    // so that row was a duplicate recording of one real action that fed no
+    // number. Parity is now asserted on the ONE pipeline that counts.
     for (const [name, srcFile] of [["button", button], ["scan", scan]] as const) {
-      expect(srcFile, `${name} missing the analytics event`).toMatch(/event_type: "contact_save"/);
+      // The button passes the type as an argument (trackEvent), the scan inlines
+      // it — the sibling test above pins that shape; this one pins the COUNT.
+      expect(srcFile, `${name} must record the save`).toMatch(/"downloaded_vcard"/);
+      expect(srcFile, `${name} must not record it a second time`).not.toMatch(/event_type: "contact_save"/);
+      expect(
+        (srcFile.match(/fetch\("\/api\/card-events"/g) ?? []).length,
+        `${name} posts to the ingest route more than once per save`,
+      ).toBe(1);
     }
   });
 

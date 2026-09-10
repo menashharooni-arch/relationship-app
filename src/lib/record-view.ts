@@ -5,7 +5,7 @@ import { checkViewMilestone, type MilestoneNotice } from "@/lib/milestones";
 import { isCardActive } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isOwnerRequest } from "@/lib/self-traffic";
-import { resolveLocation } from "@/lib/request-geo";
+import { resolveGeo, type GeoResult } from "@/lib/request-geo";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 
 export type RecordViewOutcome = "recorded" | "deduped" | "self" | "inactive" | "error";
@@ -30,7 +30,14 @@ export async function recordView(opts: {
   visitorId: string | null;
   source: string | null;
   ip: string;
-}): Promise<{ outcome: RecordViewOutcome; location: string | null; milestone?: MilestoneNotice | null }> {
+}): Promise<{
+  outcome: RecordViewOutcome;
+  location: string | null;
+  /** The full geo answer, so the caller doesn't resolve it a second time and
+   *  can store the same confidence on its own row. Null on the early exits. */
+  geo?: GeoResult | null;
+  milestone?: MilestoneNotice | null;
+}> {
   const { req, visitorId, source, ip } = opts;
   const username = opts.username.toLowerCase();
 
@@ -38,18 +45,25 @@ export async function recordView(opts: {
   // view counts via direct POSTs for nonexistent/deleted/plan-deactivated slugs
   // (the "__links" suffix maps back to its card).
   const baseSlug = username.replace(/__links$/, "");
-  if (!(await isCardActive(baseSlug))) return { outcome: "inactive", location: null };
+  if (!(await isCardActive(baseSlug))) return { outcome: "inactive", location: null, geo: null };
 
   // Owner self-views NEVER count as traffic. Shared, identity-based check —
   // never IP-based (see self-traffic.ts).
-  if (await isOwnerRequest(getAdminSupabase(), username)) return { outcome: "self", location: null };
+  if (await isOwnerRequest(getAdminSupabase(), username)) return { outcome: "self", location: null, geo: null };
 
   // Edge geo cross-checked against a second IP database (request-geo.ts):
   // two sources that name the same town are believed, two that disagree are
   // reported at the state they share. Looked up on every attempt (a deduped
   // reload hits the per-IP cache) so the value returned is always the one a
   // recorded row would carry.
-  const location = await resolveLocation(req, ip);
+  //
+  // resolveGeo, not resolveLocation: the same work, but it also hands back HOW
+  // MUCH of the answer is real (city / city_approx / region / country). That
+  // used to be computed and thrown away, which is why a state-level guess and a
+  // confirmed town were indistinguishable once stored — see request-geo.ts and
+  // lib/location-display.ts.
+  const geo = await resolveGeo(req, ip);
+  const location = geo.label;
   const supabase = getAdminSupabase();
 
   // Dedupe within ONE VISIT (see view-window.ts): a reload, double-fire, or
@@ -74,23 +88,42 @@ export async function recordView(opts: {
       if (source && !isGeneric(source) && isGeneric(recent.source as string | null)) {
         await supabase.from("card_views").update({ source }).eq("id", recent.id);
       }
-      return { outcome: "deduped", location };
+      return { outcome: "deduped", location, geo };
     }
   } else if (await isRateLimited(`views-anon:${ip}:${username}`, 1, VIEW_VISIT_WINDOW_MS)) {
     // No visitor id → one counted view per (IP, card) per visit window.
-    return { outcome: "deduped", location };
+    return { outcome: "deduped", location, geo };
   }
 
   // The raw IP is intentionally NOT persisted — only the coarse location.
   // A concurrent duplicate (two tabs) is caught by the visit-bucket unique
   // index (supabase/view-visit-window.sql) and treated as a normal dedup.
-  const { error: insertErr } = await supabase
-    .from("card_views")
-    .insert({ username, location, visitor_id: visitorId, source, viewed_at: new Date().toISOString() });
+  const viewRow = {
+    username,
+    location,
+    visitor_id: visitorId,
+    source,
+    viewed_at: new Date().toISOString(),
+    // Added by supabase/analytics-accuracy.sql. The label alone cannot say
+    // whether "New York, US" is a city or the state two disagreeing databases
+    // fell back to, which is how the Locations tab came to show a region as if
+    // it were a town (lib/location-display.ts renders the pair).
+    geo_accuracy: geo.accuracy,
+    geo_source: geo.source,
+  };
+  let { error: insertErr } = await supabase.from("card_views").insert(viewRow);
+  if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
+    // Confidence columns not migrated yet — record the view without them rather
+    // than losing it. Same degrade-and-carry-on pattern as card_events.location
+    // and notifications.visit_key.
+    const { geo_accuracy: _ga, geo_source: _gs, ...legacyRow } = viewRow;
+    void _ga; void _gs;
+    ({ error: insertErr } = await supabase.from("card_views").insert(legacyRow));
+  }
   if (insertErr) {
-    if (insertErr.code === "23505") return { outcome: "deduped", location };
+    if (insertErr.code === "23505") return { outcome: "deduped", location, geo };
     console.error("card_views insert failed:", insertErr.message, { username });
-    return { outcome: "error", location };
+    return { outcome: "error", location, geo };
   }
 
   // Mirror the view to the owner's CRM (SwiftCard vs SwiftLink).
@@ -104,5 +137,5 @@ export async function recordView(opts: {
   // Milestone notification (5, 10, 25, 50, 100, …). Best-effort.
   const milestone = await checkViewMilestone(username);
 
-  return { outcome: "recorded", location, milestone };
+  return { outcome: "recorded", location, geo, milestone };
 }

@@ -96,6 +96,10 @@ export default function DemoSwiftLinks({ compact = true }: { compact?: boolean }
           cardOwner="alexmorgan"
           ownerFirstName={FIRST}
           variant="rail"
+          // A marketing mock is not a visitor on a card. pointerEvents:none
+          // above already makes these untappable, but that is a style someone
+          // could remove while redesigning; this says it in the contract.
+          suppressTracking
         />
       </div>
 

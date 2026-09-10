@@ -5,6 +5,18 @@ import { getSignupSourceLabel, getSourceLabel } from "@/lib/source-labels";
 import Link from "next/link";
 
 type Analytics = {
+  /** Ingest DECISIONS, not traffic — see lib/ingest-log.ts. `available: false`
+   *  means supabase/analytics-accuracy.sql hasn't been run yet. */
+  ingest?: {
+    available: boolean;
+    byReason: [string, number][];
+    byClassification: [string, number][];
+    byGeoAccuracy: [string, number][];
+    counted7: number;
+    declined7: number;
+    relay7: number;
+    recentDeclines: { at: string; entity: string; event: string; reason: string; classification: string | null }[];
+  };
   accounts: { total: number; today: number; d7: number; d30: number; series: { date: string; count: number }[]; recent: { name: string; email: string; username: string; plan: string; created_at: string }[] };
   plans: { free: number; pro: number; office: number; paid: number; conversion: number; estMrr: number; compedPaidPlans?: number };
   acquisition: { source: string; signups: number; d30: number; paid: number; paidRate: number }[];
@@ -16,6 +28,35 @@ type Analytics = {
 };
 
 const PLAN_LABEL: Record<string, string> = { free: "Free", pro: "Pro", enterprise: "Office", office: "Office" };
+
+// The ingest vocabulary in plain words. Written so the panel answers "why is
+// that view missing?" without anyone having to open lib/ingest-log.ts.
+const REASON_LABEL: Record<string, string> = {
+  recorded: "Counted — a real visit",
+  deduped: "Same visit again (reload / double-fire)",
+  self: "The owner's own visit",
+  inactive: "Card no longer serves",
+  bot: "Bot, crawler or preview",
+  prefetch: "Browser prefetch / prerender",
+  rate_limited: "Over the per-IP cap",
+  rejected: "Refused (bad event type)",
+  error: "Write failed",
+};
+const CLASSIFICATION_LABEL: Record<string, string> = {
+  human: "Human",
+  crawler: "Crawler / unfurler",
+  automation: "Headless browser",
+  monitor: "Uptime monitor",
+  http_client: "Scripted HTTP client",
+  datacenter: "Datacenter network",
+};
+const GEO_LABEL: Record<string, string> = {
+  city: "City — two databases agreed",
+  city_approx: "Near a city — one source only",
+  region: "Region only — sources disagreed",
+  country: "Country only",
+  "—": "No location",
+};
 const PLAN_COLOR: Record<string, string> = { free: "#6b7280", pro: "#60a5fa", office: "#c084fc" };
 
 function Kpi({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
@@ -238,6 +279,64 @@ export default function AnalyticsClient() {
                 </div>
               )}
             </div>
+
+            {/* ── Ingest decisions ────────────────────────────────────────────
+                Not a customer number and never summed into one: card_views is
+                the one source of counted truth. This is the audit trail for the
+                decisions that produce it, so "is that view real?" and "why is
+                that view missing?" stop being arguments. 7-day window; the table
+                itself keeps 14 days and trims itself. */}
+            {a.ingest && (
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+                <p className="text-white font-semibold text-sm">Ingest decisions · last 7 days</p>
+                <p className="text-gray-600 text-[0.6875rem] mt-0.5 mb-4">
+                  Why each tracked event was counted or not. Decisions only — customer dashboards read <span className="text-gray-500">card_views</span>, never this.
+                </p>
+                {!a.ingest.available ? (
+                  <p className="text-amber-400/80 text-xs">
+                    Not recording yet — run <span className="font-mono">supabase/analytics-accuracy.sql</span> in the Supabase SQL editor.
+                  </p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-3 gap-3 mb-5">
+                      <Kpi label="Counted" value={a.ingest.counted7} accent="#4ade80" />
+                      <Kpi label="Declined" value={a.ingest.declined7} sub="reasons below" />
+                      <Kpi label="Relay / cloud network" value={a.ingest.relay7} sub="location downgraded, still counted" />
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-5">
+                      <div>
+                        <p className="text-gray-400 text-xs font-semibold mb-2">Decision</p>
+                        <Bars rows={a.ingest.byReason} color="#60a5fa" labeler={(k) => REASON_LABEL[k] ?? k.replace(/_/g, " ")} />
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-xs font-semibold mb-2">What we thought it was</p>
+                        <Bars rows={a.ingest.byClassification} color="#c084fc" labeler={(k) => CLASSIFICATION_LABEL[k] ?? k.replace(/_/g, " ")} />
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-xs font-semibold mb-2">Location confidence</p>
+                        <Bars rows={a.ingest.byGeoAccuracy} color="#fbbf24" labeler={(k) => GEO_LABEL[k] ?? k.replace(/_/g, " ")} />
+                      </div>
+                      <div>
+                        <p className="text-gray-400 text-xs font-semibold mb-2">Most recent declines</p>
+                        {a.ingest.recentDeclines.length === 0 ? (
+                          <p className="text-gray-600 text-xs">Nothing declined in the window.</p>
+                        ) : (
+                          <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                            {a.ingest.recentDeclines.map((d, i) => (
+                              <div key={`${d.at}-${i}`} className="flex items-baseline gap-2 text-[0.6875rem]">
+                                <span className="text-gray-600 tabular-nums shrink-0">{new Date(d.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                                <span className="text-gray-300 truncate">{d.entity}</span>
+                                <span className="text-gray-500 shrink-0 ml-auto">{REASON_LABEL[d.reason] ?? d.reason}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             <p className="text-gray-600 text-[0.6875rem] text-center">Referral & fraud analytics live in <Link href="/admin/referrals" className="text-blue-400 hover:text-blue-300">Referrals</Link>. Est. MRR uses list prices; excludes discounts &amp; Office seat counts.</p>
           </div>

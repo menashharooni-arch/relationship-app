@@ -90,7 +90,7 @@ export default async function OfficeAnalyticsMemberPage({
         <StatTile label="Unique visitors" value={mine?.uniqueVisitors ?? 0} />
         <StatTile label="Scans" value={mine?.scans ?? 0} hint="QR code or NFC tap" />
         <StatTile label="Leads captured" value={mine?.leads ?? 0} />
-        <StatTile label="Contacts saved" value={mine?.contactsSaved ?? 0} />
+        <StatTile label="Contact downloads" value={mine?.contactsSaved ?? 0} />
         <StatTile label="SwiftLink views" value={mine?.swiftlinkViews ?? 0} />
         <StatTile
           label="Conversion rate"

@@ -88,8 +88,29 @@ describe("the client tracker fires once per visit, not once per JS context", () 
   });
 
   it("waits out a speculation-rules prerender instead of counting it", () => {
-    expect(tracker).toMatch(/doc\.prerendering/);
-    expect(tracker).toMatch(/prerenderingchange/);
+    // The prerender wait, the webdriver check, the visibility check and the
+    // dwell moved WHOLESALE into lib/human-gate.ts so the QR-save path could
+    // share them — it had none of them and recorded a contact download for
+    // anything that merely loaded a ?save=1 URL. The tracker now asks the gate;
+    // the gate is what has to contain the rules.
+    expect(tracker).toMatch(/waitForHuman\(\(\) => cancelled\)/);
+    const gate = read("src/lib/human-gate.ts");
+    expect(gate).toMatch(/doc\.prerendering/);
+    expect(gate).toMatch(/prerenderingchange/);
+    expect(gate).toMatch(/Navigator & \{ webdriver\?: boolean \}/);
+    expect(gate).toMatch(/document\.visibilityState !== "visible"/);
+    expect(gate).toMatch(/HUMAN_DWELL_MS = 2500/);
+  });
+
+  it("the QR-save path runs the SAME gate — it used to run none at all", () => {
+    const scan = read("src/components/ScanSaveContact.tsx");
+    expect(scan).toMatch(/waitForHuman\(\(\) => cancelled, \{ acceptBackgroundedAfterVisible: true \}\)/);
+    // ...and the gate must come BEFORE the event, not after it.
+    expect(scan.indexOf("waitForHuman")).toBeLessThan(scan.indexOf('event_type: "downloaded_vcard"'));
+    // Delivery of the .vcf is NOT gated: the visitor scanned a QR to get a
+    // contact, and a statistic must never delay that. (indexOf the CALL, not the
+    // import line at the top of the file.)
+    expect(scan.indexOf("iframe.src")).toBeLessThan(scan.indexOf("await waitForHuman("));
   });
 
   it("waits for the account-isolation reconcile before reading visitor identity", () => {

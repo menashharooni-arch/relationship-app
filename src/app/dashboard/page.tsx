@@ -6,7 +6,8 @@ import { safeTimeZone, localDayKey, startOfLocalDayUtc } from "@/lib/tz-days";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { ensureUserCards } from "@/lib/ensure-cards";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
-import { locationAliases } from "@/lib/request-geo";
+import { locationAliases, type GeoAccuracy } from "@/lib/request-geo";
+import { locationLabel, groupAccuracy } from "@/lib/location-display";
 import SignOutButton from "@/components/SignOutButton";
 import CopyButton from "@/components/CopyButton";
 import NotificationBell from "@/components/NotificationBell";
@@ -299,6 +300,7 @@ export default async function DashboardPage({
     { count: swiftLinkViews },
     { data: recentViews },
     locViewsRes,
+    { data: linkTapRows },
     { data: leads },
     panelNotifRes,
     bellNotifRes,
@@ -343,22 +345,51 @@ export default async function DashboardPage({
     viewsRange === "locations"
       ? (async () => {
           const PAGE = 1000, MAX_PAGES = 10;
-          const all: { username: string; location: string | null }[] = [];
+          const all: { username: string; location: string | null; geo_accuracy?: string | null }[] = [];
+          // geo_accuracy rides along so the tab can say "Near Great Neck, NY"
+          // or "New York (approximate)" instead of printing a state-level guess
+          // as if it were a town. Selecting a column that isn't migrated yet
+          // fails the WHOLE query (42703/PGRST204), which would empty the tab —
+          // so the first page decides, once, whether the column is there, and
+          // every page after it uses the same column list.
+          let cols = "username, location, geo_accuracy";
           for (let p = 0; p < MAX_PAGES; p++) {
-            const { data } = await getAdminSupabase()
+            const page = () => getAdminSupabase()
               .from("card_views")
-              .select("username, location")
+              .select(cols)
               .in("username", [analyticsUsername, linkUsername])
               .not("location", "is", null)
               .order("viewed_at", { ascending: false })
               .range(p * PAGE, p * PAGE + PAGE - 1);
-            if (!data?.length) break;
-            all.push(...data);
+            let { data, error } = await page();
+            if (error && (error.code === "42703" || error.code === "PGRST204")) {
+              cols = "username, location";
+              ({ data, error } = await page());
+            }
+            if (error || !data?.length) break;
+            all.push(...(data as unknown as typeof all));
             if (data.length < PAGE) break;
           }
           return { data: all };
         })()
       : Promise.resolve({ data: null }),
+    // Link taps in the same window. Swift Links buttons and card external links
+    // had no tracking at all until 2026-09-09, so an owner could see their links
+    // page was opened eleven times and never which of eight buttons was pressed.
+    // Counted from card_events (clicked_link), which is the canonical event
+    // table — NOT a new one. Degrades to null when the event type has never been
+    // written or the column isn't migrated, and the footer then omits the stat
+    // rather than showing a confident zero.
+    (async () => {
+      const { data, error } = await getAdminSupabase()
+        .from("card_events")
+        .select("target, surface")
+        .eq("card_owner_username", analyticsUsername)
+        .eq("event_type", "clicked_link")
+        .gte("created_at", viewsCutoff)
+        .limit(2000);
+      return error ? { data: null } : { data };
+    })(),
     // Service-role, like /contacts — NOT the session client. leads' RLS policy
     // keys on profiles.username, but a lead's card_owner is a CARD slug, and
     // those are different strings (profile "aaron-c69a77" vs card
@@ -504,24 +535,41 @@ export default async function DashboardPage({
         : startOfLocalDayUtc(bucketCount - 1 - i, ownerTz, tzNow).getTime(),
   }));
 
+  // Link taps in the window (card + Swift Links surfaces together — it is one
+  // person's set of links either way). Rows, not a count query, because the
+  // same read also gives the per-destination breakdown the Locations-style
+  // drill-down will want; 2000 is far beyond any real window today.
+  const linkTaps = (linkTapRows ?? []).length;
+
   // Locations view (on-demand): top places your card + links are viewed from,
   // with the SwiftCard vs Swift Links split per location. All-time totals.
   let topLocations: { location: string; card: number; link: number; total: number }[] = [];
   if (viewsRange === "locations") {
-    const rows = ((locViewsRes.data ?? []) as { username: string; location: string | null }[])
-      .map((v) => ({ username: v.username, loc: v.location?.trim() }))
-      .filter((v): v is { username: string; loc: string } => !!v.loc);
+    const rows = ((locViewsRes.data ?? []) as { username: string; location: string | null; geo_accuracy?: string | null }[])
+      .map((v) => ({ username: v.username, loc: v.location?.trim(), acc: (v.geo_accuracy ?? null) as GeoAccuracy | null }))
+      .filter((v): v is { username: string; loc: string; acc: GeoAccuracy | null } => !!v.loc);
     // "Great Neck, US" (written before views carried the state) and
     // "Great Neck, NY" are one place, not two rows — see locationAliases.
     const alias = locationAliases(rows.map((v) => v.loc));
-    const locMap: Record<string, { card: number; link: number }> = {};
+    const locMap: Record<string, { card: number; link: number; acc: (GeoAccuracy | null)[] }> = {};
     for (const v of rows) {
       const loc = alias.get(v.loc) ?? v.loc;
-      const slot = (locMap[loc] ??= { card: 0, link: 0 });
+      const slot = (locMap[loc] ??= { card: 0, link: 0, acc: [] });
+      slot.acc.push(v.acc);
       if (v.username === linkUsername) slot.link++; else slot.card++;
     }
     topLocations = Object.entries(locMap)
-      .map(([location, c]) => ({ location, card: c.card, link: c.link, total: c.card + c.link }))
+      .map(([location, c]) => ({
+        // GROUPED AND SORTED ON THE STORED LABEL, DISPLAYED AS WHAT IT MEANS.
+        // The raw label stays the key so locationAliases keeps folding the old
+        // country-tailed rows into their state-tailed twins; the displayed
+        // string is the honest reading of it at the group's least precise
+        // confidence (lib/location-display.ts).
+        location: locationLabel(location, groupAccuracy(c.acc)),
+        card: c.card,
+        link: c.link,
+        total: c.card + c.link,
+      }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 8);
   }
@@ -1016,9 +1064,17 @@ export default async function DashboardPage({
                   />
                 </div>
               )}
-              {/* Basic stats (every plan): contacts captured + best day */}
+              {/* Basic stats (every plan): contacts captured + link taps + best day.
+                  Link taps join the EXISTING footer line rather than becoming a
+                  new tile — the Traffic box's layout is render-tested, and one
+                  more stat does not justify moving it. Omitted entirely until
+                  there is one, so nothing claims a confident zero for a card
+                  whose links predate tracking. */}
               <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[0.6875rem]">
                 <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{visibleLeads.length}</span></span>
+                {linkTaps > 0 && (
+                  <span className="text-gray-500">Link taps <span className="text-gray-200 font-semibold tabular-nums">{linkTaps.toLocaleString("en-US")}</span></span>
+                )}
                 {bestDay && bestDay.views > 0 ? (
                   <span className="text-gray-500">Best day <span className="text-gray-200 font-semibold">{new Date(bestDay.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span> · {bestDay.views.toLocaleString("en-US")}</span>
                 ) : (
