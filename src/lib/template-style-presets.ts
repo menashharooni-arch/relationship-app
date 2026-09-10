@@ -52,6 +52,30 @@ export type TemplateMeta = {
   accent: StyleField;
 };
 
+/**
+ * The values a FREE account is allowed to keep for one of a template's colour
+ * fields.
+ *
+ * sanitizeCustomizationForPlan snaps anything else to the nearest allowed
+ * value, and its stated contract is that "Free accounts can restyle a card
+ * using the SAME curated Looks/preset swatches Pro sees" — only a raw custom
+ * colour gets pulled back. That was not true: the allowed set was the swatch
+ * presets ALONE, while a curated Look sets colours of its own that mostly are
+ * not swatches. So a Free user could tap "Sea Glass", save, and get a
+ * different card back, with nothing to explain it. Every template had at least
+ * two Looks in that state, some of them there long before the Looks grew.
+ *
+ * A Look on the picker is a value the product is offering, so it is allowed.
+ * This is what makes the comment above true.
+ */
+export function freeSafeValues(meta: TemplateMeta, field: "bg" | "surface" | "text"): string[] {
+  const base = field === "surface" ? meta.surface?.presets ?? [] : meta[field].presets;
+  const fromLooks = meta.looks
+    .map((l) => (field === "bg" ? l.bg : field === "text" ? l.text : l.surface))
+    .filter((v): v is string => typeof v === "string" && !!v);
+  return [...new Set([...base, ...fromLooks])];
+}
+
 // A broad, tasteful accent palette shared by every template's icon/accent
 // control (each template's own default is prepended so it's the first swatch).
 export const ACCENT_PRESETS = ["#2563eb", "#6d28d9", "#0f766e", "#b45309", "#be123c", "#111827", "#b08d57", "#059669"];

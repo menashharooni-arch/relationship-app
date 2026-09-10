@@ -8,7 +8,8 @@ import {
 import { templateStyle, panelBackground } from "@/lib/template-style";
 import { overlayOfficeDesign } from "@/lib/office-brand";
 import { isPaidPlan } from "@/lib/plan";
-import { META } from "@/lib/template-style-presets";
+import { META, freeSafeValues } from "@/lib/template-style-presets";
+import { convertCustomizationToFreeClosest } from "@/lib/plan";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
@@ -385,5 +386,50 @@ describe("the panel never describes a surface as fixed once it is not", () => {
     expect(META["local-business"].surface!.label).toBe("Card body");
     expect(META["classic-pro"].surface!.label).toBe("Info panel");
     expect(META["photo-first"].surface!.label).toBe("Photo panel");
+  });
+});
+
+// ── A curated Look must survive being saved on a Free account ────────────────
+//
+// sanitizeCustomizationForPlan's contract is that Free accounts "can restyle a
+// card using the SAME curated Looks/preset swatches Pro sees" — only a raw
+// custom colour is pulled back. That was not true: the allowed set was the
+// swatch presets ALONE, and most curated Looks set colours that are not
+// swatches, so tapping "Sea Glass" on Free and saving returned a different
+// card with nothing to explain it. Every template had at least two Looks in
+// that state, several of them long before the Looks grew a finish.
+describe("curated Looks are free-safe", () => {
+  it("keeps every Look's colours through a Free save, on every template", () => {
+    for (const [id, m] of Object.entries(META)) {
+      for (const look of m.looks) {
+        const cust: Record<string, unknown> = { bgColor: look.bg, textColor: look.text, fontFamily: look.font };
+        if (m.surface && look.surface) cust.surfaceColor = look.surface;
+        const out = convertCustomizationToFreeClosest(cust, id).customization;
+        expect(out.bgColor, `${id}/${look.name} bg was rewritten`).toBe(look.bg);
+        expect(out.textColor, `${id}/${look.name} text was rewritten`).toBe(look.text);
+        if (m.surface && look.surface) {
+          expect(out.surfaceColor, `${id}/${look.name} surface was rewritten`).toBe(look.surface);
+        }
+      }
+    }
+  });
+
+  it("still pulls a raw custom colour back to something curated", () => {
+    // The guard has to keep doing its job — this is not "Free can set anything".
+    const out = convertCustomizationToFreeClosest({ bgColor: "#ff00ff" }, "classic-pro").customization;
+    expect(out.bgColor).not.toBe("#ff00ff");
+    expect(freeSafeValues(META["classic-pro"], "bg")).toContain(out.bgColor as string);
+  });
+
+  it("a Look built on a Pro finish is tagged before it is tapped", () => {
+    // Free still gets the Look's colours; the finish is dropped on save. Saying
+    // so up front beats a card coming back flatter than the swatch promised.
+    const src = read("src/components/card-templates/TemplateStyleControls.tsx");
+    expect(src).toMatch(/const needsPro = locked && !!look\.finish && !isFreeFinish\(look\.finish\)/);
+  });
+
+  it("the Looks swatch paints its finish, not just its colour", () => {
+    const src = read("src/components/card-templates/TemplateStyleControls.tsx");
+    expect(src).toMatch(/background: composePanelBackground\(look\.bg, look\.finish\)/);
   });
 });
