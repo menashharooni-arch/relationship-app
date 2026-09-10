@@ -29,8 +29,16 @@ export default async function OfficeBrandingPage() {
       <div data-tour="admin-branding-note" className="bg-purple-500/5 border border-purple-500/20 rounded-2xl px-4 py-3 mb-5">
         <p className="text-sm text-purple-200 font-medium">This page sets the look for every card</p>
         <p className="text-xs text-purple-200/70 mt-1 leading-relaxed">
-          Logo, company details, template, colors and fonts set here apply to the whole team&apos;s
-          cards — yours included. Change them once, and everyone&apos;s card updates with them.
+          {/* NOT "yours included" — that was false and contradicted the line
+              directly above this panel ("Your own cards stay yours to design"),
+              eight lines apart in the same file. The owner is excluded twice
+              over in code: resolveBrandTargetIds and propagateBrandToOfficeCards
+              both skip ownerId. An admin who set a logo, saw "Applied to every
+              card ✓", then opened their own card and found no logo would
+              reasonably conclude the feature was broken. */}
+          Logo, company details, template, colors and fonts set here apply to your team&apos;s
+          cards. Change them once, and every teammate&apos;s card updates with them. Your own
+          cards are yours — they stay exactly as you designed them.
         </p>
       </div>
 
