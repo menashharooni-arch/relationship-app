@@ -12,6 +12,8 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
 import { contactScale, contactRowCount } from "@/components/card-templates/shared";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // ── Card details: as large as the card can carry, never larger ──────────────
 //
@@ -58,6 +60,23 @@ const SCENARIOS: Array<[string, CardData]> = [
     { number: "+1 (512) 555-0147 ext. 8891", label: "mobile", showOnCard: true },
     { number: "(415) 555-0199", label: "office", showOnCard: true },
     { number: "(415) 555-0177", label: "direct", showOnCard: true }] } }],
+  ["no details at all", { ...BASE, phone: "", email: "", website: "" }],
+  ["website only", { ...BASE, phone: "", email: "" }],
+  ["address only", { ...BASE, phone: "", email: "", website: "", address: "1200 Ocean Ave\nSan Francisco, CA 94122" }],
+  ["email with nothing to break on", { ...BASE, email: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.com" }],
+  ["one unbroken address line", { ...BASE, address: "Unit 14B Kensington Court Mansions Cromwell Road London SW7 4QH United Kingdom" }],
+  ["four phones", { ...BASE, customization: { phones: [
+    { number: "(415) 555-0188", label: "mobile", showOnCard: true },
+    { number: "(415) 555-0199", label: "office", showOnCard: true },
+    { number: "(415) 555-0177", label: "direct", showOnCard: true },
+    { number: "(415) 555-0166", label: "home", showOnCard: true }] } }],
+  ["email and fax only", { ...BASE, phone: "", website: "", customization: { fax: "(415) 555-0100" } }],
+  ["accented name and address", { ...BASE, name: "Zoë Müller-Ståhl", company: "Ståhl & Compagnie Immobilière",
+    email: "zoe.muller-stahl@immobiliere-cote-dazur.fr", address: "12 Rue de l\u2019Église\n06400 Cannes, France" }],
+  ["long company and long address", { ...BASE,
+    company: "Northwind Commercial Real Estate Advisors International",
+    address: "1200 Ocean Avenue, Suite 400\nBuilding C, North Tower\nSan Francisco, CA 94122" }],
+  ["single characters", { ...BASE, name: "A B", title: "X", company: "Y", phone: "5", email: "a@b.co", website: "c.co" }],
   ["everything at once", { ...BASE,
     title: "Senior Vice President of Business Development",
     address: "1200 Ocean Avenue, Suite 400\nSan Francisco, CA 94122\nUnited States",
@@ -158,6 +177,29 @@ describe("card details fit, never collide, and grow into spare room", () => {
           }
         }
 
+        // ── The QR must stay clear ─────────────────────────────────────────
+        // Called out by name (owner, 2026-09-10). It is the one element on the
+        // card that stops WORKING when something lands on it — a covered QR
+        // still looks like a QR and simply will not scan — so it gets its own
+        // check rather than relying on the general overlap sweep.
+        const qr = card.querySelector("[data-qr]") as HTMLElement | null;
+        if (qr && block) {
+          const q = qr.getBoundingClientRect();
+          const bb = block.getBoundingClientRect();
+          const ox = Math.min(q.right, bb.right) - Math.max(q.left, bb.left);
+          const oy = Math.min(q.bottom, bb.bottom) - Math.max(q.top, bb.top);
+          if (ox > 1 && oy > 1) overlaps.push(`contact block covers the QR by ${Math.round(ox)}x${Math.round(oy)}px`);
+          // …and every individual row, in case the block's own box is roomier
+          // than the text inside it.
+          for (const t of texts) {
+            if (!block.contains(t.el)) continue;
+            const rx = Math.min(q.right, t.r.right) - Math.max(q.left, t.r.left);
+            const ry = Math.min(q.bottom, t.r.bottom) - Math.max(q.top, t.r.top);
+            if (rx > 1 && ry > 1) overlaps.push(`"${t.t.slice(0, 20)}" covers the QR`);
+          }
+          if (q.right > cr.right + 1 || q.bottom > cr.bottom + 1) clipped.push("the QR escapes the card");
+        }
+
         const px = (sel: string) => {
           const el = block?.querySelector(sel) as HTMLElement | null;
           return el ? parseFloat(getComputedStyle(el).fontSize) : 0;
@@ -245,6 +287,33 @@ describe("card details fit, never collide, and grow into spare room", () => {
     // A full card keeps today's rendering exactly — all the growth happens
     // where there is room, and nowhere else.
     expect(contactScale(busy)).toBe(1);
+  });
+
+  it("reaches every template, and every place a card is rendered", () => {
+    // The sizing lives inside ContactRows, so it follows the component
+    // wherever it goes — but only if the template actually passes it. A
+    // template that renders <ContactRows f={f}> and forgets the scale keeps
+    // the old cramped rendering with nothing to show for it, and no test
+    // downstream would notice, because the card still fits.
+    const dir = "src/components/card-templates";
+    for (const file of ["ClassicPro", "ModernBold", "PhotoFirst", "LocalBusiness", "LuxuryMinimal", "LogoFirst"]) {
+      const src = readFileSync(join(process.cwd(), `${dir}/${file}.tsx`), "utf8");
+      expect(src, `${file} must render ContactRows`).toContain("<ContactRows");
+      expect(src, `${file} must pass the contact scale`).toContain("scale={contactScale(data)}");
+    }
+
+    // …and the public card page — the link people actually share — must route
+    // to those same six. A seventh template added here without the prop above
+    // would render details at the old size on the real page while every
+    // preview in the app looked right.
+    const page = readFileSync(join(process.cwd(), "src/app/[username]/page.tsx"), "utf8");
+    const registry = page.slice(page.indexOf("const TEMPLATES"), page.indexOf("};", page.indexOf("const TEMPLATES")));
+    for (const id of ["classic-pro", "modern-bold", "photo-first", "local-business", "luxury-minimal", "logo-first"]) {
+      expect(registry, `${id} missing from the public card page`).toContain(`"${id}"`);
+    }
+    // CustomCard is deliberately not in that list of six: its fields are
+    // positioned by hand, so it has no shared contact block to size.
+    expect(registry).toContain('"custom"');
   });
 
   it("never grows without bound, whatever the data", () => {
