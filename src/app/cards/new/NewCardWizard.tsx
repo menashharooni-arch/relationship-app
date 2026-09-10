@@ -1607,19 +1607,22 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               {!customSelected && (
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-2">
+                    {/* No PRO badge on the header: Looks, swatches, fonts and
+                        three finishes work on every plan. The Pro pieces
+                        carry their own tag inside the panel (same as the
+                        editor — the two must never disagree). */}
                     <label className="block text-xs font-medium text-gray-400">
                       Customize colors &amp; font
-                      {!designUnlocked && <span className="ml-1.5 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>}
                     </label>
                   </div>
                   <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!designUnlocked} />
                   {!isPro && !designUnlocked && (
                     <PlanGate
                       feature="colors-fonts"
-                      nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan"
+                      nativeCopy="Any color, material finishes and panel photos are part of the Pro plan"
                     >
                       <Link href="/upgrade" className="block text-center text-[0.6875rem] text-blue-400 hover:text-blue-300 mt-2">
-                        Unlock custom colors &amp; fonts with Pro →
+                        Any color, every finish and photo backgrounds come with Pro →
                       </Link>
                     </PlanGate>
                   )}

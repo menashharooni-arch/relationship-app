@@ -98,6 +98,31 @@ describe("convertCustomizationToFreeClosest", () => {
     expect(result.changed).toBe(true);
   });
 
+  // The "we'll apply a basic Free design" notice is driven by `changed`. It
+  // used to fire whenever a design key EXISTED, so a guest who tapped a Free
+  // Look or picked a font was told their card was being replaced when it was
+  // not. `changed` must mean "the card will look different".
+  it("reports changed:false for a card built entirely from Free choices", () => {
+    for (const [id, meta] of Object.entries(META)) {
+      for (const look of meta.looks) {
+        const cust: Record<string, unknown> = { bgColor: look.bg, textColor: look.text, fontFamily: "Georgia, serif", finish: "sheen" };
+        if (look.font) cust.fontFamily = look.font;
+        if (meta.surface && look.surface) cust.surfaceColor = look.surface;
+        // A Pro-finish Look is a real conversion — it is not in this set.
+        if (look.finish && look.finish !== "sheen" && look.finish !== "halo") continue;
+        if (look.finish) cust.finish = look.finish;
+        const r = convertCustomizationToFreeClosest(cust, id);
+        expect(r.changed, `${id} / ${look.name} was flagged as converted`).toBe(false);
+      }
+    }
+  });
+
+  it("reports changed:true for a Pro finish or panel media, which the converter removes", () => {
+    expect(convertCustomizationToFreeClosest({ finish: "brushed" }, "classic-pro").changed).toBe(true);
+    expect(convertCustomizationToFreeClosest({ panelMedia: "https://x/y.jpg", panelMediaType: "image" }, "classic-pro").changed).toBe(true);
+    expect(convertCustomizationToFreeClosest({ finish: "halo" }, "classic-pro").changed).toBe(false);
+  });
+
   it("falls back to FALLBACK_META presets for an unknown template", () => {
     const result = convertCustomizationToFreeClosest({ accentColor: "#ff0000" }, "some-unknown-template");
     expect(FALLBACK_META.accent.presets).toContain(result.customization.accentColor);

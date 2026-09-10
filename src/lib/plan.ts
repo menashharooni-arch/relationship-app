@@ -147,9 +147,6 @@ export function convertCustomizationToFreeClosest(
   const targetTemplate = hadCustomTemplate ? "classic-pro" : template || "classic-pro";
   const meta = metaForTemplate(targetTemplate);
 
-  const hadProKey = PRO_CUSTOMIZATION_KEYS.some((key) => cust[key] !== undefined && cust[key] !== "");
-  const changed = hadProKey || hadCustomTemplate;
-
   const bgColor = pickStr(cust.bgColor);
   const surfaceColor = pickStr(cust.surfaceColor);
   const textColor = pickStr(cust.textColor);
@@ -198,6 +195,22 @@ export function convertCustomizationToFreeClosest(
   // custom-text-input equivalent, so the picked value IS its own closest
   // match — left as-is. The legacy `font` key has no known preset mapping.
   delete cust.font;
+
+  // `changed` means the card will LOOK different on Free — not that a design
+  // key was present. It used to be "any Pro-gated key is set", which fired the
+  // "we'll apply a basic Free design" notice at someone who had tapped a Free
+  // Look or picked a font: nothing about their card was about to change, and
+  // the notice said it was. A false alarm at the plan step costs a signup, so
+  // this is decided by comparing what came in with what goes out.
+  const changed =
+    hadCustomTemplate ||
+    PRO_CUSTOMIZATION_KEYS.some((key) => {
+      const before = customization[key];
+      const after = cust[key];
+      const wasEmpty = before === undefined || before === "";
+      const isEmpty = after === undefined || after === "";
+      return wasEmpty !== isEmpty || (!wasEmpty && before !== after);
+    });
 
   return { customization: cust, template: targetTemplate, changed };
 }

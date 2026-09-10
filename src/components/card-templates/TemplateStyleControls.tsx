@@ -141,7 +141,10 @@ function Swatches({
         className={`flex items-center gap-1 text-[10px] text-gray-500 ml-0.5 ${customLocked ? "opacity-50 pointer-events-none select-none" : "cursor-pointer"}`}
         aria-disabled={customLocked}
       >
-        custom{customLocked && <ProTag />}
+        {/* "any color", not "custom": beside six working swatches, a greyed
+            "custom PRO" read as the whole colour field being Pro. The swatches
+            are every plan; the free-hand picker is what Pro adds. */}
+        any color{customLocked && <ProTag />}
         <input
           type="color"
           value={isHex(value) ? value : fallbackHex}
@@ -257,6 +260,18 @@ function FinishPicker({
           </div>
         );
       })}
+
+      {/* A Pro finish on a Free account previews here and is kept with the
+          card, but the live card renders Flat until they are on Pro. Without
+          this line the editor showed Brushed and the public card showed a
+          plain panel, and nothing anywhere said why. Plain text on purpose:
+          the upgrade link lives under the panel, and this component also
+          renders inside the iOS shell, which may not sell. */}
+      {locked && !current.free && (
+        <p className="text-[10px] text-blue-300/90 leading-snug">
+          {current.name} shows on your live card once you&apos;re on Pro. Until then your card renders as Flat.
+        </p>
+      )}
 
       {/* Frosted lightens the panel, so a white name can vanish into it. Said
           plainly instead of silently rewriting a colour the owner chose. */}
