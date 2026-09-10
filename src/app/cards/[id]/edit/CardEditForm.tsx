@@ -864,23 +864,25 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               mobileCardPreview("Pick a template above, then restyle it below.")
             )}
 
-            {/* Restyle the chosen preset — colors & typography (Pro) */}
+            {/* Restyle the chosen preset. Looks, swatches, fonts and three
+                finishes are EVERY plan; only "any colour", the material
+                finishes and a panel photo/video are Pro — and each of those
+                carries its own PRO tag inside the panel. The header used to
+                wear a PRO badge too, which told a Free user the whole section
+                was closed to them while every swatch under it worked. */}
             {!customSelected && (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className={sectionLabel}>
-                    Customize colors &amp; font
-                    <span className="ml-1.5 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">PRO</span>
-                  </p>
+                  <p className={sectionLabel}>Customize colors &amp; font</p>
                 </div>
                 <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
                 {!isPro && (
                   <PlanGate
                     feature="colors-fonts"
-                    nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan"
+                    nativeCopy="Any color, material finishes and panel photos are part of the Pro plan"
                   >
                     <Link href="/upgrade" className="block text-center text-[0.6875rem] text-blue-400 hover:text-blue-300 mt-2">
-                      Unlock custom colors &amp; fonts with Pro →
+                      Any color, every finish and photo backgrounds come with Pro →
                     </Link>
                   </PlanGate>
                 )}

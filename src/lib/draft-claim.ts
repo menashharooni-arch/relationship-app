@@ -7,7 +7,7 @@
 // The single most important property proven here: the inserted row's `user_id`
 // is ALWAYS the session user id passed in by the route — never anything the
 // (untrusted) draft payload supplied. See buildClaimInsert + its tests.
-import { sanitizeCustomizationForPlan, PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
+import { sanitizeCustomizationForPlan, convertCustomizationToFreeClosest } from "@/lib/plan";
 import { normalizeSocial } from "@/lib/social-url";
 
 // Keys we accept off a draft payload. Anything else (user_id, id, created_at,
@@ -95,8 +95,11 @@ export function buildClaimInsert(
   // Free — backend-enforced, not UI-hidden. `paid` here already accounts for a
   // guest's picked-but-not-yet-paid-for Pro/Office intent (see claim route).
   const rawCustomization = (p.customization ?? {}) as Record<string, unknown>;
-  const hadProKey = PRO_CUSTOMIZATION_KEYS.some((key) => rawCustomization[key] !== undefined && rawCustomization[key] !== "");
-  const designConverted = !paid && (hadProKey || rawTemplate === "custom");
+  // "Converted" means the card will look different from the one they built —
+  // decided by the converter itself, not by whether a design key exists. A
+  // guest who tapped a Free Look used to land on /welcome being told their
+  // design was replaced when it wasn't.
+  const designConverted = !paid && convertCustomizationToFreeClosest(rawCustomization, rawTemplate).changed;
   const customization = sanitizeCustomizationForPlan(rawCustomization, paid, rawTemplate);
 
   const insert: ClaimInsert = {
