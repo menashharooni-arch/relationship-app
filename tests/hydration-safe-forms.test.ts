@@ -42,3 +42,12 @@ describe("CardEditForm adopts pre-hydration typing", () => {
     expect(src).toMatch(/HYDRATION CATCH-UP/);
   });
 });
+
+describe("FlowSettingsForm saves the note the person can see", () => {
+  const src = readFileSync("src/components/FlowSettingsForm.tsx", "utf8");
+  it("marks the note, adopts it on mount, and reads the DOM at save", () => {
+    expect(src).toMatch(/<textarea\s+data-hydrate="customNote"/);
+    expect(src).toMatch(/HYDRATION CATCH-UP/);
+    expect(src).toMatch(/customNote: noteEl\(\)\?\.value \?\? settings\.customNote/);
+  });
+});
