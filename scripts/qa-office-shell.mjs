@@ -210,7 +210,10 @@ try {
         // IS the viewport. Measure the sheet inside it, which is what can go off-screen.
         const sheet = dlg.locator(":scope > :not(button)").last();
         const bb = (await sheet.boundingBox().catch(() => null)) ?? (await dlg.boundingBox());
-        if (bb && (bb.y < TOP || bb.y + bb.height > VH - BOTTOM + 2 || bb.x < 0 || bb.x + bb.width > VW + 1)) note("admin-invite-dialog", "dialog-off-screen", JSON.stringify(bb));
+        // A bottom sheet runs to the screen edge by design (its safe-area padding is
+        // inside it); what must stay clear of the home indicator is its CONTROLS.
+        const lowCtl = await sheet.evaluate((s) => Math.max(0, ...[...s.querySelectorAll("button, a[href], input, select, textarea")].map((c) => c.getBoundingClientRect().bottom))).catch(() => 0);
+        if (bb && (bb.y < TOP || lowCtl > VH - BOTTOM + 2 || bb.x < 0 || bb.x + bb.width > VW + 1)) note("admin-invite-dialog", "dialog-off-screen", JSON.stringify({ ...bb, lowestControlBottom: Math.round(lowCtl) }));
         await audit(page, "admin-invite-dialog", { scrollBottom: false });
       } else note("admin-invite-dialog", "no-dialog", "Add team member opened nothing with role=dialog");
       await page.keyboard.press("Escape"); await page.waitForTimeout(500);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type FlowDay = { enabled: boolean; time: string };
 // day1/day15/day30 are NOT edited here — they're spread straight back out on
@@ -24,6 +24,19 @@ export default function FlowSettingsForm({
     customNote: initialSettings.customNote ?? "",
   });
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // HYDRATION CATCH-UP (see ProfileForm): text typed before React attached
+  // lives only in the DOM. Adopt it once on mount, and read the DOM again at
+  // save time so the note a person can SEE is the note that is sent.
+  const noteEl = () => document.querySelector<HTMLTextAreaElement>('[data-hydrate="customNote"]');
+  const adoptTypedNote = () => {
+    const el = noteEl();
+    if (el && el.value !== (settings.customNote ?? "")) setSettings((prev) => ({ ...prev, customNote: el.value }));
+  };
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- adopting what the DOM already holds IS the DOM→React sync an effect is for
+    adoptTypedNote();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only by design
+  }, []);
 
   async function save() {
     setStatus("saving");
@@ -31,7 +44,7 @@ export default function FlowSettingsForm({
       const res = await fetch("/api/settings/flows", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({ ...settings, customNote: noteEl()?.value ?? settings.customNote }),
       });
       setStatus(res.ok ? "saved" : "error");
       if (res.ok) setTimeout(() => setStatus("idle"), 2000);
@@ -64,6 +77,7 @@ export default function FlowSettingsForm({
           </p>
         </div>
         <textarea
+          data-hydrate="customNote"
           value={settings.customNote ?? ""}
           onChange={(e) => setSettings((prev) => ({ ...prev, customNote: e.target.value }))}
           placeholder="e.g. Book a call with me: calendly.com/yourname"

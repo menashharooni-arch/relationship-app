@@ -226,6 +226,11 @@ async function visit(page, screenRef, name, path, opts) {
     return null;
   });
   if (res && res.status() >= 400) note(name, "page-http-" + res.status(), path);
+  // Settle before auditing. Back-to-back navigations on production raced the
+  // session refresh and audited a login wall where the editor was about to
+  // render (2026-09-11); the same run with this pause was clean. A person
+  // never navigates twelve screens in twelve seconds.
+  await page.waitForTimeout(800);
   return auditPage(page, screenRef, name, opts);
 }
 
