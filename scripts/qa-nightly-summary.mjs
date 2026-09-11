@@ -3,7 +3,7 @@
 // script crashed before writing, which is itself a failure.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 const SECTIONS = [
-  ["Flows (sign in, save, sign out, back/forward)", "nightly/flows/failures.json", (j) => j.map((f) => (typeof f === "string" ? f : `: `))],
+  ["Flows (sign in, save, sign out, back/forward)", "nightly/flows/failures.json", (j) => j.map((f) => (typeof f === "string" ? f : `${f.flow ?? "?"}: ${f.detail ?? JSON.stringify(f)}`))],
   ["Every screen, both widths, all plans", "nightly/sweep/issues.json", (j) => j.map((i) => `${i.screen ?? i.page ?? "?"}: ${i.kind ?? ""} ${i.detail ?? ""}`.trim())],
   ["Office admin + member (iPhone shell)", "nightly/office-shell/issues.json", (j) => j.map((i) => `${i.screen}: ${i.kind} — ${i.detail}`)],
   ["Office Swift Links branding", "nightly/office-links/failures.json", (j) => j],
