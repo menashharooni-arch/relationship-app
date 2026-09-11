@@ -47,19 +47,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const usernames = await getOwnerUsernames(user.id);
   const admin = getAdminSupabase();
 
-  // FOLLOW-UP AUTOMATIONS ARE PRO (owner, 2026-09-11). The sender has always
-  // refused to run one for a Free account — it pauses the sequence and tells
-  // them why — but nothing stopped one being BUILT, so the panel could set up a
-  // cadence that would never send. The switch is now tagged PRO in the app; this
-  // is the half a client cannot skip.
+  // TEXT FOLLOW-UPS ARE PRO; EMAIL ONES ARE EVERY PLAN (owner, 2026-09-11).
   //
-  // CLEARING one is always allowed. A downgraded account must be able to switch
-  // off, reset, or empty a sequence it already has: the rule is "no new
+  // The sender refuses to TEXT for a free account either — this is the half a
+  // client cannot skip, so a crafted request cannot schedule texts the daily
+  // cron would then decline to send, leaving a contact with a flow that looks
+  // live and never fires.
+  //
+  // A step with no channel counts as EMAIL, which is what the cron's own
+  // routing does for legacy steps unless the contact has affirmatively opted
+  // in to SMS — so an untagged step can never smuggle a text past this.
+  //
+  // CLEARING is always allowed. A downgraded account must be able to switch
+  // off, reset, or empty a sequence it already has: the rule is "no new TEXT
   // automation without Pro", not "no way out".
   if ("follow_up_sequence" in body) {
     const next = body.follow_up_sequence;
-    const adding = Array.isArray(next) ? next.length > 0 : next != null;
-    if (adding) {
+    const steps = Array.isArray(next) ? (next as { channel?: string }[]) : [];
+    const addingSms = steps.some((s) => s?.channel === "sms");
+    if (addingSms) {
       const { data: prof } = await admin
         .from("profiles").select("plan").eq("id", user.id).maybeSingle();
       if (!isPaidPlan(prof?.plan as string | null)) {
@@ -68,7 +74,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             // Machine code for the native app; web reads `message`.
             code: "PRO_REQUIRED",
             error: "pro_required",
-            message: "Follow-up automations are part of Pro.",
+            message: "Text follow-ups are part of Pro. Email follow-ups are included on every plan.",
           },
           { status: 402 },
         );

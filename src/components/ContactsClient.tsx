@@ -338,6 +338,11 @@ export default function ContactsClient({
   const [draftCh, setDraftCh] = useState<"email" | "sms" | null>(null);
   const [draftPreset, setDraftPreset] = useState<"light" | "medium" | "aggressive" | null>(null);
   const [draftItems, setDraftItems] = useState<{ day: number; time: string; channel: "email" | "sms"; message: string; subject?: string }[] | null>(null);
+  // Did AI write this draft? Pro accounts get their steps composed from the
+  // contact's notes; a Free email flow gets editable starter copy instead, and
+  // the panel must not claim otherwise — no "AI draft" tag, and no Regenerate
+  // button, which would redraw the identical text and read as broken.
+  const [draftIsAi, setDraftIsAi] = useState(true);
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [seqSaving, setSeqSaving] = useState<"idle" | "saving" | "saved">("idle");
@@ -662,6 +667,7 @@ export default function ContactsClient({
         return;
       }
       setDraftError(null);
+      setDraftIsAi(data.aiWritten !== false);
       setDraftItems(items);
     } catch {
       setDraftError("Couldn't write the messages just now — check your connection and tap a cadence to try again.");
@@ -1461,11 +1467,13 @@ export default function ContactsClient({
                   const chPaused = channelPausedFor(ch);
                   const presetName = PRESET_FROM_COUNT(activeItems.length);
                   const switchOn = isDrafting || (running && !chPaused);
+                  // TEXT is Pro; EMAIL is every plan (owner, 2026-09-11).
+                  //
                   // Pro-only to SET UP — never to stop. A downgraded account
-                  // still has to be able to switch off a sequence it already
-                  // has (the cron pauses those anyway), and this card is where
-                  // that switch lives.
-                  const needsPro = !isPro && !hasActive;
+                  // still has to be able to switch a live text flow off (the
+                  // cron holds those anyway), and this card is where that
+                  // switch lives, so an existing flow is never tagged.
+                  const needsPro = !isPro && ch === "sms" && !hasActive;
 
                   return (
                     <div key={ch} className={`border rounded-xl p-4 ${switchOn ? (ch === "sms" ? "border-emerald-800/50 bg-emerald-950/10" : "border-blue-800/50 bg-blue-950/10") : "border-gray-800 bg-gray-800/20"}`}>
@@ -1487,6 +1495,7 @@ export default function ContactsClient({
                               : allSent ? `Completed · all ${activeItems.length} ${noun} sent`
                               : isDrafting ? "Choose a cadence, then submit to activate"
                               : needsPro ? `Automatic ${noun} to this contact, on a cadence you pick`
+                              : !isPro && ch === "email" && !hasActive ? "Automatic emails to this contact, on a cadence you pick"
                               : `Off — set up a ${word} follow-up`}
                           </p>
                         </div>
@@ -1508,7 +1517,7 @@ export default function ContactsClient({
                             // uninvited — the PRO tag is the only standing
                             // mention (owner: don't shove it in their face).
                             if (needsPro) {
-                              setAiUpgrade("Follow-up automations are part of Pro — set an email or text cadence and SwiftCard sends it for you.");
+                              setAiUpgrade("Text follow-ups are part of Pro. Email follow-ups are included on your plan — set one up on the Email automation above.");
                               return;
                             }
                             if (isDrafting) cancelDraft(); else startDraft(ch);
@@ -1559,8 +1568,9 @@ export default function ContactsClient({
                               <p className="text-[0.6875rem] text-amber-400">● Draft — edit any message, then Submit to activate.</p>
                               {draftItems.map((it, i) => (
                                 <div key={i} className="bg-gray-800 border border-gray-700 rounded-xl p-3">
-                                  {/* Native-only "AI draft" tag; renders null (no DOM) on web. */}
-                                  <AiDraftTag />
+                                  {/* Native-only "AI draft" tag; renders null (no DOM) on web.
+                                      Never shown over starter copy nobody's AI wrote. */}
+                                  {draftIsAi && <AiDraftTag />}
                                   <p className="text-[0.6875rem] font-semibold text-gray-400 mb-1.5">{stepLabel(it.day, it.time)}</p>
                                   {ch === "email" && (
                                     <input
@@ -1580,7 +1590,9 @@ export default function ContactsClient({
                                 </div>
                               ))}
                               <div className="flex items-center justify-between">
-                                <button onClick={() => draftPreset && selectPreset(draftPreset)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Regenerate ↺</button>
+                                {draftIsAi
+                                  ? <button onClick={() => draftPreset && selectPreset(draftPreset)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Regenerate ↺</button>
+                                  : <span className="text-[0.6875rem] text-gray-500">Edit each message to make it yours</span>}
                                 <div className="flex items-center gap-2">
                                   <button onClick={cancelDraft} className="text-xs font-semibold text-gray-400 hover:text-gray-200 px-3 py-2 transition-colors">Cancel</button>
                                   <button

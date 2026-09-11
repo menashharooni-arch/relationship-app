@@ -18,6 +18,19 @@ export const automationDocs = defineDocs([
       "The daily run is in the evening UTC. Texts have an extra restriction: they only go out inside a window that is between 8am and 9pm across every US timezone, so a text due on a day the run falls outside that window waits for the next one. Email has no such restriction. If someone is waiting on a message that hasn't arrived, check first whether the step is even due yet — each step in the contact's automation panel shows \"Sends <date>\" or \"Sent <date>\".",
   },
   {
+    id: "automations-by-plan",
+    title: "Email follow-ups on Free, text follow-ups on Pro",
+    audience: ["user"],
+    triggers: [
+      "automation plan", "is automation free", "text automation", "sms automation",
+      "email automation", "do i need pro for follow ups", "follow up plan", "pro automation",
+    ],
+    answer:
+      "Email follow-ups are included on every plan, Free as well. Text follow-ups are Pro — the Text automation switch on a contact carries a small PRO tag, and tapping it says so. Everything else about the two is identical: the same cadences, the same editable drafts, the same one-a-day sending.",
+    detail:
+      "What Pro adds to EMAIL follow-ups is the writing: your steps are composed from where you met, your notes about the contact and what you do, and you can Regenerate them. A Free email follow-up starts from built-in wording instead, which you edit before activating — the cadence, the scheduling and the sending are the same. If an account moves from Pro to Free with text steps already scheduled, those texts are HELD, not deleted: the email steps keep sending, the texts wait, a single notification says so, and everything resumes on its own if the account goes back to Pro.",
+  },
+  {
     id: "editing-drafts",
     title: "Editing the messages before they send",
     audience: ["user"],
@@ -26,7 +39,7 @@ export const automationDocs = defineDocs([
       "rewrite", "submit and activate", "preview the messages", "subject line",
     ],
     answer:
-      "After you pick a cadence, every step appears as an editable draft — text you can rewrite, and for email a subject line too. \"Regenerate ↺\" asks the AI for another version. Nothing is scheduled until you press \"Submit & activate\".",
+      "After you pick a cadence, every step appears as an editable draft — text you can rewrite, and for email a subject line too. On Pro the messages are written for you from what you noted about the contact, and \"Regenerate ↺\" asks for another version; on the Free plan an email follow-up starts from built-in wording you edit yourself, so there is no Regenerate button. Nothing is scheduled until you press \"Submit & activate\".",
     detail:
       "So a sequence sitting in draft has not started; people sometimes assume picking the cadence was enough. Re-submitting a sequence that is part-way through keeps the steps that already went out, so nothing double-sends.",
   },
