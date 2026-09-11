@@ -131,7 +131,9 @@ const GUARDS: Guard[] = [
   // web only.
   { file: "src/components/ManageAccount.tsx", patterns: [/isPro && !native && \(/] },
   // Raw marketing "See pricing"/"Pricing" links wrapped in NativeHidden.
-  { file: "src/app/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
+  // The homepage's "See pricing" button is GONE (owner, 2026-09-11) — the
+  // closing CTA is one button now. There is nothing left to wrap, so the rule
+  // is asserted the other way round, below, in "no bare /pricing link".
   { file: "src/app/products/[slug]/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
   { file: "src/app/testimonials/page.tsx", patterns: [/<NativeHidden><Link href="\/pricing"/] },
   // The cream pages (legal, company, blog, /compare, the SEO landing pages) no
@@ -171,5 +173,17 @@ describe("HelpWidget native greeting/suggestions drop the upgrade prompt", () =>
   });
   it("NATIVE_SUGGESTIONS is derived by filtering out the upgrade question", () => {
     expect(src).toMatch(/NATIVE_SUGGESTIONS = SUGGESTIONS\.filter\(\(s\) => s !== "How do I upgrade to Pro\?"\)/);
+  });
+});
+
+// The homepage used to carry a "See pricing" link wrapped in <NativeHidden>.
+// The button was removed outright, so the wrapper check above no longer has a
+// subject — but the underlying rule still has to hold: the iOS shell must never
+// be shown a route to pricing. Assert the absence directly, so deleting the
+// link cannot quietly delete the protection with it.
+describe("the homepage offers the shell no way to pricing", () => {
+  it("carries no /pricing link at all, wrapped or otherwise", () => {
+    const src = readFileSync(join(process.cwd(), "src/app/page.tsx"), "utf8");
+    expect(src).not.toMatch(/href="\/pricing"/);
   });
 });

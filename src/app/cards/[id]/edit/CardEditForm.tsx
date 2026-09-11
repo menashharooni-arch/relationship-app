@@ -109,15 +109,21 @@ export type OrgManaged = {
   fax: string | null;
   address: CardAddress | null;
   lockDesign: boolean;
-  /** The office has taken link buttons: the member can see them but not change them. */
-  lockLinks: boolean;
+  /** Link buttons the office pins to every page. Members add their own on top. */
+  officeLinks: { label: string; url: string }[] | null;
+  /** The bio the office set for every links page, or null to leave it to them. */
+  linkBio: string | null;
+  /** The company Instagram, or null. Every OTHER social stays the member's. */
+  linkInstagram: string | null;
+  /** "Keep every Swift Links page matching" — the page's LOOK is the office's. */
+  lockLinkDesign: boolean;
   // True when the viewer is the office OWNER editing one of their NON-primary
   // cards (which inherits the brand). Changes the copy from "managed by your
   // organization" to "set on your office's Branding page".
   ownerInherited?: boolean;
 };
 
-type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; isPrimary?: boolean; org?: OrgManaged | null; linkedinEnabled?: boolean };
+type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; trialEligible?: boolean; isPrimary?: boolean; org?: OrgManaged | null; linkedinEnabled?: boolean };
 
 // Small "who owns this field" tag shown next to org-controlled values.
 function ManagedTag({ owner }: { owner?: boolean }) {
@@ -135,7 +141,7 @@ function ManagedTag({ owner }: { owner?: boolean }) {
 // guest-auth-flow contract no useGuestDraft/requireAuth wiring is needed here.
 // Guest mode lives in NewCardWizard.
 
-export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, isPrimary = false, org = null, linkedinEnabled = false }: Props) {
+export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, trialEligible = false, isPrimary = false, org = null, linkedinEnabled = false }: Props) {
   const saveUrl = isPrimary ? "/api/profile" : `/api/cards/${card.id}`;
   const logoCardId = isPrimary ? undefined : card.id;
   const router = useRouter();
@@ -150,7 +156,15 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   const orgFax = org?.fax?.trim() || null;
   const orgAddress = org?.address && Object.values(org.address).some((v) => (v ?? "").toString().trim()) ? org.address : null;
   const designLocked = !!org?.lockDesign;
-  const linksLocked = !!org?.lockLinks;
+  // The office's pinned links, matched by URL so a member cannot claim one by
+  // renaming it. Their own links are everything else.
+  const officeLinks = org?.officeLinks ?? null;
+  const officeLinkUrls = new Set((officeLinks ?? []).map((l) => l.url.trim().toLowerCase().replace(/\/+$/, "")));
+  const isOfficeLink = (url: string | undefined) =>
+    officeLinkUrls.has(String(url ?? "").trim().toLowerCase().replace(/\/+$/, ""));
+  const linkDesignLocked = !!org?.lockLinkDesign;
+  const bioManaged = !!org?.linkBio;
+  const instagramManaged = !!org?.linkInstagram;
 
   // On tab change, jump the editor column back to the top. Defer to the next
   // frame and jump instantly — mobile browsers can drop a smooth scroll issued
@@ -1005,20 +1019,21 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
             {/* Additional links.
 
-                When the office has locked them, the member still SEES the links
-                already on their card — hiding them would read as "my links are
-                gone" — but every control is replaced by one explanation. A
-                disabled row with no reason is the thing that generates a
-                support ticket; the server enforces this regardless, so the UI's
-                only job here is to be honest about why. */}
+                An office can PIN links to every member's page. Those lead the
+                list, are tinted and labelled "Company", and have no remove
+                control — the server re-pins them on save, so a control there
+                would silently undo itself. Everything the member adds follows
+                and stays entirely theirs, which is the point: an office wants
+                its booking link on every page, not to stop a salesperson
+                linking their own calendar. */}
             <div>
               <div className="flex items-center justify-between gap-2 mb-1">
                 <p className="text-xs font-medium text-gray-400">Additional links</p>
-                {linksLocked && <ManagedTag owner={org?.ownerInherited} />}
+                {!!officeLinks?.length && <ManagedTag owner={org?.ownerInherited} />}
               </div>
               <p className="text-gray-600 text-[0.6875rem] mb-3">
-                {linksLocked
-                  ? "Link buttons are set by your organization. Everything else on this tab — your bio and your social profiles — is still yours."
+                {officeLinks?.length
+                  ? "The first links below are your organization's and are on everyone's page. Add your own underneath — they're yours to change."
                   : "Add your links — can be a review page, recent video, listing, etc."}
               </p>
               {links.length > 0 && (
@@ -1033,26 +1048,25 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                           value={l.label}
                           onChange={(e) => setLinks((prev) => prev.map((x, xi) => (xi === i ? { ...x, label: e.target.value } : x)))}
                           placeholder="Section title (e.g. Watch)"
-                          readOnly={linksLocked}
-                          className={`flex-1 min-w-0 bg-transparent text-gray-200 text-xs font-bold uppercase tracking-wide focus:outline-none placeholder-gray-600 ${linksLocked ? "cursor-default" : ""}`}
+                          className="flex-1 min-w-0 bg-transparent text-gray-200 text-xs font-bold uppercase tracking-wide focus:outline-none placeholder-gray-600"
                         />
-                        {/* No remove control while the office holds the links —
-                            the server would restore it on save anyway, and a
-                            button that silently undoes itself is worse than no
-                            button. */}
-                        {!linksLocked && (
-                          <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
-                        )}
+                        <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
                       </div>
                     ) : (
-                    <div key={i} className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">
+                    <div key={i} className={`rounded-xl px-3 py-2.5 border ${isOfficeLink(l.url) ? "bg-purple-500/[0.06] border-purple-500/25" : "bg-gray-900 border-gray-700"}`}>
                       <div className="flex items-center gap-2.5">
                         <LinkPreviewThumb url={l.url} />
                         <div className="flex-1 min-w-0">
                           <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
                           <p className="text-gray-500 text-[0.625rem] truncate">{l.url}</p>
                         </div>
-                        {!linksLocked && (
+                        {/* An office link carries a word, not a disabled button:
+                            the server re-pins it on save, so a remove control
+                            here would silently undo itself. The member's own
+                            links keep theirs. */}
+                        {isOfficeLink(l.url) ? (
+                          <span className="text-[0.5625rem] font-semibold uppercase tracking-wide text-purple-300 shrink-0">Company</span>
+                        ) : (
                           <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
                         )}
                       </div>
@@ -1068,7 +1082,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   tile sizes: Free pages don't render them. OUTSIDE the
                   links-exist wrapper so a header can open the page's first
                   section before any link has been added. */}
-              {isPro && !linksLocked && (
+              {isPro && (
                 <button
                   type="button"
                   onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
@@ -1077,19 +1091,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   + Add a section header
                 </button>
               )}
-              {linksLocked ? (
-                // One explanation in place of the whole add-a-link form. No
-                // upgrade link and no price: this is an organization setting,
-                // not a plan limit, and offering Pro here would be both wrong
-                // and — inside the iOS shell — a selling surface.
-                // Deliberately NOT "ask your admin to add one": the office
-                // admin's member-card editor has no links control today, so
-                // that would be a promise the product cannot keep.
-                <p className="text-[0.6875rem] text-gray-400 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
-                  Your organization has turned off link buttons on team cards. Anything already on
-                  your card stays exactly as it is.
-                </p>
-              ) : atLinkCap ? (
+              {atLinkCap ? (
                 <PlanGate
                   feature="swift-links-cap"
                   nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan"
@@ -1174,18 +1176,31 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 omitted rather than shown and then silently reverted by the
                 server on save — and a line below says why the section is gone,
                 instead of leaving a hole. */}
-            <SwiftLinkStyleControls
-              value={linkStyleState}
-              onChange={patchLinkStyle}
-              locked={!isPro}
-              links={linksLocked ? undefined : links}
-              onLinksChange={linksLocked ? undefined : setLinks}
-            />
-            {linksLocked && (
-              <p className="mt-2 text-[0.6875rem] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
-                Styling for individual link buttons is set by your organization. The rest of this
-                page — its look, colors and fonts — is still yours to change.
-              </p>
+            {linkDesignLocked ? (
+              // The office holds this page's LOOK, the mirror of "Keep every
+              // card matching" on the card side. The whole panel is replaced by
+              // one explanation rather than shown disabled: every control here
+              // would be reverted on save, and a dead control with no reason is
+              // what generates a support ticket.
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] p-5">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className={sectionLabel}>Swift Links design</p>
+                  <ManagedTag owner={org?.ownerInherited} />
+                </div>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Your organization keeps every Swift Links page matching, so the look, colors,
+                  fonts and page background are set by your Office admin. Your bio, your socials
+                  and your own link buttons are still yours.
+                </p>
+              </div>
+            ) : (
+              <SwiftLinkStyleControls
+                value={linkStyleState}
+                onChange={patchLinkStyle}
+                locked={!isPro}
+                links={links}
+                onLinksChange={setLinks}
+              />
             )}
             {!isPro && (
               <PlanGate
@@ -1286,6 +1301,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       {proBlock && (
         <ProRequiredDialog
           features={proBlock}
+          trialEligible={trialEligible}
           busy={status === "saving"}
           onCancel={() => setProBlock(null)}
           onSaveWithoutPro={() => handleSave({ allowFreeConversion: true })}

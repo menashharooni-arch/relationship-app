@@ -807,6 +807,16 @@ summary.list-none::-webkit-details-marker { display: none; }
 [data-sc-theme="light"] .sc-app .sc-dark-sheet :is(.text-slate-300, .text-slate-300\/90, .text-slate-300\/85) { color: #cbd5e1 !important; }
 [data-sc-theme="light"] .sc-app .sc-dark-sheet .text-slate-400 { color: #94a3b8 !important; }
 [data-sc-theme="light"] .sc-app .sc-dark-sheet .text-blue-300 { color: #93c5fd !important; }
+/* Surfaces too, not just ink. The light theme flips .bg-gray-900 to WHITE so
+   app panels read on cream — correct everywhere except inside a panel that is
+   dark on purpose. Nesting the shared PlanNotice (bg-gray-900 + text-white) in
+   this sheet produced a white card with white text on it: the gate's own
+   heading vanished, in the shell, on the screen selling Pro. Restore the
+   surfaces the same way the ink is restored above. */
+[data-sc-theme="light"] .sc-app .sc-dark-sheet :is(.bg-gray-900, .bg-gray-900\/60, .bg-gray-900\/50) { background-color: #111827 !important; }
+[data-sc-theme="light"] .sc-app .sc-dark-sheet .bg-gray-800 { background-color: #1f2937 !important; }
+[data-sc-theme="light"] .sc-app .sc-dark-sheet :is(.text-gray-200, .text-gray-300) { color: #d1d5db !important; }
+[data-sc-theme="light"] .sc-app .sc-dark-sheet .text-gray-400 { color: #9ca3af !important; }
 
 [data-sc-theme="light"] .sc-app .sc-card .text-white { color: #ffffff !important; }
 [data-sc-theme="light"] .sc-app .sc-card .text-gray-200 { color: #e5e7eb !important; }

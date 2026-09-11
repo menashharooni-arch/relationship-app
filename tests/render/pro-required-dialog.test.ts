@@ -201,6 +201,74 @@ describe("readable inside the light-themed app", () => {
   }, 90_000);
 });
 
+// The native variant, in the light theme, is its own surface.
+//
+// The contrast test above renders the WEB branch — and the bug it could not see
+// was on the native one. The shared PlanNotice is bg-gray-900 + text-white, the
+// light theme flips bg-gray-900 to WHITE for app panels, and nested inside this
+// deliberately-dark sheet that produced a white card with white text: the
+// gate's own "Pro feature" heading vanished, in the shell, on the screen whose
+// job is to sell Pro. Same probe, native branch.
+describe("the native gate card is readable inside the light-themed app", () => {
+  const lum = (r: number, g: number, b: number) =>
+    [r, g, b].map((v) => { const s2 = v / 255; return s2 <= 0.03928 ? s2 / 12.92 : Math.pow((s2 + 0.055) / 1.055, 2.4); })
+      .reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i], 0);
+  const contrast = (a: number, b: number) => { const [x, y] = [a, b].sort((p2, q) => q - p2); return (x + 0.05) / (y + 0.05); };
+
+  it("every line clears AA against what is actually behind it", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/platform", () => ({ useIsNativeApp: () => true, detectNativeApp: () => true, isNativeApp: true }));
+    const { default: NativeDialog } = await import("@/components/ProRequiredDialog");
+    const css = await appCss();
+    const html = renderToStaticMarkup(
+      createElement(NativeDialog, { features: FEATURES, trialEligible: true, onSaveWithoutPro: () => {}, onCancel: () => {} }),
+    );
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    try {
+      await page.setContent(
+        `<!doctype html><html data-sc-theme="light"><head><meta charset="utf-8">` +
+          `<style>${css}</style></head><body class="sc-app" style="margin:0;background:#FAF7F2">${html}</body></html>`,
+        { waitUntil: "load" },
+      );
+      const spots = await page.evaluate(() => {
+        const sheet = document.querySelector(".sc-dark-sheet")!;
+        const out: { text: string; color: string; x: number; y: number }[] = [];
+        for (const el of Array.from(sheet.querySelectorAll("*"))) {
+          if (el.children.length) continue;
+          const t = (el.textContent ?? "").trim();
+          if (t.length < 2) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width < 2 || r.height < 2) continue;
+          out.push({ text: t.slice(0, 26), color: getComputedStyle(el).color, x: Math.round(r.left + 2), y: Math.round(r.top + r.height / 2) });
+        }
+        return out;
+      });
+      expect(spots.length).toBeGreaterThan(5);
+      // The gate card has to actually be there, or this proves nothing.
+      expect(spots.some((s2) => /Pro feature/i.test(s2.text))).toBe(true);
+
+      await page.evaluate(() => {
+        for (const el of Array.from(document.querySelectorAll<HTMLElement>(".sc-dark-sheet *"))) {
+          if (!el.children.length) el.style.visibility = "hidden";
+        }
+      });
+      const buf = await page.screenshot();
+      const sharp = (await import("sharp")).default;
+      const { data, info } = await sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const bad: { text: string; c: number }[] = [];
+      for (const s2 of spots) {
+        const i = (s2.y * info.width + s2.x) * info.channels;
+        const m = s2.color.match(/\d+/g)!.map(Number);
+        const c = contrast(lum(m[0], m[1], m[2]), lum(data[i], data[i + 1], data[i + 2]));
+        if (c < 4.5) bad.push({ text: s2.text, c: +c.toFixed(2) });
+      }
+      expect(bad).toEqual([]);
+    } finally {
+      await page.close();
+    }
+  }, 90_000);
+});
+
 describe("the native shell gets no price and no CTA", () => {
   it("renders neither the price block nor the upgrade link", async () => {
     vi.resetModules();
