@@ -3,7 +3,7 @@ import { revalidateCardPage } from "@/lib/card-page-data";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations, overlayOfficeLinks } from "@/lib/office-brand";
+import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations, overlayOfficeLinks, overlayOfficeInstagram } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { cardContentChanged, signatureContentChanged } from "@/lib/card-changed";
@@ -197,9 +197,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (subCtx && brand && updates.customization) {
     updates.customization = overlayOfficeLinks(updates.customization as Record<string, unknown>, brand);
   }
-  // Instagram is a top-level column, so it is forced here beside company and
+  // Instagram is a top-level column, so it is resolved here beside company and
   // website rather than in the overlay. Every OTHER social stays the member's.
-  if (subCtx && brand?.linkInstagram) updates.instagram = brand.linkInstagram;
+  //
+  // The office's handle is what the page shows — a Swift Links page has exactly
+  // one Instagram button and cannot show two — but the member's own is stashed
+  // underneath and comes back if the office ever clears its own. That needs the
+  // card's STORED handle: while the field is managed the form posts the COMPANY
+  // handle back on every save, so trusting the submitted value would stash the
+  // office's handle as "theirs" and quietly destroy the real one.
+  if (subCtx && brand) {
+    const { data: storedRow } = await admin
+      .from("cards")
+      .select("instagram")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const out = overlayOfficeInstagram(
+      (updates.customization as Record<string, unknown> | undefined) ?? null,
+      (storedRow?.instagram as string | null) ?? null,
+      brand,
+    );
+    // Only write customization back when this request was already writing it —
+    // a save that never touched customization must not start doing so, or the
+    // stash would clobber concurrent edits from another tab.
+    if (updates.customization) updates.customization = out.customization;
+    if (brand.linkInstagram || out.instagram !== ((storedRow?.instagram as string | null) ?? null)) {
+      updates.instagram = out.instagram;
+    }
+  }
 
   // Company-level fields are org territory for a SUB-USER even when the office
   // has no brand set yet (the UI never shows those inputs to a member): a

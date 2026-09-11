@@ -56,7 +56,7 @@ export type OfficeBrand = {
    * its booking link on every page — not to stop a salesperson linking their
    * own calendar.
    */
-  links: { label: string; url: string }[] | null;
+  links: { label: string; url: string; kind?: "header" }[] | null;
   /** "Keep every Swift Links page matching." Default FALSE — see the loader. */
   lockLinkDesign: boolean;
 };
@@ -98,20 +98,59 @@ export function extractDesign(
 export function pinOfficeLinks(
   memberLinks: unknown,
   brand: Pick<OfficeBrand, "links"> | null | undefined,
-): { label: string; url: string }[] | unknown[] {
+): { label: string; url: string; kind?: "header" }[] | unknown[] {
   const office = brand?.links ?? null;
   const own = Array.isArray(memberLinks) ? (memberLinks as unknown[]) : [];
   if (!office?.length) return own;
 
-  const officeUrls = new Set(office.map((l) => normalizeLinkUrl(l.url)));
+  // Real links are identified by URL. SECTION HEADERS have no URL at all — they
+  // are `kind: "header"` rows that chapter a long page — so matching them on URL
+  // would make every header in the list identical to every other one, office and
+  // member alike: the office's first header would swallow the member's, or the
+  // member's would be mistaken for the office's and become unremovable.
+  //
+  // So office entries are also MARKED. The marker is authoritative and is
+  // re-stamped from the office's own record on every pass, which means a member
+  // cannot forge one: anything arriving marked is dropped here and only genuine
+  // office entries are re-added below. Same `office: true` device the company
+  // phone entry already uses in overlayOfficeContact.
+  const officeUrls = new Set(
+    office.filter((l) => !isHeaderEntry(l)).map((l) => normalizeLinkUrl(l.url)),
+  );
+  // A header has no URL, so its LABEL is its identity — the same role the URL
+  // plays for a link. Needed for rows that predate the `office: true` stamp (and
+  // any payload that simply omits it): without it, a member's form echoing the
+  // company's header back produced a SECOND copy of it on their page every save.
+  const officeHeaders = new Set(
+    office.filter(isHeaderEntry).map((l) => normalizeHeaderLabel(l.label)),
+  );
   // Whatever the member sent that ISN'T one of ours, in their order. An office
   // link they tried to rename, reorder or delete simply falls out here and is
   // re-added from the office's own record below.
   const theirs = own.filter((l) => {
-    const url = (l && typeof l === "object" ? (l as { url?: unknown }).url : null);
+    if (!l || typeof l !== "object") return false;
+    // Claims to be the office's — believe the office's record, not the payload.
+    if ((l as { office?: unknown }).office === true) return false;
+    // A member's own section header is theirs — unless it is the company's
+    // under another name for the same title.
+    if (isHeaderEntry(l)) {
+      const label = (l as { label?: unknown }).label;
+      return !officeHeaders.has(normalizeHeaderLabel(typeof label === "string" ? label : ""));
+    }
+    const url = (l as { url?: unknown }).url;
     return !officeUrls.has(normalizeLinkUrl(typeof url === "string" ? url : ""));
   });
-  return [...office.map((l) => ({ ...l })), ...theirs];
+  return [...office.map((l) => ({ ...l, office: true })), ...theirs];
+}
+
+/** A section header row: a chapter title on the page, with no URL of its own. */
+export function isHeaderEntry(l: unknown): boolean {
+  return !!l && typeof l === "object" && (l as { kind?: unknown }).kind === "header";
+}
+
+/** Loose header identity: case and surrounding space must not create a duplicate. */
+function normalizeHeaderLabel(label: string): string {
+  return String(label ?? "").trim().toLowerCase();
 }
 
 /** Loose URL identity: trailing slash and case must not create a duplicate. */
@@ -173,12 +212,22 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
   const linkDesign = (office.brand_link_design as Record<string, unknown> | null) ?? null;
   const hasLinkDesign = !!linkDesign && Object.keys(linkDesign).length > 0;
   const rawLinks = office.brand_links;
+  // A row is a LINK (label + url) or a SECTION HEADER (label only, kind
+  // "header") that chapters the page. `kind` has to survive this parse and a
+  // header has to survive the filter: dropping either one loses the header
+  // silently between the database and the member's card — it saves, it shows on
+  // the admin's own screen, and it simply never arrives.
   const links = Array.isArray(rawLinks)
     ? (rawLinks as unknown[])
-        .map((l) => (l && typeof l === "object" ? l as { label?: unknown; url?: unknown } : null))
-        .filter((l): l is { label?: unknown; url?: unknown } => !!l)
-        .map((l) => ({ label: String(l.label ?? "").slice(0, 120), url: String(l.url ?? "").slice(0, 500) }))
-        .filter((l) => !!l.label && !!l.url)
+        .map((l) => (l && typeof l === "object" ? l as { label?: unknown; url?: unknown; kind?: unknown } : null))
+        .filter((l): l is { label?: unknown; url?: unknown; kind?: unknown } => !!l)
+        .map((l) => {
+          const label = String(l.label ?? "").slice(0, 120);
+          return l.kind === "header"
+            ? { label, url: "", kind: "header" as const }
+            : { label, url: String(l.url ?? "").slice(0, 500) };
+        })
+        .filter((l) => (l.kind === "header" ? !!l.label : !!l.label && !!l.url))
     : null;
   const hasLinks = !!links && links.length > 0;
   const linkBio = ((office.brand_link_bio as string | null) || null);
@@ -253,6 +302,17 @@ export function overlayOfficeDesign(
  *
  * Pure and total: returns a NEW object and never mutates its input.
  */
+// Where a member's OWN value waits while the office is showing its own in that
+// slot. Both live in the card's customization JSON, so they travel with the
+// card in the same write and can never drift away from it. Nothing renders
+// them — they exist purely so "the company set a bio" is reversible.
+//
+// Not underscore-prefixed: sanitizeCustomizationForPlan is a deny-list that
+// returns paid customizations untouched, and an Office member is paid by
+// definition, so no prefix is needed to survive it.
+export const OWN_BIO = "ownBio";
+export const OWN_INSTAGRAM = "ownInstagram";
+
 export function overlayOfficeLinks(
   customization: Record<string, unknown> | null | undefined,
   brand: Pick<OfficeBrand, "linkDesign" | "lockLinkDesign" | "linkBio" | "linkInstagram" | "links"> | null | undefined,
@@ -269,17 +329,76 @@ export function overlayOfficeLinks(
   }
 
   // `bio` is the Swift Links bio — the same customization key the member's own
-  // Socials tab writes, which is why setting it here replaces theirs.
-  if (brand.linkBio) cust.bio = brand.linkBio;
+  // Socials tab writes, which is why the office's REPLACES theirs on the page.
+  //
+  // Replaces, never destroys. The member's own bio is stashed underneath and
+  // handed straight back the moment the office stops setting one. Without this,
+  // an admin who typed a company bio, saved, and changed their mind an hour
+  // later had permanently deleted fifteen people's bios — and the only copy was
+  // gone, so "undo" meant asking each person to remember what they'd written.
+  // Same reasoning as preserveDowngraded in sanitizeCustomizationForPlan: on
+  // WRITE, replacing a value you don't own is deleting it.
+  if (brand.linkBio) {
+    if (cust[OWN_BIO] === undefined && cust.bio !== brand.linkBio) {
+      cust[OWN_BIO] = typeof cust.bio === "string" ? cust.bio : "";
+    }
+    cust.bio = brand.linkBio;
+  } else if (cust[OWN_BIO] !== undefined) {
+    cust.bio = cust[OWN_BIO];
+    delete cust[OWN_BIO];
+  }
   if (brand.links?.length) cust.links = pinOfficeLinks(cust.links, brand);
 
   // NOTE: Instagram is deliberately NOT here. It is a TOP-LEVEL card column
   // (cards.instagram), not a customization key — the same shape as company and
-  // website — so it is forced by the card routes alongside those, not by this
-  // overlay. Writing customization.instagram would have created a second,
+  // website — so it is handled by overlayOfficeInstagram below, which returns
+  // both halves. Writing customization.instagram would have created a second,
   // silently ignored copy.
 
   return cust;
+}
+
+/**
+ * The office's Instagram, and the member's own kept safe underneath it.
+ *
+ * A Swift Links page has ONE Instagram button — it cannot show two — so when
+ * the office sets a company handle, that is the one the page shows and the
+ * member's field goes read-only. That part is correct and deliberate.
+ *
+ * What was NOT correct: their own handle was overwritten in the column and
+ * gone forever. Drop the company Instagram later and they got a blank box, not
+ * their handle back. It is stashed in customization (same row, same write, so
+ * it cannot drift from the card it belongs to) and restored the moment the
+ * office stops setting one — or when they leave the office entirely.
+ *
+ * `currentInstagram` must be the card's STORED handle, never the one a member
+ * just submitted: while the field is managed their form posts the COMPANY
+ * handle back, and stashing that would overwrite the very thing being saved.
+ *
+ * Pure and total: returns a new object, never mutates its input.
+ */
+export function overlayOfficeInstagram(
+  customization: Record<string, unknown> | null | undefined,
+  currentInstagram: string | null | undefined,
+  brand: Pick<OfficeBrand, "linkInstagram"> | null | undefined,
+): { customization: Record<string, unknown>; instagram: string | null } {
+  const cust: Record<string, unknown> = { ...(customization ?? {}) };
+  const current = currentInstagram ?? null;
+  if (!brand) return { customization: cust, instagram: current };
+
+  if (brand.linkInstagram) {
+    if (cust[OWN_INSTAGRAM] === undefined && current !== brand.linkInstagram) {
+      cust[OWN_INSTAGRAM] = current ?? "";
+    }
+    return { customization: cust, instagram: brand.linkInstagram };
+  }
+
+  if (cust[OWN_INSTAGRAM] !== undefined) {
+    const restored = cust[OWN_INSTAGRAM];
+    delete cust[OWN_INSTAGRAM];
+    return { customization: cust, instagram: typeof restored === "string" ? restored : null };
+  }
+  return { customization: cust, instagram: current };
 }
 
 // ── Pure overlay: apply the company-controlled contact fields onto a card's
@@ -368,8 +487,10 @@ export async function applyBrandToUserCards(
   if (brand.company && opts.setLabel !== false) topLevel.label = brand.company;
   if (brand.website) topLevel.website = brand.website;
   if (brand.lockTemplate && brand.template) topLevel.template = brand.template;
-  // The Swift Links Instagram is a top-level column like company and website.
-  if (brand.linkInstagram) topLevel.instagram = brand.linkInstagram;
+  // NOTE: the Swift Links Instagram is a top-level column like company and
+  // website, but it is deliberately NOT set here. A blanket column write would
+  // overwrite each member's own handle with no copy kept, so it is resolved
+  // PER CARD below, where their handle can be stashed first.
 
   const hasContact = !!(brand.phone || brand.fax || brand.address);
   // The locked look also lives in customization, so it needs the same per-card
@@ -377,7 +498,12 @@ export async function applyBrandToUserCards(
   const hasDesign = !!(brand.lockTemplate && brand.design);
   // The Swift Links branding lives in customization too: the page's look (only
   // while locked), its bio, and the pinned link buttons.
-  const hasLinkBrand = !!((brand.lockLinkDesign && brand.linkDesign) || brand.linkBio || brand.links?.length);
+  // linkInstagram is in this gate too: when the office CLEARS it, the per-card
+  // pass is what hands every member their own handle back. Gating it out would
+  // make the office's Instagram permanent — settable but never undoable.
+  const hasLinkBrand = !!(
+    (brand.lockLinkDesign && brand.linkDesign) || brand.linkBio || brand.links?.length || brand.linkInstagram
+  );
   if (!Object.keys(topLevel).length && !hasContact && !hasDesign && !hasLinkBrand) return;
 
   if (!hasContact && !hasDesign && !hasLinkBrand) {
@@ -389,16 +515,29 @@ export async function applyBrandToUserCards(
   // write so the employee's personal fields are preserved. Scoped to cards
   // actually flagged as under the office — a card the user owns that ISN'T
   // part of the office (a separate personal venture) must never be touched.
-  const { data: cards } = await admin.from("cards").select("id, customization").eq("user_id", userId).eq("is_office_card", true);
+  const { data: cards } = await admin
+    .from("cards")
+    .select("id, customization, instagram")
+    .eq("user_id", userId)
+    .eq("is_office_card", true);
   for (const c of cards ?? []) {
     let merged = c.customization as Record<string, unknown> | null;
     if (hasContact) merged = overlayOfficeContact(merged, brand);
     if (hasDesign) merged = overlayOfficeDesign(merged, brand);
-    if (hasLinkBrand) merged = overlayOfficeLinks(merged, brand);
+    const perCard: Record<string, unknown> = {};
+    if (hasLinkBrand) {
+      merged = overlayOfficeLinks(merged, brand);
+      // The card's STORED handle, never a submitted one — this is the only
+      // moment their own Instagram can still be read before the office's
+      // replaces it.
+      const ig = overlayOfficeInstagram(merged, c.instagram as string | null, brand);
+      merged = ig.customization;
+      perCard.instagram = ig.instagram;
+    }
     if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) {
       merged = { ...(merged ?? {}), customLayout: brand.customLayout };
     }
-    await admin.from("cards").update({ ...topLevel, customization: merged ?? {} }).eq("id", c.id);
+    await admin.from("cards").update({ ...topLevel, ...perCard, customization: merged ?? {} }).eq("id", c.id);
   }
 }
 
@@ -511,16 +650,100 @@ export async function stripBrandFromUserCards(userId: string, brand: OfficeBrand
   if (brand.website) {
     await admin.from("cards").update({ website: "" }).eq("user_id", userId).eq("is_office_card", true).eq("website", brand.website);
   }
-  // Company contact (phone/fax/address) lives in customization → per-card strip.
-  if (brand.phone || brand.fax || brand.address) {
-    const { data: cards } = await admin.from("cards").select("id, customization").eq("user_id", userId).eq("is_office_card", true);
+  // Company contact (phone/fax/address) AND the Swift Links half (bio,
+  // Instagram, pinned links) both live per-card → one read/merge/write pass.
+  //
+  // The Links fields were missing here when the feature shipped, so a departing
+  // employee kept the former employer's bio, company Instagram and booking
+  // links live on their public page indefinitely — the exact thing this
+  // function's first line exists to prevent, just for the newer fields. Their
+  // OWN bio and handle come back at the same time, because this is where they
+  // were being held.
+  const needsContact = !!(brand.phone || brand.fax || brand.address);
+  const needsLinks = !!(brand.linkBio || brand.linkInstagram || brand.links?.length);
+  if (needsContact || needsLinks) {
+    const { data: cards } = await admin
+      .from("cards")
+      .select("id, customization, instagram")
+      .eq("user_id", userId)
+      .eq("is_office_card", true);
     for (const c of cards ?? []) {
-      const stripped = stripOfficeContact(c.customization as Record<string, unknown> | null, brand);
-      await admin.from("cards").update({ customization: stripped }).eq("id", c.id);
+      let cust = c.customization as Record<string, unknown> | null;
+      if (needsContact) cust = stripOfficeContact(cust, brand);
+      const patch: Record<string, unknown> = {};
+      if (needsLinks) {
+        const out = releaseOfficeLinks(cust, c.instagram as string | null, brand);
+        cust = out.customization;
+        patch.instagram = out.instagram;
+      }
+      await admin.from("cards").update({ ...patch, customization: cust ?? {} }).eq("id", c.id);
     }
   }
   // template deliberately kept — a card must always have SOME template, and the
   // office's choice is as good a default as any once the brand fields are gone.
+}
+
+/**
+ * Undo the office's Swift Links branding on ONE card — used when a member
+ * leaves, is removed, or the office's subscription cascades away.
+ *
+ * The mirror image of overlayOfficeLinks + overlayOfficeInstagram: give the
+ * member their own bio and Instagram back, and take the company's pinned links
+ * off the page while leaving every link they added themselves exactly where it
+ * was.
+ *
+ * Conservative in the same way stripBrandFromUserCards is: a field is cleared
+ * only when it still MATCHES the office's value. If a member's bio no longer
+ * equals the company bio, it is theirs — something else set it — and it is left
+ * alone. The design keys are deliberately NOT reverted: a page must have some
+ * look, and the office's is as good a parting default as any (the same call
+ * this function's caller already makes for `template`).
+ *
+ * Pure and total: returns new objects, never mutates its input.
+ */
+export function releaseOfficeLinks(
+  customization: Record<string, unknown> | null | undefined,
+  currentInstagram: string | null | undefined,
+  brand: Pick<OfficeBrand, "linkBio" | "linkInstagram" | "links"> | null | undefined,
+): { customization: Record<string, unknown>; instagram: string | null } {
+  const cust: Record<string, unknown> = { ...(customization ?? {}) };
+  const current = currentInstagram ?? null;
+  if (!brand) return { customization: cust, instagram: current };
+
+  // Bio: hand back what they wrote, if the office's is still the one showing.
+  if (brand.linkBio && cust.bio === brand.linkBio) {
+    const own = cust[OWN_BIO];
+    cust.bio = typeof own === "string" ? own : "";
+  }
+  delete cust[OWN_BIO];
+
+  // Instagram: same rule, on the top-level column.
+  let instagram = current;
+  if (brand.linkInstagram && current === brand.linkInstagram) {
+    const own = cust[OWN_INSTAGRAM];
+    instagram = typeof own === "string" && own ? own : null;
+  }
+  delete cust[OWN_INSTAGRAM];
+
+  // Pinned links: drop the office's, keep theirs, by the same normalized-URL
+  // identity pinOfficeLinks used to put them there.
+  if (brand.links?.length && Array.isArray(cust.links)) {
+    const officeUrls = new Set(
+      brand.links.filter((l) => !isHeaderEntry(l)).map((l) => normalizeLinkUrl(l.url)),
+    );
+    const officeHeaders = new Set(
+      brand.links.filter(isHeaderEntry).map((l) => normalizeHeaderLabel(l.label)),
+    );
+    cust.links = (cust.links as { url?: string; label?: string; office?: unknown }[]).filter((l) => {
+      if (l?.office === true) return false;      // marked as the office's
+      if (isHeaderEntry(l)) {
+        return !officeHeaders.has(normalizeHeaderLabel(typeof l?.label === "string" ? l.label : ""));
+      }
+      return !officeUrls.has(normalizeLinkUrl(typeof l?.url === "string" ? l.url : ""));
+    });
+  }
+
+  return { customization: cust, instagram };
 }
 
 // ── Managed-field rejection (sub-users only) ─────────────────────────────────

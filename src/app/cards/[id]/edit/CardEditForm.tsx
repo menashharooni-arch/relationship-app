@@ -110,7 +110,8 @@ export type OrgManaged = {
   address: CardAddress | null;
   lockDesign: boolean;
   /** Link buttons the office pins to every page. Members add their own on top. */
-  officeLinks: { label: string; url: string }[] | null;
+  /** kind "header" is a section title that chapters the page and has no URL. */
+  officeLinks: { label: string; url: string; kind?: "header" }[] | null;
   /** The bio the office set for every links page, or null to leave it to them. */
   linkBio: string | null;
   /** The company Instagram, or null. Every OTHER social stays the member's. */
@@ -159,9 +160,17 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   // The office's pinned links, matched by URL so a member cannot claim one by
   // renaming it. Their own links are everything else.
   const officeLinks = org?.officeLinks ?? null;
-  const officeLinkUrls = new Set((officeLinks ?? []).map((l) => l.url.trim().toLowerCase().replace(/\/+$/, "")));
-  const isOfficeLink = (url: string | undefined) =>
-    officeLinkUrls.has(String(url ?? "").trim().toLowerCase().replace(/\/+$/, ""));
+  // Headers have no URL, so they are excluded here and matched by their marker
+  // instead — see isOfficeRow. Without that, every header (theirs and the
+  // company's) would share the empty string as an identity.
+  const officeLinkUrls = new Set(
+    (officeLinks ?? []).filter((l) => l.kind !== "header").map((l) => l.url.trim().toLowerCase().replace(/\/+$/, "")),
+  );
+  /** Is this row the company's? The server stamps office rows `office: true`
+   *  as it pins them; the URL check keeps rows saved before that stamp existed
+   *  working too. */
+  const isOfficeRow = (l: { url?: string; office?: unknown } | undefined) =>
+    !!l && (l.office === true || officeLinkUrls.has(String(l.url ?? "").trim().toLowerCase().replace(/\/+$/, "")));
   const linkDesignLocked = !!org?.lockLinkDesign;
   const bioManaged = !!org?.linkBio;
   const instagramManaged = !!org?.linkInstagram;
@@ -962,9 +971,16 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 placeholder="e.g. Austin realtor helping first-time buyers find their dream home — 10+ years, 200+ closings. Let's talk!"
                 className={`${inputCls} resize-none ${bioManaged ? "opacity-70 cursor-default" : ""}`}
               />
-              <p className="text-gray-600 text-[0.6875rem] mt-1">
-                Shows at the top of your Swift Links — the first thing visitors read. Say <strong className="text-gray-400">who you help, what you do, and why they should reach out</strong>. Descriptive bios get more taps.
-              </p>
+              {bioManaged ? (
+                <p className="text-gray-600 text-[0.6875rem] mt-1">
+                  Your company writes one bio for the whole team. Anything you had written is saved and
+                  comes back if they stop setting one.
+                </p>
+              ) : (
+                <p className="text-gray-600 text-[0.6875rem] mt-1">
+                  Shows at the top of your Swift Links — the first thing visitors read. Say <strong className="text-gray-400">who you help, what you do, and why they should reach out</strong>. Descriptive bios get more taps.
+                </p>
+              )}
             </div>
 
             {/* Social links (website lives on the Card info tab — it's card
@@ -1007,7 +1023,17 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                           while typing — so a wrong handle stayed invisible until
                           a visitor hit the 404. This also surfaces the guesses:
                           "John Doe" becomes linkedin.com/in/john-doe. */}
-                      {linked && socialDestination(key, socials[key]) ? (
+                      {/* A page has ONE Instagram button, so the company's is
+                          the one it shows. Say plainly that their own handle
+                          still exists — a greyed-out box holding someone else's
+                          handle otherwise reads as "mine was deleted", which is
+                          exactly what used to happen. */}
+                      {managed ? (
+                        <p className="text-gray-600 text-[0.6875rem] mt-1">
+                          Your page shows the company Instagram. Your own handle is saved and comes back if
+                          your company stops setting one.
+                        </p>
+                      ) : linked && socialDestination(key, socials[key]) ? (
                         <p className="text-gray-600 text-[0.6875rem] mt-1">
                           Opens <span className="text-gray-400 font-medium break-all">{socialDestination(key, socials[key])}</span>
                         </p>
@@ -1052,19 +1078,27 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   {links.map((l, i) =>
                     l.kind === "header" ? (
                       // A section header — label only, editable in place.
-                      <div key={i} className="flex items-center gap-2.5 bg-gray-900 border border-gray-700 border-dashed rounded-xl px-3 py-2.5">
+                      <div key={i} className={`flex items-center gap-2.5 border border-dashed rounded-xl px-3 py-2.5 ${isOfficeRow(l) ? "bg-purple-500/[0.06] border-purple-500/25" : "bg-gray-900 border-gray-700"}`}>
                         <span className="text-[0.5625rem] font-bold uppercase tracking-wide text-gray-500 shrink-0">Section</span>
                         <input
                           type="text"
                           value={l.label}
                           onChange={(e) => setLinks((prev) => prev.map((x, xi) => (xi === i ? { ...x, label: e.target.value } : x)))}
                           placeholder="Section title (e.g. Watch)"
-                          className="flex-1 min-w-0 bg-transparent text-gray-200 text-xs font-bold uppercase tracking-wide focus:outline-none placeholder-gray-600"
+                          readOnly={isOfficeRow(l)}
+                          className={`flex-1 min-w-0 bg-transparent text-gray-200 text-xs font-bold uppercase tracking-wide focus:outline-none placeholder-gray-600 ${isOfficeRow(l) ? "cursor-default opacity-80" : ""}`}
                         />
-                        <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
+                        {/* A company section is re-pinned by the server on every
+                            save, so an × here would silently undo itself — the
+                            same reason a company LINK carries a word instead. */}
+                        {isOfficeRow(l) ? (
+                          <span className="text-[0.5625rem] font-semibold uppercase tracking-wide text-purple-300 shrink-0">Company</span>
+                        ) : (
+                          <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
+                        )}
                       </div>
                     ) : (
-                    <div key={i} className={`rounded-xl px-3 py-2.5 border ${isOfficeLink(l.url) ? "bg-purple-500/[0.06] border-purple-500/25" : "bg-gray-900 border-gray-700"}`}>
+                    <div key={i} className={`rounded-xl px-3 py-2.5 border ${isOfficeRow(l) ? "bg-purple-500/[0.06] border-purple-500/25" : "bg-gray-900 border-gray-700"}`}>
                       <div className="flex items-center gap-2.5">
                         <LinkPreviewThumb url={l.url} />
                         <div className="flex-1 min-w-0">
@@ -1075,7 +1109,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                             the server re-pins it on save, so a remove control
                             here would silently undo itself. The member's own
                             links keep theirs. */}
-                        {isOfficeLink(l.url) ? (
+                        {isOfficeRow(l) ? (
                           <span className="text-[0.5625rem] font-semibold uppercase tracking-wide text-purple-300 shrink-0">Company</span>
                         ) : (
                           <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>

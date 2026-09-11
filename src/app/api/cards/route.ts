@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, seedBrandFromOwnersFirstCard, overlayOfficeLinks } from "@/lib/office-brand";
+import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, seedBrandFromOwnersFirstCard, overlayOfficeLinks, overlayOfficeInstagram } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
 import { ensureUniqueUsername, normalizeSlug } from "@/lib/username";
@@ -93,6 +93,9 @@ export async function POST(req: NextRequest) {
   let finalWebsite = website || "";
   let finalLogo = logo_url || null;
   let finalLabel = label || null;
+  // Set only when an office owns the Instagram slot on this card; null means
+  // "whatever the member typed" (see the insert below).
+  let officeInstagram: string | null = null;
   // Is this creator an office SUB-USER (active member, not the owner)? Resolved
   // once — it decides both the company nickname AND whether the card is flagged
   // is_office_card (below). The owner is deliberately excluded: their personal
@@ -129,7 +132,15 @@ export async function POST(req: NextRequest) {
     // moment it is created: its look (while locked), its bio, and its pinned
     // links leading anything the member added in the wizard. Sub-users only —
     // an owner's own card is theirs.
-    if (subCtx) cust = overlayOfficeLinks(cust as Record<string, unknown>, brand) as typeof cust;
+    if (subCtx) {
+      cust = overlayOfficeLinks(cust as Record<string, unknown>, brand) as typeof cust;
+      // A brand-new card has no stored handle, so whatever they typed IS their
+      // own — stash it before the company's takes the one Instagram slot, so
+      // this card behaves like every existing one if the office clears it.
+      const ig = overlayOfficeInstagram(cust as Record<string, unknown>, normalizeSocial(String(instagram || ""), "instagram"), brand);
+      cust = ig.customization as typeof cust;
+      officeInstagram = ig.instagram;
+    }
   }
 
   const cardRow = {
@@ -147,7 +158,7 @@ export async function POST(req: NextRequest) {
     // The office's Instagram when it set one — a top-level column, so it is
     // forced here rather than in the links overlay. Every OTHER social stays
     // the member's own.
-    instagram: normalizeSocial(String((subCtx && brand?.linkInstagram) || instagram || ""), "instagram"),
+    instagram: officeInstagram ?? normalizeSocial(String(instagram || ""), "instagram"),
     twitter: normalizeSocial(String(twitter || ""), "twitter"),
     tiktok: normalizeSocial(String(tiktok || ""), "tiktok"),
     template: safeTemplate,

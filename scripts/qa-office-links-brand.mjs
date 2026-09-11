@@ -48,8 +48,12 @@ const BRAND = {
   instagram: `northbeam${stamp}`,
   linkLabel: `Book a viewing ${stamp}`,
   linkUrl: `https://northbeam-${stamp}.example.com/book`,
+  sectionLabel: `Listings ${stamp}`,
 };
 const MEMBER_LINK = { label: `My calendar ${stamp}`, url: `https://cal-${stamp}.example.com/me` };
+// What the teammate already had before any office brand existed. The office is
+// allowed to take these slots on the page; it is not allowed to delete them.
+const MEMBER_OWN = { bio: `Ben's own bio, written before any office brand (${stamp})`, instagram: `benpersonal${stamp}` };
 
 async function seed() {
   for (const who of [admin, member]) {
@@ -112,8 +116,12 @@ async function seed() {
         // A bio and a link the TEAMMATE already had, so we can prove the
         // office's values land on top of real prior content rather than on a
         // blank card — and that the teammate's own link is not deleted.
+        // Their own handle, so we can prove the company's takes the slot
+        // WITHOUT destroying theirs.
+        // "" not null — cards.instagram is NOT NULL.
+        instagram: who === member ? MEMBER_OWN.instagram : "",
         customization: who === member
-          ? { bio: "Ben's own bio, written before any office brand existed.", links: [MEMBER_LINK] }
+          ? { bio: MEMBER_OWN.bio, links: [MEMBER_LINK] }
           : {},
       }),
     })).json();
@@ -329,9 +337,22 @@ async function adminSetsBrand() {
     const urlSel = 'input[placeholder*="http" i], input[type="url"]';
     const urls = await page.$$(urlSel);
     await urls[urls.length - 1].fill(BRAND.linkUrl);
-    await page.click('button:has-text("Add")');
+    await page.click('button:has-text("Add company link")');
     await page.waitForTimeout(600);
     eq("the pinned link is listed after adding", (await page.innerText("body")).includes(BRAND.linkLabel), true);
+
+    // A SECTION HEADER among the company links — the same kind of row a
+    // teammate can add under their own. It has no URL, which is exactly why it
+    // needs its own identity rather than the URL match the links use.
+    await page.click('button:has-text("Add a section header")');
+    await page.waitForTimeout(500);
+    const secInput = await page.$('input[placeholder*="Section title" i]');
+    if (!secInput) fail("section header control", "no Section title input appeared after clicking");
+    else {
+      await secInput.fill(BRAND.sectionLabel);
+      await page.waitForTimeout(300);
+      pass("a company section header can be added");
+    }
 
     // Turn the design lock on.
     await page.click('label:has-text("Keep every Swift Links page matching")');
@@ -355,6 +376,10 @@ async function adminSetsBrand() {
     eq("bio survived a reload", await page.inputValue("#office-link-bio"), BRAND.bio);
     eq("Instagram survived a reload", (await page.inputValue("#office-link-ig")).replace(/^@/, ""), BRAND.instagram);
     eq("the pinned link survived a reload", (await page.innerText("body")).includes(BRAND.linkLabel), true);
+    // A header row is an <input>, and innerText never includes input VALUES —
+    // read the values, or this checks nothing and always fails.
+    const hdrVals = await page.$$eval("input", (els) => els.map((e) => e.value));
+    eq("the section header survived a reload", hdrVals.includes(BRAND.sectionLabel), true);
     const lockSel2 = 'label:has-text("Keep every Swift Links page matching") input[type="checkbox"]';
     eq("the lock survived a reload", await page.$eval(lockSel2, (e) => e.checked), true);
 
@@ -447,6 +472,13 @@ async function memberSeesTheBrand() {
     }, BRAND.linkLabel);
     eq("the teammate gets no remove button on a company link", removable, false);
     eq("teammate still sees their OWN link", body.includes(MEMBER_LINK.label), true);
+    const memberVals = await page.$$eval("input", (els) => els.map((e) => e.value));
+    eq("teammate sees the company section header", memberVals.includes(BRAND.sectionLabel), true);
+    // The closure runs in the PAGE, which cannot see this script's constants —
+    // pass the label in rather than referencing BRAND inside it.
+    eq("and cannot edit it",
+       await page.$$eval("input", (els, label) => els.filter((e) => e.value === label).every((e) => e.readOnly), BRAND.sectionLabel),
+       true);
     eq("the locked design is explained, not just missing", /Office admin|managed|set by your/i.test(body), true);
 
     if (errors.length) fail("member editor JS errors", errors.join(" | "));
@@ -460,6 +492,8 @@ async function memberSeesTheBrand() {
     eq("public Swift Links shows the office bio", pub.includes(BRAND.bio), true);
     eq("public Swift Links shows the pinned company link", pub.includes(BRAND.linkLabel), true);
     eq("public Swift Links KEEPS the teammate's own link", pub.includes(MEMBER_LINK.label), true);
+    // The header is rendered uppercase by CSS, so compare case-insensitively.
+    eq("public Swift Links shows the company section header", pub.toLowerCase().includes(BRAND.sectionLabel.toLowerCase()), true);
     await page.screenshot({ path: `${OUT}/member-public-links.png`, fullPage: true }).catch(() => {});
 
     // ── 4. A crafted request must not strip the office back out ──
@@ -492,6 +526,59 @@ async function memberSeesTheBrand() {
     eq(`teammate add (${add.status}) keeps the company link first`, links2[0]?.label, BRAND.linkLabel);
     eq("teammate's new link was accepted", links2.some((l) => l.label === "Second of mine"), true);
     eq("teammate's original link survived", links2.some((l) => l.label === MEMBER_LINK.label), true);
+    eq("the company section header was re-pinned, not lost", links2.some((l) => l.kind === "header" && l.label === BRAND.sectionLabel), true);
+
+    // A member's OWN section header must survive alongside the company's —
+    // both have no URL, so a URL-only identity would have merged them.
+    const ownHdr = await page.evaluate(async ({ id, pinned, hdr, mine }) => {
+      const r = await fetch(`/api/cards/${id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customization: { links: [hdr, pinned, { label: "My own section", url: "", kind: "header" }, mine] } }),
+      });
+      return { status: r.status };
+    }, { id: member.cardId, pinned: { label: BRAND.linkLabel, url: BRAND.linkUrl }, hdr: { label: BRAND.sectionLabel, url: "", kind: "header" }, mine: MEMBER_LINK });
+    const row3 = await (await adm(`/rest/v1/cards?id=eq.${member.cardId}&select=customization`)).json();
+    const l3 = row3?.[0]?.customization?.links ?? [];
+    eq(`teammate's own section header survived (${ownHdr.status})`, l3.some((l) => l.kind === "header" && l.label === "My own section"), true);
+    // Office rows lead, in the order the ADMIN arranged them (the link was added
+    // before the header), and the member's follow.
+    eq("the company's rows still lead the list", l3[0]?.label, BRAND.linkLabel);
+    eq("the company header sits in the admin's order, before the member's rows",
+       l3.findIndex((l) => l.label === BRAND.sectionLabel) < l3.findIndex((l) => l.label === "My own section"), true);
+    eq("the company header was not duplicated",
+       l3.filter((l) => l.kind === "header" && l.label === BRAND.sectionLabel).length, 1);
+
+    // ── 5b. Their own bio and handle are KEPT, not destroyed ──
+    const kept = (await (await adm(`/rest/v1/cards?id=eq.${member.cardId}&select=customization`)).json())?.[0]?.customization ?? {};
+    eq("their own bio was kept underneath", kept.ownBio, MEMBER_OWN.bio);
+    eq("their own Instagram was kept underneath", kept.ownInstagram, MEMBER_OWN.instagram);
+  } finally { await ctx.close(); }
+}
+
+// ── 7. The admin changes their mind: clearing gives everyone theirs back ─────
+// The failure this exists for: an admin types a company bio, presses save, and
+// has permanently deleted fifteen bios. Clearing must be a real undo.
+async function clearingTheBrandGivesItBack() {
+  const { ctx, page, errors } = await signIn(admin);
+  try {
+    if (!(await gotoStable(page, "/office/admin/branding", '[role="tab"]', "branding reopens"))) return;
+    if (!(await clickTab(page, "Links"))) { fail("Links tab reopens", "never switched"); return; }
+    await page.waitForSelector("#office-link-bio", { timeout: 20000 });
+    await page.fill("#office-link-bio", "");
+    await page.fill("#office-link-ig", "");
+    await page.click('button:has-text("Save & apply to all Swift Links")');
+    await page.waitForTimeout(3500);
+
+    const office = (await (await adm(`/rest/v1/offices?id=eq.${officeId}&select=brand_link_bio,brand_link_instagram`)).json())?.[0] ?? {};
+    console.log("  office row after CLEARING:", JSON.stringify(office));
+    const row = (await (await adm(`/rest/v1/cards?id=eq.${member.cardId}&select=customization,instagram`)).json())?.[0] ?? {};
+    console.log("  teammate card after CLEARING:", JSON.stringify(row).slice(0, 420));
+    const cust = row.customization ?? {};
+    eq("the teammate's own bio came back", cust.bio, MEMBER_OWN.bio);
+    eq("the teammate's own Instagram came back", String(row.instagram ?? ""), MEMBER_OWN.instagram);
+    eq("the stash was cleaned up afterwards", cust.ownBio === undefined && cust.ownInstagram === undefined, true);
+    eq("the company link is still pinned (it was not cleared)", (cust.links ?? []).some((l) => l.label === BRAND.linkLabel), true);
+    if (errors.length) fail("clearing JS errors", errors.join(" | "));
   } finally { await ctx.close(); }
 }
 
@@ -541,6 +628,7 @@ async function memberScreensOnPhoneAndInApp() {
     await adminPageOnPhoneAndInApp();
     await memberSeesTheBrand();
     await memberScreensOnPhoneAndInApp();
+    await clearingTheBrandGivesItBack();
   } catch (e) {
     fail("harness", e.message);
   } finally {

@@ -168,6 +168,43 @@ describe("Branding → Links", () => {
     } finally { await page.close(); }
   });
 
+  it("offers a section header, the same as a teammate's own links do", async () => {
+    // A company page can be chaptered the way a personal one can. Without this
+    // the admin could pin fifteen links with no way to group them, while every
+    // teammate could group their own — the two halves of the same page
+    // disagreeing about what a link list is.
+    const page = await render(browser, 1100, OFFICE);
+    try {
+      const t = await page.innerText("body");
+      expect(t).toContain("+ Add a section header");
+      expect(t).toContain("Company Additional Links");
+      expect(t, "the old name").not.toContain("Company link buttons");
+    } finally { await page.close(); }
+  });
+
+  it("renders a pinned section header as a label, with no URL line", async () => {
+    const page = await render(browser, 1100, {
+      ...OFFICE,
+      brand_links: [
+        { label: "Listings", url: "", kind: "header" },
+        { label: "Book a viewing", url: "https://northwind.com/book" },
+      ],
+    });
+    try {
+      const rows = await page.evaluate(() =>
+        [...document.querySelectorAll("input")]
+          .filter((i) => i.value === "Listings")
+          .map((i) => ({ value: i.value, readOnly: i.readOnly })),
+      );
+      expect(rows.length, "the header is editable in place").toBe(1);
+      // innerText reflects RENDERED text, and the tag carries `uppercase` —
+      // so this reads "SECTION", not "Section".
+      const t = await page.innerText("body");
+      expect(t).toMatch(/section/i);
+      expect(t).toContain("https://northwind.com/book");
+    } finally { await page.close(); }
+  });
+
   it("carries no price, trial or upgrade language", async () => {
     // The office admin console renders inside the iOS shell, which may not
     // sell (App Store 3.1.1). This screen is a settings surface and must stay

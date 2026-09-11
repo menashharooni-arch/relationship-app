@@ -112,7 +112,8 @@ export type OrgManaged = {
   address: CardAddress | null;
   lockDesign: boolean;
   /** Link buttons the office pins to every page. Members add their own on top. */
-  officeLinks: { label: string; url: string }[] | null;
+  /** kind "header" is a section title that chapters the page and has no URL. */
+  officeLinks: { label: string; url: string; kind?: "header" }[] | null;
   /** The bio the office set for every links page, or null to leave it to them. */
   linkBio: string | null;
   /** The company Instagram, or null. Every OTHER social stays the member's. */
@@ -232,9 +233,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // The office's pinned links, matched by URL so a member cannot claim one by
   // renaming it. Their own links are everything else.
   const officeLinks = org?.officeLinks ?? null;
-  const officeLinkUrls = new Set((officeLinks ?? []).map((l) => l.url.trim().toLowerCase().replace(/\/+$/, "")));
-  const isOfficeLink = (url: string | undefined) =>
-    officeLinkUrls.has(String(url ?? "").trim().toLowerCase().replace(/\/+$/, ""));
+  // Headers carry no URL, so they are matched by their marker instead — see
+  // isOfficeRow. Including them here would give every header the same identity.
+  const officeLinkUrls = new Set(
+    (officeLinks ?? []).filter((l) => l.kind !== "header").map((l) => l.url.trim().toLowerCase().replace(/\/+$/, "")),
+  );
+  /** Is this row the company's? The server stamps office rows `office: true`. */
+  const isOfficeRow = (l: { url?: string; office?: unknown } | undefined) =>
+    !!l && (l.office === true || officeLinkUrls.has(String(l.url ?? "").trim().toLowerCase().replace(/\/+$/, "")));
   const linkDesignLocked = !!org?.lockLinkDesign;
   const bioManaged = !!org?.linkBio;
   const instagramManaged = !!org?.linkInstagram;
@@ -1395,16 +1401,21 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 <div className="space-y-2 mb-2">
                   {links.map((l, i) =>
                     l.kind === "header" ? (
-                      <div key={i} className="flex items-center gap-2 bg-gray-900 border border-gray-700 border-dashed rounded-xl px-3 py-2.5">
+                      <div key={i} className={`flex items-center gap-2 border border-dashed rounded-xl px-3 py-2.5 ${isOfficeRow(l) ? "bg-purple-500/[0.06] border-purple-500/25" : "bg-gray-900 border-gray-700"}`}>
                         <span className="text-[0.5625rem] font-bold uppercase tracking-wide text-gray-500 shrink-0">Section</span>
                         <input
                           type="text"
                           value={l.label}
                           onChange={(e) => setLinks((prev) => prev.map((x, xi) => (xi === i ? { ...x, label: e.target.value } : x)))}
                           placeholder="Section title (e.g. Watch)"
-                          className="flex-1 min-w-0 bg-transparent text-gray-200 text-xs font-bold uppercase tracking-wide focus:outline-none placeholder-gray-600"
+                          readOnly={isOfficeRow(l)}
+                          className={`flex-1 min-w-0 bg-transparent text-gray-200 text-xs font-bold uppercase tracking-wide focus:outline-none placeholder-gray-600 ${isOfficeRow(l) ? "cursor-default opacity-80" : ""}`}
                         />
-                        <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
+                        {isOfficeRow(l) ? (
+                          <span className="text-[0.5625rem] font-semibold uppercase tracking-wide text-purple-300 shrink-0">Company</span>
+                        ) : (
+                          <button type="button" onClick={() => removeLink(i)} className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0">×</button>
+                        )}
                       </div>
                     ) : (
                     <div key={i} className="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5">

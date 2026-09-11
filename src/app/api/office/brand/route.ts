@@ -115,12 +115,22 @@ export async function PATCH(req: NextRequest) {
   if ("links" in body) {
     const raw = Array.isArray(body.links) ? (body.links as unknown[]) : [];
     const clean = raw
-      .map((l) => (l && typeof l === "object" ? (l as { label?: unknown; url?: unknown }) : null))
-      .filter((l): l is { label?: unknown; url?: unknown } => !!l)
-      .map((l) => ({ label: String(l.label ?? "").trim().slice(0, 120), url: String(l.url ?? "").trim().slice(0, 500) }))
-      // Both halves required: a link with no destination is a dead button on
-      // fifteen people's pages.
-      .filter((l) => !!l.label && /^https?:\/\//i.test(l.url))
+      .map((l) => (l && typeof l === "object" ? (l as { label?: unknown; url?: unknown; kind?: unknown }) : null))
+      .filter((l): l is { label?: unknown; url?: unknown; kind?: unknown } => !!l)
+      .map((l) => ({
+        label: String(l.label ?? "").trim().slice(0, 120),
+        url: String(l.url ?? "").trim().slice(0, 500),
+        // A SECTION HEADER chapters the page and has no destination — the same
+        // `kind: "header"` row a member can add under their own links. Only
+        // these two kinds exist; anything else is coerced to a plain link so a
+        // crafted payload cannot invent a third.
+        kind: l.kind === "header" ? ("header" as const) : undefined,
+      }))
+      .map((l) => (l.kind === "header" ? { label: l.label, url: "", kind: "header" as const } : l))
+      // A LINK needs both halves — one with no destination is a dead button on
+      // fifteen people's pages. A HEADER needs only its title.
+      .filter((l) => (l.kind === "header" ? !!l.label : !!l.label && /^https?:\/\//i.test(l.url)))
+      .map((l) => (l.kind === "header" ? l : { label: l.label, url: l.url }))
       .slice(0, 20);
     linkFields.brand_links = clean.length ? clean : null;
   }
