@@ -1,0 +1,67 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
+import { requireOfficeCapability } from "@/lib/office-roles";
+import { getAllOfficeLeads } from "@/lib/office-leads";
+import { leadStatusView } from "@/lib/lead-status";
+
+// GET /api/office/leads/export → every lead the office owns, as CSV.
+//
+// The Leads tab can only show a page at a time, and a fifteen-person team at
+// one trade show clears a page easily. Without this the office had no way to
+// get at the rest at all: there was no export anywhere in the admin console,
+// and /api/leads/export is scoped to one person's own cards.
+//
+// EVERY lead, not a capped slice — getAllOfficeLeads pages through. An export
+// that silently stops is worse than no export, because nobody can tell.
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // The same capability the Leads tab is gated on, which also re-checks that
+  // the owner is still on a paid Office plan.
+  const ctx = await requireOfficeCapability(user.id, "view_org_analytics");
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const leads = await getAllOfficeLeads(ctx.officeId).catch(() => null);
+  if (!leads) {
+    return NextResponse.json({ error: "Couldn't build the export. Please try again." }, { status: 500 });
+  }
+
+  // Identical escaping to the personal export: prefix a leading =, +, -, @,
+  // tab or CR with a quote before quoting, so a lead field — all of which are
+  // typed by whoever filled in the public form — cannot be run as a formula
+  // when the file is opened in Excel or Sheets.
+  const esc = (v: string | null | undefined) => {
+    const s = v ?? "";
+    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
+
+  const rows = leads.map((l) =>
+    [
+      esc(l.name),
+      esc(l.email),
+      esc(l.phone),
+      // The PERSON who captured it, never the raw card slug — the same rule
+      // the table follows, and the column an office actually wants.
+      esc(l.capturedBy),
+      // The label the admin sees in the UI, not the stored enum, so the file
+      // and the screen agree.
+      esc(leadStatusView(l.status).label),
+      esc(new Date(l.created_at).toISOString().slice(0, 10)),
+    ].join(","),
+  );
+
+  const csv = ["Name,Email,Phone,Captured by,Status,Date added", ...rows].join("\n");
+  const stamp = new Date().toISOString().slice(0, 10);
+
+  return new NextResponse(csv, {
+    headers: {
+      "Content-Type": "text/csv",
+      "Content-Disposition": `attachment; filename="swiftcard-team-leads-${stamp}.csv"`,
+      // Never cached: it is a snapshot of live customer data.
+      "Cache-Control": "no-store",
+    },
+  });
+}

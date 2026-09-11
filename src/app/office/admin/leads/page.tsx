@@ -13,15 +13,21 @@ export default async function OfficeLeadsPage() {
   // Server-scoped to THIS office (current team + leads stamped at removal time
   // for people who've left) — includes the slug → person-name mapping so the
   // table never shows a raw card URL.
-  const leads = await getOfficeLeads(officeId).catch(() => []);
+  const page = await getOfficeLeads(officeId).catch(() => ({ leads: [], total: 0, hasMore: false }));
 
   return (
     <div>
       <PageHead
         title="Leads"
-        desc={`Everyone who shared their info with your team${leads.length ? ` — ${leads.length} so far` : ""}.`}
+        // The EXACT total, not the number loaded. This said "600 so far"
+        // permanently once the office passed the old cap — and the Team tab's
+        // per-person counts were uncapped, so the two tabs disagreed with no
+        // way to reconcile them.
+        desc={`Everyone who shared their info with your team${page.total ? ` — ${page.total.toLocaleString()} so far` : ""}.`}
       />
-      <div data-tour="admin-leads-table"><LeadsTable leads={leads} /></div>
+      <div data-tour="admin-leads-table">
+        <LeadsTable leads={page.leads} total={page.total} hasMore={page.hasMore} />
+      </div>
     </div>
   );
 }

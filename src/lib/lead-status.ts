@@ -24,6 +24,17 @@ export type LeadStatusView = {
 export const LEAD_STATUS_VALUES = ["new_contact", "touch", "dissolved", "not_interested"] as const;
 export type LeadStatusValue = (typeof LEAD_STATUS_VALUES)[number];
 
+/**
+ * The stored values that mean somebody has already handled this lead.
+ *
+ * Derived from the same switch leadStatusView uses, so a count computed in SQL
+ * and a label rendered in the UI can never disagree. Anything outside this set
+ * — including null, and including a value we don't recognise — reads as New,
+ * which is why the null case has to be spelled out separately in a SQL
+ * `NOT IN` (SQL drops nulls from it).
+ */
+export const WORKED_STATUS_VALUES = ["touch", "dissolved", "not_interested"] as const;
+
 export function isLeadStatusValue(v: string | null | undefined): v is LeadStatusValue {
   return !!v && (LEAD_STATUS_VALUES as readonly string[]).includes(v);
 }
