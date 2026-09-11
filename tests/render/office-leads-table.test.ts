@@ -19,6 +19,10 @@ const mk = (i: number) => ({
   card_owner: `member-${i % 3}`,
   capturedBy: ["Dana Admin", "Member 1", "Former team member"][i % 3],
   tags: null,
+  // Derived server-side from the contact's follow-up sequence — the column
+  // that replaced the CRM status nothing could set (lib/lead-followup.ts).
+  // Cycled so the widest badge ("No follow-up") is measured alongside the rest.
+  followUp: (["none", "running", "paused", "done"] as const)[i % 4],
 });
 
 async function render(browser: Browser, width: number, props: Record<string, unknown>) {

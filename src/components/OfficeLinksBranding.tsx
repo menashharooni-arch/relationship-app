@@ -133,7 +133,11 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
   // (owner, 2026-09-11) — directly under what you just typed, directly above
   // the design controls whose effect you want to watch.
   const preview = (
-    <div className="rounded-2xl overflow-hidden border border-gray-800">
+    // data-preview-frame marks the box whose WIDTH is the contract. What is
+    // inside renders at true phone width and is scaled to fit by measuring the
+    // container at runtime, which a static render cannot do — so the layout
+    // tests measure this frame and skip its contents (tests/render).
+    <div data-preview-frame className="rounded-2xl overflow-hidden border border-gray-800">
       <SwiftLinkLivePreview
         name="Sam Rivera"
         handle="samrivera"
