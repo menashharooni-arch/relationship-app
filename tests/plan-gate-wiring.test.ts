@@ -51,15 +51,15 @@ const SITES: Site[] = [
     native: ["Pro feature — Automated follow-up sequences are only available on the Pro plan"],
   },
   {
-    // The "second card" upsell still lives on the page — it is passed into
-    // MyCardsList as a slot, so its copy and its plan condition stay here.
+    // The "second card" upsell LEFT this page (owner, 2026-09-11). It used to
+    // be a standing box under My Cards; it is now the sheet behind the Add card
+    // button, in components/AddCardButton, which has its own entry below. What
+    // remains here are the gates that still live on the dashboard.
     file: "src/app/dashboard/page.tsx",
     web: [
-      "Ready for a second card? Go unlimited with Pro.",
       "Upgrade to Pro →",
     ],
     native: [
-      "Pro feature — Multiple cards are only available on the Pro plan",
       "Pro feature — You've used your 5 free leads this month. Unlimited leads are only available on the Pro plan",
       "Pro feature — Detailed analytics are only available on the Pro plan",
       // CSV export is NOT listed here any more. The dashboard's Quick Contacts
@@ -97,6 +97,14 @@ const SITES: Site[] = [
       "Pro feature — Free includes 2 links. More links are only available on the Pro plan",
       "This card is view-only. Editing multiple cards is only available on the Pro plan",
     ],
+  },
+  {
+    // The second-card offer's new home: the sheet behind Add card. Same native
+    // string it carried on the dashboard, so the copy stays pinned char-for-char
+    // after the move rather than quietly losing its guard.
+    file: "src/components/AddCardButton.tsx",
+    web: ["More than one card is part of Pro"],
+    native: ["Pro feature — Multiple cards are only available on the Pro plan"],
   },
   {
     file: "src/app/cards/new/NewCardWizard.tsx",

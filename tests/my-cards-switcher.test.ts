@@ -49,11 +49,24 @@ describe("the Free-plan upsell is never swallowed by the dropdown", () => {
     expect(tail).not.toMatch(/expanded/);
   });
 
-  it("its plan condition still lives in the page, unchanged", () => {
+  // The standing upsell is GONE (owner, 2026-09-11). It sat under My Cards on
+  // every single dashboard visit whether or not the person wanted another card.
+  // The pitch moved behind the Add card button, which a Free account now sees
+  // too — so the offer arrives when they ask for a second card, and never
+  // otherwise. The slot itself stays, because MyCardsList still owns where an
+  // upsell would render if one ever comes back.
+  it("no longer parks a standing upsell under the card list", () => {
     const c = code(DASHBOARD);
-    expect(c).toMatch(/!isPro && allCards\.length >= PLAN_LIMITS\.FREE_CARD_LIMIT/);
-    expect(c).toMatch(/Ready for a second card\? Go unlimited with Pro\./);
-    expect(c).toMatch(/feature="second-card"/);
+    expect(c).toMatch(/upsell=\{null\}/);
+    expect(c, "the permanent upsell box is back").not.toMatch(/Ready for a second card/);
+  });
+
+  it("the second-card offer moved to the Add card button", () => {
+    const btn = code("src/components/AddCardButton.tsx");
+    expect(btn).toMatch(/feature="second-card"/);
+    expect(btn).toMatch(/nativeCopy="Pro feature — Multiple cards are only available on the Pro plan"/);
+    // It opens on press, not on render.
+    expect(btn).toMatch(/onClick=\{\(\) => setOpen\(true\)\}/);
   });
 });
 

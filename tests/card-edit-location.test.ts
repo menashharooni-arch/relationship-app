@@ -152,22 +152,25 @@ describe("the Add card button is wired correctly", () => {
     );
   });
 
-  it("is gated on the plan's eligibility flag", () => {
+  // The button is no longer CONDITIONAL on the plan (owner, 2026-09-11) — it
+  // is always rendered, and the plan decides what pressing it does. That is the
+  // whole point of the change: a Free account at the limit should see the same
+  // control, not an absence plus a permanent upsell box.
+  it("is always rendered, with the plan deciding what it does", () => {
     const c = code(DASHBOARD);
     expect(c).toMatch(/const canAddCard = isPro \|\| allCards\.length < PLAN_LIMITS\.FREE_CARD_LIMIT/);
-    expect((c.match(/\{canAddCard && \(/g) ?? []).length).toBe(1);
+    expect(c, "the button is conditional again").not.toMatch(/\{canAddCard && \(/);
+    expect(c).toMatch(/<AddCardButton\s+locked=\{!canAddCard\}/);
   });
 
   it("goes to the add-card destination, exactly once", () => {
-    // Scoped to the My Cards box. Another /cards/new?add=1 lives in the
-    // card-less empty state ("Create your card") and is not part of this.
-    // The box now ends at <MyCardsList, which is where the rows went.
-    const c = code(DASHBOARD);
-    const boxStart = c.indexOf('data-tour="my-cards"');
-    const boxEnd = c.indexOf("<MyCardsList");
-    expect(boxStart).toBeGreaterThan(0);
-    expect(boxEnd).toBeGreaterThan(boxStart);
-    const box = c.slice(boxStart, boxEnd);
-    expect((box.match(/href="\/cards\/new\?add=1"/g) ?? []).length).toBe(1);
+    // The destination moved into the component with the button. Scoped there
+    // for the same reason it was scoped to the box before: another
+    // /cards/new?add=1 lives in the card-less empty state and is not part of
+    // this one.
+    const c = code("src/components/AddCardButton.tsx");
+    expect((c.match(/href="\/cards\/new\?add=1"/g) ?? []).length).toBe(1);
+    // And the unlocked path must be a real link, not a button that navigates.
+    expect(c).toMatch(/if \(!locked\) \{[\s\S]{0,200}<Link href="\/cards\/new\?add=1"/);
   });
 });

@@ -50,6 +50,8 @@ import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
 import { readUsage } from "@/lib/usage";
 import { backfillCardPhotos } from "@/lib/card-media";
 import { buildCardData } from "@/lib/card-data";
+import AddCardButton from "@/components/AddCardButton";
+import { isProTrialEligible } from "@/lib/trial-eligibility";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -141,6 +143,13 @@ export default async function DashboardPage({
   // renders the control twice — an inline text link on desktop, a full-width
   // button on mobile — and the two must never disagree about who can add.
   const canAddCard = isPro || allCards.length < PLAN_LIMITS.FREE_CARD_LIMIT;
+
+  // Whether the Add-card offer may promise the free trial. Same helper the
+  // checkout API enforces with, so the button and the Stripe session agree.
+  // Free and never subscribed → no Stripe customer → true with no network call.
+  const trialEligible = isPro
+    ? false
+    : await isProTrialEligible(profile.stripe_customer_id as string | null);
 
   // App-level Pro grant (14-day reverse trial or a stacked referral/free month):
   // plan is pro, with an expiry, and NO real Stripe subscription behind it.
@@ -847,17 +856,15 @@ export default async function DashboardPage({
                   </svg>
                   View live
                 </a>
-                {canAddCard && (
-                  <Link
-                    href="/cards/new?add=1"
-                    className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-blue-400 text-[0.6875rem] sm:text-xs font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
-                  >
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true">
-                      <path d="M10 4a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 0110 4z" />
-                    </svg>
-                    Add card
-                  </Link>
-                )}
+                {/* Always rendered now (owner, 2026-09-11). A Free account at
+                    the limit gets the SAME button, and pressing it opens the
+                    offer — instead of the button being absent and a permanent
+                    dashed upsell box sitting under My Cards on every visit. */}
+                <AddCardButton
+                  locked={!canAddCard}
+                  trialEligible={trialEligible}
+                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-blue-400 text-[0.6875rem] sm:text-xs font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
+                />
               </div>
             </div>
             {/* The rows moved into a client component so mobile can collapse to
@@ -878,22 +885,10 @@ export default async function DashboardPage({
               freeCardLimit={PLAN_LIMITS.FREE_CARD_LIMIT}
               view={view}
               sortBy={sortBy}
-              upsell={
-                !isPro && allCards.length >= PLAN_LIMITS.FREE_CARD_LIMIT ? (
-                <PlanGate
-                  feature="second-card"
-                  nativeCopy="Pro feature — Multiple cards are only available on the Pro plan"
-                >
-                  <Link
-                    href="/upgrade"
-                    className="group flex items-center justify-between border border-dashed border-gray-800 hover:border-blue-600/60 rounded-xl px-4 py-3 flex-1 min-w-full sm:min-w-[200px] transition-colors"
-                  >
-                    <p className="text-gray-400 group-hover:text-gray-200 text-xs transition-colors">Ready for a second card? Go unlimited with Pro.</p>
-                    <span className="text-xs text-blue-400 group-hover:text-blue-300 font-medium shrink-0 ml-2">Upgrade to Pro →</span>
-                  </Link>
-                </PlanGate>
-                ) : null
-              }
+              // No standing upsell under My Cards any more. The pitch lives
+              // behind the Add card button, where someone has just asked for a
+              // second card — see components/AddCardButton.
+              upsell={null}
             />
           </div>
 
