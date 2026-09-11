@@ -377,11 +377,13 @@ export async function POST(req: NextRequest) {
             url: insertedLead?.id
               ? `${APP_URL}/contacts?card=${encodeURIComponent(card_owner)}&lead=${insertedLead.id}`
               : `${APP_URL}/contacts?card=${encodeURIComponent(card_owner)}`,
-            // The push carries the saveable vCard; a locked lead must not
-            // hand over the contact details it is withholding.
-            ...(locked || !insertedLead?.id
-              ? {}
-              : { vcardUrl: `${APP_URL}/api/leads/vcard?id=${insertedLead.id}` }),
+            // NO vCARD ON THE NOTIFICATION. It used to carry one, and the web
+            // notification put a "Save to Contacts" button on it that finished
+            // the job without ever opening SwiftCard. Removed 2026-09-11: this
+            // is the highest-intent moment the product gets, and the person
+            // should see who it is and what they wrote before deciding to keep
+            // them. The vCard is a button inside the app, one tap further in.
+            //
             // The lock screen shows the useful thing: their number. A LOCKED
             // lead is the one case where we have nothing to show — the details
             // are exactly what is being withheld — so it says what happened,

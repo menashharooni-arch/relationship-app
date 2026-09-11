@@ -6,14 +6,17 @@ self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data.json(); } catch { return; }
 
-  // "Save to Contacts" only applies to lead notifications (they carry a vCard);
-  // milestones and other alerts get a single "Open" action.
-  const actions = data.vcardUrl
-    ? [
-        { action: "save", title: "💾 Save to Contacts" },
-        { action: "view", title: "View in SwiftCard" },
-      ]
-    : [{ action: "view", title: "Open SwiftCard" }];
+  // ONE ACTION, AND IT OPENS THE APP.
+  //
+  // Lead notifications used to carry a second button that downloaded the
+  // contact card straight from the notification. It was removed
+  // 2026-09-11 on the owner's reasoning, which is right: a notification saying
+  // someone shared their details is the highest-intent moment SwiftCard ever
+  // gets, and finishing the job on the lock screen spends it. The person never
+  // sees who it was, what they wrote, or anything else waiting for them — and
+  // the product loses the one visit it had earned. Saving is a thing you decide
+  // after looking, inside the app.
+  const actions = [{ action: "view", title: "Open SwiftCard" }];
 
   // A SILENT update (the running view count — see lib/push-policy.ts) replaces
   // the notification already on screen without alerting again: same tag, no
@@ -30,7 +33,7 @@ self.addEventListener("push", (event) => {
       tag: data.tag ?? "swiftcard",
       renotify: !silent,
       silent,
-      data: { url: data.url ?? "/dashboard", vcardUrl: data.vcardUrl ?? null },
+      data: { url: data.url ?? "/dashboard" },
       actions,
     })
   );
@@ -40,13 +43,9 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const notifData = event.notification.data ?? {};
 
-  // "Save to Contacts" always opens the vCard URL directly (new tab) so the
-  // browser triggers the file download even when a SwiftCard tab is already open.
-  if (event.action === "save" && notifData.vcardUrl) {
-    event.waitUntil(clients.openWindow(notifData.vcardUrl));
-    return;
-  }
-
+  // Every tap, on every action, lands in the app on the screen the notification
+  // is about. There is deliberately no path out of here that completes a task
+  // without opening SwiftCard — see the note on `actions` above.
   const url = notifData.url ?? "/dashboard";
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
