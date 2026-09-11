@@ -19,13 +19,13 @@ const lib = read("src/lib/office-leads.ts");
 describe("one query, an exact total, and real paging", () => {
   it("matches current-team and departed-member leads in a single filter", () => {
     expect(lib).toContain("function officeLeadFilter(");
-    expect(lib).toMatch(/card_owner\.in\.\(\$\{slugs\.join\(","\)\}\),\$\{byTag\}/);
+    expect(lib).toMatch(/card_owner\.in\.\(\$\{safe\.join\(","\)\}\),\$\{byTag\}/);
   });
 
   it("survives an office whose members have no slugs yet", () => {
     // `in.()` with an empty list is not valid PostgREST — it would throw and
     // take the whole Leads tab with it.
-    expect(lib).toMatch(/return slugs\.length \? .* : byTag;/);
+    expect(lib).toMatch(/return safe\.length \? .* : byTag;/);
   });
 
   it("asks the database for an exact count, not the length of a page", () => {
@@ -39,6 +39,17 @@ describe("one query, an exact total, and real paging", () => {
     // A hand-crafted ?limit=100000 must not become a 100k-row read.
     expect(lib).toMatch(/Math\.min\(Math\.max\(1, Math\.floor\(opts\.limit \?\? OFFICE_LEADS_PAGE\)\), 500\)/);
     expect(lib).toMatch(/Math\.max\(0, Math\.floor\(opts\.offset \?\? 0\)\)/);
+  });
+
+  it("refuses to interpolate a slug that could widen the filter", () => {
+    // The filter is a STRING, and it is the boundary between one office's
+    // leads and another's. Every slug in the database is [a-z0-9-] today
+    // (normalizeSlug), but a legacy import or hand-inserted row containing a
+    // comma or paren would not break the query — it would silently broaden it.
+    expect(lib).toMatch(/const SAFE_SLUG = \/\^\[a-z0-9-\]\+\$\//);
+    expect(lib).toMatch(/slugs\.filter\(\(s\) => SAFE_SLUG\.test\(s\)\)/);
+    // And the sanitised list, not the raw one, is what gets joined.
+    expect(lib).toMatch(/safe\.length \? `card_owner\.in\.\(\$\{safe\.join\(","\)\}\)/);
   });
 
   it("no longer caps at 300", () => {
@@ -99,6 +110,23 @@ describe("export takes everything", () => {
     expect(route).toContain("getAllOfficeLeads(ctx.officeId)");
   });
 
+  it("resolves the team once for the whole export, not once per page", () => {
+    // officeSlugMap costs five queries and its answer cannot change mid-export;
+    // twenty thousand leads is forty pages, so re-deriving it per page is two
+    // hundred round trips spent re-answering the same question.
+    const fn = lib.slice(lib.indexOf("export async function getAllOfficeLeads"));
+    expect(fn).toMatch(/const bySlug = await officeSlugMap\(officeId\);/);
+    expect(fn).toMatch(/fetchLeadPage\(officeId, bySlug,/);
+    expect(fn, "the export is resolving the team inside the loop again").not.toMatch(/await getOfficeLeads\(/);
+  });
+
+  it("de-duplicates the export too", () => {
+    // A lead captured mid-export shifts later rows down; a CSV with a row
+    // twice is worse than one built a moment earlier.
+    const fn = lib.slice(lib.indexOf("export async function getAllOfficeLeads"));
+    expect(fn).toContain("seen.has(l.id)");
+  });
+
   it("is gated on the same capability as the Leads tab", () => {
     // requireOfficeCapability also re-checks the owner is still on a paid
     // Office plan, so a lapsed office cannot export its team's contacts.
@@ -148,11 +176,27 @@ describe("the table says what is on screen and what is not", () => {
 
   it("the header shows the EXACT total, not the loaded count", () => {
     expect(page).toMatch(/page\.total \? ` — \$\{page\.total\.toLocaleString\(\)\} so far`/);
-    expect(table).toMatch(/Showing \$\{rows\.length\.toLocaleString\(\)\} of \$\{total\.toLocaleString\(\)\} leads/);
+    expect(table).toMatch(/Showing \$\{rows\.length\.toLocaleString\(\)\} of \$\{knownTotal\.toLocaleString\(\)\} leads/);
   });
 
   it("offers Load more with how many remain", () => {
-    expect(table).toMatch(/Load more — \$\{Math\.max\(0, total - rows\.length\)\.toLocaleString\(\)\} to go/);
+    expect(table).toMatch(/Load more — \$\{Math\.max\(0, knownTotal - rows\.length\)\.toLocaleString\(\)\} to go/);
+  });
+
+  it("advances the offset by what the SERVER returned, not by rows kept", () => {
+    // rows.length shrinks whenever a duplicate is dropped, so using it rewinds
+    // the window and re-requests rows already on screen. Modelled with four
+    // leads arriving mid-scroll, that left the list stuck at four rows through
+    // five consecutive "Load more" clicks — the button looks broken exactly
+    // when the office is busiest.
+    expect(table).toContain("const [serverOffset, setServerOffset]");
+    expect(table).toMatch(/offset=\$\{serverOffset\}/);
+    expect(table).toMatch(/setServerOffset\(\(o\) => o \+ page\.leads\.length\)/);
+    expect(table, "the offset is back to rows.length").not.toMatch(/offset=\$\{rows\.length\}/);
+  });
+
+  it("refreshes the total from each page rather than quoting first render", () => {
+    expect(table).toContain("setKnownTotal(page.total)");
   });
 
   it("de-duplicates appended pages", () => {

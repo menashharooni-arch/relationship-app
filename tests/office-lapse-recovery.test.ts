@@ -100,6 +100,28 @@ describe("re-subscribing actually restores the team", () => {
     expect(fn).toContain("taken.has(uid)");
   });
 
+  it("re-flags their cards as office cards", () => {
+    // NOT cosmetic. /api/office/brand scopes every propagation with
+    // .eq("is_office_card", true) — which releaseOfficeMember cleared — so
+    // without this a restored teammate silently stops receiving branding. The
+    // admin changes the logo, sees "Applied to every card", and one person's
+    // card never updates with nothing saying why. Same pair api/join sets.
+    const fn = billing.slice(billing.indexOf("async function restoreSuspendedMembers"));
+    expect(fn).toMatch(/is_office_card: true/);
+    expect(read("src/app/api/join/route.ts")).toMatch(/is_office_card: true/);
+  });
+
+  it("tells them their access is back", () => {
+    // They were told "Your Office access ended" when it lapsed. Being put back
+    // silently is its own kind of broken — their plan and their card's
+    // branding change under them.
+    const fn = billing.slice(billing.indexOf("async function restoreSuspendedMembers"));
+    expect(fn).toContain("insertNotification");
+    expect(fn).toMatch(/Your Office access is back/);
+    // And a failed notification must never abort the restore.
+    expect(fn).toMatch(/\}\)\.catch\(\(\) => \{\}\);/);
+  });
+
   it("restores the plan and office link, not just the row", () => {
     // The cascade set plan to free and office_id to null. A membership row
     // without them is a member who cannot use anything.
@@ -111,7 +133,7 @@ describe("re-subscribing actually restores the team", () => {
     // Decrementing before the write would silently shrink capacity on an error
     // and strand the rest of the roster.
     const fn = billing.slice(billing.indexOf("async function restoreSuspendedMembers"));
-    expect(fn).toMatch(/if \(error\) continue;[\s\S]{0,200}room--;/);
+    expect(fn).toMatch(/if \(error\) continue;[\s\S]{0,1400}room--;/);
   });
 
   it("cannot block provisioning if it fails", () => {

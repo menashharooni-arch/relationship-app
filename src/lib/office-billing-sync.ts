@@ -114,6 +114,23 @@ async function restoreSuspendedMembers(admin: Admin, officeId: string, seats: nu
     const { error } = await admin.from("office_members").update({ status: "active" }).eq("id", m.id);
     if (error) continue;
     await admin.from("profiles").update({ plan: "enterprise", office_id: officeId }).eq("id", uid);
+    // Re-flag their cards as office cards — the exact pair api/join sets when
+    // somebody accepts an invite, and the mirror of what releaseOfficeMember
+    // cleared. NOT cosmetic: /api/office/brand scopes every propagation with
+    // .eq("is_office_card", true), so without this a restored teammate's card
+    // silently stops receiving branding. The admin would change the logo, see
+    // "Applied to every card", and one person's card would never update, with
+    // nothing anywhere saying why.
+    await admin.from("cards").update({ is_office_card: true }).eq("user_id", uid);
+    // They were told "Your Office access ended" when the plan lapsed. Being
+    // put back without a word is its own kind of broken — their plan and their
+    // card's branding change under them.
+    await insertNotification({
+      user_id: uid,
+      type: "office_restored",
+      title: "Your Office access is back",
+      body: "Your team's plan is active again, so your company card and your team's tools are back to normal.",
+    }).catch(() => {});
     room--;
   }
 }
