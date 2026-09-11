@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
+import { sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { createClient } from "@/lib/supabase-server";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
@@ -255,6 +257,11 @@ export async function POST(req: NextRequest) {
       /* non-fatal */
     }
   }
+
+  // "Your SwiftCard is live" — the same trigger as /api/cards: the first time
+  // this account HAS a card, never at signup. A claimed guest draft is exactly
+  // that moment for anyone who built before signing up.
+  after(() => sendWelcomeWhenCardLive(user.id, user.email));
 
   // `first` tells the client this is the account's first card → send them
   // through the onboarding plan-selection step (/welcome) instead of the editor.

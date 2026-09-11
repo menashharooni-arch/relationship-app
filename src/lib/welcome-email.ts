@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { welcomeEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { ensureEmailPreferences } from "@/lib/email-prefs";
+import { getAccountEmail } from "@/lib/account-email";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -13,9 +14,21 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // and the template, the idempotency claim and its unique index were all dead
 // code that looked alive.
 //
-// Extracted here so onboarding can call it directly instead of self-fetching
-// its own HTTP route from a server component. The route still exists and now
+// Extracted here so the app can call it directly instead of self-fetching its
+// own HTTP route from a server component. The route still exists and now
 // delegates to this, so any future caller behaves identically.
+//
+// WHEN IT SENDS: the first time the account HAS A CARD — never at signup
+// (owner, 2026-09-11). The subject is "Your SwiftCard is live" and the body
+// links to the card, so sending it the moment an account existed promised a
+// card that did not, and linked to a URL that 404'd until the builder was
+// finished. Signup and a finished card are minutes apart at best, and for
+// anyone who abandons the builder they never happen at all.
+//
+// sendWelcomeWhenCardLive() below is the only thing the app calls. It is safe
+// to call from every path that can create a card: it refuses when the account
+// has none, and the email_logs claim inside sendWelcomeEmail makes it once per
+// account however many times it is reached.
 
 export type WelcomeResult = "sent" | "already_sent" | "skipped" | "failed";
 
@@ -56,10 +69,32 @@ export async function sendWelcomeEmail(userId: string, accountEmail: string | nu
       .eq("user_id", userId)
       .maybeSingle();
 
+    // THE CARD THE EMAIL IS ABOUT. profiles.username is a legacy slug that may
+    // not be any card the person can actually open — the card the email links
+    // to has to be a real one, so the oldest card wins and the profile slug is
+    // only a fallback for accounts that predate the cards table.
+    const { data: firstCard } = await admin
+      .from("cards")
+      .select("username, name")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const slug = (firstCard?.username as string | null) || (profile.username as string | null);
+    if (!slug) return "skipped";
+
+    // THE NAME COMES OFF THE CARD FIRST. profiles.name is blank for every
+    // account created through normal signup — the name is typed into the card
+    // builder, not the signup form — so greeting from the profile made this
+    // read "Your SwiftCard is live, there!" for exactly the people it is sent
+    // to. The card is what the email is about; its name is the right one.
+    const firstName =
+      ((firstCard?.name as string | null) || (profile.name as string | null) || "").trim().split(" ")[0] || "there";
+
     const unsub = unsubUrl(prefsRow?.unsubscribe_token as string | undefined ?? "");
     const template = welcomeEmail({
-      firstName: (profile.name as string | null)?.split(" ")[0] || "there",
-      cardUrl: `${APP_URL}/${profile.username}`,
+      firstName,
+      cardUrl: `${APP_URL}/${slug}`,
       unsubscribeUrl: unsub,
     });
 
@@ -99,6 +134,41 @@ export async function sendWelcomeEmail(userId: string, accountEmail: string | nu
     return "sent";
   } catch (e) {
     console.error("[welcome] unexpected error:", e instanceof Error ? e.message : e);
+    return "failed";
+  }
+}
+
+/**
+ * Send the welcome email if — and only if — this account now has a card.
+ *
+ * THE ONE ENTRY POINT the app uses. Call it from anywhere a card can come into
+ * existence; it is cheap, it never throws, and it cannot double-send:
+ *
+ *   • no card yet            → "skipped", nothing written, nothing sent
+ *   • card, not yet welcomed → sends, and claims the row that blocks the rest
+ *   • already welcomed       → "already_sent"
+ *
+ * The account email is resolved from AUTH, not from profiles.email — that
+ * column drifts to the card's public contact address the moment someone sets
+ * one (see lib/account-email.ts), and owner mail must never follow it.
+ */
+export async function sendWelcomeWhenCardLive(
+  userId: string,
+  fallbackEmail?: string | null,
+): Promise<WelcomeResult> {
+  if (!userId) return "skipped";
+  try {
+    const admin = getAdminSupabase();
+    const { count } = await admin
+      .from("cards")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    if (!count) return "skipped";
+
+    const to = await getAccountEmail(userId, fallbackEmail ?? null);
+    return await sendWelcomeEmail(userId, to);
+  } catch {
+    // A welcome email may never break card creation.
     return "failed";
   }
 }

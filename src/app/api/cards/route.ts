@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
+import { sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, seedBrandFromOwnersFirstCard, overlayOfficeLinks, overlayOfficeInstagram } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
@@ -203,6 +205,13 @@ export async function POST(req: NextRequest) {
   if ((count ?? 0) === 0) {
     await seedDemoContact(data.username);
   }
+
+  // "Your SwiftCard is live" — sent HERE, the first time this account has a
+  // card, not at signup (owner, 2026-09-11). after() so a slow email provider
+  // never holds up the card the person is waiting for, and the send itself is
+  // idempotent per account, so the every-card call costs one cheap count on
+  // every later card and sends nothing.
+  after(() => sendWelcomeWhenCardLive(user.id, user.email));
 
   // Office seat 1: if the owner's office brand is still blank, seed it once
   // from this card (a plain copy — no primary card, no ongoing link; from then

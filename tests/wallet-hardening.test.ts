@@ -67,10 +67,13 @@ describe("in-app signup and first-card flow", () => {
     expect(src).toMatch(/setTimeout\(\(\) => \{ document\.getElementById\("sc-auth-overlay"\)\?\.remove\(\); \}, 20000\)/);
   });
 
-  it("onboarding redirects without waiting on the welcome email or referral", () => {
+  it("onboarding redirects without waiting on the referral grant", () => {
+    // The welcome email used to be the other after() here. It moved to the
+    // card-creation paths on 2026-09-11 — "Your SwiftCard is live" cannot go
+    // out before the card does — and is still never awaited there either.
     const src = read2("src/app/onboarding/page.tsx");
-    expect(src).toMatch(/after\(\(\) => sendWelcomeEmail/);
     expect(src).toMatch(/after\(\(\) => applyReferralOnSignup/);
+    expect(read2("src/app/api/cards/route.ts")).toMatch(/after\(\(\) => sendWelcomeWhenCardLive/);
   });
 
   it("the guided tour is account-scoped, not device-scoped", () => {

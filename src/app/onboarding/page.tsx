@@ -7,7 +7,6 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { applyReferralOnSignup, hashDevice } from "@/lib/referral-server";
 import { ensureUniqueUsername } from "@/lib/username";
 import { ensureEmailPreferences } from "@/lib/email-prefs";
-import { sendWelcomeEmail } from "@/lib/welcome-email";
 import { clientIpFromHeaders } from "@/lib/client-ip";
 import { REF_COOKIE, SRC_COOKIE } from "@/lib/referral";
 import { findPendingInviteForEmail } from "@/lib/pending-invite";
@@ -102,17 +101,13 @@ export default async function OnboardingPage({
     // here must not block signup, and the send side now skips anyone missing it.
     await ensureEmailPreferences(user.id, admin);
 
-    // The welcome email. This lived behind POST /api/welcome, which nothing
-    // ever called — so no signup in the product's history received one, and
-    // the template, the idempotency claim and its unique index were dead code
-    // that looked alive. Called here, where the account actually comes into
-    // existence. Idempotent and non-throwing: it can never fail a signup, and
-    // a double-submitted onboarding sends exactly one.
-    // NOT awaited: this posts to Resend, and a slow provider used to hold the
-    // brand-new account on the sign-in screen for seconds before the dashboard
-    // appeared. after() keeps the function alive until it finishes while the
-    // redirect below goes out immediately.
-    after(() => sendWelcomeEmail(user.id, user.email));
+    // NO WELCOME EMAIL HERE ANY MORE (owner, 2026-09-11). It used to go out
+    // right here, at signup — but it is titled "Your SwiftCard is live" and it
+    // links to the card, so it promised a card that did not exist yet and
+    // linked to a URL that 404'd until the builder was finished. It is now sent
+    // the first time the account actually HAS a card, from every path that can
+    // create one (lib/welcome-email.ts → sendWelcomeWhenCardLive). An account
+    // that never finishes a card never gets an email claiming it has one.
 
     // NOTE: the 14-day reverse trial is DISCONTINUED (owner decision, Jul 2026) —
     // new signups start on Free. startProTrial() is kept in referral-server for

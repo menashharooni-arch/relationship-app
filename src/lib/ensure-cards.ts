@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 
 // Card-content columns that move from the legacy "primary card" (the profiles row)
 // into the cards table. Account-only columns (plan, billing, flow_settings, photo_url,
@@ -62,6 +63,13 @@ export async function ensureUserCards(userId: string, prefetchedProfile?: Record
       return;
     }
   }
+
+  // The card this account never had now exists, so the welcome email it never
+  // got can go — same trigger as every other creation path, and idempotent per
+  // account (lib/welcome-email.ts). Awaited rather than after(): this runs
+  // inside a server component render, which has no after() budget of its own,
+  // and the send is best-effort and non-throwing either way.
+  await sendWelcomeWhenCardLive(userId);
 
   // Mark migrated so this runs at most once per account.
   //
