@@ -31,6 +31,20 @@ export async function POST(req: Request) {
   if (member.status === "active") return NextResponse.json({ error: "This invite has already been used." }, { status: 400 });
   if (member.status === "revoked") return NextResponse.json({ error: "This invitation was canceled by the team admin." }, { status: 410 });
   if (member.status === "declined") return NextResponse.json({ error: "This invitation was already declined." }, { status: 410 });
+  // Suspended: the office's subscription lapsed or its seats were cut, and the
+  // membership was parked rather than deleted so it can be restored (see
+  // releaseOfficeMember / restoreSuspendedMembers). The invite link in their
+  // original email still resolves, so this MUST be refused explicitly — the
+  // activation UPDATE below is scoped to status='pending', so a suspended row
+  // silently fails to activate while the rest of this route carries on and
+  // applies the plan, the brand and the is_office_card flag to somebody who is
+  // not a member.
+  if (member.status === "suspended") {
+    return NextResponse.json(
+      { error: "This team's plan is no longer active, so the invite is paused. Ask your admin to invite you again once it's back." },
+      { status: 410 },
+    );
+  }
 
   // Invites expire after 14 days (matches the deadline stated in the invite email)
   // — otherwise a leaked/forwarded link would work indefinitely. Uses stored
@@ -156,6 +170,27 @@ export async function POST(req: Request) {
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
   const didActivate = (activated?.length ?? 0) > 0;
+
+  // A lost race is fine — the other request activated the same row for the same
+  // person, and this one should still finish their setup. A row that is not
+  // active for THIS user afterwards is not fine: everything below writes a plan,
+  // a brand and an is_office_card flag, and none of that may happen for someone
+  // who did not actually join. Checked on the RESULTING STATE rather than on who
+  // won, so double-submit keeps working and any future status that skips the
+  // pending update fails closed instead of half-joining.
+  if (!didActivate) {
+    const { data: settled } = await admin
+      .from("office_members")
+      .select("status, user_id")
+      .eq("id", member.id)
+      .maybeSingle();
+    if (settled?.status !== "active" || settled?.user_id !== user.id) {
+      return NextResponse.json(
+        { error: "That invitation isn't active any more. Ask your team admin to send a new one." },
+        { status: 409 },
+      );
+    }
+  }
 
   // Count-then-update above isn't atomic — two invitees accepting the LAST
   // seat simultaneously can both pass the pre-check. Recount after activating

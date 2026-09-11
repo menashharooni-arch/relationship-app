@@ -53,12 +53,20 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   // Revoked/declined/expired invites must not show an enabled "Accept" CTA
   // that's guaranteed to fail against the API — mirrors the API's own
   // rejection logic (isInviteExpired) so the page and API agree (auth audit).
-  if (invite.status === "revoked" || invite.status === "declined" || isInviteExpired(invite as { status?: string; expires_at?: string | null; invited_at?: string | null })) {
+  if (invite.status === "revoked" || invite.status === "declined" || invite.status === "suspended" || isInviteExpired(invite as { status?: string; expires_at?: string | null; invited_at?: string | null })) {
     const message =
       invite.status === "revoked"
         ? "This invitation was canceled by the team admin."
         : invite.status === "declined"
         ? "This invitation was already declined."
+        // Suspended: the team's plan lapsed or its seats were cut, and the
+        // membership was parked so it can be restored. The API refuses this
+        // too — the page mirrors it so nobody is shown an Accept button that
+        // is guaranteed to fail, which is the rule this whole branch exists
+        // for. Worded as paused, not cancelled: it is likely to come back, and
+        // "your admin cancelled you" would be both wrong and alarming.
+        : invite.status === "suspended"
+        ? "This team's plan isn't active right now, so the invite is paused."
         : "This invite has expired.";
     return (
       <main className="sc-app min-h-screen bg-gray-950 flex items-center justify-center px-5">
