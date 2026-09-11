@@ -535,12 +535,16 @@ function Stage({ persona, entered, preload }: { persona: Persona; entered: boole
       <div className="absolute left-[210px] top-[34px] z-20">
         <PhoneFrame
           width={280}
-          // Straighter, at the owner's ask (2026-09-11) — was -1.6°. Not zero:
-          // the two flanking panels still sit at -2.4° and +2.1°, and a phone
-          // dead square between them reads as a cut-out pasted on the page
-          // rather than the middle object of a photograph. Half the angle keeps
-          // the depth cue and loses the lean.
-          tilt={-0.8}
+          // SQUARE TO THE PAGE. Owner's call, 2026-09-11: -1.6° → -0.8° →
+          // straight. Depth on this stage is carried by four cues (scale,
+          // angle, shadow, air — see the note below); the phone gives up the
+          // angle and keeps the other three, and the flanking panels still sit
+          // at -2.4° and +2.1°, so the group does not read as flat.
+          //
+          // 0 and not a tiny value: PhoneFrame treats a falsy tilt as "no
+          // transform at all" rather than rotate(0deg), so the phone is not
+          // promoted to its own compositor layer for a rotation of nothing.
+          tilt={0}
           screenStyle={{ height: 582, background: phoneScreenWash(persona.accent) }}
           ariaLabel="A SwiftCard link open on a phone"
         >
