@@ -27,6 +27,7 @@ import TimezoneCookie from "@/components/TimezoneCookie";
 import ThemeToggle from "@/components/ThemeToggle";
 import AppStorePopup from "@/components/AppStorePopup";
 import IapProbe from "@/components/IapProbe";
+import ReviewPromptTrigger from "@/components/ReviewPromptTrigger";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
 import TourBanner from "@/components/TourBanner";
 import PendingInviteBanner from "@/components/PendingInviteBanner";
@@ -694,6 +695,7 @@ export default async function DashboardPage({
           title="My SwiftCard"
           text="Save my contact and connect with me instantly."
           label="Share"
+          ownCard
         />
         <MoreShareOptions url={cardUrl} walletUsername={walletEnabled ? activeUsername : undefined} />
       </div>
@@ -707,6 +709,11 @@ export default async function DashboardPage({
           See components/IapProbe.tsx for why the purchase chain is verified
           this way rather than by driving the simulator UI. */}
       {user.email?.toLowerCase() === "iap-test@swiftcard.me" && <IapProbe />}
+      {/* iOS app only: may ask Apple for the rating sheet once the dashboard
+          has settled, after a real win (a lead here, or 3 shares). Rules in
+          lib/app-review.ts. Locked Free-plan leads don't count — a lead the
+          owner can't open is not the moment to ask. */}
+      <ReviewPromptTrigger hasLead={visibleLeads.length > 0} />
       {/* Auto-start the guided tour for a new account arriving from onboarding
           (?tour=1). No-ops if the tour was already taken. */}
       <Suspense><TourAutoStart /></Suspense>
@@ -1178,6 +1185,7 @@ export default async function DashboardPage({
                         url={cardUrl}
                         text="Here's my card — save my details in one tap."
                         label="Share your card"
+                        ownCard
                       />
                       <a
                         href={cardUrl}

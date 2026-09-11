@@ -13,7 +13,7 @@ import AppStoreReviews from "@/components/site/AppStoreReviews";
 // effective Oct 2024), testimonials from people who don't exist or who have no
 // real experience with the product — and misrepresented ratings/metrics — are
 // prohibited, with civil penalties per violation. Until we have REAL customer
-// reviews (collected via /grow → Trustpilot), this page shows only truthful,
+// reviews (App Store reviews, pulled by lib/app-store-reviews.ts), this page shows only truthful,
 // verifiable claims about the product. Never add invented quotes, star ratings,
 // review counts, or usage statistics here.
 

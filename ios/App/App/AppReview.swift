@@ -6,28 +6,27 @@ import UIKit
 // ─────────────────────────────────────────────────────────────────────────────
 // AppReview — the system "Enjoying SwiftCard?" rating sheet.
 //
-// WHY THE NATIVE API AND NOT A LINK
+// WHY THE NATIVE API FOR THE AUTOMATIC ASK
 //
-// The App Store rating prompt is Apple's to show, not ours. SKStoreReviewController
-// (AppStore.requestReview on iOS 16+) is the ONLY sanctioned way: iOS decides
-// whether to display it at all, caps it at three times per 365 days per user,
-// and silently ignores every request beyond that. Anything else — a button that
-// deep-links to the write-review page unprompted, a "rate us 5 stars" plea —
-// is a 1.1.1/2.3 problem and, worse, is the thing users hate.
+// SKStoreReviewController (AppStore.requestReview on iOS 16+) is the only
+// sanctioned way to ask unprompted: iOS decides whether to display it at all,
+// caps it at three times per 365 days per user, and silently ignores every
+// request beyond that. The user-initiated "Rate us" button on /grow is the other
+// half — a plain link to the write-review page, which Capacitor opens in the App
+// Store app. This plugin never opens a link.
 //
-// WHAT THIS DELIBERATELY DOES NOT DO
+// WHEN IT IS CALLED
 //
-// It does not gate on sentiment. src/components/RateUsCard.tsx asks how you feel
-// and routes unhappy answers to a private feedback box — that is fine for
-// Trustpilot, and it is exactly what Apple forbids for the App Store prompt
-// ("don't discourage negative reviews"). So the native prompt is never wired to
-// the star rating: the web side (src/lib/app-review.ts) decides only that the
-// person has USED the product meaningfully, never that they liked it.
+// Only from src/lib/app-review.ts, which requires a real win (a lead, or three
+// shares of your own card), never runs on first launch or from a tap, and never
+// looks at how anyone feels about us. `minInterval` below is the same 90-day rule
+// enforced a second time here, in UserDefaults, so no web-side bug can ever turn
+// into a prompt loop.
 //
-// The call is fire-and-forget by design. The prompt may not appear — throttled,
+// The call is fire-and-forget by design. The sheet may not appear — throttled,
 // disabled in Settings, or already shown three times this year — and there is no
-// callback that says which. So nothing in the UI may depend on it, and the web
-// side must never say "leave us a review" next to it.
+// callback that says which. So nothing in the UI may depend on it, and nothing
+// may say "leave us a review" next to it.
 // ─────────────────────────────────────────────────────────────────────────────
 
 @objc(AppReviewPlugin)
@@ -38,8 +37,20 @@ public class AppReviewPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise)
     ]
 
+    private static let lastRequestedKey = "sc.appReview.lastRequested"
+    private static let minInterval: TimeInterval = 90 * 24 * 60 * 60
+
     @objc func requestReview(_ call: CAPPluginCall) {
+        // Check and stamp on the main queue, so two calls can never both pass
+        // the check before either has written the date.
         DispatchQueue.main.async {
+            let defaults = UserDefaults.standard
+            if let last = defaults.object(forKey: Self.lastRequestedKey) as? Date,
+               Date().timeIntervalSince(last) < Self.minInterval {
+                call.resolve(["requested": false, "reason": "throttled"])
+                return
+            }
+
             // The scene, not the window: on iPadOS and on an Apple Silicon Mac
             // the app can have more than one, and requesting on a detached or
             // background scene does nothing at all.
@@ -53,6 +64,7 @@ public class AppReviewPlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
 
+            defaults.set(Date(), forKey: Self.lastRequestedKey)
             if #available(iOS 16.0, *) {
                 AppStore.requestReview(in: scene)
             } else {

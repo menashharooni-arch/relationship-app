@@ -73,6 +73,6 @@ export const dashboardDocs = defineDocs([
     answer:
       "The heart icon in the top bar opens /grow — \"Help us grow\". It has Rate us, Invite friends & earn (your referral box), Spread the word, and a few other ways to help, like adding your Swift Signature to your email.",
     detail:
-      "People describe this as \"the heart\" because the icon has no text label. The referral box is here and in Settings → Help and referrals — it is NOT on the dashboard, which is a common wrong answer. Office sub-users don't have this page.",
+      "People describe this as \"the heart\" because the icon has no text label. The referral box is here and in Settings → Help and referrals — it is NOT on the dashboard, which is a common wrong answer. Office sub-users don't have this page. \"Rate us\" is one button: in the iPhone app it opens the App Store's write-a-review page, on the web it opens the App Store listing — there are no stars to tap on the page itself and no feedback form behind it. Separately, the iPhone app may show Apple's own \"Enjoying SwiftCard?\" rating popup at most once every 90 days, and only after something has gone well (a new contact, or sharing your card a few times); Apple decides whether it actually appears and caps it at three times a year.",
   },
 ]);

@@ -11,6 +11,7 @@ import HelpWidget from "@/components/HelpWidget";
 import ReferAFriend from "@/components/ReferAFriend";
 import NativeHidden from "@/components/NativeHidden";
 import RateUsCard from "@/components/RateUsCard";
+import { APP_STORE_ID } from "@/lib/app-store";
 import GrowShare from "@/components/GrowShare";
 import SettingsLinkButton from "@/components/SettingsLinkButton";
 
@@ -26,7 +27,7 @@ export default async function GrowPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("name, username, customization")
+    .select("customization")
     .eq("id", user.id)
     .single();
   if (!profile) redirect("/onboarding");
@@ -120,11 +121,13 @@ export default async function GrowPage() {
         </div>
 
         <div className="space-y-8">
-          {/* Rate us */}
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Rate us</p>
-            <RateUsCard name={profile.name ?? ""} email={user.email ?? ""} />
-          </div>
+          {/* Rate us — a link to the App Store; hidden until the listing id is set. */}
+          {APP_STORE_ID && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Rate us</p>
+              <RateUsCard />
+            </div>
+          )}
 
           {/* Invite & earn */}
           <div>
