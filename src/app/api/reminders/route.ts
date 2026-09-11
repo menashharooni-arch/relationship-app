@@ -6,7 +6,13 @@ import { Resend } from "resend";
 // sequence sends over a buffer of up to 50,000 rows. No maxDuration was set
 // anywhere, so the platform default silently truncated the tail of the send
 // list: no error, no alert, no retry, and the untouched contacts simply never
-// heard from anyone. 300s is Vercel's ceiling on the Pro plan.
+// heard from anyone. 300s is Vercel's ceiling on the current runtime.
+//
+// (This used to say "on the Pro plan". The project is on HOBBY, which matters
+// for the thing right below this comment rather than for the duration: Hobby
+// allows TWO cron jobs, DAILY ONLY. An hourly entry in vercel.json is not
+// rejected at build time — it fails deploy validation and stops production
+// updating at all. See .github/workflows/push-catchup.yml.)
 export const maxDuration = 300;
 
 // Automated SMS may only go out inside the recipient's 8am-9pm local window
