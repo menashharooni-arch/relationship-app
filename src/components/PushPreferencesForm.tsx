@@ -75,7 +75,10 @@ export default function PushPreferencesForm() {
 
       <Toggle
         label="Quiet hours"
-        description="Nothing reaches your phone between 10pm and 8am your own time"
+        // The second sentence is the promise the 8am catch-up now keeps
+        // (/api/push/catchup). Before it, "nothing reaches your phone" was the
+        // whole truth and anything that happened overnight was simply lost.
+        description="Nothing reaches your phone between 10pm and 8am your own time. Whatever happens is waiting in one notification at 8am."
         checked={prefs.quietHours !== false}
         disabled={!loaded}
         onChange={(v) => set("quietHours", v)}

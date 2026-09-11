@@ -15,13 +15,21 @@ self.addEventListener("push", (event) => {
       ]
     : [{ action: "view", title: "Open SwiftCard" }];
 
+  // A SILENT update (the running view count — see lib/push-policy.ts) replaces
+  // the notification already on screen without alerting again: same tag, no
+  // sound or vibration, and renotify OFF, which is the flag that decides
+  // whether replacing a tagged notification re-alerts the person. The web half
+  // of what interruption-level "passive" does on iOS.
+  const silent = data.silent === true;
+
   event.waitUntil(
     self.registration.showNotification(data.title ?? "SwiftCard", {
       body: data.body ?? "",
       icon: "/icon-192.png",
       badge: "/icon-192.png",
       tag: data.tag ?? "swiftcard",
-      renotify: true,
+      renotify: !silent,
+      silent,
       data: { url: data.url ?? "/dashboard", vcardUrl: data.vcardUrl ?? null },
       actions,
     })

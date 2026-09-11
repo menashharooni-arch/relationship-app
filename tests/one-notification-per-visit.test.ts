@@ -161,16 +161,46 @@ describe("every notifier goes through the visit ledger", () => {
   });
 });
 
-describe("a milestone is a bell row and nothing more", () => {
-  // Superseded 2026-09-06 by the push policy. This block used to guard the
-  // "fold the milestone into the visit's push" compromise; milestones now have
-  // no route to a phone at all, because a view count is a statistic and
-  // push-policy.ts has no category that can carry one. What still matters is
-  // that the bell row is written — it is the once-ever ledger, and without it
-  // the same milestone announces itself again on the next view.
+describe("a milestone is a bell row and a headline, never a push of its own", () => {
+  // Two rules that sound contradictory and are not, so both are pinned here.
+  //
+  //   A milestone may not CAUSE a push. There is no category that carries a
+  //   view count and there must not be one: a statistic is the product
+  //   cheering, and cheering does not get to interrupt anybody.
+  //
+  //   A milestone MAY retitle the push the view was already sending
+  //   (2026-09-11, owner's call). The card_view push for the view that crossed
+  //   it is going out regardless, under a switch the person agreed to; the only
+  //   question is whether its headline reads "Card viewed" or "50 views — on
+  //   fire!". Same buzz, better sentence. Before this, the one moment an owner
+  //   is unambiguously pleased was the one moment the phone kept to itself.
   it("never pushes, on any path", () => {
     expect(milestones()).not.toMatch(/sendPushToUser/);
     expect(milestones()).not.toMatch(/deferPush/);
+  });
+
+  it("rides the view's push as its TITLE — no second push, no new category", () => {
+    const src = cardEvents();
+    // Passed on the VIEW notice, which is the one already carrying
+    // pushCategory "card_view"...
+    expect(src).toMatch(/\.\.\.\(milestone \? \{ pushTitle: milestone\.title \} : \{\}\)/);
+    // ...while the milestone's OWN notifyVisit call still has no pushCategory,
+    // so it can do nothing but write the bell row.
+    const milestoneCall = src.slice(src.indexOf("if (milestone) {"));
+    expect(milestoneCall.slice(0, 900)).not.toMatch(/pushCategory/);
+    // visit-notify spends it on the push title only — the bell row keeps the
+    // view's own wording until the milestone upgrade rewrites it.
+    const vn = read("src/lib/visit-notify.ts");
+    expect(vn).toMatch(/title: notice\.pushTitle \?\? notice\.title,/);
+  });
+
+  it("every milestone headline fits the lock-screen title budget", async () => {
+    // A title the OS cuts mid-word turns a celebration into a stump. They are
+    // authored strings, so this is checkable at the source.
+    const { MAX_TITLE_CHARS } = await import("../src/lib/push-policy");
+    const titles = [...milestones().matchAll(/\{ title: "([^"]+)", +body:/g)].map((m) => m[1]);
+    expect(titles.length).toBeGreaterThanOrEqual(11);
+    for (const t of titles) expect(t.length, t).toBeLessThanOrEqual(MAX_TITLE_CHARS);
   });
 
   it("writes NOTHING — it detects, the visit announces", () => {
@@ -216,9 +246,14 @@ describe("a milestone is a bell row and nothing more", () => {
     expect(read("supabase/milestone-one-bell.sql")).toMatch(/notifications_milestone_once_idx_v2/);
   });
 
-  it("no longer has a push to defer, so the caller no longer defers one", () => {
+  it("takes the headline and leaves the body alone — no deferral machinery", () => {
     const src = cardEvents();
+    // There is no queue, no "announce this later": the milestone is known
+    // before the view's push goes out, so it is simply part of it.
     expect(src).not.toMatch(/deferMilestonePush/);
+    // And it takes the TITLE only. The body stays "Someone viewed your card
+    // near Austin" — the number is already in the headline, and who was on the
+    // card is the half a bare statistic would have thrown away.
     expect(src).not.toMatch(/pushBody/);
   });
 

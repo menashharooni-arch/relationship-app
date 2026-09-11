@@ -64,8 +64,19 @@ export async function ensureUserCards(userId: string, prefetchedProfile?: Record
   }
 
   // Mark migrated so this runs at most once per account.
+  //
+  // Re-read first. `customization` came from whatever rendered the page, and
+  // between that render and this line the browser may have written to the same
+  // shared JSONB column — the push switches and quiet-hours timezone live in
+  // it, and this runs on exactly the first dashboard load where the timezone is
+  // first reported. Writing the stale snapshot back deleted it. Merging a fresh
+  // read leaves a window of microseconds instead of seconds, and lib/push-prefs
+  // verifies its own writes to cover what is left.
+  const { data: fresh } = await admin
+    .from("profiles").select("customization").eq("id", userId).maybeSingle();
+  const current = (fresh?.customization ?? customization ?? {}) as Record<string, unknown>;
   await admin
     .from("profiles")
-    .update({ customization: { ...customization, _migrated: true } })
+    .update({ customization: { ...current, _migrated: true } })
     .eq("id", userId);
 }

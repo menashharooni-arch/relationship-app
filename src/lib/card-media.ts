@@ -51,6 +51,14 @@ export async function backfillCardPhotos(
       const value = i === 0 ? (accountPhotoUrl ?? null) : null;
       await admin.from("cards").update({ customization: { ...cc, photoUrl: value } }).eq("id", list[i].id);
     }
-    await admin.from("profiles").update({ customization: { ...cust, _photoMigrated: true } }).eq("id", userId);
+    // Re-read before stamping the flag: `cust` is the snapshot the page
+    // rendered with, and `customization` is a JSONB column shared with the push
+    // switches and the quiet-hours timezone, which the browser writes on this
+    // very load. Writing the stale copy back silently deleted them — see
+    // lib/push-prefs.ts for the measurement.
+    const { data: fresh } = await admin
+      .from("profiles").select("customization").eq("id", userId).maybeSingle();
+    const current = (fresh?.customization ?? cust) as Record<string, unknown>;
+    await admin.from("profiles").update({ customization: { ...current, _photoMigrated: true } }).eq("id", userId);
   } catch { /* best-effort — worst case the render fallback still applies */ }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { writePushPrefs } from "@/lib/push-prefs";
 import { isRateLimited } from "@/lib/rate-limit";
 import { assertSafeUrl } from "@/lib/safe-fetch";
 
@@ -85,19 +86,14 @@ export async function POST(req: NextRequest) {
   // LOCAL; without a zone they fall back to UTC, which would silence a
   // Californian's afternoon and buzz them at 3am. Best-effort: a failure to
   // record it must never fail the subscription itself.
+  //
+  // Through writePushPrefs so it survives a concurrent write to the shared
+  // customization column — see lib/push-prefs.ts. (TimezoneSync keeps it right
+  // afterwards, on any dashboard load, for people who travel.)
   if (typeof timezone === "string" && timezone && timezone.length < 64) {
     try {
       new Intl.DateTimeFormat("en-US", { timeZone: timezone });
-      const { data: prof } = await admin
-        .from("profiles").select("customization").eq("id", user.id).maybeSingle();
-      const customization = (prof?.customization ?? {}) as Record<string, unknown>;
-      const push = { ...((customization._push ?? {}) as Record<string, unknown>) };
-      if (push.timezone !== timezone) {
-        push.timezone = timezone;
-        await admin.from("profiles")
-          .update({ customization: { ...customization, _push: push } })
-          .eq("id", user.id);
-      }
+      await writePushPrefs(user.id, (push) => { push.timezone = timezone; });
     } catch { /* invalid zone, or profile write failed — not fatal */ }
   }
 

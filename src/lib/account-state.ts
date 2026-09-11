@@ -54,7 +54,16 @@ export const PERSON_SCOPED_STORAGE_KEYS = [
   // brand-new account, previously-used phone.
   "sc_tour_completed",
   "sc_admin_tour_completed",
+  // The timezone this ACCOUNT has already reported from this device
+  // (TimezoneSync). Quiet hours are stored per profile, so the record of
+  // "already told the server" belongs to the person, not the phone: on a shared
+  // device the second account must report its own, or it keeps the UTC fallback
+  // and gets its evenings silenced.
+  "swiftcard_push_tz",
 ] as const;
+
+/** Written by TimezoneSync; wiped on an account switch with the list above. */
+export const PUSH_TIMEZONE_STORAGE_KEY = "swiftcard_push_tz";
 
 /**
  * Guest-flow keys. Written by a GUEST before signup and consumed once AFTER

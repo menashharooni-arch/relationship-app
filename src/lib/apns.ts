@@ -185,17 +185,41 @@ export async function sendWalletPassPush(pushToken: string): Promise<ApnsSendRes
  * Returns "gone" when Apple reports the token unregistered (caller should
  * delete the subscription row) — mirrors web-push's 404/410 handling.
  */
-export async function sendApnsNotification(
-  endpoint: string,
-  payload: { title: string; body: string; url: string; tag?: string },
-): Promise<ApnsSendResult> {
-  const deviceToken = endpoint.slice(APNS_PREFIX.length);
-  const topic = process.env.APPLE_PUSH_TOPIC || APNS_TOPIC_DEFAULT;
+export type ApnsAlertPayload = { title: string; body: string; url: string; tag?: string; silent?: boolean };
+
+/**
+ * The exact bytes and headers one alert becomes. Pure, and exported so the
+ * shape can be asserted in a test instead of trusted — the whole install base
+ * is behind it and a payload Apple rejects looks, from here, like silence.
+ *
+ * SILENT = a notification that updates one already on the screen without
+ * interrupting anyone (the running view count, lib/push-policy.ts):
+ *
+ *   no `sound`                    — nothing to hear.
+ *   interruption-level "passive"  — iOS 15+: adds it to the list WITHOUT
+ *                                   lighting the screen. A plain aps key, not
+ *                                   an entitlement: "time-sensitive" and
+ *                                   "critical" need Apple's permission,
+ *                                   "passive" and "active" never have.
+ *   apns-priority 5               — the documented pairing for a push that does
+ *                                   not need to wake the device.
+ *
+ * Older iOS ignores an aps key it does not know, so a passive push there is
+ * simply a soundless one. Never a `content-available` background push: the
+ * system throttles those for hours, which is the one thing a live counter
+ * cannot survive. And an ordinary alert is byte-for-byte what it always was —
+ * the silent branch adds a shape, it does not change the existing one.
+ */
+export function buildApnsAlert(payload: ApnsAlertPayload, topic: string): {
+  headers: Record<string, string>;
+  body: string;
+} {
+  const silent = payload.silent === true;
 
   const body = JSON.stringify({
     aps: {
       alert: { title: payload.title, body: payload.body },
-      sound: "default",
+      ...(silent ? { "interruption-level": "passive" } : { sound: "default" }),
       "thread-id": payload.tag ?? "swiftcard",
     },
     // Custom key: the in-app destination. NativeAppBridge navigates here when
@@ -212,14 +236,23 @@ export async function sendApnsNotification(
   // truncate rather than let APNs reject the whole send.
   const collapseId = (payload.tag ?? "").slice(0, 64);
 
-  return apnsPost(
-    deviceToken,
-    {
+  return {
+    headers: {
       "apns-topic": topic,
       "apns-push-type": "alert",
-      "apns-priority": "10",
+      "apns-priority": silent ? "5" : "10",
       ...(collapseId ? { "apns-collapse-id": collapseId } : {}),
     },
     body,
-  );
+  };
+}
+
+export async function sendApnsNotification(
+  endpoint: string,
+  payload: ApnsAlertPayload,
+): Promise<ApnsSendResult> {
+  const deviceToken = endpoint.slice(APNS_PREFIX.length);
+  const topic = process.env.APPLE_PUSH_TOPIC || APNS_TOPIC_DEFAULT;
+  const { headers, body } = buildApnsAlert(payload, topic);
+  return apnsPost(deviceToken, headers, body);
 }
