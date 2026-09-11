@@ -2,6 +2,8 @@ import webpush from "web-push";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isApnsEndpoint, sendApnsNotification } from "@/lib/apns";
 import { assertSafeUrl } from "@/lib/safe-fetch";
+import { isPaidPlan } from "@/lib/plan";
+import { stripLocationMarks, withoutLocation } from "@/lib/location-privacy";
 import {
   decidePush, fitBody, readPushPrefs, MAX_TITLE_CHARS, UNCAPPED, VIEW_ROLLUP_TAG,
   type PushCategory,
@@ -52,6 +54,7 @@ export async function sendPushToUser(userId: string, payload: {
     .maybeSingle();
   const prefs = readPushPrefs(profile?.customization);
   const plan = (profile?.plan as string | null) ?? "free";
+  const paid = isPaidPlan(plan);
 
   const log = async (outcome: string, endpointCount = 0) => {
     try {
@@ -140,10 +143,16 @@ export async function sendPushToUser(userId: string, payload: {
   // where while the number climbs. "views", never "people": card_views counts
   // visits, and one person returning after thirty minutes counts again — the
   // same honesty rule the milestones copy is held to (lib/milestones.ts).
+  // WHERE A LOCK SCREEN LOSES THE LOCATION. The place a view came from is a
+  // Pro feature, and a push cannot blur anything — so for a Free account the
+  // whole fragment comes out and the sentence closes up ("Sam viewed your
+  // Swift Links."). A paid account keeps it, with the invisible marks removed.
+  // Every push in the product goes through here, so no producer can forget.
+  const plainBody = (s: string) => (paid ? stripLocationMarks(s) : withoutLocation(s));
   payload = {
     ...payload,
-    title: fitBody(isUpdate ? `${viewsThisHour} views in the last hour` : payload.title, MAX_TITLE_CHARS),
-    body: fitBody(payload.body),
+    title: fitBody(isUpdate ? `${viewsThisHour} views in the last hour` : plainBody(payload.title), MAX_TITLE_CHARS),
+    body: fitBody(plainBody(payload.body)),
     ...(isUpdate ? { tag: VIEW_ROLLUP_TAG, silent: true } : {}),
   };
 

@@ -47,6 +47,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const usernames = await getOwnerUsernames(user.id);
   const admin = getAdminSupabase();
 
+  // FOLLOW-UP AUTOMATIONS ARE PRO (owner, 2026-09-11). The sender has always
+  // refused to run one for a Free account — it pauses the sequence and tells
+  // them why — but nothing stopped one being BUILT, so the panel could set up a
+  // cadence that would never send. The switch is now tagged PRO in the app; this
+  // is the half a client cannot skip.
+  //
+  // CLEARING one is always allowed. A downgraded account must be able to switch
+  // off, reset, or empty a sequence it already has: the rule is "no new
+  // automation without Pro", not "no way out".
+  if ("follow_up_sequence" in body) {
+    const next = body.follow_up_sequence;
+    const adding = Array.isArray(next) ? next.length > 0 : next != null;
+    if (adding) {
+      const { data: prof } = await admin
+        .from("profiles").select("plan").eq("id", user.id).maybeSingle();
+      if (!isPaidPlan(prof?.plan as string | null)) {
+        return NextResponse.json(
+          {
+            // Machine code for the native app; web reads `message`.
+            code: "PRO_REQUIRED",
+            error: "pro_required",
+            message: "Follow-up automations are part of Pro.",
+          },
+          { status: 402 },
+        );
+      }
+    }
+  }
+
   // `tags` is server-owned in part: reserved tags drive org visibility
   // (sc-office-*), the Free paywall (sc-locked), and automation state (flow-*,
   // *-paused, preset-*). Never let the client set/clear those — read the row's

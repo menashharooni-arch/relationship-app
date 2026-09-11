@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useIsNativeApp } from "@/lib/platform";
-import { GateCopy } from "@/components/PlanGate";
+import NotificationBody from "@/components/NotificationBody";
 
 // Native-safe remaps for stored notification bodies that contain selling copy.
 // The stored body is unchanged on web; only the in-app native render is swapped.
@@ -218,7 +218,11 @@ export default function NotificationsPanel({
                 // string. Web (isNative false, incl. server + first paint) shows
                 // the stored body exactly as today.
                 const displayBody = isNative && NATIVE_BODY_REMAP[n.type] ? NATIVE_BODY_REMAP[n.type] : n.body;
-                return displayBody && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed"><GateCopy copy={displayBody} /></p>;
+                // NotificationBody, not GateCopy directly: on a Free account the
+                // place a view came from arrives already blocked out, and this
+                // is what blurs it instead of printing ███ in the middle of a
+                // sentence. Paid accounts render exactly as before.
+                return displayBody && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed"><NotificationBody text={displayBody} /></p>;
               })()}
               {/* Referral month earned → the explicit tap-to-claim */}
               {n.type === "referral_claim" && (

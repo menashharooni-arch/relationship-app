@@ -124,8 +124,38 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
   // What the preview stands in for: a teammate's page under this branding.
   const previewSocials = { instagram: instagram || "yourteam", website: office.brand_website ?? undefined };
 
+  // ONE preview, rendered in two slots — the same pattern the card editor uses.
+  //
+  // On a wide screen it is a sticky panel beside the controls. On a phone there
+  // is no beside, and it used to sit at the very BOTTOM: you filled in the
+  // branding and never saw the thing you were branding without scrolling past
+  // everything. It now sits between "Links information" and "Links appearance"
+  // (owner, 2026-09-11) — directly under what you just typed, directly above
+  // the design controls whose effect you want to watch.
+  const preview = (
+    <div className="rounded-2xl overflow-hidden border border-gray-800">
+      <SwiftLinkLivePreview
+        name="Sam Rivera"
+        handle="samrivera"
+        company={office.brand_company ?? undefined}
+        title="Associate"
+        bio={bio || "Their own bio goes here."}
+        logoUrl={office.brand_logo_url ?? undefined}
+        socials={previewSocials}
+        links={links}
+        style={style}
+        paid
+      />
+    </div>
+  );
+  const previewCaption = (
+    <p className="text-[0.6875rem] text-gray-600 mt-2.5 leading-snug">
+      A teammate&apos;s page under this branding. Their name, photo and their own links are theirs.
+    </p>
+  );
+
   return (
-    <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_300px] lg:items-start">
+    <div data-tour="admin-branding-links" className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_300px] lg:items-start">
       <div className="space-y-4 min-w-0">
         <Section
           n={1}
@@ -259,6 +289,18 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
           </div>
         </Section>
 
+        {/* Phone only: the preview belongs between what you fill in and the
+            design controls. Capped at 232px — the page renders at true phone
+            width and scales to its slot, so a narrower slot is a smaller
+            preview, and at full column width it was swallowing the screen. */}
+        <div className="lg:hidden">
+          <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
+          <div className="max-w-[232px]">
+            {preview}
+            {previewCaption}
+          </div>
+        </div>
+
         <Section
           n={2}
           title="Links appearance"
@@ -334,25 +376,12 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
         </div>
       </div>
 
-      <aside className="lg:sticky lg:top-4">
+      {/* Wide screens keep the sticky panel beside the controls — there is a
+          beside here, and it follows you down the page. */}
+      <aside className="hidden lg:block lg:sticky lg:top-4">
         <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
-        <div className="rounded-2xl overflow-hidden border border-gray-800">
-          <SwiftLinkLivePreview
-            name="Sam Rivera"
-            handle="samrivera"
-            company={office.brand_company ?? undefined}
-            title="Associate"
-            bio={bio || "Their own bio goes here."}
-            logoUrl={office.brand_logo_url ?? undefined}
-            socials={previewSocials}
-            links={links}
-            style={style}
-            paid
-          />
-        </div>
-        <p className="text-[0.6875rem] text-gray-600 mt-2.5 leading-snug">
-          A teammate&apos;s page under this branding. Their name, photo and their own links are theirs.
-        </p>
+        {preview}
+        {previewCaption}
       </aside>
     </div>
   );

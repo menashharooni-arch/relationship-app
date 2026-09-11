@@ -55,7 +55,13 @@ export function cardEventNotice(input: {
   // being sent for a STATE-level answer, which reads as New York City; at that
   // confidence this now says "in the New York area" instead. See
   // lib/location-display.ts for the full ladder.
-  const near = locationPhrase(input.location, input.geoAccuracy);
+  // MARKED. The place a view came from is a Pro feature (the Locations tab is
+  // gated, and a Free account's lead rows carry no location), and this sentence
+  // was handing it over several times a day. The marks are invisible; they let
+  // the row a Free account is sent have the place blocked out server-side, and
+  // let the push — which cannot blur anything — drop the fragment whole.
+  // lib/location-privacy.ts is the whole story.
+  const near = locationPhrase(input.location, input.geoAccuracy, { mark: true });
 
   if (eventType === "viewed_card") {
     // Swift Links and the card are different surfaces and an owner shares them

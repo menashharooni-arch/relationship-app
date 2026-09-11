@@ -12,6 +12,7 @@ import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot, botFamily } from "@/lib/bot-detection";
 import { logIngest, type IngestReason, type IngestDecision } from "@/lib/ingest-log";
 import { resolveGeo, type GeoResult } from "@/lib/request-geo";
+import { stripLocationMarks } from "@/lib/location-privacy";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 import { recordView } from "@/lib/record-view";
 import { notifyVisit, visitKey } from "@/lib/visit-notify";
@@ -486,7 +487,12 @@ export async function POST(req: NextRequest) {
             type: "conversation.notification",
             event: isView ? "card_viewed" : "contact_saved",
             title: notice.title,
-            body: notice.body,
+            // Plain text. The body carries invisible location marks for the
+            // app's own notification list (lib/location-privacy.ts); a customer's
+            // Salesforce record is not the place for them. The `location` field
+            // below is the CRM's own, unchanged — a connected CRM is a paid
+            // feature, so nothing is being withheld here.
+            body: stripLocationMarks(notice.body),
             ...(crmContact ? { contact: crmContact } : {}),
             source: source || "direct_link",
             location: location ?? undefined,

@@ -307,6 +307,10 @@ export default async function ContactsPage({
         <ContactsClient
           leads={(leads ?? []) as unknown as Parameters<typeof ContactsClient>[0]["leads"]}
           primaryUsername={cardList[0]?.username}
+          // Follow-up automations are Pro. The cron has always refused to SEND
+          // for a Free account (it pauses the sequence and says so); without
+          // this the panel still let them build one that would never go out.
+          isPro={paid}
           initialCardFilter={selectedCardParam ?? null}
           initialSelectedId={selectedLeadParam ?? null}
           userCards={cardList.map((c) => ({ username: c.username, name: c.label || c.name || c.username }))}

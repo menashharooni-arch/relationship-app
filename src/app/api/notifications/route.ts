@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { isPaidUser, redactForPlan } from "@/lib/notification-privacy";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
       .limit(20));
   }
 
-  return NextResponse.json(data ?? []);
+  return NextResponse.json(redactForPlan(data ?? [], await isPaidUser(user.id)));
 }
 
 export async function PATCH(req: NextRequest) {

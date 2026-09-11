@@ -1,0 +1,156 @@
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { cardEventNotice } from "@/lib/card-event-notify";
+import { locationPhrase } from "@/lib/location-display";
+import {
+  PLACE_MARK, PHRASE_MARK,
+  redactPlaces, redactLegacyPlace, splitLocationParts, stripLocationMarks, withoutLocation,
+} from "@/lib/location-privacy";
+import { redactForPlan } from "@/lib/notification-privacy";
+
+// ── Locations are Pro, including the ones hiding inside a sentence ───────────
+//
+// Owner, 2026-09-11: "for the free account, we don't offer locations, so users
+// who have the free account cannot see locations of SwiftCard views and
+// SwiftLink views, but when they get notifications, it says 'Someone viewed
+// your SwiftLinks in the New York area.' They should not be getting that
+// location… it should just blur the location name. Don't say anything about pro
+// or upgrading."
+//
+// The Locations tab was gated and the Free lead list carries no location
+// column, so this one sentence was the whole leak — several times a day, for
+// free. The place is now blocked out ON THE SERVER (a CSS blur over real text
+// is readable in devtools) and the app blurs what is left.
+
+const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+
+describe("the sentence marks where its location is", () => {
+  it("wraps the fragment and the place name, invisibly", () => {
+    const n = cardEventNotice({
+      eventType: "viewed_card", surface: "links", visitorName: "Sam",
+      location: "New York, US", geoAccuracy: "region",
+    })!;
+    expect(n.body).toContain(PLACE_MARK);
+    expect(n.body).toContain(PHRASE_MARK);
+    // Both marks are invisible separators — the sentence still reads normally.
+    expect(stripLocationMarks(n.body)).toBe("Sam viewed your Swift Links in the New York area.");
+  });
+
+  it("leaves every other caller's plain sentence exactly as it was", () => {
+    // The Locations tab, the contact panel and everything else call this
+    // without the option and must be byte-identical to before.
+    expect(locationPhrase("Great Neck, NY", "city_approx")).toBe(" near Great Neck, NY");
+    expect(locationPhrase("New York, US", "region")).toBe(" in the New York area");
+    expect(locationPhrase(null, "city")).toBe("");
+  });
+
+  it("says nothing at all when there is no location", () => {
+    const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Sam" })!;
+    expect(n.body).toBe("Sam viewed your card.");
+    expect(n.body).not.toContain(PLACE_MARK);
+  });
+});
+
+describe("what a Free account is actually sent", () => {
+  const notice = cardEventNotice({
+    eventType: "viewed_card", surface: "links", visitorName: "Sam",
+    location: "Roslyn, NY", geoAccuracy: "city",
+  })!;
+
+  it("has the place replaced with blocks — there is nothing to read in devtools", () => {
+    const [row] = redactForPlan([{ type: "card_viewed", body: notice.body }], false);
+    expect(row.body).not.toContain("Roslyn");
+    expect(row.body).toMatch(/█+/);
+    // The sentence keeps its shape around the redaction.
+    expect(stripLocationMarks(row.body!)).toMatch(/^Sam viewed your Swift Links near █+\.$/);
+  });
+
+  it("keeps the preposition readable, so only the place looks hidden", () => {
+    const [row] = redactForPlan([{ type: "card_viewed", body: notice.body }], false);
+    const parts = splitLocationParts(row.body!);
+    expect(parts.filter((p) => !p.place).map((p) => p.text).join("")).toBe("Sam viewed your Swift Links near .");
+    expect(parts.filter((p) => p.place)).toHaveLength(1);
+  });
+
+  it("says nothing about Pro, upgrading or price", () => {
+    const [row] = redactForPlan([{ type: "card_viewed", body: notice.body }], false);
+    expect(row.body).not.toMatch(/pro|upgrade|plan|unlock/i);
+    // The renderer draws a smudge and nothing else — no badge, no link, no
+    // pitch. (Comments stripped: the file quotes the instruction itself.)
+    const code = read("src/components/NotificationBody.tsx")
+      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    expect(code).not.toMatch(/Upgrade|Pro\b|price|\/upgrade/i);
+  });
+
+  it("redacts rows written before the marks existed, by type", () => {
+    const legacy = [
+      { type: "card_viewed", body: "Someone viewed your Swift Links in the New York area." },
+      { type: "contact_saved", body: "Someone downloaded your contact card near Great Neck, NY." },
+      { type: "milestone_50", body: "Someone viewed your card near Austin, TX. That's 50 views on /dana." },
+      // A lead body has no location in it and must not be touched, or the
+      // company name would be eaten by a hunt for the word "in".
+      { type: "new_lead", body: "Dana Whitfield shared their info with you from a QR code." },
+    ];
+    const out = redactForPlan(legacy, false);
+    expect(out[0].body).not.toContain("New York");
+    expect(out[1].body).not.toContain("Great Neck");
+    expect(out[3].body).toBe(legacy[3].body);
+  });
+
+  it("never redacts a paid account, and strips the invisible marks for them", () => {
+    const [row] = redactForPlan([{ type: "card_viewed", body: notice.body }], true);
+    expect(row.body).toBe("Sam viewed your Swift Links near Roslyn, NY.");
+    expect(row.body).not.toContain(PLACE_MARK);
+  });
+});
+
+describe("the lock screen, where nothing can be blurred", () => {
+  it("drops the location fragment whole and closes the sentence up", () => {
+    const n = cardEventNotice({
+      eventType: "viewed_card", visitorName: "Sam", location: "Roslyn, NY", geoAccuracy: "city",
+    })!;
+    expect(withoutLocation(n.body)).toBe("Sam viewed your card.");
+  });
+
+  it("does the same for every shape the composer can produce", () => {
+    for (const [loc, acc] of [["Roslyn, NY", "city"], ["Great Neck, NY", "city_approx"], ["New York, US", "region"], ["US", "country"]] as const) {
+      const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Sam", location: loc, geoAccuracy: acc })!;
+      expect(withoutLocation(n.body), `${loc}/${acc}`).toBe("Sam viewed your card.");
+    }
+  });
+
+  it("is applied in the one place every push goes through", () => {
+    const push = read("src/lib/push.ts");
+    expect(push).toMatch(/paid \? stripLocationMarks\(s\) : withoutLocation\(s\)/);
+    // Title as well as body — a producer could put a place in either.
+    expect(push).toMatch(/plainBody\(payload\.title\)/);
+    expect(push).toMatch(/fitBody\(plainBody\(payload\.body\)\)/);
+  });
+});
+
+describe("nothing else has to remember", () => {
+  it("the CRM gets plain text, never the marks", () => {
+    expect(read("src/app/api/card-events/route.ts")).toMatch(/body: stripLocationMarks\(notice\.body\)/);
+  });
+
+  it("both endpoints that hand notifications to a browser redact by plan", () => {
+    expect(read("src/app/api/notifications/route.ts")).toMatch(/redactForPlan\(data \?\? \[\], await isPaidUser\(user\.id\)\)/);
+    expect(read("src/app/dashboard/page.tsx")).toMatch(/redactForPlan\(panelNotifications \?\? \[\], isPro\)/);
+    expect(read("src/app/dashboard/page.tsx")).toMatch(/redactForPlan\(bellNotifications \?\? \[\], isPro\)/);
+  });
+
+  it("an unknown plan is treated as Free, not as paid", () => {
+    const src = read("src/lib/notification-privacy.ts");
+    const fallback = src.slice(src.indexOf("} catch {"));
+    expect(fallback).toMatch(/return false;/);
+  });
+
+  it("redacting is idempotent — a second pass cannot eat the blocks", () => {
+    const once = redactPlaces(cardEventNotice({
+      eventType: "viewed_card", visitorName: "Sam", location: "Roslyn, NY", geoAccuracy: "city",
+    })!.body);
+    expect(redactPlaces(once)).toBe(once);
+    expect(redactLegacyPlace("Someone viewed your card near █████.")).toContain("█");
+  });
+});

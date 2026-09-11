@@ -1,4 +1,5 @@
 import type { GeoAccuracy } from "@/lib/request-geo";
+import { markPhrase, markPlace } from "@/lib/location-privacy";
 
 // ── Saying only what we actually know about where someone was ────────────────
 //
@@ -110,25 +111,40 @@ export function locationLabel(
 export function locationPhrase(
   label: string | null | undefined,
   accuracy: GeoAccuracy | null | undefined,
+  opts?: {
+    /**
+     * Wrap the fragment and the place name in the invisible marks from
+     * lib/location-privacy.ts, so a Free account's copy can have the place
+     * blocked out server-side and blurred in the app — and so the push, which
+     * cannot blur anything, can drop the fragment whole.
+     *
+     * Only the notification composer asks for this. Every other caller wants
+     * the plain sentence it has always returned.
+     */
+    mark?: boolean;
+  },
 ): string {
   const raw = (label ?? "").trim();
   if (!raw) return "";
+  const place = (name: string) => (opts?.mark ? markPlace(name) : name);
+  const phrase = (fragment: string) => (opts?.mark ? markPhrase(fragment) : fragment);
+
   // Pre-accuracy rows keep the wording they have always had.
-  if (!accuracy) return ` near ${raw}`;
+  if (!accuracy) return phrase(` near ${place(raw)}`);
 
   switch (accuracy) {
     case "city":
     case "city_approx":
-      return ` near ${raw}`;
+      return phrase(` near ${place(raw)}`);
     case "region": {
       const { head } = splitLabel(raw);
-      return ` in the ${head} area`;
+      return phrase(` in the ${place(head)} area`);
     }
     case "country": {
       const code = raw.toUpperCase();
       const name = COUNTRY_NAMES[code];
-      if (!name) return ` in ${raw}`;
-      return ` in ${TAKES_THE.has(code) ? "the " : ""}${name}`;
+      if (!name) return phrase(` in ${place(raw)}`);
+      return phrase(` in ${TAKES_THE.has(code) ? "the " : ""}${place(name)}`);
     }
   }
 }
