@@ -34,7 +34,20 @@ BUILD="$ROOT/ios/build"
 ARCHIVE="$BUILD/SwiftCard.xcarchive"
 EXPORT_DIR="$BUILD/export"
 DRY=0
-[[ "${1:-}" == "--dry" ]] && DRY=1
+NO_WATCH=0
+for arg in "$@"; do
+  case "$arg" in
+    --dry) DRY=1 ;;
+    # Ship the iPhone app WITHOUT the Apple Watch app. The watch targets stay in
+    # the project; this only says "not in this build", which the entitlements
+    # guard below would otherwise (correctly) treat as a silently-dropped embed
+    # phase. Use it deliberately — a release that should contain the watch app
+    # and doesn't is exactly the failure that guard exists to catch.
+    --no-watch) NO_WATCH=1 ;;
+    # die() is defined further down, so this cannot call it.
+    *) printf '\nerror: unknown flag: %s (expected --dry and/or --no-watch)\n' "$arg" >&2; exit 1 ;;
+  esac
+done
 
 die() { printf '\nerror: %s\n' "$1" >&2; exit 1; }
 
@@ -164,7 +177,12 @@ fi
 # passes, and the feature simply does not exist for anyone. Same failure shape
 # as the entitlements above, one level up.
 WATCH_APP="$APP_BIN/Watch/SwiftCardWatch.app"
-if [[ ! -d "$WATCH_APP" ]]; then
+if (( NO_WATCH )); then
+  if [[ -d "$WATCH_APP" ]]; then
+    die "--no-watch was passed but the watch app IS embedded — the build does not match the intent."
+  fi
+  echo "Apple Watch app: deliberately excluded from this build (--no-watch)."
+elif [[ ! -d "$WATCH_APP" ]]; then
   missing+=("Watch/SwiftCardWatch.app (the Apple Watch app is not in the build at all)")
 else
   WAENTS="$(codesign -d --entitlements :- "$WATCH_APP" 2>/dev/null || true)"
@@ -185,7 +203,11 @@ if (( ${#missing[@]} )); then
   printf '\nApp entitlements actually embedded:\n%s\n' "$ENTS" >&2
   die "refusing to ship a build whose capabilities are dead on device."
 fi
-echo "Entitlements OK: push (production), Universal Links, app group — app, widget, watch app and complication."
+if (( NO_WATCH )); then
+  echo "Entitlements OK: push (production), Universal Links, app group — app and widget."
+else
+  echo "Entitlements OK: push (production), Universal Links, app group — app, widget, watch app and complication."
+fi
 
 # Validation catches the things App Store Connect would reject hours later:
 # missing privacy manifest reasons, bad icon, entitlement/profile mismatch,
