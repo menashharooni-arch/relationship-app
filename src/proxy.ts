@@ -1,9 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE, DEVICE_LIMIT, deviceLabel, isDeviceId, newDeviceId } from "@/lib/device";
 
 // See the soft-delete guard below for why this exists and why 60s is safe.
 const deletedCheckCache = new Map<string, { deleted: boolean; at: number }>();
 const DELETED_CHECK_TTL_MS = 60_000;
+
+// Two devices per account — see lib/device.ts for what counts as one.
+//
+// Cached exactly like the soft-delete guard above and for the same reason:
+// without it this is a serial DB round trip in front of every protected page.
+// Only ALLOWED answers are cached, so 60s is the blast radius of REVOKING a
+// device — sign one out in Settings and it stops working within a minute. A
+// denial is never cached, so a blocked device recovers the instant a slot is
+// freed. Keyed on user+device: the answer differs per device for one user.
+const deviceCheckCache = new Map<string, { ok: boolean; at: number }>();
+const DEVICE_CHECK_TTL_MS = 60_000;
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -178,6 +190,69 @@ export async function proxy(request: NextRequest) {
         }
       } catch {
         // DB unreachable — let the page try; blocking here blanks the app.
+      }
+    }
+  }
+
+  // ── The two-device limit ──────────────────────────────────────────────────
+  //
+  // FAILS OPEN, like everything else in this file. If the claim cannot be
+  // evaluated — RPC missing because the migration has not been run, database
+  // unreachable, timeout — the request proceeds. Locking somebody out of their
+  // own account because a query failed is far worse than a third device
+  // getting in during an outage.
+  //
+  // The cookie is planted only here, on authenticated paths, so the marketing
+  // site never sets a long-lived identifier on a visitor who has not signed in.
+  if (userId && isProtected && !request.nextUrl.pathname.startsWith("/settings/devices")) {
+    let deviceId = request.cookies.get(DEVICE_COOKIE)?.value;
+    if (!isDeviceId(deviceId)) {
+      deviceId = newDeviceId();
+      // onto BOTH: `request` so anything later in this pass sees it, and the
+      // response so the browser keeps it. httpOnly — no page script can read
+      // or forge a device identity.
+      request.cookies.set(DEVICE_COOKIE, deviceId);
+      supabaseResponse.cookies.set(DEVICE_COOKIE, deviceId, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: DEVICE_COOKIE_MAX_AGE,
+      });
+    }
+
+    const key = `${userId}:${deviceId}`;
+    const cached = deviceCheckCache.get(key);
+    if (cached && cached.ok && Date.now() - cached.at < DEVICE_CHECK_TTL_MS) {
+      // Known-good device, nothing to do.
+    } else {
+      try {
+        const isNative = request.cookies.get("sc_shell")?.value === "1";
+        const { data, error } = await supabase.rpc("claim_device_slot", {
+          p_device_id: deviceId,
+          p_label: deviceLabel(request.headers.get("user-agent"), isNative),
+          p_user_agent: request.headers.get("user-agent"),
+          p_is_native: isNative,
+          p_limit: DEVICE_LIMIT,
+        });
+        // `error` covers the not-yet-migrated case: an absent function is an
+        // error, not a `false`, and must not read as "denied".
+        // ONLY SUCCESS IS CACHED. A denial is re-evaluated on every request,
+        // which costs one query for the rare blocked device and buys the thing
+        // that matters: the instant somebody signs a device out to free a slot,
+        // the blocked device works again. Caching the denial would have left
+        // them bounced for up to a minute AFTER doing exactly what the page
+        // told them to do.
+        if (!error && data === false) {
+          deviceCheckCache.delete(key);
+          return redirectWithAuthCookies(new URL("/settings/devices?full=1", request.url));
+        }
+        if (!error) {
+          if (deviceCheckCache.size > 5000) deviceCheckCache.clear();
+          deviceCheckCache.set(key, { ok: true, at: Date.now() });
+        }
+      } catch {
+        // Unreachable or timed out — let the page through. Never cache this.
       }
     }
   }
