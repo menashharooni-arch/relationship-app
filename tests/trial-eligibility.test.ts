@@ -1,81 +1,78 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
 
-// The 14-day Pro trial's eligibility contract, shared by the checkout API (the
-// enforcement), /upgrade, and the two Pro dialogs (the advertising). These pin
-// every branch so no surface can quietly start promising — or denying — a trial
-// differently from the session Stripe actually creates.
+// The 14-day Pro trial is offered to EVERYONE (owner, 2026-09-11). This pins
+// that, and pins the reason the function still exists: four surfaces have to
+// agree about the offer — the checkout API that creates the Stripe session,
+// /upgrade, and the two Pro dialogs — so the sentence printed on a button and
+// the session it produces can never disagree.
 //
-// THE RULE CHANGED ON 2026-09-11. It used to be "has this customer EVER had a
-// subscription", which refused a trial to anyone who had subscribed and
-// cancelled — including the owner testing their own product, who saw a cold
-// "$4.99 a month" and reasonably read it as the trial being broken. It is the
-// ordinary rule now: no SECOND free trial. A prior subscription only
-// disqualifies you if it actually carried one.
-
-function stripeWith(subs: unknown[]) {
-  return { subscriptions: { list: async () => ({ data: subs }) } };
-}
+// The rule has moved twice. It was "has this customer EVER subscribed", which
+// refused the trial to anyone who had subscribed once and stopped. Then it was
+// "has this customer already USED a trial", the textbook rule, which still
+// showed a cold "$4.99 a month" to the very person who reported it. Both times
+// the headline offer quietly became a bare price for real people. It is
+// unconditional now.
 
 describe("isProTrialEligible", () => {
-  it("no Stripe customer at all → eligible (they have never subscribed)", async () => {
+  it("is true for a brand-new account", async () => {
     expect(await isProTrialEligible(null)).toBe(true);
     expect(await isProTrialEligible(undefined)).toBe(true);
     expect(await isProTrialEligible("")).toBe(true);
   });
 
-  it("customer with zero subscriptions ever → eligible", async () => {
-    expect(await isProTrialEligible("cus_123", stripeWith([]))).toBe(true);
+  it("is true for a returning customer, however much history they have", async () => {
+    const withHistory = {
+      subscriptions: {
+        list: async () => ({ data: [{ id: "sub_1", status: "canceled", trial_start: 1735689600, trial_end: 1736899200 }] }),
+      },
+    };
+    expect(await isProTrialEligible("cus_123", withHistory)).toBe(true);
   });
 
-  // THE RULE THAT STILL HOLDS: one trial per customer.
-  it("a subscription that carried a trial blocks a second one", async () => {
-    expect(await isProTrialEligible("cus_123", stripeWith([{ id: "sub_1", trial_start: 1735689600 }]))).toBe(false);
+  // The case that was reported four times: an account that had already trialled
+  // saw "$4.99 a month" with no trial line, on both the web and the app.
+  it("is true for someone who has already had a trial", async () => {
+    const trialled = {
+      subscriptions: { list: async () => ({ data: [{ id: "sub_1", trial_start: 1735689600 }] }) },
+    };
+    expect(await isProTrialEligible("cus_UtLt5fRNh2gh66", trialled)).toBe(true);
   });
 
-  it("cancel during the trial, come back → still no second trial", async () => {
-    // status:"all" is what the helper queries, so a sub in any state appears
-    // here; this is what makes "cancel mid-trial, re-subscribe, new trial"
-    // impossible.
-    expect(
-      await isProTrialEligible("cus_123", stripeWith([{ id: "sub_1", status: "canceled", trial_start: 1735689600, trial_end: 1736899200 }])),
-    ).toBe(false);
-  });
-
-  it("one trialled subscription among several still blocks", async () => {
-    expect(
-      await isProTrialEligible("cus_123", stripeWith([{ id: "sub_1" }, { id: "sub_2", trial_end: 1736899200 }, { id: "sub_3" }])),
-    ).toBe(false);
-  });
-
-  // THE RULE THAT CHANGED: paying from day one does not spend your trial.
-  it("a returning customer who never trialled IS offered one", async () => {
-    expect(await isProTrialEligible("cus_123", stripeWith([{ id: "sub_1", status: "canceled" }]))).toBe(true);
-    expect(
-      await isProTrialEligible("cus_123", stripeWith([{ id: "sub_1", status: "canceled", trial_start: null, trial_end: null }])),
-    ).toBe(true);
-  });
-
-  // AND THE INVERSION. The old version refused when Stripe could not be
-  // reached, reasoning that wrongly promising a trial costs trust. That was
-  // right while the copy was quiet about it; with "14-day free trial" on the
-  // front of every Pro dialog it is backwards, because an unreachable Stripe
-  // would silently turn the headline offer into a cold price for EVERYONE —
-  // which is exactly what a missing STRIPE_SECRET_KEY did. Stripe imposes no
-  // one-trial-per-customer rule of its own, so granting is always deliverable.
-  it("Stripe unreachable → eligible, so the headline promise stays keepable", async () => {
+  it("is true when Stripe cannot be reached at all", async () => {
     const broken = { subscriptions: { list: async () => { throw new Error("network"); } } };
     expect(await isProTrialEligible("cus_123", broken)).toBe(true);
   });
 
-  it("asks for enough history to answer the question", async () => {
-    // limit:1 answers "did the MOST RECENT subscription have a trial", which is
-    // a different question — an older trialled sub would be missed.
-    let seen: { limit?: number } = {};
+  it("never calls Stripe — there is nothing left to ask it", async () => {
+    let called = false;
     await isProTrialEligible("cus_123", {
-      subscriptions: { list: async (p: { customer: string; status: "all"; limit: number }) => { seen = p; return { data: [] }; } },
+      subscriptions: { list: async () => { called = true; return { data: [] }; } },
     });
-    expect(seen.limit).toBeGreaterThanOrEqual(100);
-    expect(seen).toMatchObject({ status: "all" });
+    expect(called).toBe(false);
+  });
+});
+
+describe("one answer, shared by every surface that promises it", () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+
+  // If any of these started deciding for itself, the promise on its button
+  // could drift from the session the checkout creates — which is the whole
+  // reason this lives in one function.
+  it.each([
+    ["src/app/api/stripe/checkout/route.ts", "the session Stripe actually creates"],
+    ["src/app/upgrade/page.tsx", "the upgrade page"],
+    ["src/app/cards/[id]/edit/page.tsx", "the Save Changes dialog"],
+    ["src/app/dashboard/page.tsx", "the Add card dialog"],
+  ])("%s asks the shared helper (%s)", (file) => {
+    expect(read(file)).toContain("isProTrialEligible");
+  });
+
+  it("the checkout still grants real trial days, not just copy", () => {
+    const checkout = read("src/app/api/stripe/checkout/route.ts");
+    expect(checkout).toContain("trial_period_days");
+    expect(checkout).toContain("TRIAL_DAYS");
   });
 });
