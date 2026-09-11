@@ -137,20 +137,29 @@ function Swatches({
           style={{ background: p, border: value === p ? "2px solid #3b82f6" : "1px solid #374151" }}
         />
       ))}
-      <label
-        className={`flex items-center gap-1 text-[10px] text-gray-500 ml-0.5 ${customLocked ? "opacity-50 pointer-events-none select-none" : "cursor-pointer"}`}
-        aria-disabled={customLocked}
-      >
+      <label className="flex items-center gap-1 text-[10px] text-gray-500 ml-0.5 cursor-pointer">
         {/* "any color", not "custom": beside six working swatches, a greyed
             "custom PRO" read as the whole colour field being Pro. The swatches
-            are every plan; the free-hand picker is what Pro adds. */}
+            are every plan; the free-hand picker is what Pro adds.
+
+            AND IT STAYS USABLE ON A FREE ACCOUNT (owner, 2026-09-11). It used
+            to be disabled, which is the one thing in this panel that could not
+            be tried: a Free owner could tap every Pro finish and see it on
+            their card, but the colour picker was dead, so the feature they were
+            being asked to pay for was the one they could not look at. Now they
+            pick any colour, watch it land on the live preview, and meet the
+            Pro wall at Save Changes — which names what they used and offers to
+            save the Free-safe version instead (ProRequiredDialog). Nothing can
+            leak past that: the save path detects it (proFeaturesInUse) and the
+            server snaps colours to Free presets on write regardless
+            (sanitizeCustomizationForPlan). The PRO tag stays, so nobody gets
+            attached to a colour without being told what it costs. */}
         any color{customLocked && <ProTag />}
         <input
           type="color"
           value={isHex(value) ? value : fallbackHex}
           onChange={(e) => onPick(e.target.value)}
-          disabled={customLocked}
-          className="w-7 h-7 rounded bg-transparent border border-gray-700 cursor-pointer disabled:cursor-default"
+          className="w-7 h-7 rounded bg-transparent border border-gray-700 cursor-pointer"
         />
       </label>
       <button
