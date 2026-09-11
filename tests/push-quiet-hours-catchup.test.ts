@@ -344,7 +344,7 @@ describe("the timezone the whole thing depends on", () => {
     const src = read("src/components/TimezoneSync.tsx");
     expect(src).toMatch(/if \(known === timezone\) return;/);
     // ...and the server does not rewrite the shared profile column for a no-op.
-    expect(read("src/lib/push-prefs.ts")).toMatch(/if \(wanted === before\) return \{ ok: true/);
+    expect(read("src/lib/profile-customization.ts")).toMatch(/if \(wanted === before\) return \{ ok: true/);
   });
 
   // Found by running this against a real production build, not by reading it:
@@ -353,10 +353,14 @@ describe("the timezone the whole thing depends on", () => {
   // JSONB column on the first dashboard load, from the snapshot the page
   // rendered with — and the last writer wins.
   it("survives another writer rewriting the shared customization column", () => {
-    const writer = read("src/lib/push-prefs.ts");
+    const writer = read("src/lib/profile-customization.ts");
     // Reads back what it wrote, and goes again against the fresh object.
-    expect(writer).toMatch(/if \(JSON\.stringify\(stored\) === wanted\)/);
+    expect(writer).toMatch(/JSON\.stringify\(stored\[key\] \?\? null\) === wanted/);
     expect(writer).toMatch(/for \(let attempt = 0; attempt < MAX_ATTEMPTS; attempt\+\+\)/);
+    // The push prefs and the free monthly meters are both written through it —
+    // an open-coded read-modify-write next door would reintroduce the bug.
+    expect(read("src/lib/push-prefs.ts")).toMatch(/mutateCustomization/);
+    expect(read("src/lib/usage.ts")).toMatch(/mutateCustomization/);
     // Both routes that touch _push go through it — a second read-modify-write
     // open-coded next door would reintroduce exactly this.
     for (const route of ["src/app/api/push/preferences/route.ts", "src/app/api/push/subscribe/route.ts"]) {

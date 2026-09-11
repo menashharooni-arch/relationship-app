@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { mutateCustomization } from "@/lib/profile-customization";
 
 // ── Monthly free-plan usage meters ───────────────────────────────────────────
 // Free plans get a set number of leads / AI drafts PER MONTH that refresh on the
@@ -27,10 +28,24 @@ export function readUsage(customization: unknown): UsageBlock {
   return { period, leads: u.leads ?? 0, drafts: u.drafts ?? 0 };
 }
 
-// Increment one monthly counter and persist it back onto the profile, preserving
-// every other customization key. Returns the NEW value. Not strictly atomic
-// (two simultaneous captures could under-count by one) — fine for a monthly
-// courtesy cap. Best-effort: a write failure never blocks the caller's action.
+// Increment one monthly counter and persist it back onto the profile.
+//
+// THE COUNT ONLY EVER GOES UP, and that is the whole point: a contact that was
+// added is spent whether or not it is still there. Deleting one has never given
+// a slot back (the meter is on the ACCOUNT, not a row count), and nothing here
+// decrements — save-it-to-your-phone-then-delete-it buys nothing.
+//
+// The read-modify-write goes through mutateCustomization, which reads back what
+// it wrote and retries against fresh data. `customization` is a column several
+// features share; a writer with a stale snapshot can erase a key outright, and
+// for this key that would hand someone a whole free month. The passed-in
+// snapshot is now only a HINT for the caller's convenience — the number that
+// gets stored is computed from what is actually in the database at write time,
+// so two captures landing together can no longer settle on the same value.
+//
+// Best-effort in the sense that a write failure never blocks the caller's
+// action: a lead is the product, and losing one to a counter would be worse
+// than an uncounted contact.
 export async function bumpUsage(
   admin: SupabaseClient,
   userId: string,
@@ -38,10 +53,31 @@ export async function bumpUsage(
   key: UsageKey,
   by = 1,
 ): Promise<number> {
-  const cur = readUsage(customization);
-  const next: UsageBlock = { ...cur, [key]: cur[key] + by };
+  // THE HIGH-WATER MARK. Every value we have seen for this counter this month,
+  // including the caller's own snapshot. A retry recomputes from whatever is in
+  // the database NOW — and if the reason for the retry was another writer
+  // wiping the key, "now" is zero. Counting up from zero would silently give
+  // the month back, which is the one thing this meter must never do. So the
+  // write is always floor + by, and the floor only ever rises.
+  let floor = readUsage(customization)[key];
+  let stored = floor + by;
   try {
-    await admin.from("profiles").update({ customization: { ...(customization ?? {}), _usage: next } }).eq("id", userId);
+    const result = await mutateCustomization<UsageBlock>(
+      userId,
+      "_usage",
+      (current) => {
+        // `current` is the live row, not the caller's snapshot — and readUsage
+        // turns last month's block into zeroes, which IS the monthly reset, so
+        // the floor is only ever applied within the same period.
+        const cur = readUsage({ _usage: current });
+        floor = Math.max(floor, cur[key]);
+        const next: UsageBlock = { ...cur, [key]: floor + by };
+        stored = next[key];
+        return next;
+      },
+      admin,
+    );
+    if (!result.ok) stored = floor + by;
   } catch { /* best-effort */ }
-  return next[key];
+  return stored;
 }
