@@ -114,9 +114,13 @@ describe("Branding → Links", () => {
 
   for (const width of [390, 768, 1100]) {
     it(`the controls fit at ${width}px`, async () => {
-      // Scoped to the form column: the aside holds a live preview that is
-      // scaled by measuring its container at runtime, which a static render
-      // cannot do — it would report a spill that does not exist in the product.
+      // Scoped to the form column, and skipping INSIDE any live preview: a
+      // preview renders at true phone width and is scaled down by measuring its
+      // container at runtime, which a static render cannot do — it would report
+      // a spill that does not exist in the product. The preview FRAME itself is
+      // measured like everything else, because its width is the real contract
+      // (the phone-width slot is capped so the preview cannot swallow the
+      // screen — owner, 2026-09-11).
       const page = await render(browser, width, OFFICE);
       try {
         const res = await page.evaluate(() => {
@@ -126,6 +130,7 @@ describe("Branding → Links", () => {
           const limit = form.getBoundingClientRect().right + 1;
           const spills: string[] = [];
           form.querySelectorAll("*").forEach((el) => {
+            if (el.closest("[data-preview-frame]") !== el && el.closest("[data-preview-frame]")) return;
             const r = el.getBoundingClientRect();
             if (r.width > 0 && r.right > limit) spills.push(`${el.tagName}.${el.className}`.slice(0, 60));
           });

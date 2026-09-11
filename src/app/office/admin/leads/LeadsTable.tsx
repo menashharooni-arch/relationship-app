@@ -212,7 +212,13 @@ export default function LeadsTable({
           </div>
           <div className="divide-y divide-gray-800">
             {visible.map((l) => {
-              const fu = FOLLOW_UP_COPY[l.followUp];
+              // Fall back rather than throw. `followUp` is derived server-side,
+              // so a row without it means a stale payload or an older cached
+              // page — and a whole team's lead list going blank over one missing
+              // derived field would be a far worse failure than showing "No
+              // follow-up" for a moment.
+              const state = l.followUp ?? "none";
+              const fu = FOLLOW_UP_COPY[state] ?? FOLLOW_UP_COPY.none;
               return (
                 <div key={l.id} className="grid grid-cols-12 gap-3 px-5 py-3 items-center">
                   <div className="col-span-12 lg:col-span-3 min-w-0">
@@ -231,9 +237,9 @@ export default function LeadsTable({
                   <div className="col-span-6 lg:col-span-2 min-w-0">
                     <span
                       title={fu.hint}
-                      className={`inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full border ${FOLLOW_UP_TONE[l.followUp]}`}
+                      className={`inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full border ${FOLLOW_UP_TONE[state]}`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${FOLLOW_UP_DOT[l.followUp]}`} aria-hidden="true" />
+                      <span className={`w-1.5 h-1.5 rounded-full ${FOLLOW_UP_DOT[state]}`} aria-hidden="true" />
                       {fu.label}
                     </span>
                   </div>
