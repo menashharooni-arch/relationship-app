@@ -1,49 +1,105 @@
 import { MiniQR } from "@/components/card-templates/MiniQR";
-import { DEMO_HEADSHOT } from "@/components/card-templates/types";
 
-// The Apple Watch visual — a code-rendered watch showing the REAL thing: the
-// demo card's scannable QR, the way the Wallet pass and the Watch app present
-// it. This replaced Apple's own press photograph (an iPhone-to-Watch NameDrop
-// shot) on 2026-09-11: that image was Apple's copyright, uncredited, and it
-// showed phone-to-phone sharing, which SwiftCard does not do and must never
-// imply. One asset on every screen size (owner rule: phone and computer
-// match). The QR is a live MiniQR, so it is genuinely scannable at 2x.
+// The Apple Watch visual — the product itself, not a photograph.
+//
+// It replaced Apple's own press shot on 2026-09-11 (their copyright, and it
+// showed phone-to-phone NameDrop, which SwiftCard does not do). Rebuilt the
+// same day after the owner saw the first version: the watch was too big, the
+// QR too small, and "SwiftCard" and the time were being sliced by the screen's
+// rounded corners.
+//
+// WHY THE NUMBERS ARE WHAT THEY ARE
+//
+// Everything is a percentage of ONE width, so the whole thing scales as a unit
+// and nothing can drift at a different rate to anything else:
+//
+//   • case      1 : 1.19  — the real 45mm case (45mm tall, 38mm wide)
+//   • bezel     5.5% of the width on every side
+//   • screen    corner radius 27% of its own width, like the hardware
+//   • content   inset 13% left and right. That is the width of the corner
+//     curve at the height the status row sits at, so the S of "SwiftCard"
+//     and the 1 of "9:41" clear the glass instead of being cut by it.
+//   • bands     sized by ASPECT RATIO, never a percentage height: this box has
+//     no definite height of its own, so a percentage height would resolve
+//     against auto and collapse the bands in any layout that did not happen
+//     to give the parent a height.
+//   • QR        ~78% of the screen WIDTH — the face is mostly code, which is
+//     the point of the picture: someone scans it. Measured, not guessed:
+//     scripts/qa-sweep and the render suite both walk this component.
+//   • rows      every text row keeps >=13% clear of the left and right glass
+//     edges and >=5% of the top and bottom. Before this rebuild the S of
+//     "SwiftCard" and the 1 of "9:41" were sliced off by the corner curve.
+//
+// The QR is a real MiniQR pointing at the demo card, so it genuinely scans.
 export default function WatchShareImage() {
   return (
-    <div className="relative w-[236px] sm:w-[300px] select-none" aria-label="Apple Watch showing a SwiftCard QR code that says Scan to connect" role="img">
-      {/* bands */}
-      <div className="mx-auto w-[58%] h-16 rounded-t-[26px]" style={{ background: "linear-gradient(180deg, #2A2F3A, #171A22)" }} />
+    <div
+      className="relative w-[180px] sm:w-[208px] select-none"
+      role="img"
+      aria-label="An Apple Watch showing Alex Morgan's SwiftCard QR code, captioned Scan to connect"
+    >
+      {/* band, upper */}
+      <div
+        className="mx-auto aspect-[62/34] w-[62%] rounded-t-[18px]"
+        style={{ background: "linear-gradient(180deg, #20242E 0%, #171A22 100%)" }}
+        aria-hidden="true"
+      />
+
       {/* case */}
-      <div className="relative mx-auto w-full aspect-[236/284] rounded-[26%] p-[9px]"
-        style={{ background: "linear-gradient(160deg, #3B4150 0%, #14171E 55%, #262B36 100%)", boxShadow: "var(--rd-sh-lg), inset 0 1px 0 rgba(255,255,255,.18)" }}>
-        {/* crown + side button */}
-        <div className="absolute -right-[7px] top-[27%] w-[9px] h-[34px] rounded-r-md" style={{ background: "linear-gradient(90deg, #2C313C, #4A5060)" }} aria-hidden="true" />
-        <div className="absolute -right-[5px] top-[50%] w-[6px] h-[54px] rounded-r-md" style={{ background: "#2C313C" }} aria-hidden="true" />
+      <div
+        className="relative mx-auto w-full aspect-[1/1.19] rounded-[30%/25%] p-[5.5%] -my-[2%]"
+        style={{
+          background: "linear-gradient(155deg, #464C5C 0%, #1A1E27 48%, #333846 100%)",
+          boxShadow: "var(--rd-sh-lg), inset 0 1px 0 rgba(255,255,255,.22)",
+        }}
+      >
+        {/* digital crown + side button */}
+        <div className="absolute -right-[3.5%] top-[26%] h-[15%] w-[4%] rounded-r-[3px]" style={{ background: "linear-gradient(90deg, #2B303B, #565C6C)" }} aria-hidden="true" />
+        <div className="absolute -right-[2.5%] top-[47%] h-[20%] w-[2.5%] rounded-r-[3px]" style={{ background: "#2B303B" }} aria-hidden="true" />
+
         {/* screen */}
-        <div className="relative w-full h-full rounded-[22%] overflow-hidden bg-black text-white flex flex-col px-4 pt-3 pb-3.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[0.6875rem] font-semibold tracking-tight text-white/70">SwiftCard</span>
-            <span className="text-[0.6875rem] font-semibold tabular-nums text-emerald-300">9:41</span>
-          </div>
-          <div className="mt-2 flex items-center gap-2 min-w-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={DEMO_HEADSHOT} alt="" width={28} height={28} className="w-7 h-7 rounded-full object-cover shrink-0" />
-            <div className="min-w-0 leading-tight">
-              <p className="text-[0.8125rem] font-bold truncate">Alex Morgan</p>
-              <p className="text-[0.625rem] text-white/60 truncate">Realtor · Coastline Realty</p>
+        <div className="relative h-full w-full overflow-hidden rounded-[27%/23%] bg-black text-white">
+          {/* One inset for every row, so nothing meets the corner curve. */}
+          <div className="flex h-full w-full flex-col px-[13%] py-[7%]">
+            <div className="flex items-baseline justify-between">
+              <span className="text-[0.5rem] sm:text-[0.5625rem] font-semibold tracking-tight text-white/55">SwiftCard</span>
+              <span className="text-[0.5rem] sm:text-[0.5625rem] font-semibold tabular-nums text-[#4DA8F5]">9:41</span>
             </div>
-          </div>
-          <div className="mt-2.5 flex-1 flex items-center justify-center">
-            <div className="bg-white rounded-[10px] p-1.5">
-              <MiniQR size={92} url="https://swiftcard.me/alexmorgan" fg="#0E1017" />
+
+            <p className="mt-[2%] truncate text-[0.625rem] sm:text-[0.6875rem] font-bold leading-tight">Alex Morgan</p>
+
+            {/* The face is mostly QR — that is the whole story of this picture. */}
+            {/* The QR row alone breaks OUT of the 13% inset: at the vertical
+                middle of the screen there is no corner curve to clear, so the
+                code can run wider than the text rows and still sit on glass. */}
+            <div className="-mx-[9%] flex min-h-0 flex-1 items-center justify-center py-[3%]">
+              {/* MiniQR draws itself at a FIXED pixel size with inline width/height.
+                  The arbitrary-variant overrides below beat those inline styles
+                  (Tailwind emits !important), so the code fills this square and
+                  scales with the watch instead of sitting at one size. */}
+              <div className="aspect-square w-[85%] [&>[data-qr]]:!h-full [&>[data-qr]]:!w-full">
+                <MiniQR size={128} url="https://swiftcard.me/alexmorgan" fg="#0E1017" />
+              </div>
             </div>
+
+            <p className="text-center text-[0.5rem] sm:text-[0.5625rem] font-semibold tracking-wide text-white/70">Scan to connect</p>
           </div>
-          <p className="mt-2 text-center text-[0.625rem] font-semibold tracking-wide text-white/75">Scan to connect</p>
         </div>
       </div>
-      <div className="mx-auto w-[58%] h-16 rounded-b-[26px]" style={{ background: "linear-gradient(180deg, #171A22, #2A2F3A)" }} />
-      {/* floor */}
-      <div className="absolute left-1/2 -translate-x-1/2 -bottom-4 w-[70%] h-6 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(37,99,235,.35), transparent)" }} aria-hidden="true" />
+
+      {/* band, lower */}
+      <div
+        className="mx-auto aspect-[62/34] w-[62%] rounded-b-[18px]"
+        style={{ background: "linear-gradient(180deg, #171A22 0%, #20242E 100%)" }}
+        aria-hidden="true"
+      />
+
+      {/* the glow it sits in */}
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 aspect-square w-[130%] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{ background: "radial-gradient(closest-side, rgba(37,99,235,.30), transparent)" }}
+        aria-hidden="true"
+      />
     </div>
   );
 }
