@@ -45,7 +45,11 @@ const CONTRACTS: Contract[] = [
   {
     file: "src/app/api/leads/[id]/generate-sequence/route.ts",
     code: "SEQUENCES_PRO_ONLY",
-    messageParts: ["Automated follow-up sequences are a Pro feature. Upgrade to unlock them."],
+    // Re-worded 2026-09-11 when email follow-ups became every-plan: this 402
+    // is now only ever raised for the TEXT channel, and saying "follow-up
+    // sequences are Pro" would be false to a Free account that has an email
+    // one running.
+    messageParts: ["Text follow-ups are a Pro feature. Email follow-ups are included on every plan."],
   },
   {
     file: "src/app/api/ai/suggest-messages/route.ts",

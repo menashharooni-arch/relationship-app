@@ -57,10 +57,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     ((profile?.customization as { about?: string } | null)?.about ?? "").trim()
   );
 
-  // Multi-day AI follow-up sequences that auto-send are a Pro/Office feature.
-  if (!isPaidPlan(profile?.plan)) {
+  // ── Which half of this feature the plan buys ────────────────────────────
+  //
+  // Owner, 2026-09-11: "for the free account we'll give free users access to
+  // the email automation but text automation will only be for the pro account."
+  //
+  // TEXT is Pro, outright — it is the one that costs per message and carries
+  // the A2P/TCPA obligations.
+  //
+  // EMAIL is every plan. What Pro adds there is the WRITING: a paid account
+  // gets each step composed by AI from where they met, their notes and what
+  // the sender does; a Free account gets the same cadence with the built-in
+  // starter copy, which is editable in the draft before it is activated. That
+  // line is drawn here rather than with a meter because an unmetered AI call
+  // per step, per contact, on every free account is the one shape of this
+  // feature that could run up a real bill.
+  const paid = isPaidPlan(profile?.plan);
+  if (isText && !paid) {
     return NextResponse.json(
-      { code: "SEQUENCES_PRO_ONLY", error: "upgrade", message: "Automated follow-up sequences are a Pro feature. Upgrade to unlock them.", upgrade: "/upgrade" },
+      { code: "SEQUENCES_PRO_ONLY", error: "upgrade", message: "Text follow-ups are a Pro feature. Email follow-ups are included on every plan.", upgrade: "/upgrade" },
       { status: 402 }
     );
   }
@@ -106,11 +121,18 @@ ${isText
 
     // A provider hiccup must never 500 the whole request — the canned fallback
     // copy below keeps the flow working, and the user can Regenerate.
+    //
+    // A FREE account never reaches the provider at all: the starter copy is
+    // what it is given, and `prompt` is built but unused. Nothing about the
+    // cadence, the scheduling or the sending differs — only who writes the
+    // first draft.
     let raw = "";
-    try {
-      raw = (await aiComplete(prompt, { maxTokens: 300, json: !isText })) ?? "";
-    } catch {
-      raw = "";
+    if (paid) {
+      try {
+        raw = (await aiComplete(prompt, { maxTokens: 300, json: !isText })) ?? "";
+      } catch {
+        raw = "";
+      }
     }
     if (raw) {
       if (isText) {
@@ -137,5 +159,8 @@ ${isText
     return { day, time, message, subject: subject || undefined, channel: isText ? ("sms" as const) : ("email" as const) };
   }));
 
-  return NextResponse.json({ sequence });
+  // `aiWritten` drives two bits of honesty in the panel: the "AI draft" tag,
+  // and the Regenerate button — which on a Free account would redraw the same
+  // starter copy and look broken.
+  return NextResponse.json({ sequence, aiWritten: paid });
 }

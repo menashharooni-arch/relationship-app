@@ -510,30 +510,23 @@ export async function GET(req: NextRequest) {
     if (!seq?.length) continue;
     if ((seqLead.tags ?? []).includes("flow-paused")) continue;
 
-    // Custom follow-up sequences are a Pro feature — only SEND them while the
-    // owner is on a paid plan. If they've downgraded, pause (leave the steps
-    // unsent so they resume automatically on re-upgrade) and notify the owner
-    // once. Nothing is deleted.
+    // TEXT follow-ups are Pro; EMAIL ones send on every plan (owner,
+    // 2026-09-11). This used to stop the WHOLE sequence for a non-paid account.
+    //
+    // The check moved DOWN to the step, beside the channel it is about — see
+    // `ownerPaid` in the loop below. A free account's email steps go out
+    // normally; its text steps are left unsent so they resume by themselves the
+    // day the account is Pro, and the owner is told once. Nothing is deleted,
+    // and the notice is only written when a text was actually held back, so
+    // somebody running an email-only flow is never told their automations are
+    // paused when they are not.
     const owner = await getOwner(seqLead.card_owner);
     if (!owner) continue;
-    if (!isPaidPlan(owner.profile.plan)) {
-      const cust = (owner.profile.customization ?? {}) as Record<string, unknown>;
-      if (owner.ownerId && cust._seqPaused !== true && !seqPausedNotified.has(owner.ownerId)) {
-        seqPausedNotified.add(owner.ownerId);
-        await insertNotification({
-          user_id: owner.ownerId,
-          type: "sequence_paused",
-          title: "Follow-up sequences paused",
-          body: "Your automated follow-up sequences are paused because your plan is no longer Pro. Re-upgrade to Pro to resume them — nothing was deleted.",
-        }).catch(() => {});
-        await supabase.from("profiles").update({ customization: { ...cust, _seqPaused: true } }).eq("id", owner.ownerId);
-      }
-      continue;
-    }
+    const ownerPaid = isPaidPlan(owner.profile.plan);
 
     // Back on a paid plan with sequences flowing again → clear the paused
     // marker so a future downgrade re-notifies.
-    {
+    if (ownerPaid) {
       const cust = (owner.profile.customization ?? {}) as Record<string, unknown>;
       if (owner.ownerId && cust._seqPaused === true) {
         const rest = { ...cust };
@@ -607,6 +600,24 @@ export async function GET(req: NextRequest) {
       // sms-paused, means NO automated text — even a phone-only lead. Email is
       // opt-in-by-sharing and only honors the email-paused toggle.
       if (itemChannel === "sms") {
+        // TEXT IS PRO. Left unsent rather than skipped-forever: the step keeps
+        // its empty sent_at, so the day the account is Pro it simply goes out.
+        // Told once, and only when a text was really held — an email-only flow
+        // on a free account must never be called "paused".
+        if (!ownerPaid) {
+          const cust = (owner.profile.customization ?? {}) as Record<string, unknown>;
+          if (owner.ownerId && cust._seqPaused !== true && !seqPausedNotified.has(owner.ownerId)) {
+            seqPausedNotified.add(owner.ownerId);
+            await insertNotification({
+              user_id: owner.ownerId,
+              type: "sequence_paused",
+              title: "Text follow-ups are paused",
+              body: "Text follow-ups are part of Pro, so the texts in your follow-ups are waiting. Your email follow-ups are still sending, and nothing has been deleted.",
+            }).catch(() => {});
+            await supabase.from("profiles").update({ customization: { ...cust, _seqPaused: true } }).eq("id", owner.ownerId);
+          }
+          continue;
+        }
         const t = seqLead.tags ?? [];
         if (!t.includes("sms-ok") || t.includes("sms-paused")) continue;
         // Quiet hours. The SMS path gated on CONSENT only, with no hour check
