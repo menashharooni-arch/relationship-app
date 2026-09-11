@@ -63,10 +63,14 @@ describe("the Free-plan upsell is never swallowed by the dropdown", () => {
 
   it("the second-card offer moved to the Add card button", () => {
     const btn = code("src/components/AddCardButton.tsx");
-    expect(btn).toMatch(/feature="second-card"/);
-    expect(btn).toMatch(/nativeCopy="Pro feature — Multiple cards are only available on the Pro plan"/);
-    // It opens on press, not on render.
+    // It opens on PRESS, not on render — that is the whole change.
     expect(btn).toMatch(/onClick=\{\(\) => setOpen\(true\)\}/);
+    expect(btn).toContain("More than one card is part of Pro");
+    // And it shares the one offer, so the phone cannot drift from the laptop.
+    // Parity and the App Store rules are measured on rendered output in
+    // tests/render/pro-offer-parity.test.ts.
+    expect(btn).toContain("ProOfferBlock");
+    expect(btn).toContain("ProOfferCta");
   });
 });
 

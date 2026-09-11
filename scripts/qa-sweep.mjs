@@ -292,7 +292,12 @@ async function auditEditor(page, screenRef, prefix, userId) {
   await dismissOverlays(page);
   for (const label of EDITOR_TABS.slice(1)) {
     const btn = page.locator(`button:has-text("${label}")`).first();
-    if (!(await btn.isVisible().catch(() => false))) {
+    // WAIT for the tab rather than asking whether it is visible this instant.
+    // The editor is a heavy client page — on a Pro account it also mounts the
+    // custom designer — and an immediate isVisible() reported all four tabs
+    // "missing" on a page where they were simply still arriving. A QA sweep
+    // that cries wolf is worse than one that runs a second longer.
+    if (!(await btn.waitFor({ state: "visible", timeout: 10000 }).then(() => true).catch(() => false))) {
       note(`${prefix}-edit`, "missing-control", `tab "${label}" not visible`);
       continue;
     }

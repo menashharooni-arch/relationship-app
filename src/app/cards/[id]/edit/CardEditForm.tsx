@@ -918,16 +918,13 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   <p className={sectionLabel}>Customize colors &amp; font</p>
                 </div>
                 <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
-                {!isPro && (
-                  <PlanGate
-                    feature="colors-fonts"
-                    nativeCopy="Any color, material finishes and panel photos are part of the Pro plan"
-                  >
-                    <Link href="/upgrade" className="block text-center text-[0.6875rem] text-blue-400 hover:text-blue-300 mt-2">
-                      Any color, every finish and photo backgrounds come with Pro →
-                    </Link>
-                  </PlanGate>
-                )}
+                {/* The standing upsell under these controls is gone (owner,
+                    2026-09-11). Every Pro finish and the photo/video picker are
+                    already tappable here — that IS the demo — and the wall is
+                    Save Changes, where the full offer opens. A second, smaller
+                    pitch sitting under the controls on every visit said the
+                    same thing worse, and in the shell it rendered as a notice
+                    card that looked nothing like the sheet that follows it. */}
               </div>
             )}
             </div>
@@ -1216,16 +1213,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 onLinksChange={setLinks}
               />
             )}
-            {!isPro && (
-              <PlanGate
-                feature="colors-fonts"
-                nativeCopy="Pro feature — Custom colors and fonts are only available on the Pro plan"
-              >
-                <Link href="/upgrade" className="block text-center text-[0.6875rem] text-blue-400 hover:text-blue-300">
-                  Unlock custom colors &amp; fonts with Pro →
-                </Link>
-              </PlanGate>
-            )}
+            {/* Same removal as the Card design tab above: the offer belongs
+                on Save Changes, not parked under the controls. */}
             {/* On DESKTOP the page preview renders in the pinned right column,
                 where it REPLACES the card preview on this tab — the Swift Links
                 page is what's being styled. Mobile's copy is at the top of this
