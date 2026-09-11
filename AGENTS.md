@@ -83,3 +83,22 @@ a pixel, run `test:render`. If it changes what a button does, run `qa:flows`.
 - **Several sessions edit this worktree at once.** Stage explicit paths. Never
   `git add -A` or `git commit -a` — you will commit someone else's half-finished
   feature. `git status` before and after.
+
+# The guards that are always on (do not switch one off)
+
+The owner has had the same things fixed more than once — a bug that came back,
+the site getting slow, analytics or notifications glitching. Four things now
+watch production continuously; `tests/monitoring-wiring.test.ts` fails if any
+of them is removed or quietly weakened.
+
+| Guard | Runs | What it catches |
+|---|---|---|
+| `.github/workflows/uptime.yml` → `scripts/health-check.mjs` | every 15 min | outage, blank card, expired Apple secret, **speed budget** (median full-response time per key route, DB latency) |
+| `.github/workflows/nightly-qa.yml` | nightly 05:00 NY + after every production deploy | real Chromium against production: flows, every screen at both widths for Free/Pro/Office, Office admin + member, **analytics and notifications end to end** (`scripts/qa-prod-probe.mjs`) |
+| `.github/workflows/deploy-watchdog.yml` | on every deploy | error-rate spike → automatic rollback (needs the Sentry secrets) |
+| `ci.yml` + the tripwire tests (`one-notification-per-visit`, `view-visit-window`, `analytics-*`, `trial-eligibility`, `proxy-auth-hop`) | every push | the recurring bugs, pinned at source |
+
+Both workflows keep ONE issue open while something is wrong (labels `uptime`,
+`nightly-qa`) and close it when it passes; GitHub emails the owner on open.
+Every QA script reads secrets from the environment first and `.env.local`
+second, which is what lets CI run them — keep it that way.

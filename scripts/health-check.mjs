@@ -234,6 +234,40 @@ for (const slug of REAL_CARDS) {
   });
 }
 
+// ── Speed budget ─────────────────────────────────────────────────────────────
+// "Constantly moving as fast as it can" needs a number that fails, not a
+// report somebody reads. Median of three full-response timings per route,
+// measured from the GitHub runner (US east, same coast as Vercel iad1). The
+// budgets are ~2x the healthy baseline so a slow deploy trips them and a
+// single network blip does not; the three-try wrapper above absorbs the rest.
+const SPEED_BUDGET_MS = { "/": 2500, "/card/demo-sales": 2500, "/links/demo-sales": 2500, "/login": 2500, "/pricing": 2500, "/api/health": 1500 };
+async function medianMs(path) {
+  const t = [];
+  for (let i = 0; i < 3; i++) { const t0 = Date.now(); await (await get(path)).text(); t.push(Date.now() - t0); }
+  return t.sort((a, b) => a - b)[1];
+}
+CHECKS.push({
+  name: "speed budget (median of 3, full response)",
+  run: async () => {
+    const parts = [], slow = [];
+    for (const [path, budget] of Object.entries(SPEED_BUDGET_MS)) {
+      const ms = await medianMs(path);
+      parts.push(`${path} ${ms}ms`);
+      if (ms > budget) slow.push(`${path} ${ms}ms > ${budget}ms`);
+    }
+    return { ok: slow.length === 0, detail: slow.length ? `SLOW: ${slow.join("; ")}` : parts.join(", ") };
+  },
+});
+CHECKS.push({
+  name: "database answers quickly (/api/health dbMs)",
+  run: async () => {
+    const res = await get("/api/health");
+    const j = await res.json().catch(() => ({}));
+    const ok = res.status === 200 && j.ok === true && Number(j.dbMs) < 1200;
+    return { ok, detail: `status ${res.status}, db=${j.db}, dbMs=${j.dbMs}` };
+  },
+});
+
 const started = Date.now();
 const results = [];
 for (const c of CHECKS) {
