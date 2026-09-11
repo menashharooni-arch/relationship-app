@@ -261,17 +261,6 @@ function FinishPicker({
         );
       })}
 
-      {/* A Pro finish on a Free account previews here and is kept with the
-          card, but the live card renders Flat until they are on Pro. Without
-          this line the editor showed Brushed and the public card showed a
-          plain panel, and nothing anywhere said why. Plain text on purpose:
-          the upgrade link lives under the panel, and this component also
-          renders inside the iOS shell, which may not sell. */}
-      {locked && !current.free && (
-        <p className="text-[10px] text-blue-300/90 leading-snug">
-          {current.name} shows on your live card once you&apos;re on Pro. Until then your card renders as Flat.
-        </p>
-      )}
 
       {/* Frosted lightens the panel, so a white name can vanish into it. Said
           plainly instead of silently rewriting a colour the owner chose. */}
@@ -296,11 +285,9 @@ function FinishPicker({
 function PanelMediaControl({
   value,
   onChange,
-  locked,
 }: {
   value: TemplateStyle;
   onChange: (patch: Partial<TemplateStyle>) => void;
-  locked: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -434,7 +421,6 @@ function PanelMediaControl({
       )}
 
       {error && <p role="alert" className="text-[10px] text-amber-400 mt-1.5 leading-snug">{error}</p>}
-      {locked && <p className="text-[10px] text-gray-500 mt-1.5 leading-snug">Panel photos and videos come with Pro.</p>}
     </div>
   );
 }
@@ -548,7 +534,7 @@ export default function TemplateStyleControls({
       </Field>
 
       <Field label="Photo or video" help={`Sits behind your ${meta.bg.label.toLowerCase()}, under the finish.`} pro={locked}>
-        <PanelMediaControl value={value} onChange={onChange} locked={locked} />
+        <PanelMediaControl value={value} onChange={onChange} />
       </Field>
 
       {/* ── Text: what it says, and how it reads ─────────────────────────── */}
