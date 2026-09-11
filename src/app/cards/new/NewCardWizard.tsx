@@ -38,7 +38,7 @@ import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, PREFILL_LINK_STYL
 import { normalizeSocial } from "@/lib/social-url";
 import { writePlanIntent } from "@/lib/plan-intent";
 import { track } from "@/lib/events";
-import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, LINK_STRUCTURAL_KEYS, convertCustomizationToFreeClosest, describeFreeDesignChanges } from "@/lib/plan";
+import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, LINK_STRUCTURAL_KEYS, convertCustomizationToFreeClosest, describeFreeDesignChanges, proLinkFeaturesInUse } from "@/lib/plan";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import PlanCards from "@/components/PlanCards";
@@ -437,7 +437,18 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
    */
   function freeDesignChanges(): string[] {
     const draftStyle: Record<string, unknown> = { ...templateStyleState, ...(template === "custom" ? { customLayout } : {}) };
-    return describeFreeDesignChanges(draftStyle, template);
+    return [
+      ...describeFreeDesignChanges(draftStyle, template),
+      // The Swift Links half of the same build. The design step lets a
+      // first-card visitor style that page too, and until now this notice
+      // listed only what Free changes about the CARD — so someone picked a
+      // Glass look and photo link buttons, chose Free on the strength of a
+      // list that never mentioned them, and found a plain page. Named by the
+      // same checker the edit screen's save wall uses, so the two agree.
+      ...proLinkFeaturesInUse(linkStyleState as unknown as Record<string, unknown>, links).map(
+        (name) => `${name} is not included`,
+      ),
+    ];
   }
 
   function handleAuthedFirstCardFree() {

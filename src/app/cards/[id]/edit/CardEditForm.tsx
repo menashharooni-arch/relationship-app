@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DashboardLink from "@/components/DashboardLink";
 import { PlanGate } from "@/components/PlanGate";
-import { PLAN_LIMITS, proFeaturesInUse } from "@/lib/plan";
+import { PLAN_LIMITS, proFeaturesInUse, proLinkFeaturesInUse } from "@/lib/plan";
 import ProRequiredDialog from "@/components/ProRequiredDialog";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
@@ -406,10 +406,17 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     if (!isPro && !opts?.allowFreeConversion) {
       // Same detection the converter and the server sanitizer use, so the
       // dialog can never disagree with what would actually be saved.
-      const proFeatures = proFeaturesInUse(
-        { ...templateStyleState, ...linkStyleState, customLayout },
-        template,
-      );
+      //
+      // BOTH TABS, one Save. Card design and Social design are two halves of
+      // one form and one button saves them together, so the dialog lists
+      // whatever is Pro across both — the Swift Links half named by its own
+      // checker (proLinkFeaturesInUse), because the page keys are stripped by a
+      // different rule than the card's and the card converter must not learn
+      // about them (it decides what every card RENDERS as).
+      const proFeatures = [
+        ...proFeaturesInUse({ ...templateStyleState, ...linkStyleState, customLayout }, template),
+        ...proLinkFeaturesInUse(linkStyleState as unknown as Record<string, unknown>, links),
+      ];
       if (proFeatures.length) {
         setProBlock(proFeatures);
         setStatus("idle");

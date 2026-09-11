@@ -67,7 +67,12 @@ describe("where the controls live", () => {
   it("the per-link panel shows one sub-row per size: media for Featured/Grid, row style for Compact", () => {
     const src = read("src/components/LinkButtonsControls.tsx");
     expect(src).toMatch(/size === "compact" \? \([\s\S]{0,1200}BUTTON_STYLES\.map/);
-    expect(src).toMatch(/<LinkMediaControl link=\{l\} locked=\{locked\}/);
+    // No `locked` prop: since 2026-09-11 every per-link control is live on
+    // every plan (the panel previews, Save Changes is the wall), so the prop
+    // was removed rather than left ignored — see LinkButtonsControls.
+    expect(src).toMatch(/<LinkMediaControl link=\{l\} onChange=/);
+    // Comments stripped: the file explains why the prop was removed.
+    expect(src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1")).not.toMatch(/locked/);
     // A row-style pick is written explicitly (even Standard) so it beats the legacy page-wide setting.
     expect(src).toMatch(/patch\(i, \{ rowStyle: o\.id \}\)/);
     // Section headers have no look of their own.

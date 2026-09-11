@@ -135,33 +135,35 @@ function SwatchRow({
     // The presets lean dark (the page's link cards are designed for rich/dark
     // surfaces), so on the editor's own dark panel they read as faded blobs.
     // A light well behind them + bigger swatches with a crisp ring makes each
-    // color clearly visible. When the whole feature is plan-locked (Free in
-    // the editor), the presets disable too — a Free pick previewed live but
-    // was stripped server-side on save, silently reverting (audit fix).
+    // color clearly visible.
+    //
+    // NOTHING HERE IS DISABLED ON FREE any more (owner, 2026-09-11): the whole
+    // Social design panel now works exactly like Card design — every control is
+    // live so the page can be previewed with it, the PRO tag on the section
+    // says what costs money, and Save Changes is where it stops (the dialog
+    // names what was used and offers the Free-safe save). The earlier fix this
+    // comment described — disabling them because a Free pick "previewed live
+    // but was stripped on save, silently reverting" — is answered by that
+    // dialog, which is the thing that was actually missing.
     <div className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-200/90 px-2.5 py-2">
       {presets.map((p) => (
         <button
           key={p}
           type="button"
           onClick={() => onPick(p)}
-          disabled={customLocked}
           aria-label="Color preset"
-          className="w-8 h-8 rounded-lg transition-transform hover:scale-110 shadow-sm disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-default"
+          className="w-8 h-8 rounded-lg transition-transform hover:scale-110 shadow-sm"
           style={{ background: p, border: value === p ? "2.5px solid #2563eb" : "1px solid rgba(15,23,42,0.25)" }}
         />
       ))}
-      <label
-        className={`flex items-center gap-1 text-[0.625rem] text-gray-600 ml-0.5 ${customLocked ? "opacity-50 pointer-events-none select-none" : "cursor-pointer"}`}
-        aria-disabled={customLocked}
-      >
+      <label className="flex items-center gap-1 text-[0.625rem] text-gray-600 ml-0.5 cursor-pointer">
         custom{customLocked && <ProTag />}
         <input
           aria-label="Accent colour"
           type="color"
           value={isHex(value) ? value : fallbackHex}
           onChange={(e) => onPick(e.target.value)}
-          disabled={customLocked}
-          className="w-8 h-8 rounded bg-transparent border border-gray-400 cursor-pointer disabled:cursor-default"
+          className="w-8 h-8 rounded bg-transparent border border-gray-400 cursor-pointer"
         />
       </label>
       <button
@@ -193,13 +195,15 @@ function LookSwatch({
   return (
     <button
       type="button"
-      disabled={proLocked}
+      // TAPPABLE ON FREE, exactly like the card's Looks gallery. The page
+      // previews with the Pro look; the PRO tag says what it costs, and Save
+      // Changes is the wall (proFeaturesInUse → ProRequiredDialog).
       onClick={onPick}
       aria-pressed={active}
       title={look.name}
-      className={`relative rounded-xl p-3 text-left transition-all border-2 overflow-hidden ${
+      className={`relative rounded-xl p-3 text-left transition-all border-2 overflow-hidden hover:scale-[1.02] ${
         active ? "border-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.25)]" : "border-transparent"
-      } ${proLocked ? "opacity-45 cursor-default" : "hover:scale-[1.02]"}`}
+      }`}
       style={{
         // The swatch paints the surface the look actually produces: the
         // gradient for gradient looks; a photo-like violet haze standing
@@ -369,13 +373,11 @@ function IconStyleControls({
   shape,
   fill,
   onChange,
-  locked,
 }: {
   look: ReturnType<typeof getLook>;
   shape: ReturnType<typeof normalizeIconShape>;
   fill: ReturnType<typeof normalizeIconFill>;
   onChange: (patch: Partial<SwiftLinkStyle>) => void;
-  locked: boolean;
 }) {
   const radius = (sh: string) => (sh === "circle" ? "9999px" : sh === "squircle" ? "10px" : "5px");
   // The three demo chips preview the CURRENT selection against the CURRENT
@@ -410,7 +412,6 @@ function IconStyleControls({
             <button
               key={o.id}
               type="button"
-              disabled={locked}
               onClick={() => onChange({ linkIconShape: o.id === "circle" ? undefined : o.id })}
               className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border text-[0.6875rem] font-semibold transition-colors disabled:opacity-40 ${
                 active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
@@ -429,7 +430,6 @@ function IconStyleControls({
             <button
               key={o.id}
               type="button"
-              disabled={locked}
               onClick={() => onChange({ linkIconFill: o.id === "brand" ? undefined : o.id })}
               title={o.hint}
               className={`px-2 py-2 rounded-lg border text-[0.6875rem] font-semibold transition-colors disabled:opacity-40 ${
@@ -550,11 +550,9 @@ function HeroImageUpload({
 function PageBackgroundMedia({
   value,
   onChange,
-  locked,
 }: {
   value: SwiftLinkStyle;
   onChange: (patch: Partial<SwiftLinkStyle>) => void;
-  locked: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -637,7 +635,7 @@ function PageBackgroundMedia({
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            disabled={busy || locked}
+            disabled={busy}
             onClick={() => fileRef.current?.click()}
             className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/40 text-[0.6875rem] font-semibold text-gray-300 hover:border-gray-600 transition-colors disabled:opacity-50 disabled:hover:border-gray-700"
           >
@@ -646,7 +644,6 @@ function PageBackgroundMedia({
           {url && !busy && (
             <button
               type="button"
-              disabled={locked}
               // Clears the type alongside the url. Leaving a stale "video"
               // behind would mislabel the NEXT photo the owner adds.
               onClick={() => onChange({ linkBgMedia: undefined, linkBgMediaType: undefined })}
@@ -681,7 +678,6 @@ function PageBackgroundMedia({
               max={MAX_PAGE_DIM}
               step={5}
               value={dim}
-              disabled={locked}
               aria-label="Darken the background"
               onChange={(e) => onChange({ linkBgDim: normalizePageDim(e.target.value) })}
               className="w-full accent-blue-500 disabled:opacity-50"
@@ -689,11 +685,10 @@ function PageBackgroundMedia({
             <p className="text-[0.625rem] text-gray-500 mt-0.5 leading-snug">Darker backgrounds make your name and links easier to read.</p>
           </div>
 
-          <label className={`mt-3 flex items-start gap-2.5 rounded-lg border border-gray-700 bg-gray-800/40 px-2.5 py-2 ${locked ? "opacity-50" : "cursor-pointer hover:border-gray-600"} transition-colors`}>
+          <label className="mt-3 flex items-start gap-2.5 rounded-lg border border-gray-700 bg-gray-800/40 px-2.5 py-2 cursor-pointer hover:border-gray-600 transition-colors">
             <input
               type="checkbox"
               checked={!!value.linkGlass}
-              disabled={locked}
               onChange={(e) => onChange({ linkGlass: e.target.checked })}
               className="mt-0.5 w-3.5 h-3.5 accent-blue-500 shrink-0"
             />
@@ -799,7 +794,7 @@ export function SwiftLinkStyleControls({
         {/* Only with the compact circle. The cover and banner headers already
             lead with a big photo, and "No header" is the deliberately flat
             page — see lib/swiftlink-looks. */}
-        {isAvatarHeader && canUpload && <PageBackgroundMedia value={value} onChange={onChange} locked={locked} />}
+        {isAvatarHeader && canUpload && <PageBackgroundMedia value={value} onChange={onChange} />}
         {/* …and under any other header, the switch is offered RIGHT HERE.
             This pairing used to dictate the whole panel's order: Page header
             had to come first, because the only way to reach the photo option
@@ -940,7 +935,6 @@ export function SwiftLinkStyleControls({
           shape={normalizeIconShape(value.linkIconShape)}
           fill={normalizeIconFill(value.linkIconFill)}
           onChange={onChange}
-          locked={locked}
         />
       </div>
 
@@ -970,7 +964,7 @@ export function SwiftLinkStyleControls({
         <div className="border-t border-gray-800 pt-4">
           <p className={`${rowLabel} mb-0.5`}>Link buttons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
           <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">Choose how each additional link appears. Featured and Grid show a big preview you can swap for your own photo or video; Compact is a slim row you can style.</p>
-          <LinkButtonsControls links={links} onChange={onLinksChange} locked={locked} pageRowStyle={value.linkButtonStyle} />
+          <LinkButtonsControls links={links} onChange={onLinksChange} pageRowStyle={value.linkButtonStyle} />
           {links.some((l) => l.kind !== "header" && (l.size ?? "grid") === "compact" && resolveRowStyle(l, value.linkButtonStyle) !== "tile") && (
             <div className="mt-2.5">
               <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color for Solid and Outline rows — leave Default to match your Connect button.</p>

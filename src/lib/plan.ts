@@ -4,7 +4,7 @@
 // component reads from this file.
 import { metaForTemplate, freeSafeValues } from "./template-style-presets";
 import { isFreeFinish, getFinish } from "./card-finishes";
-import { freeSafeLook, DEFAULT_SWIFTLINK_LOOK } from "./swiftlink-looks";
+import { freeSafeLook, getLook, DEFAULT_SWIFTLINK_LOOK } from "./swiftlink-looks";
 
 export const PLAN_LIMITS = {
   FREE_CARD_LIMIT: 1,          // max cards on Free (Pro/Office: unlimited)
@@ -375,4 +375,64 @@ export function sanitizeCustomizationForPlan<T extends Record<string, unknown>>(
   }
   for (const key of LINK_STYLE_KEYS) delete cust[key];
   return cust as T;
+}
+
+/**
+ * The Pro-only SWIFT LINKS design choices in use, named.
+ *
+ * The Social design panel used to disable everything a Free account could not
+ * keep. Owner, 2026-09-11: make it work exactly like Card design — every
+ * control live so the page can be SEEN with it, the PRO tags left where they
+ * are, and Save Changes the wall. This is the other half of that: the panel is
+ * only safe to unlock if pressing Save names what was used, because the server
+ * strips these keys when the page renders (sanitizeCustomizationForPlan) and a
+ * silent revert is the one outcome worse than a locked control.
+ *
+ * Deliberately a SEPARATE function from proFeaturesInUse rather than more
+ * branches inside the card converter: that converter also decides what a Free
+ * card RENDERS as, and a change there reaches every card page in the product.
+ * The card path stays byte-for-byte what it was.
+ *
+ * The wording follows the panel's own section headings — Look, Page background,
+ * colours, Social icons, Link buttons — so the line names the thing they
+ * actually touched. Empty array means the page saves on Free untouched.
+ */
+export function proLinkFeaturesInUse(
+  style: Record<string, unknown>,
+  links?: readonly { kind?: string | null; size?: string | null; media?: unknown }[] | null,
+): string[] {
+  const names: string[] = [];
+  const s = (k: string) => pickStr(style[k]);
+
+  // The Look, named — it is the one choice that changes the whole page, and
+  // "Glass" means something to the person who just tapped it.
+  const look = s("linkLook");
+  if (look && freeSafeLook(look) !== look) {
+    names.push(`The ${getLook(look).name} look for your Swift Links`);
+  }
+
+  // The photo or video behind the whole page. No free equivalent to fall back
+  // to, so Free renders the Look's own surface instead.
+  if (s("linkBgMedia")) {
+    names.push(style.linkBgMediaType === "video" ? "Your Swift Links background video" : "Your Swift Links background photo");
+  }
+
+  // One line for all of them, the same reasoning as the card: four near-
+  // identical hex swaps read as noise and nobody can picture them anyway.
+  const COLOUR_OR_FONT = ["linkBgColor", "linkTextColor", "linkAccentColor", "linkButtonColor", "linkFontFamily"];
+  if (COLOUR_OR_FONT.some((k) => s(k))) {
+    names.push("Your own colors and font on Swift Links");
+  }
+
+  // How the buttons and icons are built: the page-wide styles, plus the
+  // per-link ones. A Free page renders every link as a plain compact row with
+  // no photo and no section headers (lib/swiftlink-tiles.ts), so a per-link
+  // choice is exactly as Pro as the page-wide one and has to be named too, or
+  // someone styles six links and watches all six come back plain.
+  const styledButtons =
+    !!s("linkIconShape") || !!s("linkIconFill") || !!s("linkButtonStyle") || !!style.linkGlass ||
+    (links ?? []).some((l) => l?.kind === "header" || l?.size === "featured" || l?.size === "grid" || !!l?.media);
+  if (styledButtons) names.push("How your links and social icons look");
+
+  return names;
 }
