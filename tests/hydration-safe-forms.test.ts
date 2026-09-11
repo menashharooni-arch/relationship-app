@@ -51,3 +51,13 @@ describe("FlowSettingsForm saves the note the person can see", () => {
     expect(src).toMatch(/customNote: noteEl\(\)\?\.value \?\? settings\.customNote/);
   });
 });
+
+describe("LoginForm signs in with what is in the fields", () => {
+  const src = readFileSync("src/components/LoginForm.tsx", "utf8");
+  it("reads email and password from FormData at submit, for sign-in, sign-up and reset", () => {
+    expect(src).toMatch(/const fd = new FormData\(e\.currentTarget as HTMLFormElement\)/);
+    expect(src).toMatch(/signInWithPassword\(\{ email: emailNow, password: passwordNow \}\)/);
+    expect(src).toMatch(/signUp\(\{ email: emailNow, password: passwordNow, options/);
+    expect(src).toMatch(/resetPasswordForEmail\(emailNow,/);
+  });
+});
