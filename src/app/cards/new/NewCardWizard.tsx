@@ -111,8 +111,14 @@ export type OrgManaged = {
   fax: string | null;
   address: CardAddress | null;
   lockDesign: boolean;
-  /** The office has taken link buttons — a new member card starts without them. */
-  lockLinks: boolean;
+  /** Link buttons the office pins to every page. Members add their own on top. */
+  officeLinks: { label: string; url: string }[] | null;
+  /** The bio the office set for every links page, or null to leave it to them. */
+  linkBio: string | null;
+  /** The company Instagram, or null. Every OTHER social stays the member's. */
+  linkInstagram: string | null;
+  /** "Keep every Swift Links page matching" — the page's LOOK is the office's. */
+  lockLinkDesign: boolean;
   // The office's locked look — so the sub-user's LIVE PREVIEW shows the real
   // template + colors/fonts while they build, not a default that only snaps to
   // the brand after saving. Only meaningful when lockDesign is true.
@@ -223,7 +229,15 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   const orgFax = org?.fax?.trim() || null;
   const orgAddress = org?.address && Object.values(org.address).some((v) => (v ?? "").toString().trim()) ? org.address : null;
   const designLocked = !!org?.lockDesign;
-  const linksLocked = !!org?.lockLinks;
+  // The office's pinned links, matched by URL so a member cannot claim one by
+  // renaming it. Their own links are everything else.
+  const officeLinks = org?.officeLinks ?? null;
+  const officeLinkUrls = new Set((officeLinks ?? []).map((l) => l.url.trim().toLowerCase().replace(/\/+$/, "")));
+  const isOfficeLink = (url: string | undefined) =>
+    officeLinkUrls.has(String(url ?? "").trim().toLowerCase().replace(/\/+$/, ""));
+  const linkDesignLocked = !!org?.lockLinkDesign;
+  const bioManaged = !!org?.linkBio;
+  const instagramManaged = !!org?.linkInstagram;
 
   // First-card design preview: a guest (account unknown pre-signup) or an
   // already-authed Free account building its first card get the Pro design
@@ -1366,16 +1380,15 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 
             {/* Additional links.
 
-                An office can take these (Branding → "Only you can add link
-                buttons"). The server strips them from a new member card, so
-                showing the editor here would let someone type links into their
-                very first card and lose them on save with no explanation —
-                exactly the silent loss the editor was careful to avoid. */}
+                An office can PIN links to every page; the server adds them to a
+                new member card on save, so they are not repeated here — what
+                this step collects is the member's OWN links, which sit after
+                the company's. */}
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1">Additional links</p>
               <p className="text-gray-600 text-[0.6875rem] mb-3">
-                {linksLocked
-                  ? "Link buttons are set by your organization. Your bio and your social profiles above are still yours."
+                {officeLinks?.length
+                  ? "Your organization's links are already on your page. Add your own here — they're yours to change."
                   : "Add your links — can be a review page, recent video, listing, etc."}
               </p>
               {links.length > 0 && (
@@ -1414,7 +1427,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   same way as the size control, and OUTSIDE the links-exist
                   wrapper so a header can open the page's first section before
                   any link has been added. */}
-              {designUnlocked && !linksLocked && (
+              {designUnlocked && (
                 <button
                   type="button"
                   onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
@@ -1423,11 +1436,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   + Add a section header
                 </button>
               )}
-              {linksLocked ? (
-                <p className="text-[0.6875rem] text-gray-400 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
-                  Your organization has turned off link buttons on team cards.
-                </p>
-              ) : atLinkCap ? (
+              {atLinkCap ? (
                 <PlanGate
                   feature="swift-links-cap"
                   nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan"
@@ -1748,21 +1757,24 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 and filled the screen before you could reach a single colour. */}
             <div className="lg:hidden">{mobileLinkPagePreview}</div>
 
-            {/* Same rule as the editor: the per-link controls edit the array
-                the office may have taken, so they are omitted rather than left
-                live to be discarded on save. */}
-            <SwiftLinkStyleControls
-              value={linkStyleState}
-              onChange={patchLinkStyle}
-              locked={!designUnlocked}
-              links={linksLocked ? undefined : links}
-              onLinksChange={linksLocked ? undefined : setLinks}
-            />
-            {linksLocked && (
-              <p className="mt-2 text-[0.6875rem] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
-                Styling for individual link buttons is set by your organization. The rest of this
-                page is still yours to change.
-              </p>
+            {linkDesignLocked ? (
+              // Mirrors the editor: the office holds this page's look, so the
+              // panel is replaced by one explanation rather than shown dead.
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] p-5">
+                <p className="text-white text-sm font-semibold mb-1.5">Your organization sets this page&apos;s look</p>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Every Swift Links page on your team matches. Your bio, your socials and your own
+                  link buttons are still yours.
+                </p>
+              </div>
+            ) : (
+              <SwiftLinkStyleControls
+                value={linkStyleState}
+                onChange={patchLinkStyle}
+                locked={!designUnlocked}
+                links={links}
+                onLinksChange={setLinks}
+              />
             )}
             {!isPro && !designUnlocked && (
               <PlanGate

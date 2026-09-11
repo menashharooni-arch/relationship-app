@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, seedBrandFromOwnersFirstCard } from "@/lib/office-brand";
+import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, seedBrandFromOwnersFirstCard, overlayOfficeLinks } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
 import { ensureUniqueUsername, normalizeSlug } from "@/lib/username";
@@ -125,12 +125,11 @@ export async function POST(req: NextRequest) {
     if (brand.phone || brand.fax || brand.address) cust = overlayOfficeContact(cust, brand);
     // Locked look (colours + fonts) — no-op while the office leaves it unlocked.
     cust = overlayOfficeDesign(cust, brand);
-    // LINKS LOCK: a new member card starts with no link buttons when the office
-    // has locked them. Sub-users only — an owner's own card is theirs.
-    if (subCtx && brand.lockLinks) {
-      cust = { ...cust };
-      delete (cust as Record<string, unknown>).links;
-    }
+    // The office's Swift Links branding lands on a new member card from the
+    // moment it is created: its look (while locked), its bio, and its pinned
+    // links leading anything the member added in the wizard. Sub-users only —
+    // an owner's own card is theirs.
+    if (subCtx) cust = overlayOfficeLinks(cust as Record<string, unknown>, brand) as typeof cust;
   }
 
   const cardRow = {
@@ -145,7 +144,10 @@ export async function POST(req: NextRequest) {
     // was typed — full URL, bare handle, even a spaced name — always stores
     // a linkable value. See lib/social-url.ts.
     linkedin: normalizeSocial(String(linkedin || ""), "linkedin"),
-    instagram: normalizeSocial(String(instagram || ""), "instagram"),
+    // The office's Instagram when it set one — a top-level column, so it is
+    // forced here rather than in the links overlay. Every OTHER social stays
+    // the member's own.
+    instagram: normalizeSocial(String((subCtx && brand?.linkInstagram) || instagram || ""), "instagram"),
     twitter: normalizeSocial(String(twitter || ""), "twitter"),
     tiktok: normalizeSocial(String(tiktok || ""), "tiktok"),
     template: safeTemplate,

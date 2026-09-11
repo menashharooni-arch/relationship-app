@@ -1,6 +1,7 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isApplePaid } from "@/lib/iap-entitlement";
 import { PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
+import { OFFICE_LINK_DESIGN_KEYS } from "@/lib/office-link-design";
 
 export type OfficeAddress = { street?: string; unit?: string; city?: string; state?: string; zip?: string };
 
@@ -28,26 +29,43 @@ export type OfficeBrand = {
   // contact fields (logo/company/website/phone/fax/address) are ALWAYS
   // company-controlled regardless of this flag.
   lockTemplate: boolean;
+  // ── The Swift Links page ──────────────────────────────────────────────────
+  //
+  // The mirror of everything above, for the link-in-bio page a QR code or an
+  // email signature actually opens. Two different rules, deliberately, and they
+  // are the same two the card already uses:
+  //
+  //   APPEARANCE (linkDesign) follows lockLinkDesign, exactly as the card's
+  //   design follows lockTemplate. Unlocked, every member styles their own.
+  //
+  //   CONTENT (linkBio, linkInstagram, links) follows the COMPANY-INFORMATION
+  //   rule: whatever the admin fills in is applied and read-only for members
+  //   regardless of the design lock, the same way brand_company and
+  //   brand_logo_url already are. A field left blank stays the member's.
+  /** SwiftLinkStyle keys (LINK_STYLE_KEYS + LINK_STRUCTURAL_KEYS), or null. */
+  linkDesign: Record<string, unknown> | null;
+  /** The bio on every member's links page. Null = each member writes their own. */
+  linkBio: string | null;
+  /** The company Instagram. Null = each member's own. Every OTHER social stays theirs. */
+  linkInstagram: string | null;
   /**
-   * Stop members adding their own link buttons to a company-branded card.
+   * Link buttons pinned to every member's page.
    *
-   * lockTemplate governs how a card LOOKS. It says nothing about what is ON
-   * it, and a member has always fully controlled their Swift Links — so an
-   * employee could put any URL they liked on a card carrying the company's
-   * logo, and the office had no way to prevent it. For a compliance-minded
-   * buyer that is the objection, not the colours.
-   *
-   * Scoped deliberately to the arbitrary link buttons. Social profiles are
-   * normalised to known platforms (lib/social-url), and a person's own
-   * LinkedIn is theirs; a bio is theirs too. An unrestricted outbound URL on
-   * company letterhead is the thing a company needs to be able to say no to.
-   *
-   * DEFAULT FALSE, unlike lockTemplate: this is a new restriction, and an
-   * existing office must never silently acquire it and start discarding edits
-   * its members were allowed to make yesterday.
+   * ADDITIVE, never exclusive: a member can always add their own on top, and
+   * these sit in front and cannot be edited or removed by them. An office wants
+   * its booking link on every page — not to stop a salesperson linking their
+   * own calendar.
    */
-  lockLinks: boolean;
+  links: { label: string; url: string }[] | null;
+  /** "Keep every Swift Links page matching." Default FALSE — see the loader. */
+  lockLinkDesign: boolean;
 };
+
+// The Swift Links vocabulary lives in lib/office-link-design — a client-safe
+// module, because the admin's Branding page needs it and this file reaches for
+// the service-role database client. Re-exported so server callers keep one
+// import.
+export { OFFICE_LINK_DESIGN_KEYS } from "@/lib/office-link-design";
 
 // Pull just the design keys out of a card's customization blob. Used to seed a
 // fresh office's look from the admin's first card (one-time copy).
@@ -62,6 +80,45 @@ export function extractDesign(
   return Object.keys(design).length ? design : null;
 }
 
+
+// ── The office's pinned link buttons ────────────────────────────────────────
+//
+// ADDITIVE by design. The office's links always lead the list and a member can
+// never edit or remove them; everything the member adds follows. This replaces
+// an earlier all-or-nothing "members cannot touch links" lock, which was the
+// wrong shape: an office wants its booking link on every page, not to stop a
+// salesperson linking their own calendar.
+//
+// Identity is the URL, not the label or the position: a member's payload sends
+// the whole list back on every save, and matching on label would let a renamed
+// office link become "theirs" (and then be removable), while matching on index
+// would break the moment they reorder their own.
+//
+// Returns a NEW array; never mutates the input.
+export function pinOfficeLinks(
+  memberLinks: unknown,
+  brand: Pick<OfficeBrand, "links"> | null | undefined,
+): { label: string; url: string }[] | unknown[] {
+  const office = brand?.links ?? null;
+  const own = Array.isArray(memberLinks) ? (memberLinks as unknown[]) : [];
+  if (!office?.length) return own;
+
+  const officeUrls = new Set(office.map((l) => normalizeLinkUrl(l.url)));
+  // Whatever the member sent that ISN'T one of ours, in their order. An office
+  // link they tried to rename, reorder or delete simply falls out here and is
+  // re-added from the office's own record below.
+  const theirs = own.filter((l) => {
+    const url = (l && typeof l === "object" ? (l as { url?: unknown }).url : null);
+    return !officeUrls.has(normalizeLinkUrl(typeof url === "string" ? url : ""));
+  });
+  return [...office.map((l) => ({ ...l })), ...theirs];
+}
+
+/** Loose URL identity: trailing slash and case must not create a duplicate. */
+function normalizeLinkUrl(url: string): string {
+  return String(url ?? "").trim().toLowerCase().replace(/\/+$/, "");
+}
+
 // Returns the office brand for a given office, or null if none is set.
 export async function getOfficeBrand(officeId: string | null | undefined): Promise<OfficeBrand | null> {
   if (!officeId) return null;
@@ -70,6 +127,16 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
   // errors, so fall back to the base columns.
   let office: Record<string, unknown> | null = null;
   {
+    const { data } = await admin
+      .from("offices")
+      .select("brand_logo_url, brand_company, brand_website, brand_template, brand_custom_layout, brand_phone, brand_fax, brand_address, brand_locks, brand_design, brand_link_design, brand_link_bio, brand_link_instagram, brand_links")
+      .eq("id", officeId)
+      .maybeSingle();
+    office = data as Record<string, unknown> | null;
+  }
+  if (!office) {
+    // Swift Links columns missing (pre office-swiftlinks-branding.sql) — the
+    // card half must keep working, so retry without them.
     const { data } = await admin
       .from("offices")
       .select("brand_logo_url, brand_company, brand_website, brand_template, brand_custom_layout, brand_phone, brand_fax, brand_address, brand_locks, brand_design")
@@ -101,11 +168,28 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
   const design = (office.brand_design as Record<string, unknown> | null) ?? null;
   const hasDesign = !!design && Object.keys(design).length > 0;
   // A brand is "active" once the admin has set the logo or ANY company field.
+  // The Swift Links half counts too. Without this, an admin who branded ONLY
+  // the links page would get a null brand and nothing would ever apply.
+  const linkDesign = (office.brand_link_design as Record<string, unknown> | null) ?? null;
+  const hasLinkDesign = !!linkDesign && Object.keys(linkDesign).length > 0;
+  const rawLinks = office.brand_links;
+  const links = Array.isArray(rawLinks)
+    ? (rawLinks as unknown[])
+        .map((l) => (l && typeof l === "object" ? l as { label?: unknown; url?: unknown } : null))
+        .filter((l): l is { label?: unknown; url?: unknown } => !!l)
+        .map((l) => ({ label: String(l.label ?? "").slice(0, 120), url: String(l.url ?? "").slice(0, 500) }))
+        .filter((l) => !!l.label && !!l.url)
+    : null;
+  const hasLinks = !!links && links.length > 0;
+  const linkBio = ((office.brand_link_bio as string | null) || null);
+  const linkInstagram = ((office.brand_link_instagram as string | null) || null);
+
   if (!office.brand_logo_url && !office.brand_company && !office.brand_website && !office.brand_template
-      && !office.brand_phone && !office.brand_fax && !hasAddr && !hasDesign) {
+      && !office.brand_phone && !office.brand_fax && !hasAddr && !hasDesign
+      && !hasLinkDesign && !hasLinks && !linkBio && !linkInstagram) {
     return null;
   }
-  const locks = (office.brand_locks as { template?: boolean; links?: boolean } | null) ?? null;
+  const locks = (office.brand_locks as { template?: boolean; linkDesign?: boolean } | null) ?? null;
   return {
     logoUrl: (office.brand_logo_url as string) ?? null,
     company: (office.brand_company as string) ?? null,
@@ -117,7 +201,14 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
     fax: (office.brand_fax as string) ?? null,
     address: hasAddr ? (addr as OfficeAddress) : null,
     lockTemplate: locks?.template !== false, // default true (preserve uniform look)
-    lockLinks: locks?.links === true,        // default FALSE — opt-in restriction
+    linkDesign: hasLinkDesign ? linkDesign : null,
+    linkBio,
+    linkInstagram,
+    links: hasLinks ? links : null,
+    // Default FALSE, unlike the card's template lock: an office that has never
+    // opened this tab must not silently start overwriting pages its members
+    // already built.
+    lockLinkDesign: locks?.linkDesign === true,
   };
 }
 
@@ -138,6 +229,56 @@ export function overlayOfficeDesign(
     if (brand.design[key] !== undefined) cust[key] = brand.design[key];
     else delete cust[key];
   }
+  return cust;
+}
+
+/**
+ * Apply the office's SWIFT LINKS branding to a member's customization.
+ *
+ * The mirror of overlayOfficeDesign + overlayOfficeContact for the links page,
+ * and it keeps their two different rules deliberately apart:
+ *
+ *   THE LOOK is applied only while lockLinkDesign is on, exactly as the card's
+ *   design follows lockTemplate. Unlocked, every member designs their own —
+ *   and a key the office did NOT set is cleared, so a member cannot keep an
+ *   off-brand colour the office left out of its scheme.
+ *
+ *   THE CONTENT (bio, Instagram, pinned links) is applied whenever the office
+ *   has set it, lock or no lock — the company-information rule that
+ *   brand_company and brand_logo_url already follow. A field the office left
+ *   blank is untouched and stays the member's own.
+ *
+ * Links are ADDITIVE via pinOfficeLinks: the office's lead, the member's
+ * follow, and the member can never remove the office's.
+ *
+ * Pure and total: returns a NEW object and never mutates its input.
+ */
+export function overlayOfficeLinks(
+  customization: Record<string, unknown> | null | undefined,
+  brand: Pick<OfficeBrand, "linkDesign" | "lockLinkDesign" | "linkBio" | "linkInstagram" | "links"> | null | undefined,
+): Record<string, unknown> {
+  const cust: Record<string, unknown> = { ...(customization ?? {}) };
+  if (!brand) return cust;
+
+  if (brand.lockLinkDesign && brand.linkDesign) {
+    for (const key of OFFICE_LINK_DESIGN_KEYS) {
+      const k = key as string;
+      if (brand.linkDesign[k] !== undefined) cust[k] = brand.linkDesign[k];
+      else delete cust[k];
+    }
+  }
+
+  // `bio` is the Swift Links bio — the same customization key the member's own
+  // Socials tab writes, which is why setting it here replaces theirs.
+  if (brand.linkBio) cust.bio = brand.linkBio;
+  if (brand.links?.length) cust.links = pinOfficeLinks(cust.links, brand);
+
+  // NOTE: Instagram is deliberately NOT here. It is a TOP-LEVEL card column
+  // (cards.instagram), not a customization key — the same shape as company and
+  // website — so it is forced by the card routes alongside those, not by this
+  // overlay. Writing customization.instagram would have created a second,
+  // silently ignored copy.
+
   return cust;
 }
 
@@ -227,14 +368,19 @@ export async function applyBrandToUserCards(
   if (brand.company && opts.setLabel !== false) topLevel.label = brand.company;
   if (brand.website) topLevel.website = brand.website;
   if (brand.lockTemplate && brand.template) topLevel.template = brand.template;
+  // The Swift Links Instagram is a top-level column like company and website.
+  if (brand.linkInstagram) topLevel.instagram = brand.linkInstagram;
 
   const hasContact = !!(brand.phone || brand.fax || brand.address);
   // The locked look also lives in customization, so it needs the same per-card
   // read/merge/write path as the contact overlay.
   const hasDesign = !!(brand.lockTemplate && brand.design);
-  if (!Object.keys(topLevel).length && !hasContact && !hasDesign) return;
+  // The Swift Links branding lives in customization too: the page's look (only
+  // while locked), its bio, and the pinned link buttons.
+  const hasLinkBrand = !!((brand.lockLinkDesign && brand.linkDesign) || brand.linkBio || brand.links?.length);
+  if (!Object.keys(topLevel).length && !hasContact && !hasDesign && !hasLinkBrand) return;
 
-  if (!hasContact && !hasDesign) {
+  if (!hasContact && !hasDesign && !hasLinkBrand) {
     await admin.from("cards").update(topLevel).eq("user_id", userId).eq("is_office_card", true);
     return;
   }
@@ -248,6 +394,7 @@ export async function applyBrandToUserCards(
     let merged = c.customization as Record<string, unknown> | null;
     if (hasContact) merged = overlayOfficeContact(merged, brand);
     if (hasDesign) merged = overlayOfficeDesign(merged, brand);
+    if (hasLinkBrand) merged = overlayOfficeLinks(merged, brand);
     if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) {
       merged = { ...(merged ?? {}), customLayout: brand.customLayout };
     }
