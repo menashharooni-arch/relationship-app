@@ -231,6 +231,7 @@ FLOWS["profile-persistence"] = async () => {
     // took longer than that in CI (2026-09-11) and the reload below cancelled
     // the in-flight PATCH, which read as "data loss". A slow save is reported
     // as a slow save.
+    let sentMarker = null, saveStatus = 0;
     const saved = page.waitForResponse((r) => r.url().includes("/api/profile") && r.request().method() === "PATCH", { timeout: 15000 }).catch(() => null);
     const t0 = Date.now();
     const writes = await countWrites(page, "/api/profile", async () => {
@@ -238,6 +239,8 @@ FLOWS["profile-persistence"] = async () => {
       await submit.click({ force: true, timeout: 2000 }).catch(() => {});
       const res = await saved;
       const ms = Date.now() - t0;
+      sentMarker = !!res && (res.request().postData() || "").includes(marker);
+      saveStatus = res ? res.status() : 0;
       if (!res) fail("profile-persistence", "the save never answered within 15s");
       else if (ms > 4000) fail("profile-save-speed", `save took ${ms}ms (budget 4000)`);
       else pass("profile save speed", `${ms}ms`);
@@ -250,7 +253,11 @@ FLOWS["profile-persistence"] = async () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1800);
     const back = await page.locator('textarea[placeholder^="A short bio"]').first().inputValue().catch(() => "");
-    if (back !== marker) fail("profile-persistence", `button said "${label}" but after reload the bio is "${back.slice(0, 40)}", expected "${marker}"`);
+    if (back !== marker) {
+      const row = await (await adm(`/rest/v1/profiles?id=eq.${userId}&select=customization`)).json().catch(() => null);
+      const inDb = JSON.stringify(row?.[0]?.customization ?? {}).includes(marker);
+      fail("profile-persistence", `button said "${label}" but after reload the bio is "${back.slice(0, 40)}", expected "${marker}" — PATCH ${saveStatus}, marker sent=${sentMarker}, in DB=${inDb}`);
+    }
     else pass("profile persistence", "bio survived a reload");
     await page.screenshot({ path: `${OUT}/profile-after-reload.png` }).catch(() => {});
   } finally { await ctx.close(); }
