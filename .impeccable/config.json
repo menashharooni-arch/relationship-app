@@ -11,6 +11,33 @@
         ],
         "createdAt": "2026-09-10T04:49:22.612Z",
         "reason": "Headless measurement test with no markup; the match is the literal <img> inside a test name asserting a video background renders as <video>, not <img>"
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/app/cards/[id]/edit/CardEditForm.tsx"
+        ],
+        "createdAt": "2026-09-11T06:32:17.890Z",
+        "reason": "On/off pill idiom, one-line ternary: bg-blue-600 text-white is the selected branch, text-gray-400 sits on bg-gray-900 in the other (6.82:1). The gray never renders on the blue; the single-line regex cannot see the ternary, and gray-on-color has no value-specific ignore, so this is scoped to the file."
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/app/cards/new/NewCardWizard.tsx"
+        ],
+        "createdAt": "2026-09-11T06:32:17.933Z",
+        "reason": "On/off pill idiom, one-line ternary: bg-blue-600 text-white is the selected branch, text-gray-400 sits on bg-gray-900 in the other (6.82:1). The gray never renders on the blue; the single-line regex cannot see the ternary, and gray-on-color has no value-specific ignore, so this is scoped to the file."
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/components/OfficeBranding.tsx"
+        ],
+        "createdAt": "2026-09-11T06:32:17.972Z",
+        "reason": "Same on/off pill idiom with the Office admin purple accent (bg-purple-600 text-white selected; text-gray-400 on gray-900 otherwise). Regex cannot see the ternary; no value-specific ignore exists for this rule."
       }
     ]
   }

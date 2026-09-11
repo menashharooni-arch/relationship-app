@@ -180,9 +180,21 @@ pending version's localization id; it deletes and recreates the set so the
 listing mirrors the directory exactly.
 
 ## Version
-- 1.0.1, build 11. "What's New": `Push notifications now work — get alerted the
-  moment someone views your card or saves their details. Also fixes Universal
-  Links and the home-screen widget.`
+- 1.0.2, build 12. "What's New": `This update is all about accessibility.
+  • Larger Text: SwiftCard now follows your iPhone's text size, right up to the
+  largest accessibility sizes. • VoiceOver and Voice Control: clearer labels
+  and a more predictable reading order throughout. • Better contrast, and
+  Reduce Motion is now respected across the app.`
+  (Build 12 is the ACCESSIBILITY build: Dynamic Type in MainViewController's
+  web view, the VoiceOver/contrast/reduced-motion pass, and the system rating
+  prompt. Build 11 predates all of it, so the live 1.0.1 does not scale with
+  Larger Text even though the accessibility labels published 2026-09-11 say it
+  does — that gap is what 1.0.2 closes. Staged in App Store Connect with build
+  12 attached; NOT submitted — Menash presses Add for Review. The text above is
+  the source of truth for `scripts/asc-whats-new.mjs`.)
+- 1.0.1, build 11 shipped 2026-09-03 and is live. "What's New": `Push
+  notifications now work — get alerted the moment someone views your card or
+  saves their details. Also fixes Universal Links and the home-screen widget.`
   (Build 11 is the ENTITLEMENTS FIX. Every build up to and including build 10 —
   the one live on the App Store — shipped with an empty entitlement set: the
   archive was created with CODE_SIGNING_ALLOWED=NO, which skips the step that
@@ -195,7 +207,7 @@ listing mirrors the directory exactly.
   shared App Group container. scripts/ios-release.sh now signs the archive with
   the distribution profile and REFUSES to upload an .ipa whose real, embedded
   entitlements are missing any of the three.)
-- 1.0.0, build 10 shipped 2026-09-02 and remains live.
+- 1.0.0, build 10 shipped 2026-09-02 (superseded by 1.0.1).
   (Build 9 is the IAP-era binary: RevenueCat SDK + the NativePaywall sell Pro
   in-app per the 4th rejection's 3.1.1/3.1.3(b) demand, and apps.apple.com is
   allow-listed in the ExternalPurchase plugin so "Manage subscription" opens
