@@ -53,8 +53,15 @@ describe("where the controls live", () => {
     for (const p of ["src/app/cards/[id]/edit/CardEditForm.tsx", "src/app/cards/new/NewCardWizard.tsx"]) {
       const src = read(p);
       expect(src).not.toMatch(/LinkSizeControl/);
-      // …and both hand their links to the design controls for the per-link section.
-      expect(src).toMatch(/<SwiftLinkStyleControls [^>]*links=\{links\} onLinksChange=\{setLinks\}/);
+      // …and both hand their links to the design controls for the per-link
+      // section. Matched across the whole element rather than on one line: the
+      // editor now passes them conditionally, because an Office can lock the
+      // links and the controls must be OMITTED rather than shown and silently
+      // reverted by the server on save (see office-links-lock.test.ts).
+      const el = /<SwiftLinkStyleControls[\s\S]{0,400}?\/>/.exec(src);
+      expect(el, `${p}: SwiftLinkStyleControls is no longer rendered`).toBeTruthy();
+      expect(el![0]).toMatch(/links=\{(links|linksLocked \? undefined : links)\}/);
+      expect(el![0]).toMatch(/onLinksChange=\{(setLinks|linksLocked \? undefined : setLinks)\}/);
     }
   });
   it("the per-link panel shows one sub-row per size: media for Featured/Grid, row style for Compact", () => {

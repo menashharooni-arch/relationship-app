@@ -65,6 +65,7 @@ export default async function CardEditPage({
         fax: brand?.fax ?? null,
         address: brand?.address ?? null,
         lockDesign: brand?.lockTemplate ?? false,
+        lockLinks: brand?.lockLinks ?? false,
       }
     : null;
 

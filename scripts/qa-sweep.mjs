@@ -267,6 +267,42 @@ const LOGGED_OUT = [
 ];
 
 // Signed-in surface. Every one is a read; nothing here submits a form.
+// ── The card editor ─────────────────────────────────────────────────────────
+//
+// Everything above is a fixed path. The editor is not — it needs a card id —
+// and that is exactly why it was the one screen this sweep never saw, while
+// being the screen most of the design work lands on: templates, colours,
+// finishes, panel photo/video, the Swift Links look panel, and the Pro-required
+// dialog all live behind these four tabs. A phone check that skips it is
+// checking the easy half.
+//
+// Each tab is audited separately because they share almost no markup; a control
+// covered on "Social design" says nothing about "Card info".
+const EDITOR_TABS = ["Card info", "Card design", "Socials", "Social design"];
+
+async function cardIdFor(userId) {
+  const rows = await (await adm(`/rest/v1/cards?user_id=eq.${userId}&select=id&limit=1`)).json().catch(() => []);
+  return rows?.[0]?.id ?? null;
+}
+
+async function auditEditor(page, screenRef, prefix, userId) {
+  const id = await cardIdFor(userId);
+  if (!id) { note(prefix + "-edit", "harness", "no card id for seeded user"); return; }
+  await visit(page, screenRef, `${prefix}-edit-content`, `/cards/${id}/edit`);
+  await dismissOverlays(page);
+  for (const label of EDITOR_TABS.slice(1)) {
+    const btn = page.locator(`button:has-text("${label}")`).first();
+    if (!(await btn.isVisible().catch(() => false))) {
+      note(`${prefix}-edit`, "missing-control", `tab "${label}" not visible`);
+      continue;
+    }
+    await btn.click().catch(() => {});
+    await page.waitForTimeout(900);
+    const slug = label.toLowerCase().replace(/\s+/g, "-");
+    await auditPage(page, screenRef, `${prefix}-edit-${slug}`);
+  }
+}
+
 const LOGGED_IN = [
   ["dashboard", "/dashboard"], ["contacts", "/contacts"], ["share", "/share"],
   ["settings", "/settings/flows"], ["profile", "/profile"], ["profile-card", "/profile/card"],
@@ -301,7 +337,7 @@ try {
       console.log(`\n${plan.toUpperCase()} @ ${width}px`);
       const email = `qa-${plan}-${tag}-${stamp}@swiftcard-test.invalid`;
       const uname = `qa-${plan}-${tag}-${stamp}`;
-      await makeUser(email, plan === "pro" ? "Priya Raman" : "Sam Cole", uname, plan, true);
+      const userId = await makeUser(email, plan === "pro" ? "Priya Raman" : "Sam Cole", uname, plan, true);
       const { ctx, page, screenRef } = await newPage(width);
       await login(page, email);
       await dismissOverlays(page);
@@ -309,6 +345,7 @@ try {
         await visit(page, screenRef, `${tag}-${plan}-${name}`, path);
         await dismissOverlays(page);
       }
+      await auditEditor(page, screenRef, `${tag}-${plan}`, userId);
       // Reload persistence: the dashboard must come back the same, not empty.
       await visit(page, screenRef, `${tag}-${plan}-dashboard-reload`, "/dashboard", { scrollBottom: false });
       await ctx.close();

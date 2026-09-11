@@ -83,7 +83,7 @@ export default function ProRequiredDialog({
           itself rather than pushing the buttons off the screen on a short
           phone with four Pro features listed. */}
       <div
-        className="relative w-full sm:max-w-[26rem] sm:mx-4 max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-3xl shadow-2xl"
+        className="sc-dark-sheet relative w-full sm:max-w-[26rem] sm:mx-4 max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-3xl shadow-2xl"
         style={{
           background: "linear-gradient(180deg, #101728 0%, #0B1120 46%)",
           border: "1px solid rgba(148,163,184,0.16)",

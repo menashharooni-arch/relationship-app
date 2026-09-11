@@ -791,6 +791,23 @@ summary.list-none::-webkit-details-marker { display: none; }
    hidden signature/OG captures get dark names on dark panels. Restore the
    templates' own colors inside any .sc-card, at higher specificity than the
    light-mode remaps above. */
+/* ── A deliberately dark panel inside the light theme ───────────────────────
+   Same problem as .sc-card, different cause. The light theme remaps .text-white
+   to near-black so headings read on the cream surface — correct for the app,
+   wrong for a surface that is dark ON PURPOSE. The Pro-required sheet is dark
+   navy, and its heading and its price both rendered near-black on near-black:
+   invisible, in the one dialog whose entire job is to sell.
+   A render test could not see it, because the component was rendered on its own
+   rather than inside the themed app. Anything that paints its own dark surface
+   inside .sc-app wants this class. */
+.sc-dark-sheet { color-scheme: dark; }
+[data-sc-theme="light"] .sc-app .sc-dark-sheet .text-white { color: #ffffff !important; }
+[data-sc-theme="light"] .sc-app .sc-dark-sheet .text-slate-100 { color: #f1f5f9 !important; }
+[data-sc-theme="light"] .sc-app .sc-dark-sheet .text-slate-200 { color: #e2e8f0 !important; }
+[data-sc-theme="light"] .sc-app .sc-dark-sheet :is(.text-slate-300, .text-slate-300\/90, .text-slate-300\/85) { color: #cbd5e1 !important; }
+[data-sc-theme="light"] .sc-app .sc-dark-sheet .text-slate-400 { color: #94a3b8 !important; }
+[data-sc-theme="light"] .sc-app .sc-dark-sheet .text-blue-300 { color: #93c5fd !important; }
+
 [data-sc-theme="light"] .sc-app .sc-card .text-white { color: #ffffff !important; }
 [data-sc-theme="light"] .sc-app .sc-card .text-gray-200 { color: #e5e7eb !important; }
 [data-sc-theme="light"] .sc-app .sc-card .text-gray-300 { color: #d1d5db !important; }

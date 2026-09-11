@@ -63,7 +63,7 @@ type Brand = {
   brand_phone?: string | null;
   brand_fax?: string | null;
   brand_address?: Addr | null;
-  brand_locks?: { template?: boolean } | null;
+  brand_locks?: { template?: boolean; links?: boolean } | null;
   brand_design?: Record<string, unknown> | null;
   /** Seeded from the owner's oldest card when its template is "custom". */
   brand_custom_layout?: unknown;
@@ -119,6 +119,9 @@ export default function OfficeBranding({ office }: { office: Brand }) {
   const [fax, setFax] = useState(office.brand_fax ?? "");
   const [address, setAddress] = useState<Addr>(office.brand_address ?? {});
   const [lockTemplate, setLockTemplate] = useState(office.brand_locks?.template !== false);
+  // Opt-in: an office that has never set it is unlocked, so members keep the
+  // links they were allowed to add before this setting existed.
+  const [lockLinks, setLockLinks] = useState(office.brand_locks?.links === true);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const setAddr = (k: keyof Addr, v: string) => setAddress((a) => ({ ...a, [k]: v }));
@@ -130,7 +133,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
       const res = await fetch("/api/office/brand", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logoUrl, company, website, template, design, phone, fax, address, lockTemplate }),
+        body: JSON.stringify({ logoUrl, company, website, template, design, phone, fax, address, lockTemplate, lockLinks }),
       });
       setStatus(res.ok ? "saved" : "error");
       if (res.ok) setTimeout(() => setStatus("idle"), 2500);
@@ -239,7 +242,13 @@ export default function OfficeBranding({ office }: { office: Brand }) {
             <InertPreview><CardScaler><Preview data={previewData} /></CardScaler></InertPreview>
           </div>
           <p className="text-[0.6875rem] text-gray-600 mt-2.5 leading-snug">
-            An example teammate. Their name, photo, title, phone and email are theirs — everything else is what you set here.
+            {/* Was "everything else is what you set here", which is not true:
+                socials, bio and (unless locked) link buttons are theirs too.
+                An admin reading the old line would believe they controlled
+                more of a member's card than they do. */}
+            An example teammate. Their own details, socials and bio stay theirs
+            {lockLinks ? "" : ", along with any link buttons they add"} — the company
+            look and details are what you set here.
           </p>
         </div>
       </aside>
@@ -279,7 +288,11 @@ export default function OfficeBranding({ office }: { office: Brand }) {
           <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3.5 mb-4">
             <p className="text-[0.6875rem] font-semibold text-gray-400 mb-2">Each person fills in only:</p>
             <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
-              {["Their name", "Their photo", "Their job title", "Their phone", "Their email"].map((t) => (
+              {["Their name", "Their photo", "Their job title", "Their phone", "Their email",
+                "Their social profiles", "Their bio",
+                // Only when the office has not taken links; otherwise this list
+                // would claim a member controls something they no longer do.
+                ...(lockLinks ? [] : ["Their link buttons"])].map((t) => (
                 <li key={t} className="flex items-center gap-1.5 text-[0.6875rem] text-gray-400">
                   <span className="text-green-400" aria-hidden="true">✓</span>{t}
                 </li>
@@ -287,7 +300,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
             </ul>
             <p className="text-[0.6875rem] font-semibold text-gray-400 mt-3 mb-2">They can never change:</p>
             <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
-              {["Company logo", "Company name", "Website", "Office phone", "Fax number", "Address"].map((t) => (
+              {["Company logo", "Company name", "Website", "Office phone", "Fax number", "Address", ...(lockLinks ? ["Link buttons"] : [])].map((t) => (
                 <li key={t} className="flex items-center gap-1.5 text-[0.6875rem] text-gray-500">
                   <span className="text-gray-600" aria-hidden="true">🔒</span>{t}
                 </li>
@@ -295,20 +308,43 @@ export default function OfficeBranding({ office }: { office: Brand }) {
             </ul>
           </div>
 
-          <label className="flex items-start gap-2 text-xs text-gray-400 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={lockTemplate}
-              onChange={(e) => setLockTemplate(e.target.checked)}
-              className="accent-purple-500 mt-0.5"
-            />
-            <span>
-              Keep every card matching
-              <span className="block text-[0.6875rem] text-gray-600 mt-0.5">
-                Recommended. Uncheck only if you want each person to pick their own style.
+          <div className="space-y-3">
+            <label className="flex items-start gap-2 text-xs text-gray-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={lockTemplate}
+                onChange={(e) => setLockTemplate(e.target.checked)}
+                className="accent-purple-500 mt-0.5"
+              />
+              <span>
+                Keep every card matching
+                <span className="block text-[0.6875rem] text-gray-600 mt-0.5">
+                  Recommended. Uncheck only if you want each person to pick their own style.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+
+            {/* The other half of control. "Keep every card matching" governs how
+                a card LOOKS and says nothing about what is on it — so without
+                this, anyone on the team could put any link they liked on a card
+                carrying the company logo. Deliberately OFF by default: it takes
+                something away from people who have it today. */}
+            <label className="flex items-start gap-2 text-xs text-gray-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={lockLinks}
+                onChange={(e) => setLockLinks(e.target.checked)}
+                className="accent-purple-500 mt-0.5"
+              />
+              <span>
+                Only you can add link buttons
+                <span className="block text-[0.6875rem] text-gray-600 mt-0.5">
+                  Stops teammates putting their own links on a company card. Links already on a
+                  card stay — nothing is deleted. Their social profiles and bio remain theirs.
+                </span>
+              </span>
+            </label>
+          </div>
         </Section>
 
         <div className="flex items-center gap-3 flex-wrap">

@@ -122,6 +122,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // testimonials, or any future field) would be silently wiped on save. Merging
   // the card's OWN data can never introduce cross-card bleed — form keys win,
   // omitted keys are preserved. Free plans still have Pro-only keys stripped.
+  // Set inside the block below, read by the office links lock further down —
+  // existingCard is scoped to that block.
+  let storedLinks: unknown;
+  let hadStoredLinks = false;
   if ("customization" in updates) {
     const { data: existingCard } = await admin
       .from("cards")
@@ -176,6 +180,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
       ...safeIncoming,
     };
+    const storedCust = (existingCard?.customization as Record<string, unknown> | null) ?? {};
+    hadStoredLinks = "links" in storedCust;
+    storedLinks = storedCust.links;
   }
 
   // Office uniform branding: force company-controlled fields so members can't
@@ -184,6 +191,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // EVERY card under the office, the owner's included — the brand is edited on
   // /office/admin/branding, not by exempting any particular card.
   const brand = await getMemberBrandForUser(user.id);
+
+  // LINKS LOCK. When the office turns this on, a member cannot add, change or
+  // remove the link buttons on their company-branded card — the one place they
+  // could otherwise put an arbitrary outbound URL on the company's letterhead.
+  //
+  // Restores the STORED value rather than emptying the field: turning the lock
+  // on must freeze what is there, never delete links a member was allowed to
+  // add yesterday. And it is applied to the merged result, because
+  // CardEditForm sends `links` on every save whether or not it changed.
+  //
+  // Sub-users only. The owner's own cards are theirs (the same rule every
+  // brand target follows), and an office with the lock off is untouched.
+  if (subCtx && brand?.lockLinks && updates.customization) {
+    const merged = updates.customization as Record<string, unknown>;
+    if (hadStoredLinks) merged.links = storedLinks;
+    else delete merged.links;
+  }
+
   // Company-level fields are org territory for a SUB-USER even when the office
   // has no brand set yet (the UI never shows those inputs to a member): a
   // crafted request must not write them either. Dropped from the update here

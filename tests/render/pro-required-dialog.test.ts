@@ -127,6 +127,80 @@ describe.each(WIDTHS)("$name", ({ width, height }) => {
   });
 });
 
+// ── The light theme nearly made this dialog invisible ───────────────────────
+//
+// globals.css remaps .text-white to near-black under [data-sc-theme="light"],
+// so headings read on the app's cream surface. This sheet is dark ON PURPOSE,
+// and it lives inside the editor, which is light. Its heading and its $4.99
+// both came out near-black on near-black — unreadable, in the one dialog whose
+// whole job is to sell.
+//
+// The tests above could not see it because they rendered the component on its
+// own. These mount it the way the app does: inside .sc-app with the light theme
+// set, then measure the actual painted pixel behind each piece of text.
+describe("readable inside the light-themed app", () => {
+  const lum = (r: number, g: number, b: number) =>
+    [r, g, b].map((v) => { const s2 = v / 255; return s2 <= 0.03928 ? s2 / 12.92 : Math.pow((s2 + 0.055) / 1.055, 2.4); })
+      .reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i], 0);
+  const contrast = (a: number, b: number) => { const [x, y] = [a, b].sort((p2, q) => q - p2); return (x + 0.05) / (y + 0.05); };
+
+  it("every line of text clears AA against what is actually behind it", async () => {
+    const css = await appCss();
+    const html = renderToStaticMarkup(
+      createElement(ProRequiredDialog, { features: FEATURES, onSaveWithoutPro: () => {}, onCancel: () => {} }),
+    );
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    try {
+      await page.setContent(
+        `<!doctype html><html data-sc-theme="light"><head><meta charset="utf-8">` +
+          `<style>${css}</style></head><body class="sc-app" style="margin:0;background:#FAF7F2">${html}</body></html>`,
+        { waitUntil: "load" },
+      );
+      const spots = await page.evaluate(() => {
+        const sheet = document.querySelector(".sc-dark-sheet")!;
+        const out: { text: string; color: string; x: number; y: number }[] = [];
+        for (const el of Array.from(sheet.querySelectorAll("*"))) {
+          if (el.children.length) continue;
+          const t = (el.textContent ?? "").trim();
+          if (t.length < 2) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width < 2 || r.height < 2) continue;
+          out.push({ text: t.slice(0, 26), color: getComputedStyle(el).color, x: Math.round(r.left + 2), y: Math.round(r.top + r.height / 2) });
+        }
+        return out;
+      });
+      expect(spots.length).toBeGreaterThan(5);
+
+      // Hide the text and photograph the surface it sat on.
+      //
+      // `visibility`, not `color: transparent`. The exemption this test exists
+      // to protect sets its colours with !important, which beats an inline
+      // style — so colouring the text away left it fully painted and the probe
+      // sampled the glyphs instead of the background. It reported ~1:1 on white
+      // text and read as a contrast failure when nothing was wrong.
+      await page.evaluate(() => {
+        for (const el of Array.from(document.querySelectorAll<HTMLElement>(".sc-dark-sheet *"))) {
+          if (!el.children.length) el.style.visibility = "hidden";
+        }
+      });
+      const buf = await page.screenshot();
+      const sharp = (await import("sharp")).default;
+      const { data, info } = await sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+
+      const bad: { text: string; c: number }[] = [];
+      for (const s2 of spots) {
+        const i = (s2.y * info.width + s2.x) * info.channels;
+        const m = s2.color.match(/\d+/g)!.map(Number);
+        const c = contrast(lum(m[0], m[1], m[2]), lum(data[i], data[i + 1], data[i + 2]));
+        if (c < 4.5) bad.push({ text: s2.text, c: +c.toFixed(2) });
+      }
+      expect(bad).toEqual([]);
+    } finally {
+      await page.close();
+    }
+  }, 90_000);
+});
+
 describe("the native shell gets no price and no CTA", () => {
   it("renders neither the price block nor the upgrade link", async () => {
     vi.resetModules();
