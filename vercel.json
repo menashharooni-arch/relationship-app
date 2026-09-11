@@ -7,10 +7,6 @@
     {
       "path": "/api/wallet/sweep",
       "schedule": "30 7 * * *"
-    },
-    {
-      "path": "/api/push/catchup",
-      "schedule": "0 * * * *"
     }
   ]
 }

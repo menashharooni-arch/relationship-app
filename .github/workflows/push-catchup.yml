@@ -1,0 +1,54 @@
+name: Morning push catch-up
+
+# ── Why this is a GitHub schedule and not a Vercel cron ──────────────────────
+#
+# Quiet hours hold every notification between 10pm and 8am, and /api/push/catchup
+# sends the ONE push that tells someone what came in while they were asleep — at
+# 8am in their OWN timezone. 8am local is a different hour in every zone, so the
+# job has to wake up hourly and let the route decide whose morning it is.
+#
+# Vercel's Hobby plan allows two cron jobs per project, each at most once a day.
+# Adding an hourly one there does not warn: it makes EVERY later deployment fail
+# validation with cron_jobs_limits_reached, which blocks the whole pipeline. So
+# the schedule lives here, where it is free and unlimited, and vercel.json keeps
+# its two daily jobs. The route still accepts CRON_SECRET, so moving back is a
+# one-line change if the plan ever changes.
+#
+# The route is idempotent by design (it marks push_log before sending and will
+# not repeat inside 12 hours), so a duplicate or delayed run cannot double-buzz
+# anyone — and it accepts 8am OR 9am local, because GitHub's scheduler is
+# best-effort and lags under load.
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: push-catchup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  catchup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask production to send this hour's catch-ups
+        env:
+          SECRET: ${{ secrets.PUSH_CATCHUP_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "PUSH_CATCHUP_SECRET is not set — nobody's morning catch-up is being sent."
+            exit 1
+          fi
+          body=$(mktemp)
+          code=$(curl -sS --max-time 90 -o "$body" -w "%{http_code}" \
+            -H "Authorization: Bearer $SECRET" \
+            https://swiftcard.me/api/push/catchup)
+          echo "HTTP $code"
+          cat "$body"
+          echo
+          # A silent failure here is a notification nobody ever gets, so a bad
+          # status fails the run and shows up in the Actions list.
+          [ "$code" = "200" ]
