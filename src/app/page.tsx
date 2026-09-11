@@ -444,7 +444,6 @@ export default function Home() {
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3" data-reveal>
               <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-              <NativeHidden><Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link></NativeHidden>
             </div>
             {/* The trial is the pitch: two free weeks of Pro is what turns a
                 looker into a subscriber, so the top-of-funnel page says it too,

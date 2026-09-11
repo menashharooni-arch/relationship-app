@@ -96,15 +96,39 @@ describe("the save is actually gated", () => {
 describe("the iOS shell may not sell (App Store 3.1.1)", () => {
   const DLG = read("src/components/ProRequiredDialog.tsx");
 
-  it("price, upgrade CTA and the link are all behind !native", () => {
-    // Everything that sells sits inside a `{!native && (` block.
-    for (const needle of ["PLAN_PRICES.PRO_MONTHLY_CENTS", 'href="/upgrade"', "Upgrade to Pro"]) {
-      const at = DLG.indexOf(needle);
-      expect({ needle, found: at > -1 }).toMatchObject({ found: true });
-      const guard = DLG.lastIndexOf("{!native && (", at);
-      const close = DLG.indexOf(")}", guard);
-      expect({ needle, insideGuard: guard > -1 && close > at }).toMatchObject({ insideGuard: true });
-    }
+  // The platform rule is no longer hand-rolled here. The offer is a PlanGate,
+  // which owns it for every locked surface in the app — so the assertion is
+  // that this dialog USES the gate rather than deciding for itself, plus the
+  // one piece it still gates by hand: the checkout link in the pinned footer.
+  it("the offer goes through PlanGate, not a hand-rolled platform check", () => {
+    expect(DLG).toContain('import { PlanGate }');
+    expect(DLG).toMatch(/<PlanGate\s+feature="card-pro-design"/);
+    expect(DLG).toContain("nativeCopy=");
+  });
+
+  it("the price sits inside the gate, which never renders it on native", () => {
+    const open = DLG.indexOf("<PlanGate");
+    const close = DLG.indexOf("</PlanGate>");
+    const price = DLG.indexOf("PLAN_PRICES.PRO_MONTHLY_CENTS");
+    expect({ open: open > -1, close: close > -1, price: price > -1 }).toMatchObject({ open: true, close: true, price: true });
+    expect(price).toBeGreaterThan(open);
+    expect(price).toBeLessThan(close);
+  });
+
+  it("the checkout link is still gated by hand, because it lives outside the gate", () => {
+    // The CTA is pinned in the sheet's footer, not in the scrolling body the
+    // PlanGate wraps, so it carries its own !native guard.
+    const at = DLG.indexOf("/checkout?plan=pro");
+    expect(at).toBeGreaterThan(-1);
+    const guard = DLG.lastIndexOf("{!native && (", at);
+    const close = DLG.indexOf(")}", guard);
+    expect({ insideGuard: guard > -1 && close > at }).toMatchObject({ insideGuard: true });
+  });
+
+  it("never links the shell to the website's checkout", () => {
+    // The gate's own tests forbid a link on native; this forbids the specific
+    // one this dialog owns from ever escaping its guard.
+    expect(DLG).not.toMatch(/href="\/upgrade"/);
   });
 
   it("still explains itself on native, and still offers the way out", () => {
@@ -116,13 +140,27 @@ describe("the iOS shell may not sell (App Store 3.1.1)", () => {
     expect(close).toBeLessThan(at);
   });
 
-  it("offers the upgrade, not another trial", () => {
-    // The build wizard pitches the 14-day trial; the owner's call is that this
-    // moment is a straight upgrade. Comments are stripped first — the file
-    // legitimately EXPLAINS the difference, and matching prose that says "not
-    // the trial" as if it were a trial pitch is how a guard cries wolf.
-    const code = DLG.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    expect(code).not.toMatch(/TRIAL_DAYS|free trial|14-day/i);
-    expect(code).not.toContain("FreeDesignChoice");
+  // THE OFFER IS THE TRIAL (owner, 2026-09-11): 14 days free, then $4.99 — and
+  // the button has to create the session that actually does that.
+  it("offers the free trial to a first-time subscriber", () => {
+    expect(DLG).toContain("TRIAL_DAYS");
+    expect(DLG).toMatch(/trialEligible \? `Start my \$\{TRIAL_DAYS\} days free`/);
+    expect(DLG).toMatch(/\{TRIAL_DAYS\} days free/);
+  });
+
+  // The promise and the Stripe session must not drift. An eligible user goes to
+  // the plain checkout (which grants trial_period_days); an ex-subscriber
+  // carries trial=0, exactly as /upgrade does, so the checkout page's copy
+  // matches what it will charge.
+  it("sends the eligible to a trial checkout and everyone else to trial=0", () => {
+    expect(DLG).toMatch(/trialEligible\s*\?\s*"\/checkout\?plan=pro&interval=monthly"\s*:\s*"\/checkout\?plan=pro&interval=monthly&trial=0"/);
+  });
+
+  it("eligibility is decided on the server, never guessed in the browser", () => {
+    const PAGE = read("src/app/cards/[id]/edit/page.tsx");
+    expect(PAGE).toContain("isProTrialEligible");
+    expect(PAGE).toContain("trialEligible={trialEligible}");
+    // The dialog only ever receives it.
+    expect(DLG).not.toContain("isProTrialEligible");
   });
 });

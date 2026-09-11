@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import CardEditForm from "./CardEditForm";
+import { isProTrialEligible } from "@/lib/trial-eligibility";
 import GuestDraftClaim from "@/components/GuestDraftClaim";
 import DashboardLink from "@/components/DashboardLink";
 import ShareCardCapture from "@/components/ShareCardCapture";
@@ -28,13 +29,21 @@ export default async function CardEditPage({
   const admin = getAdminSupabase();
   const [{ data: card }, { data: profile }] = await Promise.all([
     admin.from("cards").select("*").eq("id", id).eq("user_id", user.id).single(),
-    admin.from("profiles").select("photo_url, plan").eq("id", user.id).single(),
+    admin.from("profiles").select("photo_url, plan, stripe_customer_id").eq("id", user.id).single(),
   ]);
 
 
   if (!card) notFound();
 
   const isPro = isPaidPlan(profile?.plan);
+  // Whether the Pro-required dialog may promise the free trial. Resolved HERE,
+  // on the server, with the same helper the checkout API enforces with — so the
+  // button's promise and the Stripe session cannot disagree. Costs nothing for
+  // the common case: a Free user who has never subscribed has no Stripe
+  // customer, and isProTrialEligible returns true without a network call.
+  const trialEligible = isPro
+    ? false
+    : await isProTrialEligible(profile?.stripe_customer_id as string | null);
   // Per-card headshot (legacy cards fall back to the account photo).
   const cardPhoto = cardHeadshot(card.customization, profile?.photo_url);
 
@@ -65,7 +74,13 @@ export default async function CardEditPage({
         fax: brand?.fax ?? null,
         address: brand?.address ?? null,
         lockDesign: brand?.lockTemplate ?? false,
-        lockLinks: brand?.lockLinks ?? false,
+        // ── The Swift Links half of the brand ──────────────────────────
+        // Content the office set (applied and read-only for the member),
+        // plus whether the office holds the page's LOOK.
+        officeLinks: brand?.links ?? null,
+        linkBio: brand?.linkBio ?? null,
+        linkInstagram: brand?.linkInstagram ?? null,
+        lockLinkDesign: brand?.lockLinkDesign ?? false,
       }
     : null;
 
@@ -118,6 +133,7 @@ export default async function CardEditPage({
           photoUrl={cardPhoto}
           logoUrl={card.logo_url ?? null}
           isPro={isPro}
+          trialEligible={trialEligible}
           org={org}
           linkedinEnabled={!!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)}
         />

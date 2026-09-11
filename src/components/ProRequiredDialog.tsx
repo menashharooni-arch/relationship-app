@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { PLAN_PRICES } from "@/lib/plan";
+import { PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { useIsNativeApp } from "@/lib/platform";
+import { PlanGate } from "@/components/PlanGate";
 
 /**
  * Save Changes, blocked because the card is using Pro design.
@@ -19,25 +20,39 @@ import { useIsNativeApp } from "@/lib/platform";
  * still tappable on Free, the card still renders them in the editor, that is
  * the demo — and the wall moves to Save. This is what stands at the wall.
  *
- * WHY UPGRADE AND NOT THE TRIAL
- * The build wizard offers the 14-day trial (see FreeDesignChoice), because
- * there the person has not committed to anything yet. Here they already have a
- * card they are editing; the owner's call is that this moment is a straight
- * upgrade, not another trial pitch.
+ * THE TRIAL IS THE OFFER (owner, 2026-09-11)
+ * Not "$4.99/month" cold. Fourteen days free, then $4.99 — and the button goes
+ * STRAIGHT to the same checkout /upgrade builds, so what it promises is what
+ * Stripe actually creates.
  *
- * WHY THE NATIVE APP SHOWS NO PRICE
- * App Store rule 3.1.1: the iOS shell may not sell, link out to buy, or show
- * pricing for anything bought outside it. PlanGate and FreeDesignChoice already
- * hold this line and so does this. On native the dialog still explains exactly
- * why the save was blocked and still offers the one action that works there —
- * save without the Pro pieces — but carries no price, no "Upgrade" button and
- * no link. Rendering the web version inside the shell would risk the app.
+ * `trialEligible` is resolved on the SERVER by the page that renders the
+ * editor, using lib/trial-eligibility — the identical helper the checkout API
+ * enforces with. Someone who has ever had a subscription is not offered a
+ * second trial here, and their button carries `trial=0` so the checkout page's
+ * copy matches. The promise on the button and the session it creates cannot
+ * drift, which is the whole reason that helper is shared rather than re-guessed.
+ *
+ * NATIVE GOES THROUGH PlanGate, LIKE EVERY OTHER LOCKED SURFACE
+ * The first version of this hand-rolled its own `!native` checks and simply
+ * rendered NOTHING in the shell — no price, no button, nothing. That satisfied
+ * App Store 3.1.1 and failed the person holding the phone: the rest of the app
+ * offers a StoreKit paywall on a locked feature (3.1.3(b) requires one), and
+ * this dialog offered a dead end. It also looked broken, because the sheet
+ * painted the full web layout on the first client render and then collapsed
+ * once useIsNativeApp() flipped after mount.
+ *
+ * So the offer is a PlanGate now. Web gets the trial and the checkout link;
+ * native gets PlanNotice and the in-app purchase button, the same one every
+ * other gate in the shell shows. One component owns the platform rule, and the
+ * tests that pin it (no link, no price, no "upgrade" verb on native) cover this
+ * surface for free.
  */
 export default function ProRequiredDialog({
   features,
   onSaveWithoutPro,
   onCancel,
   busy = false,
+  trialEligible = false,
 }: {
   /** Names from proFeaturesInUse(). Never empty. */
   features: string[];
@@ -46,6 +61,8 @@ export default function ProRequiredDialog({
   /** Go back to editing with everything still selected. */
   onCancel: () => void;
   busy?: boolean;
+  /** First-time subscriber → offer the free trial. Resolved server-side. */
+  trialEligible?: boolean;
 }) {
   const native = useIsNativeApp();
 
@@ -113,7 +130,9 @@ export default function ProRequiredDialog({
           <p className="text-slate-300/90 text-[0.875rem] leading-snug mt-1.5">
             {native
               ? "Your card is set up with design that comes with the Pro plan:"
-              : "The features you selected are only available on Pro. Upgrade to keep them on your live card:"}
+              : trialEligible
+                ? `The features you selected are part of Pro. Try it free for ${TRIAL_DAYS} days and keep them on your live card:`
+                : "The features you selected are only available on Pro. Upgrade to keep them on your live card:"}
           </p>
 
           <ul className="mt-3.5 space-y-1.5">
@@ -129,31 +148,56 @@ export default function ProRequiredDialog({
             ))}
           </ul>
 
-          {/* Everything below the line is the offer, and it exists on the web
-              only. On native this whole block is absent — no price, no CTA. */}
-          {!native && (
-            <div className="mt-5 rounded-2xl border border-blue-400/25 bg-blue-500/[0.07] px-4 py-3.5">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-white font-extrabold text-[1.5rem] leading-none">
-                  ${(PLAN_PRICES.PRO_MONTHLY_CENTS / 100).toFixed(2)}
-                </span>
-                <span className="text-slate-400 text-[0.8125rem]">/ month</span>
-              </div>
-              <p className="text-slate-300/85 text-[0.8125rem] leading-snug mt-1.5">
-                Every finish, any color, photo and video backgrounds, unlimited links, and
-                your card without the SwiftCard badge. Cancel anytime.
-              </p>
+          {/* The offer. Web: the trial and the price. Native: PlanNotice and
+              the in-app purchase button, chosen by PlanGate, not by us. */}
+          <div className="mt-5">
+            <PlanGate
+              feature="card-pro-design"
+              nativeCopy="Pro feature — material finishes, any color, and photo or video card backgrounds are part of the Pro plan"
+            >
+            <div className="rounded-2xl border border-blue-400/25 bg-blue-500/[0.07] px-4 py-3.5">
+              {trialEligible ? (
+                <>
+                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                    <span className="text-white font-extrabold text-[1.5rem] leading-none">
+                      {TRIAL_DAYS} days free
+                    </span>
+                    <span className="text-slate-400 text-[0.8125rem]">
+                      then ${(PLAN_PRICES.PRO_MONTHLY_CENTS / 100).toFixed(2)} / month
+                    </span>
+                  </div>
+                  <p className="text-slate-300/85 text-[0.8125rem] leading-snug mt-1.5">
+                    Every finish, any color, photo and video backgrounds, unlimited links, and
+                    your card without the SwiftCard badge. Cancel anytime before day {TRIAL_DAYS} and
+                    you are not charged.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-white font-extrabold text-[1.5rem] leading-none">
+                      ${(PLAN_PRICES.PRO_MONTHLY_CENTS / 100).toFixed(2)}
+                    </span>
+                    <span className="text-slate-400 text-[0.8125rem]">/ month</span>
+                  </div>
+                  <p className="text-slate-300/85 text-[0.8125rem] leading-snug mt-1.5">
+                    Every finish, any color, photo and video backgrounds, unlimited links, and
+                    your card without the SwiftCard badge. Cancel anytime.
+                  </p>
+                </>
+              )}
             </div>
-          )}
+            </PlanGate>
+          </div>
         </div>
 
         <div className="px-5 pt-4 mt-auto shrink-0 flex flex-col gap-2 border-t border-white/[0.07]">
           {!native && (
             <Link
-              href="/upgrade"
+              href={trialEligible ? "/checkout?plan=pro&interval=monthly" : "/checkout?plan=pro&interval=monthly&trial=0"}
               className="rd-btn rd-btn-aurora w-full !py-3.5 !min-h-[46px] text-center text-[0.9375rem] font-bold"
             >
-              Upgrade to Pro
+              {trialEligible ? `Start my ${TRIAL_DAYS} days free` : "Upgrade to Pro"}
             </Link>
           )}
 
