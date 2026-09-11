@@ -537,12 +537,12 @@ body {
   --rd-paper-100:#F7F4EE;
   --rd-paper-200:#EAE4D7;
   /* Brand blues — royal → navy → sky, all in the logo family */
-  --rd-violet:   #4C6EF5;
-  --rd-indigo:   #3457D5;
+  /* ONE blue (the logo tile, #2563EB) and ONE accent (the cyan the aurora
+     ends on). The violet, indigo, mint and ember tokens that used to sit here
+     were never referenced and invited a second palette; deleted 2026-09-11. */
   --rd-blue:     #2563EB;
+  --rd-blue-deep:#1D3FB8;
   --rd-cyan:     #4DA8F5;
-  --rd-mint:     #34E4C4;
-  --rd-ember:    #FF7A59;
   --rd-accent:   #2563EB;
   --rd-aurora:   linear-gradient(115deg, #1D3FB8 0%, #2563EB 46%, #4DA8F5 100%);
   --rd-aurora-soft: linear-gradient(115deg, rgba(37,99,235,.16), rgba(37,99,235,.12) 45%, rgba(77,168,245,.14));
@@ -561,8 +561,14 @@ body {
 .rd-light { background: var(--rd-paper); color: var(--rd-ink-900); }
 .rd-light2{ background: var(--rd-paper-50); color: var(--rd-ink-900); }
 
-.rd-display { letter-spacing: -0.035em; line-height: 0.98; font-weight: 640; }
-.rd-h2 { letter-spacing: -0.03em; line-height: 1.03; font-weight: 640; }
+/* Marketing headlines: Bricolage Grotesque (loaded in the root layout as
+   --font-display), Geist as the fallback so a slow font never shows a serif.
+   Bricolage is drawn tighter than Geist, so the negative tracking eases off;
+   the optical-size axis is pinned high so the display cut is used at every
+   size, not just above 60px. Body copy stays Geist. */
+.rd-display, .rd-h2 { font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif; font-variation-settings: "opsz" 96; text-wrap: balance; }
+.rd-display { letter-spacing: -0.025em; line-height: 0.98; font-weight: 680; }
+.rd-h2 { letter-spacing: -0.02em; line-height: 1.04; font-weight: 660; }
 /* THE section kicker for the whole marketing site. There used to be five
    hand-rolled versions of this one label — .8125rem/.14em/#4DA8F5 on the
    product pages, .6875rem/.25em/brand on the cream landing pages,
@@ -669,10 +675,10 @@ summary.list-none::-webkit-details-marker { display: none; }
   will-change: transform; cursor: pointer; white-space: nowrap; isolation: isolate; overflow: hidden; }
 .rd-btn:active { transform: translateY(1px) scale(.99); }
 .rd-btn-primary { color: #fff; background: var(--rd-accent);
-  box-shadow: 0 10px 26px -10px rgba(93,107,255,.7), inset 0 1px 0 rgba(255,255,255,.22); }
-.rd-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -12px rgba(93,107,255,.8), inset 0 1px 0 rgba(255,255,255,.3); }
+  box-shadow: 0 10px 26px -10px rgba(37,99,235,.7), inset 0 1px 0 rgba(255,255,255,.22); }
+.rd-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -12px rgba(37,99,235,.8), inset 0 1px 0 rgba(255,255,255,.3); }
 .rd-btn-aurora { color: #fff; background: var(--rd-aurora); background-size: 180% 180%;
-  box-shadow: 0 14px 34px -12px rgba(76,125,255,.7), inset 0 1px 0 rgba(255,255,255,.28); }
+  box-shadow: 0 14px 34px -12px rgba(37,99,235,.7), inset 0 1px 0 rgba(255,255,255,.28); }
 .rd-btn-aurora:hover { transform: translateY(-2px); animation: rd-aurora-pan 4s ease-in-out infinite; }
 .rd-btn-ghost-d { color: var(--rd-ink-100); background: rgba(255,255,255,.06); border: 1px solid var(--rd-line-dark2); }
 .rd-btn-ghost-d:hover { background: rgba(255,255,255,.12); transform: translateY(-2px); }

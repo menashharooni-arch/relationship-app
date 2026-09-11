@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Geist, Bricolage_Grotesque } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
@@ -14,6 +14,12 @@ import { ORGANIZATION_JSONLD, WEBSITE_JSONLD, jsonLdScript } from "@/lib/brand";
 import { APP_STORE_ID } from "@/lib/app-store";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
+// The marketing DISPLAY face (design batch 2, 2026-09-11). Headlines on the
+// site set in Bricolage Grotesque; body copy, the app and every card template
+// stay on Geist. Only .rd-display / .rd-h2 in globals.css read this variable,
+// so nothing inside the product can pick it up by accident. Variable font,
+// one file, optical-size axis so the big sizes get the display cut.
+const display = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-display", axes: ["opsz"], display: "swap" });
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -90,7 +96,7 @@ export default function RootLayout({
   return (
     // suppressHydrationWarning: the inline script below mutates <html> (adds
     // .sc-js + the saved theme attr) BEFORE React hydrates — expected mismatch.
-    <html lang="en" className={`${geist.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${geist.variable} ${display.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         {/* NativeSplash (the shell's launch animation) deliberately does NOT
             live here anymore. It reads headers()/cookies(), and a dynamic API

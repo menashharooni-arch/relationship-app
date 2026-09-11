@@ -116,7 +116,7 @@ export default function MiniBuilderModal({
           {current.previewFirst && (
             <div
               className="md:hidden flex flex-col items-center px-6 pt-12 pb-5 border-b border-white/10"
-              style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(93,107,255,0.14), transparent 60%), #0A0B10" }}
+              style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(37,99,235,0.14), transparent 60%), #0A0B10" }}
             >
               <span className="text-white/70 text-[0.6875rem] font-semibold uppercase tracking-widest mb-3">Live preview</span>
               <div className="w-full flex items-center justify-center">{preview}</div>
@@ -184,7 +184,7 @@ export default function MiniBuilderModal({
             </div>
 
             {/* ── Right: live preview ────────────────────── */}
-            <div className={`${hidePreviewOnMobile || current.previewFirst ? "hidden md:flex" : "flex"} relative flex-col items-center justify-center p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10`} style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(93,107,255,0.14), transparent 60%), #0A0B10" }}>
+            <div className={`${hidePreviewOnMobile || current.previewFirst ? "hidden md:flex" : "flex"} relative flex-col items-center justify-center p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10`} style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(37,99,235,0.14), transparent 60%), #0A0B10" }}>
               <span className="absolute top-4 left-1/2 -translate-x-1/2 text-white/35 text-[0.6875rem] font-semibold uppercase tracking-widest">Live preview</span>
               <div className="w-full flex items-center justify-center mt-4">{preview}</div>
               {previewCaption && <p className="text-white/40 text-[0.75rem] mt-4 text-center">{previewCaption}</p>}

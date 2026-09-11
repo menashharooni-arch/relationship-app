@@ -216,10 +216,10 @@ export default function Home() {
             <div className="max-w-2xl" data-reveal>
               <Eyebrow dark={false}>Swift Cards</Eyebrow>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-slate-900 mt-5">
-                A card so good, people <span className="rd-aurora-text">want</span> to keep it.
+                A card they <span className="rd-aurora-text">actually keep.</span>
               </h2>
               <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed">
-                Designer templates, your colors, your photo, your logo — a scannable QR and a Save Contact button built in. It looks like you spent a fortune. You spent 60 seconds.
+                Designer templates, your photo, your logo, a QR code and a Save Contact button built in. Ready in 60 seconds.
               </p>
             </div>
 
@@ -236,10 +236,10 @@ export default function Home() {
             <div>
               <div data-reveal><Eyebrow>SwiftLinks</Eyebrow></div>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-white mt-5" data-reveal>
-                Everything to do. <span className="rd-aurora-text">One SwiftLink.</span>
+                Everything you do. <span className="rd-aurora-text">One link.</span>
               </h2>
               <p className="text-white/55 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
-                Your bio, your socials, your booking link, your latest drop — one beautiful page that lives in your Instagram, TikTok, or email. Separate from your card, powered by the same profile.
+                Bio, socials, booking link, latest drop: one page that lives in your Instagram, TikTok or email, powered by the same profile as your card.
               </p>
               <ul className="mt-7 space-y-3.5" data-reveal>
                 {[
@@ -269,10 +269,10 @@ export default function Home() {
             <div className="max-w-2xl mb-12" data-reveal>
               <Eyebrow dark={false}>Swift Signature</Eyebrow>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-slate-900 mt-5">
-                Every email you send, <span className="rd-aurora-text">advertising you.</span>
+                Every email you send, <span className="rd-aurora-text">working for you.</span>
               </h2>
               <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed">
-                Drop your live SwiftCard into your signature once. Now every message ends with a clickable card — recipients open it, save your contact, and reach out in a single tap.
+                Your live card sits in your signature. Every message ends with it, and recipients open it, save you and reply in one tap.
               </p>
             </div>
             <div data-reveal="fade"><SignatureDemo /></div>
@@ -287,10 +287,10 @@ export default function Home() {
             <div className="max-w-2xl mb-12" data-reveal>
               <Eyebrow>Dashboard & Analytics</Eyebrow>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-white mt-5">
-                See who&apos;s looking. <span className="rd-aurora-text">Never lose a lead.</span>
+                See who&apos;s looking. <span className="rd-aurora-text">Keep every lead.</span>
               </h2>
               <p className="text-white/55 text-[1.1rem] mt-4 leading-relaxed">
-                Real-time views, saves, and locations. Every contact who taps your card lands in one place — searchable, with the full history, their replies, and automated email and text follow-ups. Try the dashboard right here.
+                Live views, saves and locations. Every contact lands in one place, with the full history, their replies and automatic email and text follow-ups. Try the dashboard right here.
               </p>
             </div>
             <div data-reveal="fade">
@@ -312,10 +312,10 @@ export default function Home() {
           <div className="relative max-w-5xl mx-auto px-5 sm:px-6 text-center">
             <div data-reveal className="flex justify-center"><Eyebrow>Integrations</Eyebrow></div>
             <h2 className="rd-h2 text-[clamp(1.7rem,3.6vw,2.5rem)] text-white mt-4" data-reveal>
-              Your leads flow into the <span className="rd-aurora-text">tools you already use.</span>
+              Leads land in the <span className="rd-aurora-text">tools you already use.</span>
             </h2>
             <p className="text-white/55 text-[1.05rem] mt-3.5 max-w-[560px] mx-auto leading-relaxed" data-reveal>
-              Every contact you capture syncs straight to your CRM — no copy-paste, no exports, no lost leads.
+              Every captured contact syncs straight to your CRM. No copy-paste, no exports.
             </p>
             <div className="mt-9" data-reveal="fade"><IntegrationLogos /></div>
             <div className="mt-8" data-reveal>
@@ -332,10 +332,10 @@ export default function Home() {
             <div className="max-w-2xl mx-auto text-center">
               <div data-reveal className="flex justify-center"><Eyebrow dark={false}>Ways to share</Eyebrow></div>
               <h2 className="rd-h2 text-[clamp(2rem,4.2vw,3.3rem)] text-slate-900 mt-5" data-reveal>
-                Your card, always <span className="rd-aurora-text">in your pocket.</span>
+                Always <span className="rd-aurora-text">in your pocket.</span>
               </h2>
               <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
-                However you meet someone, there&apos;s a way to hand them your card in a second — no app, no signal, no fumbling.
+                Link, QR code, NFC card or Apple Wallet. Whoever you meet, your card is a second away. No app, no signal, no fumbling.
               </p>
             </div>
 
@@ -372,13 +372,13 @@ export default function Home() {
             <div className="order-1 lg:order-2">
               <div data-reveal><Eyebrow>Apple Watch</Eyebrow></div>
               <h2 className="rd-h2 text-[clamp(1.9rem,4vw,3rem)] text-white mt-5" data-reveal>
-                Make your Apple Watch into a <span className="rd-aurora-text">scannable business card</span> you take with you everywhere.
+                Your card, <span className="rd-aurora-text">on your wrist.</span>
               </h2>
               <p className="text-white/55 text-[1.1rem] mt-4 leading-relaxed" data-reveal>
-                Raise your wrist, show your code, and share your details hands-free — no phone required. Your card goes wherever you go.
+                Raise your wrist, show your code, share hands-free. No phone required.
               </p>
               <div className="mt-6 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 max-w-[440px]" data-reveal="fade">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="#7CA0FF" strokeWidth={1.8}><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" strokeLinecap="round" /></svg>
+                <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="var(--rd-cyan)" strokeWidth={1.8}><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" strokeLinecap="round" /></svg>
                 <p className="text-white/55 text-[0.84375rem] leading-relaxed">
                   <span className="font-semibold text-white/85">On the roadmap.</span>{" "}Today you can add your card to Apple Wallet and reach it from your Watch. A dedicated native watchOS app is in development — we&apos;ll only ship it once it&apos;s fully approved by Apple.
                 </p>
@@ -396,7 +396,7 @@ export default function Home() {
                 One brand. <span className="rd-aurora-text">Everyone on it.</span>
               </h2>
               <p className="text-slate-500 text-[1.1rem] mt-4 leading-relaxed">
-                Roll out cards across your whole team with consistent branding, shared templates, and one place to manage seats. Every rep looks sharp — and every lead is accounted for.
+                Locked branding, shared templates and one place to manage seats. Every rep looks sharp and every lead is accounted for.
               </p>
             </div>
             <div className="mt-12 grid sm:grid-cols-3 gap-4" id="leads">
@@ -433,14 +433,14 @@ export default function Home() {
 
         {/* ═══════════════ FINAL CTA ═══════════════ */}
         <section className="relative py-28 sm:py-36 overflow-hidden" style={{ background: "var(--rd-ink-1000)" }}>
-          <div className="absolute inset-0 opacity-90" style={{ background: "radial-gradient(80% 120% at 50% 120%, rgba(93,107,255,0.35), transparent 60%)" }} />
+          <div className="absolute inset-0 opacity-90" style={{ background: "radial-gradient(80% 120% at 50% 120%, rgba(37,99,235,0.35), transparent 60%)" }} />
           <div className="rd-glow rd-glow-cyan rd-drift-a" style={{ width: 420, height: 420, left: "50%", transform: "translateX(-50%)", bottom: "-30%", opacity: 0.35 }} />
           <div className="relative max-w-3xl mx-auto px-5 sm:px-6 text-center">
             <h2 className="rd-display text-white text-[clamp(2.4rem,5.5vw,4.2rem)]" data-reveal>
               Be the one they <span className="rd-aurora-text rd-aurora-anim">remember.</span>
             </h2>
             <p className="text-white/60 text-[1.15rem] mt-5 max-w-[520px] mx-auto" data-reveal>
-              Your free SwiftCard is 60 seconds away. Share it today and watch your contacts roll in.
+              Your free SwiftCard takes 60 seconds. Share it today.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3" data-reveal>
               <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
