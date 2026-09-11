@@ -96,9 +96,11 @@ export const officeDocs = defineDocs([
   },
   {
     id: "company-branding",
-    title: "Company branding and keeping cards matching",
+    title: "Company branding — cards and Swift Links",
     audience: ["office-admin"],
     triggers: [
+      "brand swift links", "brand the links page", "links branding", "swiftlinks design for team",
+      "same links page", "team links page", "company instagram", "team bio", "company links",
       "branding", "logo", "company logo", "company name", "brand", "our look", "company look",
       "set branding", "upload logo", "change logo", "company info", "office contact",
       "company address", "company phone", "design lock", "lock design", "uniform",
@@ -107,7 +109,7 @@ export const officeDocs = defineDocs([
     answer:
       "The Branding tab. Section one is company information — logo, company name, website and office contact details, all identical on everyone's card. Section two is the card design every teammate shares: the template, its colours and font, the Finish laid over the card background, and a panel photo or video with its Darken setting — the same controls a teammate would see on their own \"Card design\" tab. Saving re-applies the look to every active teammate's card automatically.",
     detail:
-      "The control people call the \"design lock\" is a checkbox reading \"Keep every card matching\", and it is ON by default — that name appears nowhere in the UI, so describe the checkbox. While it is on, a teammate opening their own \"Card design\" tab sees a \"Managed by your organization\" note instead of the controls. Unchecking it lets each teammate choose their own template, colours, finish and panel background, while the logo, company name and contact details stay company-controlled either way. Branding governs your TEAMMATES' cards; your own personal card stays yours and is not overwritten. A SECOND checkbox below it reads \"Only you can add link buttons\" and is OFF by default: turning it on stops teammates adding, changing or removing the extra link buttons on their card, which is the one place they could otherwise put any web address on a company-branded card. Nothing is deleted when you turn it on — links already on a card stay exactly as they are, and the teammate still sees them, just without the controls. Their social profiles and their bio remain theirs either way.",
+      "The control people call the \"design lock\" is a checkbox reading \"Keep every card matching\", and it is ON by default — that name appears nowhere in the UI, so describe the checkbox. While it is on, a teammate opening their own \"Card design\" tab sees a \"Managed by your organization\" note instead of the controls. Unchecking it lets each teammate choose their own template, colours, finish and panel background, while the logo, company name and contact details stay company-controlled either way. Branding governs your TEAMMATES' cards; your own personal card stays yours and is not overwritten. THE BRANDING PAGE HAS TWO TABS at the top, \"Card\" and \"Links\": everything above is the Card tab. The Links tab brands the Swift Links page (the link-in-bio page a QR code or an email signature opens) and mirrors it exactly — 1 Links information (a bio, the company Instagram, and company link buttons), 2 Links appearance (the same design controls teammates see under Social design, with a live preview), 3 What team members can edit, with a checkbox reading \"Keep every Swift Links page matching\" and a \"Save & apply to all Swift Links\" button. The two tabs save separately, so working on one never changes the other. What the Links tab takes is narrow and worth stating plainly: a bio you write, the Instagram you set, and the company link buttons you pin. Company links are ADDITIVE — they sit at the top of every teammate's page and cannot be edited or removed by them, but each teammate can still add their own links underneath, and every other social stays theirs to fill in. \"Keep every Swift Links page matching\" covers the DESIGN only, and it is OFF by default so an office that never opens this tab keeps the pages its teammates already built.",
   },
   {
     id: "office-roles",

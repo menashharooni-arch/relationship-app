@@ -122,10 +122,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // testimonials, or any future field) would be silently wiped on save. Merging
   // the card's OWN data can never introduce cross-card bleed — form keys win,
   // omitted keys are preserved. Free plans still have Pro-only keys stripped.
-  // Set inside the block below, read by the office links lock further down —
-  // existingCard is scoped to that block.
-  let storedLinks: unknown;
-  let hadStoredLinks = false;
   if ("customization" in updates) {
     const { data: existingCard } = await admin
       .from("cards")
@@ -180,9 +176,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
       ...safeIncoming,
     };
-    const storedCust = (existingCard?.customization as Record<string, unknown> | null) ?? {};
-    hadStoredLinks = "links" in storedCust;
-    storedLinks = storedCust.links;
   }
 
   // Office uniform branding: force company-controlled fields so members can't

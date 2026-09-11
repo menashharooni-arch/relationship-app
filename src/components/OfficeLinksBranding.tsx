@@ -170,11 +170,15 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
                         <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
                         <p className="text-gray-600 text-[0.625rem] truncate">{l.url}</p>
                       </div>
+                      {/* A real tap target, not a bare glyph. Measured: the
+                          plain "×" came out 18px tall, which is a miss on a
+                          phone — and this one deletes a link from fifteen
+                          people's pages. */}
                       <button
                         type="button"
                         onClick={() => setLinks((prev) => prev.filter((_, xi) => xi !== i))}
                         aria-label={`Remove ${l.label}`}
-                        className="text-gray-600 hover:text-red-400 transition-colors text-lg leading-none shrink-0"
+                        className="shrink-0 grid place-items-center w-9 h-9 -mr-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors text-lg leading-none"
                       >
                         ×
                       </button>
