@@ -61,3 +61,14 @@ describe("LoginForm signs in with what is in the fields", () => {
     expect(src).toMatch(/resetPasswordForEmail\(emailNow,/);
   });
 });
+
+describe("LoginForm keeps what was typed before hydration", () => {
+  const src = readFileSync("src/components/LoginForm.tsx", "utf8");
+  it("adopts the email and password already in the fields on mount", () => {
+    expect(src).toMatch(/ADOPT WHAT IS ALREADY TYPED/);
+    expect(src).toMatch(/getElementById\("auth-email"\)[\s\S]{0,80}\?\.value/);
+    expect(src).toMatch(/getElementById\("auth-password"\)[\s\S]{0,80}\?\.value/);
+    expect(src).toMatch(/if \(typedEmail\) setEmail\(typedEmail\);/);
+    expect(src).toMatch(/if \(typedPassword\) setPassword\(typedPassword\);/);
+  });
+});

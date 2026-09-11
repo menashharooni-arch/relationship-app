@@ -72,9 +72,19 @@ export default function LoginForm({
         toSignup = true;
       }
     } catch { /* ignore */ }
+    // ADOPT WHAT IS ALREADY TYPED. These inputs are controlled by state that
+    // starts empty, so anyone who fills them before React attaches watches
+    // their email VANISH the moment it does — hydration writes the empty prop
+    // back over the DOM. Measured in CI on 2026-09-11: the email box was blank
+    // and the password box full, on a form that had been filled in order.
+    // Reading the fields here keeps whatever is in them.
+    const typedEmail = (document.getElementById("auth-email") as HTMLInputElement | null)?.value ?? "";
+    const typedPassword = (document.getElementById("auth-password") as HTMLInputElement | null)?.value ?? "";
     // One-time reads of the URL after mount (SSR-safe): applying them is the
     // whole point of this effect.
-    /* eslint-disable react-hooks/set-state-in-effect -- one-time post-mount URL read */
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time post-mount URL + field read */
+    if (typedEmail) setEmail(typedEmail);
+    if (typedPassword) setPassword(typedPassword);
     if (msg) setErrorMsg(msg);
     if (toSignup) setMode("signup");
     /* eslint-enable react-hooks/set-state-in-effect */
