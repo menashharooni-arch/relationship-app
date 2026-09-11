@@ -1,0 +1,101 @@
+name: Nightly production QA (real browser, every plan)
+# WHY: the 15-minute uptime probe asks production questions over HTTP. This
+# drives it — signs in, saves, reloads, signs out, walks every screen at phone
+# and laptop width as Free, Pro and Office, and pushes a view and a visit
+# through the real analytics and notification endpoints — with throwaway
+# accounts it deletes afterwards. It runs every night and after every
+# production deploy, and keeps ONE issue open while anything is wrong.
+on:
+  schedule:
+    - cron: "0 9 * * *"          # 05:00 New York, before the day starts
+  deployment_status:
+  workflow_dispatch:
+concurrency:
+  group: nightly-qa
+  cancel-in-progress: false
+permissions:
+  contents: read
+  issues: write
+jobs:
+  qa:
+    if: >-
+      github.event_name != 'deployment_status' ||
+      (github.event.deployment_status.state == 'success' &&
+       contains(github.event.deployment_status.environment, 'roduction'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BASE: https://swiftcard.me
+      HEALTH_BASE_URL: https://swiftcard.me
+      HEALTH_REAL_CARDS: "aaronlavi-malvecapital,aaronlavi-nadlanhomesllc"
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Every script keeps going after a failure and writes JSON; the summary
+      # step decides. `|| true` so one red script never hides the others.
+      - name: Analytics + notifications end to end
+        run: OUT=nightly/probe node scripts/qa-prod-probe.mjs || true
+      - name: Health + speed budget
+        run: node scripts/health-check.mjs > nightly/health.json || true
+      - name: Flows
+        run: OUT=nightly/flows node scripts/qa-flows.mjs || true
+      - name: Office Swift Links branding
+        run: |
+          mkdir -p nightly/office-links
+          if OUT=nightly/office-links node scripts/qa-office-links-brand.mjs > nightly/office-links/log.txt 2>&1; then echo "[]" > nightly/office-links/failures.json; else grep -E "^FAIL" nightly/office-links/log.txt | node -e 'const l=require("fs").readFileSync(0,"utf8").split("\n").filter(Boolean);console.log(JSON.stringify(l.length?l:["script exited non-zero — see log"]))' > nightly/office-links/failures.json; fi
+      - name: Office admin + member (iPhone shell)
+        run: OUT=nightly/office-shell node scripts/qa-office-shell.mjs || true
+      - name: Every screen, both widths, all plans
+        run: OUT=nightly/sweep node scripts/qa-sweep.mjs || true
+      - name: Summarise
+        id: sum
+        run: |
+          node scripts/qa-nightly-summary.mjs
+          echo "healthy=$(node -e "console.log(require('./nightly/summary.json').healthy)")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-qa-${{ github.run_id }}
+          path: nightly
+          retention-days: 14
+      - name: Open, update or close the incident
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const s = JSON.parse(fs.readFileSync('nightly/summary.json', 'utf8'));
+            const TITLE = '🔴 Nightly production QA failing';
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const open = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: 'nightly-qa', per_page: 20 });
+            const existing = open.data.find((i) => i.title === TITLE);
+            const body = [
+              `**${s.failedCount} finding(s)** against https://swiftcard.me — [run + screenshots](${runUrl})`,
+              '',
+              ...s.sections.map((sec) => sec.failures.length
+                ? `### ❌ ${sec.name}\n${sec.failures.map((f) => `- ${f}`).join('\n')}`
+                : `### ✅ ${sec.name}`),
+              '',
+              `Last run: ${s.at}`,
+              '',
+              '<sub>Opened automatically by `.github/workflows/nightly-qa.yml`. It edits this one issue rather than opening more, and closes it the first night everything passes.</sub>',
+            ].join('\n');
+            if (!s.healthy) {
+              if (existing) await github.rest.issues.update({ owner, repo, issue_number: existing.number, body });
+              else await github.rest.issues.create({ owner, repo, title: TITLE, body, labels: ['nightly-qa', 'bug'] });
+            } else if (existing) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: existing.number, body: `✅ Every check passed on ${s.at} — closing. [run](${runUrl})` });
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, state: 'closed' });
+            }
+      - name: Fail the run when anything failed
+        if: steps.sum.outputs.healthy != 'true'
+        run: exit 1

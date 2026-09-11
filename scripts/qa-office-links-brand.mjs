@@ -17,7 +17,7 @@
 // Seeds its own office, owner and teammate; deletes all of it in a finally.
 // Never touches an account it did not create. Exits non-zero on any failure.
 import { chromium } from "playwright";
-import { readFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, mkdirSync } from "node:fs";
 import { markInternal } from "./qa-internal.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -25,8 +25,10 @@ const BASE = process.env.BASE || "http://localhost:3222";
 const OUT = process.env.OUT || "qa-office-links-out";
 mkdirSync(OUT, { recursive: true });
 
-const env = readFileSync(`${ROOT}/.env.local`, "utf8");
-const g = (k) => (env.match(new RegExp("^" + k + "=(.*)$", "m")) || [])[1]?.trim().replace(/^["']|["']$/g, "");
+// Secrets: the environment first (GitHub Actions), .env.local second (a laptop).
+// NEXT_PUBLIC_* also answers to its bare name, which is how the CI secrets are named.
+const env = existsSync(`${ROOT}/.env.local`) ? readFileSync(`${ROOT}/.env.local`, "utf8") : "";
+const g = (k) => process.env[k] ?? process.env[k.replace(/^NEXT_PUBLIC_/, "")] ?? (env.match(new RegExp("^" + k + "=(.*)$", "m")) || [])[1]?.trim().replace(/^["']|["']$/g, "");
 const SB = g("NEXT_PUBLIC_SUPABASE_URL"), SVC = g("SUPABASE_SERVICE_ROLE_KEY");
 const adm = (p, i) => fetch(SB + p, { ...i, headers: { apikey: SVC, Authorization: "Bearer " + SVC, "Content-Type": "application/json", ...(i?.headers ?? {}) } });
 
