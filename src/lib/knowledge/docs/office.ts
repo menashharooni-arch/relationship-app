@@ -3,8 +3,12 @@ import { defineDocs } from "../types";
 // The Office admin console.
 //
 // The assistant this replaces sent admins looking for a "Resend invite" button
-// in the person drawer, an export on the Leads tab, and a role picker — none of
-// which exist. Every location below is the real one.
+// in the person drawer and a role picker — neither of which exists. Every
+// location below is the real one.
+//
+// (The Leads export was in that list until it was built; the Leads doc below
+// now describes the real button. A role picker still does not exist: every
+// member is an "employee", and nothing in the product can change that.)
 
 export const officeDocs = defineDocs([
   {
@@ -86,9 +90,9 @@ export const officeDocs = defineDocs([
       "who contacted", "lead status", "pipeline", "export leads", "download leads",
     ],
     answer:
-      "The Leads tab lists everyone who shared their info with anyone on the team, with a search box, a team-member filter and a status filter. Each row has a Status dropdown — New, Contacted, Closed, Not interested — and this is the only place in the product where a lead's status can be set. There is no export on this tab; the console's only CSV is the team performance export on the Analytics tab.",
+      "The Leads tab lists everyone who shared their info with anyone on the team, with a search box, a team-member filter and a status filter. Each row has a Status dropdown — New, Contacted, Closed, Not interested — and this is the only place in the product where a lead's status can be set. Above the table it says how many are on screen out of the team's exact total, with an \"Export all as CSV\" button beside it, and a \"Load more\" button under the table brings in the next page.",
     detail:
-      "There is NO export on the Leads tab. The only CSV in the console is on Analytics, and it exports performance figures rather than the lead list — do not tell an admin to export leads from the top of this table. Leads stay with the office when the person who captured them leaves.",
+      "\"Export all as CSV\" sits at the top right of the Leads tab and downloads EVERY lead the office owns — name, email, phone, who captured it, its status and the date — not just the page on screen. It is separate from the Analytics tab's CSV, which exports per-person performance figures rather than the leads themselves. The search and the two filters only look at the leads currently loaded, so tell an admin to press \"Load more\" or use the export when they are hunting for something older. Leads stay with the office when the person who captured them leaves, and show as captured by \"Former team member\".",
   },
   {
     id: "company-branding",

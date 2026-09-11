@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireOfficeCapability } from "@/lib/office-roles";
-import { getOfficeLeads, isLeadStatusValue } from "@/lib/office-leads";
+import { officeOwnsLead, isLeadStatusValue } from "@/lib/office-leads";
 
 // PATCH /api/office/leads/[id] { status }
 //
@@ -32,8 +32,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "That isn't a status we recognise." }, { status: 400 });
   }
 
-  const leads = await getOfficeLeads(ctx.officeId);
-  if (!leads.some((l) => l.id === id)) {
+  // One row, matched by id AND the office filter. This used to load the whole
+  // (capped) lead list and look for the id in it, which re-ran the full team
+  // resolution plus a 600-row fetch on every status click — and refused any
+  // lead past the cap with "That lead isn't part of your team", making it
+  // permanently unmarkable.
+  if (!(await officeOwnsLead(ctx.officeId, id))) {
     return NextResponse.json({ error: "That lead isn't part of your team." }, { status: 404 });
   }
 
