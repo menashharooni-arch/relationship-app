@@ -27,6 +27,25 @@ let pushLog: Row[] = [];
 const inserted: Row[] = [];
 const apnsSent: Row[] = [];
 
+type LogQuery = {
+  eq: (...args: unknown[]) => LogQuery;
+  in: (...args: unknown[]) => LogQuery;
+  gte: (...args: unknown[]) => LogQuery;
+  order: (...args: unknown[]) => LogQuery;
+  limit: (...args: unknown[]) => Promise<{ data: Row[] }>;
+};
+
+function logQuery(): LogQuery {
+  const q: LogQuery = {
+    eq: () => q,
+    in: () => q,
+    gte: () => q,
+    order: () => q,
+    limit: async () => ({ data: pushLog }),
+  };
+  return q;
+}
+
 vi.mock("@/lib/supabase-admin", () => ({
   getAdminSupabase: () => ({
     from: (table: string) => {
@@ -40,9 +59,14 @@ vi.mock("@/lib/supabase-admin", () => ({
         };
       }
       if (table === "push_log") {
+        // The history read is .select().eq().in().gte().order().limit(), and it
+        // sits inside a try/catch that treats a failure as "no history" — so a
+        // mock missing one link in that chain does not fail the test, it
+        // silently turns the daily cap and the hourly batch OFF. Every step
+        // returns the same object and the terminal .limit() resolves.
         return {
           insert: async (row: Row) => { inserted.push(row); return {}; },
-          select: () => ({ eq: () => ({ eq: () => ({ gte: async () => ({ data: pushLog }) }) }) }),
+          select: () => logQuery(),
         };
       }
       throw new Error("unexpected table " + table);
@@ -59,7 +83,10 @@ vi.mock("@/lib/apns", () => ({
 }));
 
 import { sendPushToUser } from "@/lib/push";
-import { DAILY_CAP, MAX_BODY_CHARS, MAX_TITLE_CHARS, decidePush, fitBody, inQuietHours, readPushPrefs } from "@/lib/push-policy";
+import {
+  DAILY_CAP, MAX_BODY_CHARS, MAX_TITLE_CHARS, VIEW_ROLLUP_TAG,
+  decidePush, fitBody, inQuietHours, readPushPrefs,
+} from "@/lib/push-policy";
 
 // 2pm UTC — comfortably outside quiet hours, so the plan cases test the plan
 // and nothing else.
@@ -151,7 +178,7 @@ describe("a switched-off category", () => {
 
 describe("the daily cap", () => {
   it("stops the 6th capped push of the day", async () => {
-    pushLog = Array.from({ length: DAILY_CAP }, () => ({ category: "card_view", created_at: MIDDAY }));
+    pushLog = Array.from({ length: DAILY_CAP }, () => ({ category: "card_view", outcome: "sent", created_at: MIDDAY }));
     profile = { plan: "free", customization: { _push: { card_view: true } } };
     await sendPushToUser("u1", {
       category: "meeting_booked", title: "Meeting booked", body: "Tue 3pm with Dana", url: "/x",
@@ -161,28 +188,112 @@ describe("the daily cap", () => {
   });
 
   it("never applies to leads or billing", async () => {
-    pushLog = Array.from({ length: 50 }, () => ({ category: "card_view", created_at: MIDDAY }));
+    pushLog = Array.from({ length: 50 }, () => ({ category: "card_view", outcome: "sent", created_at: MIDDAY }));
     await sendLead();
+    expect(apnsSent.length).toBe(1);
+  });
+
+  it("counts interruptions only — a silent view-count update is not one", async () => {
+    // Five REAL alerts is the cap. Five silent updates is nothing: they make no
+    // sound, light no screen, and must not be able to use up someone's day.
+    pushLog = Array.from({ length: DAILY_CAP }, () => ({ category: "card_view", outcome: "rollup", created_at: MIDDAY }));
+    await sendPushToUser("u1", {
+      category: "meeting_booked", title: "Meeting booked", body: "Tue 3pm with Dana", url: "/x",
+    });
     expect(apnsSent.length).toBe(1);
   });
 });
 
+// ── The hour after the alert: a silent counter, not silence ──────────────────
+//
+// One view alert an hour is the right ceiling on INTERRUPTIONS, and it used to
+// be the ceiling on news as well: every other view inside that hour was logged
+// "batched" and thrown away. At an event — the exact moment SwiftCard is
+// working hardest — the owner's phone told them about one view and never
+// mentioned the other thirty.
+//
+// The extra views now update one banner in place: same collapse id, no sound,
+// interruption-level "passive" on iOS, and a headline that counts them. The
+// number climbs on the lock screen without the phone ever buzzing again.
 describe("card views are batched to one an hour", () => {
-  it("suppresses a second view push inside the window", async () => {
-    pushLog = [{ category: "card_view", created_at: "2026-09-06T13:30:00.000Z" }];
-    await sendPushToUser("u1", {
-      category: "card_view", title: "Your card was opened", body: "Someone in Austin opened your card", url: "/x",
+  const view = (body = "Someone viewed your card near Austin.") =>
+    sendPushToUser("u1", { category: "card_view", title: "Card viewed", body, url: "/x", tag: "visit-abc" });
+
+  it("turns a second view inside the window into a SILENT count update", async () => {
+    pushLog = [{ category: "card_view", outcome: "sent", created_at: "2026-09-06T13:30:00.000Z" }];
+    await view();
+    expect(apnsSent.length).toBe(1);
+    expect(apnsSent[0]).toMatchObject({
+      title: "2 views in the last hour",
+      // The body stays the newest view's own sentence: the number says how
+      // many, the line underneath still says who and where.
+      body: "Someone viewed your card near Austin.",
+      silent: true,
+      tag: VIEW_ROLLUP_TAG,
     });
+    expect(last()).toMatchObject({ outcome: "rollup", category: "card_view" });
+  });
+
+  it("never replaces the alert's own banner, which may since have become a lead", async () => {
+    // The alert carries the VISIT tag so that visitor turning into a named lead
+    // replaces it. The counter is a second, separate notification — overwriting
+    // "Dana Whitfield shared their info" with "3 views in the last hour" would
+    // be a downgrade.
+    pushLog = [{ category: "card_view", outcome: "sent", created_at: "2026-09-06T13:30:00.000Z" }];
+    await view();
+    expect(apnsSent[0].tag).not.toBe("visit-abc");
+  });
+
+  it("counts the views it held back too, so the number never skips", async () => {
+    pushLog = [
+      { category: "card_view", outcome: "sent", created_at: "2026-09-06T13:30:00.000Z" },
+      { category: "card_view", outcome: "rollup", created_at: "2026-09-06T13:40:00.000Z" },
+      { category: "card_view", outcome: "batched", created_at: "2026-09-06T13:42:00.000Z" },
+    ];
+    await view();
+    expect(apnsSent[0].title).toBe("4 views in the last hour");
+  });
+
+  it("holds the update itself to one every five minutes", async () => {
+    pushLog = [
+      { category: "card_view", outcome: "sent", created_at: "2026-09-06T13:30:00.000Z" },
+      { category: "card_view", outcome: "rollup", created_at: "2026-09-06T13:58:00.000Z" },
+    ];
+    await view();
     expect(apnsSent.length).toBe(0);
     expect(last()).toMatchObject({ outcome: "batched" });
   });
 
+  it("never sends a silent update at 3am either", async () => {
+    vi.setSystemTime(new Date("2026-09-06T10:00:00.000Z")); // 3am in LA
+    profile = { plan: "pro", customization: { _push: { timezone: "America/Los_Angeles" } } };
+    pushLog = [{ category: "card_view", outcome: "sent", created_at: "2026-09-06T09:40:00.000Z" }];
+    await view();
+    expect(apnsSent.length).toBe(0);
+    expect(last()).toMatchObject({ outcome: "quiet_hours" });
+  });
+
   it("allows one an hour and a minute later", async () => {
-    pushLog = [{ category: "card_view", created_at: "2026-09-06T12:55:00.000Z" }];
-    await sendPushToUser("u1", {
-      category: "card_view", title: "Your card was opened", body: "Someone in Austin opened your card", url: "/x",
-    });
+    pushLog = [{ category: "card_view", outcome: "sent", created_at: "2026-09-06T12:55:00.000Z" }];
+    await view();
     expect(apnsSent.length).toBe(1);
+    expect(apnsSent[0]).toMatchObject({ title: "Card viewed", tag: "visit-abc" });
+    expect(apnsSent[0].silent).toBeUndefined();
+    expect(last()).toMatchObject({ outcome: "sent" });
+  });
+
+  it("a rollup does not slide the hour: the next alert is still due on time", async () => {
+    // "rollup" is not "sent" for exactly this reason. If the silent updates
+    // counted as the hour's alert, a card being passed around all afternoon
+    // would push the next real alert out forever and the owner would hear
+    // nothing after the first one.
+    pushLog = [
+      { category: "card_view", outcome: "sent", created_at: "2026-09-06T12:55:00.000Z" },
+      { category: "card_view", outcome: "rollup", created_at: "2026-09-06T13:50:00.000Z" },
+    ];
+    await view();
+    expect(apnsSent.length).toBe(1);
+    expect(apnsSent[0].title).toBe("Card viewed");
   });
 });
 

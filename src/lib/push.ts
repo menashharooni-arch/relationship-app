@@ -3,7 +3,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isApnsEndpoint, sendApnsNotification } from "@/lib/apns";
 import { assertSafeUrl } from "@/lib/safe-fetch";
 import {
-  decidePush, fitBody, readPushPrefs, MAX_TITLE_CHARS, UNCAPPED,
+  decidePush, fitBody, readPushPrefs, MAX_TITLE_CHARS, UNCAPPED, VIEW_ROLLUP_TAG,
   type PushCategory,
 } from "@/lib/push-policy";
 
@@ -38,6 +38,8 @@ export async function sendPushToUser(userId: string, payload: {
   url: string;
   vcardUrl?: string;
   tag?: string;
+  /** Set by the policy, never by a caller: no sound, no screen — see PushMode. */
+  silent?: boolean;
   category: PushCategory;
 }) {
   const admin = getAdminSupabase();
@@ -67,20 +69,35 @@ export async function sendPushToUser(userId: string, payload: {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   let cappedSentToday = 0;
   let lastViewPushAt: number | null = null;
+  let lastViewUpdateAt: number | null = null;
+  // Every view that reached this function since the hour's alert: the alert
+  // itself, the silent updates after it, and the ones the update throttle held
+  // back. That total is what the running-count banner says, so it must count
+  // the held-back ones too or the number visibly skips.
+  const viewAttemptsSinceAlert: number[] = [];
   try {
     const { data: recent } = await admin
       .from("push_log")
-      .select("category, created_at")
+      .select("category, outcome, created_at")
       .eq("user_id", userId)
-      .eq("outcome", "sent")
-      .gte("created_at", since);
+      // "sent" alone can no longer answer these questions: a silent update logs
+      // "rollup" and a held-back one logs "batched", and both are views that
+      // happened. Still a closed list — a "no_subscription" row is not a view.
+      .in("outcome", ["sent", "rollup", "batched"])
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(500);
     for (const row of recent ?? []) {
       const cat = row.category as PushCategory;
-      if (!UNCAPPED.includes(cat)) cappedSentToday++;
-      if (cat === "card_view") {
-        const at = Date.parse(row.created_at as string);
-        if (!lastViewPushAt || at > lastViewPushAt) lastViewPushAt = at;
-      }
+      const outcome = row.outcome as string;
+      const at = Date.parse(row.created_at as string);
+      // The cap counts real interruptions only — never a silent update, never
+      // something that was suppressed.
+      if (outcome === "sent" && !UNCAPPED.includes(cat)) cappedSentToday++;
+      if (cat !== "card_view") continue;
+      if (outcome === "sent" && (!lastViewPushAt || at > lastViewPushAt)) lastViewPushAt = at;
+      if (outcome === "rollup" && (!lastViewUpdateAt || at > lastViewUpdateAt)) lastViewUpdateAt = at;
+      viewAttemptsSinceAlert.push(at);
     }
   } catch {
     // Log table missing (pre-migration): no history means no cap and no batch
@@ -88,11 +105,25 @@ export async function sendPushToUser(userId: string, payload: {
     // dropping every notification in the product.
   }
 
-  const verdict = decidePush({ category: payload.category, prefs, cappedSentToday, lastViewPushAt });
+  const verdict = decidePush({
+    category: payload.category, prefs, cappedSentToday, lastViewPushAt, lastViewUpdateAt,
+  });
   if (!verdict.send) {
     await log(verdict.reason);
     return;
   }
+
+  // ── The silent running count ────────────────────────────────────────────
+  // Same notification, replaced in place: one collapse id for the counter, no
+  // sound, and the newest view's own sentence underneath the number. The alert
+  // that opened the hour keeps its VISIT tag and is left alone — it may since
+  // have been upgraded to "…shared their info with you", and overwriting that
+  // with a view count would be a downgrade.
+  const isUpdate = verdict.mode === "update";
+  const alertAt = lastViewPushAt;
+  const viewsThisHour = alertAt
+    ? viewAttemptsSinceAlert.filter((at) => at >= alertAt).length + 1
+    : 1;
 
   const { data: subs } = await admin
     .from("push_subscriptions")
@@ -104,10 +135,17 @@ export async function sendPushToUser(userId: string, payload: {
   // The lock screen truncates BOTH lines; do it ourselves, on word boundaries.
   // Title and body have different budgets because the OS gives them different
   // room — trimming only the body still let a long name be cut mid-word.
+  //
+  // An update's headline is the COUNT ("6 views in the last hour") and its body
+  // stays the newest view's own sentence, so the banner keeps saying who and
+  // where while the number climbs. "views", never "people": card_views counts
+  // visits, and one person returning after thirty minutes counts again — the
+  // same honesty rule the milestones copy is held to (lib/milestones.ts).
   payload = {
     ...payload,
-    title: fitBody(payload.title, MAX_TITLE_CHARS),
+    title: fitBody(isUpdate ? `${viewsThisHour} views in the last hour` : payload.title, MAX_TITLE_CHARS),
     body: fitBody(payload.body),
+    ...(isUpdate ? { tag: VIEW_ROLLUP_TAG, silent: true } : {}),
   };
 
   // Native iOS devices register with an "apns:<token>" endpoint and go through
@@ -157,6 +195,12 @@ export async function sendPushToUser(userId: string, payload: {
   if (!sends.length) { await log("no_deliverable_endpoint"); return; }
   const results = await Promise.allSettled(sends);
   const delivered = results.filter((r) => r.status === "fulfilled" && r.value !== "blocked-endpoint").length;
-  await log(delivered ? "sent" : "failed", delivered);
+  // "rollup" is its own outcome and NOT "sent", deliberately: `sent` is what
+  // opens and closes the one-alert-an-hour window and what the daily cap counts,
+  // and a silent update must do neither — otherwise a busy afternoon would slide
+  // the window forever and the owner would never hear the next real alert.
+  // A rollup that reached nobody logs "failed" like anything else, so the
+  // throttle doesn't hold back the next attempt on the strength of a no-op.
+  await log(delivered ? (isUpdate ? "rollup" : "sent") : "failed", delivered);
   return results;
 }

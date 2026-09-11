@@ -102,6 +102,16 @@ export type VisitNotice = {
    * number on the lock screen, where the useful thing is the number itself.
    */
   pushBody?: string;
+  /**
+   * Lock-screen HEADLINE when it differs from the bell row.
+   *
+   * One caller: a view that crossed a milestone (see /api/card-events). The
+   * push was already going out for that view; this makes its title the
+   * celebration ("50 views — on fire!") instead of "Card viewed". It does not
+   * create a push, change the category, or bypass a switch — with no
+   * pushCategory there is still nothing to title.
+   */
+  pushTitle?: string;
   /** Attach a one-tap "Save contact" vCard to the push. */
   vcardUrl?: string;
   /**
@@ -195,7 +205,7 @@ export async function notifyVisit(opts: {
     if (onUpgrade && !UNCAPPED.includes(notice.pushCategory)) return;
     await sendPushToUser(opts.userId, {
       category: notice.pushCategory,
-      title: notice.title,
+      title: notice.pushTitle ?? notice.title,
       body: notice.pushBody ?? notice.body,
       url: notice.url,
       ...(notice.vcardUrl ? { vcardUrl: notice.vcardUrl } : {}),

@@ -1,4 +1,5 @@
 import NativeSplash from "@/components/NativeSplash";
+import TimezoneSync from "@/components/TimezoneSync";
 
 // Why a layout exists for /dashboard at all: it hosts the iOS shell's launch
 // animation. A cold launch loads "/" and src/proxy.ts redirects the shell here
@@ -14,6 +15,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <>
       <NativeSplash />
+      {/* Renders nothing. Teaches the server which timezone this person is in,
+          so quiet hours (10pm-8am) are THEIR night — see TimezoneSync. Here
+          because the dashboard is where every signed-in session lands, the iOS
+          shell included, and it is behind the login wall in src/proxy.ts. */}
+      <TimezoneSync />
       {children}
     </>
   );

@@ -436,6 +436,23 @@ export async function POST(req: NextRequest) {
               ...(pushCategory ? { pushCategory } : {}),
               title: notice.title,
               body: notice.body,
+              // ── The celebration reaches the lock screen, at no extra cost ──
+              //
+              // This view is ALREADY pushing (pushCategory "card_view", the
+              // switch the person agreed to). Until now its headline said
+              // "Card viewed" while the bell row a tap away said "50 views —
+              // on fire!", so the one moment an owner is unambiguously pleased
+              // was the one moment the phone kept to itself.
+              //
+              // A milestone still cannot CAUSE a push — there is no category
+              // that carries a view count and there must not be one — it only
+              // retitles the push the view was already sending. Same buzz,
+              // same category, same switch, better sentence. The bell row is
+              // still upgraded below, which is what writes the once-ever
+              // ledger; if that upgrade is what fails, the ledger simply isn't
+              // written and the next view announces it again, exactly as
+              // before.
+              ...(milestone ? { pushTitle: milestone.title } : {}),
               // Deep-link to THIS card's dashboard — a bare /dashboard opened
               // whichever card the owner last had selected, which on a
               // multi-card account could be the wrong one.
