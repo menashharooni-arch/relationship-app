@@ -146,11 +146,21 @@ export default function LoginForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // HYDRATION-SAFE: the DOM is the truth at submit time. Someone who types
+    // their email and password the instant the page paints (before React has
+    // attached) fills the inputs while state still says "", and the sign-in
+    // then went out EMPTY — "missing email or phone" from Supabase, on a form
+    // the person could see was filled (found by the nightly run, 2026-09-11).
+    const fd = new FormData(e.currentTarget as HTMLFormElement);
+    const emailNow = (typeof fd.get("email") === "string" ? (fd.get("email") as string) : email).trim();
+    const passwordNow = typeof fd.get("password") === "string" ? (fd.get("password") as string) : password;
+    if (emailNow !== email) setEmail(emailNow);
+    if (passwordNow !== password) setPassword(passwordNow);
     setStatus("loading");
     setErrorMsg("");
 
     if (mode === "signin") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email: emailNow, password: passwordNow });
       if (error) {
         if (error.message === "Invalid login credentials") {
           // Could be a wrong password OR no account — Supabase won't say which.
@@ -178,7 +188,7 @@ export default function LoginForm({
       const emailRedirectTo = safeNext
         ? `${APP_URL}/auth/callback?next=${encodeURIComponent(safeNext)}`
         : `${APP_URL}/auth/callback`;
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo } });
+      const { data, error } = await supabase.auth.signUp({ email: emailNow, password: passwordNow, options: { emailRedirectTo } });
       if (error) {
         setErrorMsg(error.message);
         setStatus("error");
@@ -198,7 +208,11 @@ export default function LoginForm({
   }
 
   async function handleForgot() {
-    if (!email) {
+    // Same hydration rule: read the field itself, not possibly-stale state.
+    const typed = (document.getElementById("auth-email") as HTMLInputElement | null)?.value?.trim();
+    if (typed && typed !== email) setEmail(typed);
+    const emailNow = typed || email;
+    if (!emailNow) {
       // Point at the field instead of scolding. Someone who taps this is
       // already locked out; answering with a red error for a box nobody asked
       // them to fill is the wrong tone AND the wrong instruction. Focusing it
@@ -209,7 +223,7 @@ export default function LoginForm({
       return;
     }
     setStatus("loading");
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(emailNow, {
       // Straight to the "set a new password" page, which exchanges the code
       // itself — NOT /auth/callback?next=..., which depends on Supabase's
       // redirect-URL allowlist preserving that extra query param (it doesn't

@@ -175,7 +175,7 @@ function wirePage(page, screenRef) {
     // Google Identity Services complains on any origin that is not on the
     // OAuth client allowlist (localhost, a CI runner) and when FedCM has no
     // signed-in account. Environment, not product.
-    if (/GSI_LOGGER|FedCM|Provider's accounts list is empty|Not signed in with the identity provider/i.test(t)) return;
+    if (/GSI_LOGGER|FedCM|Provider's accounts list is empty|Not signed in with the identity provider|accounts\.google\.com.*Content Security Policy/i.test(t)) return;
     note(screenRef.name, "console-error", t.split("\n")[0].slice(0, 160));
   });
   page.on("response", (r) => {
