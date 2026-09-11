@@ -163,7 +163,7 @@ export default function TeamsDashboard() {
   // with arbitrary values (bg-[#0E1017], text-white/30, border-white/8) that
   // none of the remap's class selectors match, so it stays dark as intended.
   return (
-    <div data-sc-theme="light" className="sc-app rounded-[22px] border border-white/10 bg-[#0A0B10] shadow-2xl overflow-hidden">
+    <div data-sc-theme="light" className="sc-app rounded-[var(--rd-r-xl)] border border-white/10 bg-[#0A0B10] shadow-[var(--rd-sh-lg)] overflow-hidden">
       {/* browser chrome */}
       <div className="flex items-center gap-2 px-4 h-11 border-b border-white/8 bg-[#0E1017]">
         <span className="w-3 h-3 rounded-full bg-[#ff5f57]" /><span className="w-3 h-3 rounded-full bg-[#febc2e]" /><span className="w-3 h-3 rounded-full bg-[#28c840]" />

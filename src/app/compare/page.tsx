@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Eyebrow from "@/components/site/Eyebrow";
 import SiteNav from "@/components/site/SiteNav";
 import type { Metadata } from "next";
 import SiteFooterMini from "@/components/site/SiteFooterMini";
@@ -68,7 +69,7 @@ export default function ComparePage() {
       <SiteNav />
 
       <section className="text-center px-6 pt-28 pb-10">
-        <p className="rd-eyebrow text-brand mb-4">Comparison</p>
+        <div className="mb-4"><Eyebrow dark={false}>Comparison</Eyebrow></div>
         <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">SwiftCard vs Linktree, Popl &amp; Blinq</h1>
         <p className="text-ink-muted text-lg max-w-xl mx-auto mb-2">
           Looking for a Linktree alternative, or weighing Popl against Blinq? Here&apos;s how SwiftCard actually compares — real numbers, no spin.

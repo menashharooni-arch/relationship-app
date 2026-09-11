@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Eyebrow from "@/components/site/Eyebrow";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooterMini from "@/components/site/SiteFooterMini";
@@ -35,7 +36,7 @@ export default async function BlogIndexPage() {
     <main className="min-h-screen bg-cream flex flex-col">
       <SiteNav />
       <section className="text-center px-6 pt-28 pb-10">
-        <p className="rd-eyebrow text-brand mb-4">Blog</p>
+        <div className="mb-4"><Eyebrow dark={false}>Blog</Eyebrow></div>
         <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">The SwiftCard blog</h1>
         <p className="text-ink-muted text-lg max-w-xl mx-auto">Digital business cards, lead capture, and following up — written plainly, compared honestly.</p>
       </section>

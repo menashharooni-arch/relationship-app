@@ -130,13 +130,24 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
+    // HYDRATION-SAFE SUBMIT. Everything is interactive before it is hydrated:
+    // a person who starts typing the moment the page paints (measured on
+    // production 2026-09-11: React attached ~1s after the DOM was there) fills
+    // the DOM while `form` state still holds the server values, and the save
+    // then silently sent the OLD text with a green "Saved". The DOM is the
+    // truth at submit time, so read every named field from it and let it win
+    // over state. Fields without a name (colour pickers, toggles) keep state.
+    const fd = new FormData(e.currentTarget as HTMLFormElement);
+    const fromDom = (key: string, fallback: string) => { const v = fd.get(key); return typeof v === "string" ? v : fallback; };
+    const formNow = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, fromDom(k, v as string)])) as typeof form;
+    const customizationNow = { ...customization, about: fromDom("about", (customization.about as string | undefined) ?? "") };
     // Save through the server so Pro-only design gates (accent/font + link cap)
     // are enforced — the browser can't write straight to the profiles table.
     try {
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, template, customization: { ...customization, links, testimonials } }),
+        body: JSON.stringify({ ...formNow, template, customization: { ...customizationNow, links, testimonials } }),
       });
       setStatus(res.ok ? "saved" : "error");
       if (res.ok) setTimeout(() => setStatus("idle"), 2000);
@@ -295,6 +306,7 @@ export default function ProfileForm({ profile, linkedinEnabled = false }: { prof
       <div>
         <label className="text-xs text-slate-600 block mb-1">About you or your business</label>
         <textarea
+          name="about"
           placeholder="A short bio, what you do, or your services. This appears on your public card."
           value={customization.about ?? ""}
           onChange={(e) => setCustomization((prev) => ({ ...prev, about: e.target.value }))}

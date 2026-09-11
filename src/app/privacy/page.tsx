@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Eyebrow from "@/components/site/Eyebrow";
 import SiteNav from "@/components/site/SiteNav";
 import Link from "next/link";
 import SiteFooterMini from "@/components/site/SiteFooterMini";
@@ -52,7 +53,7 @@ export default function PrivacyPage() {
 
         {/* At-a-glance summary — the four promises people actually care about */}
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
-          <p className="rd-eyebrow text-slate-600 mb-3">Privacy at a glance</p>
+          <div className="mb-3"><Eyebrow dark={false}>Privacy at a glance</Eyebrow></div>
           <ul className="space-y-2">
             {[
               "We never sell your personal information — or your contacts' — to anyone.",

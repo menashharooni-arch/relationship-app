@@ -12,3 +12,7 @@ and as the full-height panel in the Photo First template.
 
 Only free `images.unsplash.com` assets are used here — never `plus.unsplash.com`,
 which is Unsplash+ and requires a paid subscription.
+
+`hero-share.jpg` and `watch-share.jpg` (Apple press photographs of NameDrop,
+uncredited) were removed on 2026-09-11. The Apple Watch section now renders the
+product itself (`src/components/site/WatchShareImage.tsx`).

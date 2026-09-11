@@ -97,7 +97,7 @@ export default function MiniBuilderModal({
     >
       <div className="min-h-full flex items-start sm:items-center justify-center py-6 px-4">
         <div
-          className="relative w-full max-w-3xl rounded-3xl overflow-hidden shadow-2xl"
+          className="relative w-full max-w-3xl rounded-[var(--rd-r-2xl)] overflow-hidden shadow-[var(--rd-sh-lg)]"
           style={{ background: "#0E1017", border: "1px solid rgba(255,255,255,0.10)" }}
           onClick={(e) => e.stopPropagation()}
         >

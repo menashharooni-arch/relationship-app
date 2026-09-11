@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Eyebrow from "@/components/site/Eyebrow";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooterMini from "@/components/site/SiteFooterMini";
@@ -60,7 +61,7 @@ export default function LinkInBioPage() {
       <SiteNav />
 
       <section className="text-center px-6 pt-28 pb-10">
-        <p className="rd-eyebrow text-brand mb-4">Swift Links</p>
+        <div className="mb-4"><Eyebrow dark={false}>Swift Links</Eyebrow></div>
         <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 max-w-2xl mx-auto [text-wrap:balance]">The link in bio that reports back</h1>
         <p className="text-ink-muted text-lg max-w-xl mx-auto">
           Most bio links are a dead end — visitors tap through and vanish. Swift Links counts every visit, names its source, and lets visitors leave their contact info on the way.
@@ -95,7 +96,7 @@ export default function LinkInBioPage() {
       </FaqAccordion>
 
       <section className="max-w-2xl mx-auto w-full px-6 pb-16 text-center">
-        <p className="rd-eyebrow text-slate-600 mb-3">Keep exploring</p>
+        <div className="mb-3"><Eyebrow dark={false}>Keep exploring</Eyebrow></div>
         <div className="flex flex-wrap justify-center gap-2">
           <Link href="/products/swiftlinks" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Swift Links product tour</Link>
           <Link href="/compare/linktree-alternative" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Linktree alternative</Link>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Eyebrow from "@/components/site/Eyebrow";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
@@ -353,7 +354,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(70% 90% at 15% 0%, rgba(93,107,255,0.18), transparent 60%)" }} />
             <div className="relative max-w-5xl mx-auto px-5 sm:px-6">
               <div className="max-w-2xl" data-reveal>
-                <p className="rd-eyebrow rd-eyebrow-accent">What you get</p>
+                <div><Eyebrow>What you get</Eyebrow></div>
                 <h2 className="rd-h2 text-white text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">One office account. Total control, zero busywork.</h2>
                 <p className="text-white/60 text-[1.05rem] mt-4 leading-relaxed">You set the brand once — every card your team creates inherits it automatically. From there, it&rsquo;s a single dashboard to see how the whole team is doing, not a spreadsheet of who has what.</p>
               </div>
@@ -378,7 +379,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               </div>
 
               <div className="mt-16 max-w-2xl" data-reveal>
-                <p className="rd-eyebrow rd-eyebrow-accent">Built for</p>
+                <div><Eyebrow>Built for</Eyebrow></div>
                 <h2 className="rd-h2 text-white text-[clamp(1.6rem,3vw,2.1rem)] mt-3">Any team that shows up as one brand.</h2>
               </div>
               <div className="mt-8 grid sm:grid-cols-2 gap-4">
@@ -410,7 +411,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(70% 90% at 15% 0%, rgba(93,107,255,0.18), transparent 60%)" }} />
             <div className="relative max-w-5xl mx-auto px-5 sm:px-6">
               <div className="max-w-2xl" data-reveal>
-                <p className="rd-eyebrow rd-eyebrow-accent">How it works</p>
+                <div><Eyebrow>How it works</Eyebrow></div>
                 <h2 className="rd-h2 text-white text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">From a handshake to your CRM — hands-off.</h2>
                 <p className="text-white/60 text-[1.05rem] mt-4 leading-relaxed">You never touch a spreadsheet. The second a lead comes in, SwiftCard captures the full context and routes it everywhere it needs to go — while you&rsquo;re still shaking hands.</p>
               </div>

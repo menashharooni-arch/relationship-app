@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Eyebrow from "@/components/site/Eyebrow";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
@@ -370,7 +371,7 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
           <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(70% 90% at 15% 0%, rgba(93,107,255,0.18), transparent 60%)" }} />
           <div className="relative max-w-5xl mx-auto px-5 sm:px-6">
             <div className="max-w-2xl" data-reveal>
-              <p className="rd-eyebrow rd-eyebrow-accent">Built for the way you work</p>
+              <div><Eyebrow>Built for the way you work</Eyebrow></div>
               <h2 className="rd-h2 text-white text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">One card, everywhere {v.audience} win business.</h2>
             </div>
             <div className="mt-12 grid md:grid-cols-3 gap-4">

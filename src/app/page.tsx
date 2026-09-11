@@ -4,6 +4,7 @@ import Link from "next/link";
 import { TRIAL_DAYS } from "@/lib/plan";
 import SiteNav from "@/components/site/SiteNav";
 import HeroClaim from "@/components/site/HeroClaim";
+import Eyebrow from "@/components/site/Eyebrow";
 import AppStoreBadge from "@/components/AppStoreBadge";
 import HeroShowcase from "@/components/site/HeroShowcase";
 import SiteFooter from "@/components/site/SiteFooter";
@@ -30,15 +31,6 @@ export const metadata: Metadata = {
   description:
     "One tap and you're in their phone — card, links, and everything you do. Digital cards, SwiftLinks, live email signatures, Apple Wallet, analytics, and lead capture.",
 };
-
-function Eyebrow({ children, dark = true }: { children: React.ReactNode; dark?: boolean }) {
-  return (
-    <span className={`rd-pill ${dark ? "rd-pill-d" : "rd-pill-l"}`}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--rd-aurora)" }} />
-      {children}
-    </span>
-  );
-}
 
 export default function Home() {
   // LinkedIn photo-import is offered in the homepage builders' "Suggest my
@@ -401,13 +393,13 @@ export default function Home() {
             </div>
             <div className="mt-12 grid sm:grid-cols-3 gap-4" id="leads">
               {[
-                { t: "Uniform branding", d: "Lock logo, colors, and template so every card is on-brand." },
-                { t: "Lead capture, built in", d: "Every card and page captures contacts straight to your CRM." },
-                { t: "Seats & roles", d: "Add or remove people in seconds. One bill, full control." },
+                { t: "Uniform branding", d: "Lock logo, colors, and template so every card is on-brand.", icon: <path d="M4 7.5A2.5 2.5 0 016.5 5h11A2.5 2.5 0 0120 7.5v9a2.5 2.5 0 01-2.5 2.5h-11A2.5 2.5 0 014 16.5v-9zM8 10h8M8 14h5" strokeLinecap="round" /> },
+                { t: "Lead capture, built in", d: "Every card and page captures contacts straight to your CRM.", icon: <path d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0M18 8h4M20 6v4" strokeLinecap="round" /> },
+                { t: "Seats & roles", d: "Add or remove people in seconds. One bill, full control.", icon: <path d="M9 11a3 3 0 100-6 3 3 0 000 6zM3 19a6 6 0 0112 0M17 10a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM15.5 13.5A5 5 0 0121 18" strokeLinecap="round" /> },
               ].map((f, i) => (
                 <div key={f.t} className="rd-card-l p-6" data-reveal style={{ transitionDelay: `${i * 90}ms` }}>
                   <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style={{ background: "var(--rd-aurora)" }}>
-                    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.9}><path d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0" strokeLinecap="round" /></svg>
+                    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.9} aria-hidden="true">{f.icon}</svg>
                   </div>
                   <p className="text-slate-900 font-semibold text-[1.0625rem]">{f.t}</p>
                   <p className="text-slate-500 text-[0.875rem] mt-1.5 leading-relaxed">{f.d}</p>
