@@ -24,6 +24,22 @@ export const accountDocs = defineDocs([
       "Settings is the gear icon at the top right of the app (or the \"Settings\" tab in the bottom bar). Its sections: Profile, Cards and sharing, Plan and billing, Notifications and preferences, Security, Help and referrals, and Advanced account settings. One section opens at a time.",
   },
   {
+    id: "device-limit",
+    title: "Signed in on two devices at a time",
+    audience: ["user", "office-admin"],
+    triggers: [
+      "device", "devices", "two devices", "2 devices", "device limit", "how many devices",
+      "signed in on another device", "sign out other device", "log out other device",
+      "you're signed in on 2 devices already", "can't sign in", "cannot sign in",
+      "kicked out", "signed out", "lost my phone", "stolen phone", "another device",
+      "too many devices", "share my account", "log in on my computer",
+    ],
+    answer:
+      "You can be signed in on 2 devices at a time. Settings \u2192 Profile \u2192 Devices (/settings/devices) shows which two, when each was last used, and which one you're on now \u2014 with a Sign out button beside each. If you try to sign in on a third, SwiftCard shows you that list instead of the dashboard: sign one out and the new device takes its place straight away, with no need to sign in again.",
+    detail:
+      "What counts as a device: one browser, or one app install. Every tab and every window of the SAME browser is one device, so you can have SwiftCard open in as many tabs as you like. Two DIFFERENT browsers on one computer (say Chrome and Safari) count as two, because nothing can see across them. The SwiftCard app on a phone is its own device. Signing out normally (Settings \u2192 Profile \u2192 Sign out) also gives the slot back. If you clear your browser's cookies, that browser looks like a brand-new device the next time you sign in, and the old entry sits in the list until you remove it \u2014 so if the list shows a device you don't recognise or no longer have, sign it out from any device you're still on and it loses access.",
+  },
+  {
     id: "profile-and-email",
     title: "Your account email, and changing it",
     audience: ["user"],

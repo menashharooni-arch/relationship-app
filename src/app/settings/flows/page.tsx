@@ -25,6 +25,7 @@ import { parseCardScope } from "@/lib/crm-scope";
 import MobileNavGate from "@/components/MobileNavGate";
 import SettingsShell, { type SettingsSection } from "@/components/SettingsShell";
 import SignOutButton from "@/components/SignOutButton";
+import { DEVICE_LIMIT } from "@/lib/device";
 import EmailPreferencesForm from "@/components/EmailPreferencesForm";
 import PushPreferencesForm from "@/components/PushPreferencesForm";
 import { resolveOfficeContext, canViewOfficeAdmin, canSeeBilling } from "@/lib/office-roles";
@@ -219,6 +220,21 @@ export default async function FlowSettingsPage({
               notification bell, and it belongs with the account it ends — the
               same row shape as "Change password" in Security, one section
               down. The button itself confirms before it signs anyone out. */}
+          {/* Devices sits directly above Sign out: both are "where am I signed
+              in", and the limit is only discoverable if there is somewhere to
+              see it that is not the wall you hit when you exceed it. */}
+          <Link
+            href="/settings/devices"
+            className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 flex items-center justify-between gap-3 hover:border-gray-700 transition-colors"
+          >
+            <span className="min-w-0">
+              <span className="block text-white text-sm font-semibold">Devices</span>
+              <span className="block text-gray-500 text-xs mt-0.5">
+                See where you&apos;re signed in. {DEVICE_LIMIT} devices at a time.
+              </span>
+            </span>
+            <span className="text-gray-500 shrink-0" aria-hidden="true">→</span>
+          </Link>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-white text-sm font-semibold">Sign out</p>
