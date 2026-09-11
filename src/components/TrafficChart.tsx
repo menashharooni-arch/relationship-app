@@ -51,7 +51,7 @@ export default function TrafficChart({
   return (
     <div className="mt-4">
       {split && (
-        <div className="mb-2 flex items-center gap-4 text-[0.625rem] text-gray-500">
+        <div className="mb-2 flex items-center gap-4 text-[0.625rem] text-gray-400">
           <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: CARD }} />SwiftCard</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: LINKS }} />Swift Links</span>
         </div>
@@ -122,7 +122,7 @@ export default function TrafficChart({
       <div className="h-px w-full bg-gray-800" />
 
       {/* time axis */}
-      <div className="relative mt-1 h-3.5 text-[0.625rem] text-gray-500">
+      <div className="relative mt-1 h-3.5 text-[0.625rem] text-gray-400">
         {tickIdxs.map((idx) => {
           const isFirst = idx === 0;
           const isLast = idx === n - 1;

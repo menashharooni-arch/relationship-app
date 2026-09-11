@@ -237,7 +237,7 @@ export default function ContactPage() {
                   <button type="submit" disabled={status === "loading"} className="rd-btn rd-btn-aurora rd-btn-lg w-full disabled:opacity-60">
                     {status === "loading" ? "Sending…" : "Send message"}
                   </button>
-                  <p className="text-white/35 text-[0.75rem] text-center">We only use your email to reply — nothing else.</p>
+                  <p className="text-white/70 text-[0.75rem] text-center">We only use your email to reply — nothing else.</p>
                 </form>
               )}
             </div>

@@ -96,7 +96,7 @@ export function LinkButtons({
   return (
     <div>
       <span className="block text-white/55 text-[0.75rem] font-medium mb-1">{label}</span>
-      <p className="text-white/35 text-[0.6875rem] mb-2 leading-snug">{hint}</p>
+      <p className="text-white/70 text-[0.6875rem] mb-2 leading-snug">{hint}</p>
 
       {links.length > 0 && (
         <div className="space-y-1.5 mb-2.5">

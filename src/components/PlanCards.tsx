@@ -91,8 +91,8 @@ export default function PlanCards({
 
         {/* Free — identical to the website's card */}
         <div className="rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]">
-          <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Free <span className="text-slate-400">Forever</span></p>
-          <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-400 text-sm mb-1">/ month</span></div>
+          <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Free <span className="text-slate-500">Forever</span></p>
+          <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-500 text-sm mb-1">/ month</span></div>
           <p className="text-slate-500 text-sm mb-6 mt-2">{PLAN_DESCRIPTIONS.free}</p>
           <ul className="space-y-2.5 mb-7 flex-1">
             {PLAN_FEATURES.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-slate-600"><Check />{f}</li>))}
@@ -128,8 +128,8 @@ export default function PlanCards({
           {/* "Forever" inherits the heading's size/weight/font from this <p>;
               the span overrides ONLY the color (slate-400 — the same light gray
               this card already uses for "/ month"). Mirrors /pricing. */}
-          <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Free <span className="text-slate-400">Forever</span></p>
-          <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-400 text-sm mb-1">/ month</span></div>
+          <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Free <span className="text-slate-500">Forever</span></p>
+          <div className="flex items-end gap-1 mb-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">$0</span><span className="text-slate-500 text-sm mb-1">/ month</span></div>
           <p className="text-slate-500 text-sm mb-6 mt-2">{PLAN_DESCRIPTIONS.free}</p>
           <ul className="space-y-2.5 mb-7 flex-1">
             {PLAN_FEATURES.free.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-slate-600"><Check />{f}</li>))}
@@ -174,18 +174,18 @@ export default function PlanCards({
         <div className={`${isMobile && mobileTier !== "office" ? "hidden" : ""} rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]`}>
           <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Office</p>
           <div className="mb-1">
-            <div className="flex items-end gap-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">${annual ? formatCents(perMonthCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS)) : formatCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}</span><span className="text-slate-400 text-sm mb-1">/ mo per user</span></div>
+            <div className="flex items-end gap-1"><span className="text-[2.4rem] font-bold text-slate-900 leading-none">${annual ? formatCents(perMonthCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS)) : formatCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS)}</span><span className="text-slate-500 text-sm mb-1">/ mo per user</span></div>
             <p className="text-blue-600 text-xs font-semibold mt-1.5">Minimum {OFFICE_MIN_SEATS} users{annual ? " · billed annually, save 10%" : ""}</p>
             <p className="text-slate-800 font-bold text-[0.8125rem] mt-1">{seats} users → {annual
               ? `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS, seats))}/yr`
               : `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, seats))}/mo`}</p>
           </div>
           <div className="mt-4 mb-5">
-            <label className="text-xs text-slate-400 font-medium block mb-2">Team size</label>
+            <label className="text-xs text-slate-600 font-medium block mb-2">Team size</label>
             <div className="flex gap-2 flex-wrap">
               {[2, 5, 10, 25, 50].map((n) => (
                 <button key={n} onClick={() => setSeats(n)} className="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
-                  style={{ background: seats === n ? "#2563EB" : "#f1f5f9", color: seats === n ? "#fff" : "#64748b", border: seats === n ? "none" : "1px solid #e2e8f0" }}>{n} users</button>
+                  style={{ background: seats === n ? "#2563EB" : "#f1f5f9", color: seats === n ? "#fff" : "#475569", border: seats === n ? "none" : "1px solid #e2e8f0" }}>{n} users</button>
               ))}
             </div>
             <div className="mt-2 flex items-center gap-2">

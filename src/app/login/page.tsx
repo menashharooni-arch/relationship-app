@@ -28,7 +28,7 @@ export default async function LoginPage({
           <h1 className="text-2xl font-bold text-slate-900">
             {initialMode === "signup" ? "Create your account" : "Welcome back"}
           </h1>
-          <p className="text-slate-500 text-sm mt-2">
+          <p className="text-slate-600 text-sm mt-2">
             {next
               ? "Sign in to accept your invitation."
               : isReferral && initialMode === "signup"

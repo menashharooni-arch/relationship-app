@@ -51,9 +51,9 @@ const CARDS: DemoCard[] = [
     ],
     leads: [
       { id: "s1", name: "Sarah Chen", initial: "S", source: "LinkedIn", color: "#0A66C2", status: "New Contact", msg: "Loved your pitch — let's set up a call this week!", time: "2m ago", read: false },
-      { id: "s2", name: "Priya Patel", initial: "P", source: "Instagram", color: "#E1306C", status: "New Contact", msg: "Saw your card — I'd love a demo for my team.", time: "1h ago", read: false },
+      { id: "s2", name: "Priya Patel", initial: "P", source: "Instagram", color: "#F9A8D4", status: "New Contact", msg: "Saw your card — I'd love a demo for my team.", time: "1h ago", read: false },
       { id: "s3", name: "James Carter", initial: "J", source: "Share Link", color: "#10B981", status: "Touch", msg: "Great meeting you at the conference!", time: "Yesterday", read: true },
-      { id: "s4", name: "Tom Nguyen", initial: "T", source: "QR Code", color: "#1D4ED8", status: "Dissolved", msg: "Thanks — not a fit right now.", time: "3d ago", read: true },
+      { id: "s4", name: "Tom Nguyen", initial: "T", source: "QR Code", color: "#93C5FD", status: "Dissolved", msg: "Thanks — not a fit right now.", time: "3d ago", read: true },
     ],
     data: {
       name: "Alex Morgan", title: "Account Executive", company: "Northwind SaaS",
@@ -73,10 +73,10 @@ const CARDS: DemoCard[] = [
       { location: "Sacramento, US", card: 903, link: 366 },
     ],
     leads: [
-      { id: "r1", name: "Nathan Cole", initial: "N", source: "QR Code", color: "#1D4ED8", status: "Touch", msg: "Is the Maple St listing still available?", time: "12m ago", read: false },
+      { id: "r1", name: "Nathan Cole", initial: "N", source: "QR Code", color: "#93C5FD", status: "Touch", msg: "Is the Maple St listing still available?", time: "12m ago", read: false },
       { id: "r2", name: "Elena Ruiz", initial: "E", source: "Website", color: "#0EA5E9", status: "New Contact", msg: "Can you send pricing for next month?", time: "2h ago", read: false },
-      { id: "r3", name: "David Kim", initial: "D", source: "NFC Tap", color: "#7C3AED", status: "New Contact", msg: "Looking to tour homes this weekend.", time: "Yesterday", read: false },
-      { id: "r4", name: "Olivia Brooks", initial: "O", source: "Instagram", color: "#E1306C", status: "Dissolved", msg: "Found a place — thanks for your help!", time: "4d ago", read: true },
+      { id: "r3", name: "David Kim", initial: "D", source: "NFC Tap", color: "#C4B5FD", status: "New Contact", msg: "Looking to tour homes this weekend.", time: "Yesterday", read: false },
+      { id: "r4", name: "Olivia Brooks", initial: "O", source: "Instagram", color: "#F9A8D4", status: "Dissolved", msg: "Found a place — thanks for your help!", time: "4d ago", read: true },
     ],
     data: {
       name: "Alex Morgan", title: "Realtor®", company: "Coastline Realty",
@@ -131,7 +131,7 @@ function CardOnlyPreview({ src }: { src: string }) {
 function ReadToggle({ read, onClick }: { read: boolean; onClick: () => void }) {
   return (
     <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className={`text-[0.625rem] font-semibold px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap ${read ? "text-gray-500 border-gray-700 hover:text-gray-300" : "text-blue-300 border-blue-600/50 bg-blue-600/10 hover:bg-blue-600/20"}`}>
+      className={`text-[0.625rem] font-semibold px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap ${read ? "text-gray-400 border-gray-700 hover:text-gray-300" : "text-blue-300 border-blue-600/50 bg-blue-600/10 hover:bg-blue-600/20"}`}>
       {read ? "Mark unread" : "Mark read"}
     </button>
   );
@@ -414,7 +414,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
                 {RANGES.map((r) => (
                   <button key={r.id} type="button" onClick={() => setRange(r.id)}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${range === r.id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>{r.label}</button>
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${range === r.id ? "bg-gray-700 text-white" : "text-gray-400 hover:text-gray-300"}`}>{r.label}</button>
                 ))}
               </div>
             </div>
@@ -425,11 +425,11 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                   <div key={loc.location} className="bg-gray-800/40 border border-gray-800 rounded-xl px-4 py-3">
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                       <p className="text-gray-100 text-sm font-semibold truncate">{loc.location}</p>
-                      <p className="text-white text-sm font-bold tabular-nums shrink-0">{(loc.card + loc.link).toLocaleString()} <span className="text-gray-500 font-medium text-[0.6875rem]">views</span></p>
+                      <p className="text-white text-sm font-bold tabular-nums shrink-0">{(loc.card + loc.link).toLocaleString()} <span className="text-gray-400 font-medium text-[0.6875rem]">views</span></p>
                     </div>
                     <div className="flex items-center gap-4 text-[0.6875rem]">
-                      <span className="text-gray-500">SwiftCard <span className="text-gray-200 font-semibold tabular-nums">{loc.card.toLocaleString()}</span></span>
-                      <span className="text-gray-500">Swift Links <span className="text-gray-200 font-semibold tabular-nums">{loc.link.toLocaleString()}</span></span>
+                      <span className="text-gray-400">SwiftCard <span className="text-gray-200 font-semibold tabular-nums">{loc.card.toLocaleString()}</span></span>
+                      <span className="text-gray-400">Swift Links <span className="text-gray-200 font-semibold tabular-nums">{loc.link.toLocaleString()}</span></span>
                     </div>
                   </div>
                 ))}
@@ -469,8 +469,8 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
             )}
             {/* Basic stats footer — contacts captured + best day, like the real box */}
             <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[0.6875rem]">
-              <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{card.total}</span></span>
-              <span className="text-gray-500">Best day <span className="text-gray-200 font-semibold">{card.bestDay.label}</span> · {card.bestDay.views}</span>
+              <span className="text-gray-400">Contacts <span className="text-gray-200 font-semibold tabular-nums">{card.total}</span></span>
+              <span className="text-gray-400">Best day <span className="text-gray-200 font-semibold">{card.bestDay.label}</span> · {card.bestDay.views}</span>
             </div>
           </Box>
         </div>
@@ -488,7 +488,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               <h2 className="text-2xl font-bold text-white">Links</h2>
               <p className="text-gray-300 text-sm mt-1">
                 For <span className="text-gray-300 font-medium">{card.label}</span>
-                <span className="text-gray-600"> · /{card.handle}</span>
+                <span className="text-gray-400"> · /{card.handle}</span>
               </p>
             </div>
 
@@ -562,7 +562,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               <div className="flex items-center bg-gray-800/80 rounded-lg p-0.5">
                 {VIEWS.map((v) => (
                   <button key={v} type="button" onClick={() => setView(v)}
-                    className={`text-xs font-medium px-3 py-1 rounded-md transition-colors ${view === v ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}>{v}</button>
+                    className={`text-xs font-medium px-3 py-1 rounded-md transition-colors ${view === v ? "bg-gray-700 text-white" : "text-gray-400 hover:text-gray-300"}`}>{v}</button>
                 ))}
               </div>
             </div>
@@ -586,7 +586,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                       <div className="flex flex-col items-end gap-1.5 shrink-0">
                         <span className="text-[0.625rem] font-semibold px-2 py-0.5 rounded-full" style={{ background: STATUS_STYLE[l.status].bg, color: STATUS_STYLE[l.status].text }}>{l.status}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-600 text-[0.625rem]">{l.time}</span>
+                          <span className="text-gray-400 text-[0.625rem]">{l.time}</span>
                           <ReadToggle read={isRead} onClick={() => toggleRead(l.id)} />
                         </div>
                       </div>
@@ -605,7 +605,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                     <div key={status} className="min-w-[160px] flex-1 bg-gray-900/40 border border-gray-800/80 rounded-2xl p-2.5">
                       <div className="flex items-center justify-between px-1 mb-2">
                         <span className="text-[0.6875rem] font-semibold" style={{ color: STATUS_STYLE[status].text }}>{status}</span>
-                        <span className="text-gray-600 text-[0.625rem]">{items.length}</span>
+                        <span className="text-gray-400 text-[0.625rem]">{items.length}</span>
                       </div>
                       <div className="space-y-2">
                         {items.map((l) => {
@@ -617,7 +617,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
                                 <p className="text-white text-xs font-semibold truncate flex-1">{l.name}</p>
                                 {!isRead && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
                               </div>
-                              <p className="text-gray-500 text-[0.625rem] mt-1.5 leading-snug line-clamp-2">{l.msg}</p>
+                              <p className="text-gray-400 text-[0.625rem] mt-1.5 leading-snug line-clamp-2">{l.msg}</p>
                               <div className="mt-2 flex justify-end"><ReadToggle read={isRead} onClick={() => toggleRead(l.id)} /></div>
                             </div>
                           );
@@ -658,7 +658,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
               >
                 Create Your Card for Free →
               </Link>
-              <button onClick={hideStickyCta} aria-label="Dismiss" className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-300 transition-colors shrink-0">
+              <button onClick={hideStickyCta} aria-label="Dismiss" className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-300 transition-colors shrink-0">
                 <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
               </button>
             </div>
@@ -687,7 +687,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 w-full max-w-md">
             <p className="text-gray-300 text-xs mb-3">Here&apos;s how it looks at the bottom of an email you send:</p>
             <div className="rounded-xl border border-gray-700/60 bg-white overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-gray-200 text-[0.75rem] text-gray-500 space-y-0.5">
+              <div className="px-4 py-2.5 border-b border-gray-200 text-[0.75rem] text-gray-400 space-y-0.5">
                 <p><span className="text-gray-400">To:</span> sarah@acme.com</p>
                 <p><span className="text-gray-400">Subject:</span> Great connecting today</p>
               </div>
@@ -705,7 +705,7 @@ export default function PreviewClient({ embedded = false }: { embedded?: boolean
             <button onClick={copySig} className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm py-2.5 rounded-full transition-colors">
               {copied ? "Copied ✓ — paste it into your email signature" : "Copy Swift Signature"}
             </button>
-            <p className="text-gray-600 text-[0.6875rem] mt-2 text-center">Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>.</p>
+            <p className="text-gray-400 text-[0.6875rem] mt-2 text-center">Paste into <strong className="text-gray-400">Gmail → Settings → Signature</strong>.</p>
           </div>
         </FullScreen>
       )}

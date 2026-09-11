@@ -211,9 +211,26 @@ async function tabFocusFailures(page, steps = 30) {
       if (!el || el === document.body) return null;
       const cs = getComputedStyle(el);
       const r = el.getBoundingClientRect();
-      const ring =
+      let ring =
         (cs.outlineStyle !== "none" && parseFloat(cs.outlineWidth) > 0) ||
         (cs.boxShadow && cs.boxShadow !== "none");
+      // A ring drawn on the control's CONTAINER via :focus-within is a real,
+      // visible focus indicator (WCAG 2.4.7 asks for a visible indicator, not
+      // for it to be painted on the element itself). The homepage claim pill
+      // does this on purpose: the input has no outline, the whole pill lights
+      // up. Compare the ancestor's shadow with focus present vs. removed, so a
+      // container that merely has a RESTING shadow does not count.
+      if (!ring) {
+        let anc = el.parentElement;
+        for (let depth = 0; anc && depth < 3 && !ring; depth++, anc = anc.parentElement) {
+          if (!anc.matches(":focus-within")) continue;
+          const focused = getComputedStyle(anc).boxShadow + "|" + getComputedStyle(anc).outlineStyle + getComputedStyle(anc).outlineWidth;
+          el.blur();
+          const blurred = getComputedStyle(anc).boxShadow + "|" + getComputedStyle(anc).outlineStyle + getComputedStyle(anc).outlineWidth;
+          el.focus({ preventScroll: true });
+          if (focused !== blurred) ring = true;
+        }
+      }
       return {
         key: el.tagName + "|" + (el.id || "") + "|" + (el.innerText || el.getAttribute("aria-label") || "").trim().slice(0, 24),
         tag: el.tagName.toLowerCase(),

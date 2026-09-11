@@ -237,7 +237,7 @@ export default function LoginForm({
         </div>
         <div>
           <p className="text-slate-900 font-semibold text-base">Confirm your email</p>
-          <p className="text-slate-500 text-sm mt-1.5">
+          <p className="text-slate-600 text-sm mt-1.5">
             We sent a confirmation link to <span className="font-medium text-slate-700">{email}</span>. Tap it, then come back here and sign in.
           </p>
         </div>
@@ -262,7 +262,7 @@ export default function LoginForm({
         </div>
         <div>
           <p className="text-slate-900 font-semibold text-base">Check your email</p>
-          <p className="text-slate-500 text-sm mt-1.5">
+          <p className="text-slate-600 text-sm mt-1.5">
             We sent a password reset link to <span className="font-medium text-slate-700">{email}</span>. Click it to set a new password.
           </p>
         </div>
@@ -290,7 +290,7 @@ export default function LoginForm({
             className="flex-1 py-2 text-sm font-semibold rounded-full transition-colors"
             style={{
               background: mode === m ? "#1D4ED8" : "transparent",
-              color: mode === m ? "#fff" : "#8B8070",
+              color: mode === m ? "#fff" : "#5B5247",
             }}
           >
             {m === "signin" ? "Sign in" : "Create account"}
@@ -436,7 +436,7 @@ export default function LoginForm({
         </button>
 
         {mode === "signup" && (
-          <p className="text-center text-[0.6875rem] leading-relaxed text-slate-400">
+          <p className="text-center text-[0.6875rem] leading-relaxed text-slate-600">
             By creating an account you agree to our{" "}
             <Link href="/terms" className="underline hover:text-slate-600">Terms</Link> and{" "}
             <Link href="/privacy" className="underline hover:text-slate-600">Privacy Policy</Link>.
@@ -448,7 +448,7 @@ export default function LoginForm({
 
       <div className="flex items-center gap-3">
         <div className="flex-1 h-px bg-[#E4DDD4]" />
-        <span className="text-slate-400 text-xs">or</span>
+        <span className="text-slate-600 text-xs">or</span>
         <div className="flex-1 h-px bg-[#E4DDD4]" />
       </div>
 

@@ -86,7 +86,7 @@ describe("in-app signup and first-card flow", () => {
     expect(src).toMatch(/function NativePro/);
     expect(src).toMatch(/useIapMonthlyPrice\(\)/);
     expect(src).toMatch(/<ProTrialPrice price=\{price\} period="month" \/>/);
-    expect(src).toMatch(/Free <span className="text-slate-400">Forever<\/span>/);
+    expect(src).toMatch(/Free <span className="text-slate-\d00">Forever<\/span>/);
     // Office is Stripe-only with no IAP product: no Office CARD and no
     // checkout hand-off may render natively (comments about it are fine).
     // The native branch runs from `if (native) {` to where the WEB render

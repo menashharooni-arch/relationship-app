@@ -383,7 +383,7 @@ function MiniSignature({ persona }: { persona: Persona }) {
           )}
           <span className="min-w-0">
             <span className="block text-[0.59375rem] font-bold text-slate-900 leading-tight truncate">{persona.data.name}</span>
-            <span className="block text-[0.5rem] text-slate-400 leading-tight truncate">to me · 9:41 AM</span>
+            <span className="block text-[0.5rem] text-slate-500 leading-tight truncate">to me · 9:41 AM</span>
           </span>
         </div>
         <p className="mt-1.5 text-[0.5625rem] font-semibold text-slate-700 truncate">{persona.subject}</p>
@@ -402,7 +402,7 @@ function MiniSignature({ persona }: { persona: Persona }) {
             <Template data={persona.data} />
           </CardScaler>
         </div>
-        <p className="mt-1.5 pb-3 text-[0.46875rem] text-slate-400 text-center">Swift Signature · tap to open card</p>
+        <p className="mt-1.5 pb-3 text-[0.46875rem] text-slate-500 text-center">Swift Signature · tap to open card</p>
       </div>
     </div>
   );
