@@ -36,6 +36,26 @@ export default function LeadsTable({
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  // HOW MANY ROWS THE SERVER HAS HANDED OVER — deliberately not rows.length.
+  //
+  // Leads are ordered newest-first, so leads captured between two page loads
+  // push every later row down and the next page repeats rows at the boundary.
+  // The de-duplication below drops those repeats, making rows.length SMALLER
+  // than the window the server has already served. Using rows.length as the
+  // next offset then rewinds by exactly that many rows and re-requests what is
+  // already on screen.
+  //
+  // Nothing is skipped by that — it under-advances, never over-advances — but
+  // it can stall completely. Modelled with four leads arriving mid-scroll:
+  // with rows.length the list stayed at four rows and FIVE consecutive "Load
+  // more" clicks added nothing, because each one asked for the same window it
+  // had already de-duplicated away. The button simply looks broken, and it
+  // looks broken precisely when the office is busiest. Advancing by what the
+  // server actually returned: twelve rows, one wasted click.
+  const [serverOffset, setServerOffset] = useState(leads.length);
+  // The exact total, refreshed from each page so a long session does not keep
+  // quoting the figure from first render.
+  const [knownTotal, setKnownTotal] = useState(total);
 
   // Built from the LOADED rows, so a teammate whose leads are all further down
   // appears in the filter as soon as their first one loads.
@@ -49,15 +69,18 @@ export default function LeadsTable({
     setLoadingMore(true);
     setLoadError(false);
     try {
-      const res = await fetch(`/api/office/leads/list?offset=${rows.length}`);
+      const res = await fetch(`/api/office/leads/list?offset=${serverOffset}`);
       if (!res.ok) throw new Error("failed");
-      const page = (await res.json()) as { leads: OfficeLead[]; hasMore: boolean };
-      // De-duplicated on id: a lead captured between page loads shifts every
-      // later row down by one, which would otherwise show a row twice.
+      const page = (await res.json()) as { leads: OfficeLead[]; hasMore: boolean; total: number };
+      // De-duplicated on id for DISPLAY; the offset advances by what the
+      // server actually returned, so dropping a repeat never rewinds the
+      // window and skips the rows behind it.
       setRows((rs) => {
         const seen = new Set(rs.map((r) => r.id));
         return [...rs, ...page.leads.filter((l) => !seen.has(l.id))];
       });
+      setServerOffset((o) => o + page.leads.length);
+      if (typeof page.total === "number") setKnownTotal(page.total);
       setHasMore(page.hasMore);
     } catch {
       // Keep what is already on screen and offer a retry — never wipe the
@@ -101,12 +124,12 @@ export default function LeadsTable({
           The page used to print "600 so far" forever once the office passed the
           old cap, while the Team tab's per-person counts were uncapped — so the
           two tabs disagreed and neither said why. */}
-      {total > 0 && (
+      {knownTotal > 0 && (
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
           <p className="text-[0.6875rem] text-gray-500">
-            {rows.length >= total
-              ? `All ${total.toLocaleString()} lead${total === 1 ? "" : "s"}`
-              : `Showing ${rows.length.toLocaleString()} of ${total.toLocaleString()} leads`}
+            {!hasMore
+              ? `All ${knownTotal.toLocaleString()} lead${knownTotal === 1 ? "" : "s"}`
+              : `Showing ${rows.length.toLocaleString()} of ${knownTotal.toLocaleString()} leads`}
             {visible.length !== rows.length && ` · ${visible.length.toLocaleString()} match your filters`}
           </p>
           {/* DownloadLink, not fetch() and not next/link: the browser handles
@@ -163,7 +186,7 @@ export default function LeadsTable({
       {visible.length === 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-10 text-center">
           <p className="text-gray-400 text-sm">
-            {total === 0
+            {knownTotal === 0
               ? "No leads yet — leads appear here automatically when someone shares their info with any of your team's cards."
               : hasMore
               // Filters only see what is loaded, so "nothing matches" would be
@@ -240,7 +263,7 @@ export default function LeadsTable({
           >
             {loadingMore
               ? "Loading…"
-              : `Load more — ${Math.max(0, total - rows.length).toLocaleString()} to go`}
+              : `Load more — ${Math.max(0, knownTotal - rows.length).toLocaleString()} to go`}
           </button>
           {loadError && (
             <p className="text-[0.6875rem] text-red-400">
@@ -250,7 +273,7 @@ export default function LeadsTable({
         </div>
       )}
 
-      {total > 0 && (
+      {knownTotal > 0 && (
         <p className="text-[0.6875rem] text-gray-600 mt-3">
           <span className="text-amber-400 font-semibold">New</span> = nobody has followed up yet.{" "}
           <span className="text-green-400 font-semibold">Contacted</span>, <span className="text-green-400 font-semibold">Closed</span> and{" "}

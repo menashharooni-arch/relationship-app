@@ -49,14 +49,22 @@ export const OFFICE_LEADS_PAGE = 200;
  * meant a lead past the cap could not be found at all, so marking it contacted
  * answered "That lead isn't part of your team."
  *
- * Slugs are [a-z0-9-] by construction (normalizeSlug), so they need no
- * quoting; the tag is our own uuid-derived string.
+ * Slugs are [a-z0-9-] by construction (normalizeSlug), and every one in the
+ * database today matches — but they are interpolated into a filter STRING, so
+ * a single malformed row (a legacy import, a hand-inserted record) containing
+ * a comma or a paren would not merely break the query: it would silently
+ * widen it, and this filter is the boundary between one office's leads and
+ * another's. Re-checked here rather than trusted, because the failure mode is
+ * a cross-tenant disclosure that nothing would surface.
  */
+const SAFE_SLUG = /^[a-z0-9-]+$/;
+
 function officeLeadFilter(slugs: string[], tag: string): string {
   const byTag = `tags.cs.{${tag}}`;
+  const safe = slugs.filter((s) => SAFE_SLUG.test(s));
   // `in.()` with an empty list is not valid PostgREST — an office whose members
   // have no slugs yet still has to match its departed-member leads.
-  return slugs.length ? `card_owner.in.(${slugs.join(",")}),${byTag}` : byTag;
+  return safe.length ? `card_owner.in.(${safe.join(",")}),${byTag}` : byTag;
 }
 
 /** Everyone on the team, as slug → the person's display name. */
@@ -83,15 +91,22 @@ async function officeSlugMap(officeId: string): Promise<Map<string, string>> {
   return bySlug;
 }
 
-export async function getOfficeLeads(
+/**
+ * One page, given an ALREADY-RESOLVED team map.
+ *
+ * Split out so the export can resolve the team once and page through, instead
+ * of re-deriving it for every block: officeSlugMap costs five queries, and an
+ * export of twenty thousand leads is forty pages — two hundred round trips
+ * spent re-answering a question whose answer cannot change mid-export.
+ */
+async function fetchLeadPage(
   officeId: string,
-  opts: { limit?: number; offset?: number } = {},
+  bySlug: Map<string, string>,
+  opts: { limit?: number; offset?: number },
 ): Promise<OfficeLeadPage> {
   const admin = getAdminSupabase();
   const limit = Math.min(Math.max(1, Math.floor(opts.limit ?? OFFICE_LEADS_PAGE)), 500);
   const offset = Math.max(0, Math.floor(opts.offset ?? 0));
-
-  const bySlug = await officeSlugMap(officeId);
   const slugs = Array.from(bySlug.keys());
 
   const select = "id, name, email, phone, status, created_at, card_owner, tags";
@@ -123,6 +138,13 @@ export async function getOfficeLeads(
   return { leads, total, hasMore: offset + leads.length < total };
 }
 
+export async function getOfficeLeads(
+  officeId: string,
+  opts: { limit?: number; offset?: number } = {},
+): Promise<OfficeLeadPage> {
+  return fetchLeadPage(officeId, await officeSlugMap(officeId), opts);
+}
+
 /**
  * Does this office own this lead? The authorization gate for changing a lead's
  * status.
@@ -151,10 +173,20 @@ export async function officeOwnsLead(officeId: string, leadId: string): Promise<
  * is worse than no export, because nobody can tell it happened.
  */
 export async function getAllOfficeLeads(officeId: string, hardCap = 20_000): Promise<OfficeLead[]> {
+  // Resolved ONCE for the whole export — see fetchLeadPage.
+  const bySlug = await officeSlugMap(officeId);
   const out: OfficeLead[] = [];
+  const seen = new Set<string>();
   for (let offset = 0; offset < hardCap; offset += 500) {
-    const page = await getOfficeLeads(officeId, { limit: 500, offset });
-    out.push(...page.leads);
+    const page = await fetchLeadPage(officeId, bySlug, { limit: 500, offset });
+    // De-duplicated for the same reason the table is: a lead captured during
+    // the export shifts later rows down, and a CSV with a row twice is worse
+    // than one built a moment earlier.
+    for (const l of page.leads) {
+      if (seen.has(l.id)) continue;
+      seen.add(l.id);
+      out.push(l);
+    }
     if (!page.hasMore || !page.leads.length) break;
   }
   return out;

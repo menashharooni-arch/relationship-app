@@ -111,6 +111,8 @@ export type OrgManaged = {
   fax: string | null;
   address: CardAddress | null;
   lockDesign: boolean;
+  /** The office has taken link buttons — a new member card starts without them. */
+  lockLinks: boolean;
   // The office's locked look — so the sub-user's LIVE PREVIEW shows the real
   // template + colors/fonts while they build, not a default that only snaps to
   // the brand after saving. Only meaningful when lockDesign is true.
@@ -221,6 +223,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   const orgFax = org?.fax?.trim() || null;
   const orgAddress = org?.address && Object.values(org.address).some((v) => (v ?? "").toString().trim()) ? org.address : null;
   const designLocked = !!org?.lockDesign;
+  const linksLocked = !!org?.lockLinks;
 
   // First-card design preview: a guest (account unknown pre-signup) or an
   // already-authed Free account building its first card get the Pro design
@@ -1361,10 +1364,20 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 
             <div className="h-px bg-gray-800" />
 
-            {/* Additional links */}
+            {/* Additional links.
+
+                An office can take these (Branding → "Only you can add link
+                buttons"). The server strips them from a new member card, so
+                showing the editor here would let someone type links into their
+                very first card and lose them on save with no explanation —
+                exactly the silent loss the editor was careful to avoid. */}
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1">Additional links</p>
-              <p className="text-gray-600 text-[0.6875rem] mb-3">Add your links — can be a review page, recent video, listing, etc.</p>
+              <p className="text-gray-600 text-[0.6875rem] mb-3">
+                {linksLocked
+                  ? "Link buttons are set by your organization. Your bio and your social profiles above are still yours."
+                  : "Add your links — can be a review page, recent video, listing, etc."}
+              </p>
               {links.length > 0 && (
                 <div className="space-y-2 mb-2">
                   {links.map((l, i) =>
@@ -1401,7 +1414,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   same way as the size control, and OUTSIDE the links-exist
                   wrapper so a header can open the page's first section before
                   any link has been added. */}
-              {designUnlocked && (
+              {designUnlocked && !linksLocked && (
                 <button
                   type="button"
                   onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
@@ -1410,7 +1423,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   + Add a section header
                 </button>
               )}
-              {atLinkCap ? (
+              {linksLocked ? (
+                <p className="text-[0.6875rem] text-gray-400 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
+                  Your organization has turned off link buttons on team cards.
+                </p>
+              ) : atLinkCap ? (
                 <PlanGate
                   feature="swift-links-cap"
                   nativeCopy="Pro feature — Free includes 2 links. More links are only available on the Pro plan"
@@ -1731,7 +1748,22 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 and filled the screen before you could reach a single colour. */}
             <div className="lg:hidden">{mobileLinkPagePreview}</div>
 
-            <SwiftLinkStyleControls value={linkStyleState} onChange={patchLinkStyle} locked={!designUnlocked} links={links} onLinksChange={setLinks} />
+            {/* Same rule as the editor: the per-link controls edit the array
+                the office may have taken, so they are omitted rather than left
+                live to be discarded on save. */}
+            <SwiftLinkStyleControls
+              value={linkStyleState}
+              onChange={patchLinkStyle}
+              locked={!designUnlocked}
+              links={linksLocked ? undefined : links}
+              onLinksChange={linksLocked ? undefined : setLinks}
+            />
+            {linksLocked && (
+              <p className="mt-2 text-[0.6875rem] text-gray-500 bg-gray-900 border border-gray-800 rounded-xl px-3 py-2.5 leading-relaxed">
+                Styling for individual link buttons is set by your organization. The rest of this
+                page is still yours to change.
+              </p>
+            )}
             {!isPro && !designUnlocked && (
               <PlanGate
                 feature="colors-fonts"
