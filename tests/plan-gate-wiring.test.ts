@@ -90,21 +90,19 @@ const SITES: Site[] = [
     ],
   },
   {
+    // The two "colors-fonts" upsells that sat under the design controls are
+    // GONE (owner, 2026-09-11). Every Pro control in the editor is already
+    // tappable — that is the demo — and the wall is Save Changes, which opens
+    // the full offer. A second, smaller pitch parked under the controls said
+    // the same thing worse, and in the shell it rendered as a notice card that
+    // looked nothing like the sheet it preceded. What remains here are the
+    // gates that explain a hard limit where the control is.
     file: "src/app/cards/[id]/edit/CardEditForm.tsx",
-    web: ["Unlock custom colors &amp; fonts with Pro →", "Upgrade to Pro"],
+    web: ["Upgrade to Pro"],
     native: [
-      "Pro feature — Custom colors and fonts are only available on the Pro plan",
       "Pro feature — Free includes 2 links. More links are only available on the Pro plan",
       "This card is view-only. Editing multiple cards is only available on the Pro plan",
     ],
-  },
-  {
-    // The second-card offer's new home: the sheet behind Add card. Same native
-    // string it carried on the dashboard, so the copy stays pinned char-for-char
-    // after the move rather than quietly losing its guard.
-    file: "src/components/AddCardButton.tsx",
-    web: ["More than one card is part of Pro"],
-    native: ["Pro feature — Multiple cards are only available on the Pro plan"],
   },
   {
     file: "src/app/cards/new/NewCardWizard.tsx",

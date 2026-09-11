@@ -203,13 +203,13 @@ describe("readable inside the light-themed app", () => {
 
 // The native variant, in the light theme, is its own surface.
 //
-// The contrast test above renders the WEB branch — and the bug it could not see
-// was on the native one. The shared PlanNotice is bg-gray-900 + text-white, the
-// light theme flips bg-gray-900 to WHITE for app panels, and nested inside this
-// deliberately-dark sheet that produced a white card with white text: the
-// gate's own "Pro feature" heading vanished, in the shell, on the screen whose
-// job is to sell Pro. Same probe, native branch.
-describe("the native gate card is readable inside the light-themed app", () => {
+// The contrast test above renders the WEB branch, and a bug it could not see
+// once shipped on the native one: a shared panel that was bg-gray-900 +
+// text-white came out white-on-white inside this deliberately-dark sheet,
+// because the light theme flips bg-gray-900 to white for app panels. The two
+// branches render the same markup now, but they are still two renders, so the
+// native one is measured too.
+describe("the native sheet is readable inside the light-themed app", () => {
   const lum = (r: number, g: number, b: number) =>
     [r, g, b].map((v) => { const s2 = v / 255; return s2 <= 0.03928 ? s2 / 12.92 : Math.pow((s2 + 0.055) / 1.055, 2.4); })
       .reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i], 0);
@@ -244,8 +244,8 @@ describe("the native gate card is readable inside the light-themed app", () => {
         return out;
       });
       expect(spots.length).toBeGreaterThan(5);
-      // The gate card has to actually be there, or this proves nothing.
-      expect(spots.some((s2) => /Pro feature/i.test(s2.text))).toBe(true);
+      // The offer has to actually be there, or this proves nothing.
+      expect(spots.some((s2) => /14-day free trial/i.test(s2.text))).toBe(true);
 
       await page.evaluate(() => {
         for (const el of Array.from(document.querySelectorAll<HTMLElement>(".sc-dark-sheet *"))) {

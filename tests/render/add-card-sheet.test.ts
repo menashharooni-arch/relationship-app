@@ -58,7 +58,7 @@ const probe = () => ({
   docOverflowX: Math.max(0, document.documentElement.scrollWidth - innerWidth),
   actions: Array.from(document.querySelectorAll<HTMLElement>(".sc-dark-sheet a, .sc-dark-sheet button")).map((a) => {
     const b = a.getBoundingClientRect();
-    return { label: (a.textContent ?? "").trim().slice(0, 24), h: Math.round(b.height),
+    return { label: (a.textContent ?? "").trim(), h: Math.round(b.height),
       inView: b.top >= -0.5 && b.bottom <= innerHeight + 0.5 };
   }),
   clipped: Array.from(document.querySelectorAll(".sc-dark-sheet *")).filter((e) => {
@@ -90,7 +90,7 @@ describe.each(WIDTHS)("$name", ({ width, height }) => {
       // Two INSIDE the sheet: "Start my 14 days free" and "Not now". The
       // close-overlay button is a sibling of the sheet, not a child, so it is
       // deliberately not counted here.
-      expect(p.actions.map((a) => a.label)).toEqual(["Start my 14 days free", "Not now"]);
+      expect(p.actions.map((a) => a.label)).toEqual(["Start my 14-day free trial", "Not now"]);
       expect(p.actions.filter((a) => !a.inView)).toEqual([]);
       expect(p.actions.filter((a) => a.label.length > 0 && a.h < 30)).toEqual([]);
     } finally { await page.close(); }
@@ -112,13 +112,18 @@ describe("the iOS shell is not sold to (App Store 3.1.1)", () => {
     const html = renderToStaticMarkup(createElement(SecondCardSheet, { trialEligible: true, onClose: () => {} }));
     expect(html).not.toMatch(/\$\d/);
     expect(html).not.toContain("/checkout");
-    expect(html).not.toMatch(/upgrade/i);
-    expect(html).not.toContain("days free");
+    // The primary button is IapSubscribeButton on native; it resolves StoreKit
+    // in an effect, which renderToStaticMarkup never runs, so it is absent here
+    // and asserted from the source in tests/render/pro-offer-parity.test.ts.
+
     // It still explains itself and still offers the way out.
     expect(html).toContain("More than one card is part of Pro");
     expect(html).toContain("Not now");
-    // And it goes through the shared gate, which is what carries the IAP button.
-    expect(html).toContain("Multiple cards are only available on the Pro plan");
+    // It still offers the trial in the same words the web does — the trial is
+    // Apple's too, so naming it is accurate and allowed. What may never appear
+    // is a hardcoded figure (3.1.2) or a website purchase (3.1.3(b)), both
+    // asserted above.
+    expect(html).toContain("14-day free trial");
   });
 });
 

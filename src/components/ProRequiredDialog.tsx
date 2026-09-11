@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
-import { PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
-import { useIsNativeApp } from "@/lib/platform";
-import { PlanGate } from "@/components/PlanGate";
+import { TRIAL_DAYS } from "@/lib/plan";
+import { ProOfferBlock, ProOfferCta } from "@/components/ProOffer";
 
 /**
  * Save Changes, blocked because the card is using Pro design.
@@ -21,9 +19,10 @@ import { PlanGate } from "@/components/PlanGate";
  * the demo — and the wall moves to Save. This is what stands at the wall.
  *
  * THE TRIAL IS THE OFFER (owner, 2026-09-11)
- * Not "$4.99/month" cold. Fourteen days free, then $4.99 — and the button goes
- * STRAIGHT to the same checkout /upgrade builds, so what it promises is what
- * Stripe actually creates.
+ * A 14-day free trial first, and the monthly price second. The offer box and
+ * the button both come from components/ProOffer, which is also what the Add
+ * card sheet renders — so the wording, the price and the destination are one
+ * implementation and cannot drift between the two sheets or between platforms.
  *
  * `trialEligible` is resolved on the SERVER by the page that renders the
  * editor, using lib/trial-eligibility — the identical helper the checkout API
@@ -32,20 +31,16 @@ import { PlanGate } from "@/components/PlanGate";
  * copy matches. The promise on the button and the session it creates cannot
  * drift, which is the whole reason that helper is shared rather than re-guessed.
  *
- * NATIVE GOES THROUGH PlanGate, LIKE EVERY OTHER LOCKED SURFACE
- * The first version of this hand-rolled its own `!native` checks and simply
- * rendered NOTHING in the shell — no price, no button, nothing. That satisfied
- * App Store 3.1.1 and failed the person holding the phone: the rest of the app
- * offers a StoreKit paywall on a locked feature (3.1.3(b) requires one), and
- * this dialog offered a dead end. It also looked broken, because the sheet
- * painted the full web layout on the first client render and then collapsed
- * once useIsNativeApp() flipped after mount.
- *
- * So the offer is a PlanGate now. Web gets the trial and the checkout link;
- * native gets PlanNotice and the in-app purchase button, the same one every
- * other gate in the shell shows. One component owns the platform rule, and the
- * tests that pin it (no link, no price, no "upgrade" verb on native) cover this
- * surface for free.
+ * THE SAME SHEET ON BOTH PLATFORMS
+ * This dialog used to render one thing on the web and something else entirely
+ * in the shell — a different component, different words, a different shape —
+ * which is exactly what the owner reported. It does not any more: the badge,
+ * the headline, the sentence, the list, the offer box and the button are one
+ * set of markup. Only two things differ, and both are forced (see
+ * components/ProOffer): the price comes from StoreKit on iOS because Apple
+ * charges it in the viewer's own currency and must match what is shown
+ * (3.1.2), and the button goes to in-app purchase rather than a website
+ * (3.1.3(b)). Neither is visible as a difference in layout or wording.
  */
 export default function ProRequiredDialog({
   features,
@@ -64,7 +59,6 @@ export default function ProRequiredDialog({
   /** First-time subscriber → offer the free trial. Resolved server-side. */
   trialEligible?: boolean;
 }) {
-  const native = useIsNativeApp();
 
   // Esc closes, and the page behind must not scroll under the sheet on a phone.
   useEffect(() => {
@@ -127,12 +121,12 @@ export default function ProRequiredDialog({
           <h2 id="pro-required-title" className="text-white font-bold text-[1.3125rem] leading-tight mt-3">
             {features.length === 1 ? "That finish is part of Pro" : "Those touches are part of Pro"}
           </h2>
+          {/* ONE sentence, both platforms. The shell used to get a different
+              one, which is half of why the two popups did not match. */}
           <p className="text-slate-300/90 text-[0.875rem] leading-snug mt-1.5">
-            {native
-              ? "Your card is set up with design that comes with the Pro plan:"
-              : trialEligible
-                ? `The features you selected are part of Pro. Try it free for ${TRIAL_DAYS} days and keep them on your live card:`
-                : "The features you selected are only available on Pro. Upgrade to keep them on your live card:"}
+            {trialEligible
+              ? `The features you selected are part of Pro. Try it free for ${TRIAL_DAYS} days and keep them on your live card:`
+              : "The features you selected are only available on Pro. Keep them on your live card with Pro:"}
           </p>
 
           <ul className="mt-3.5 space-y-1.5">
@@ -148,61 +142,20 @@ export default function ProRequiredDialog({
             ))}
           </ul>
 
-          {/* The offer. Web: the trial and the price. Native: PlanNotice and
-              the in-app purchase button, chosen by PlanGate, not by us. */}
+          {/* The offer. One component, so the sheet on a phone is the sheet
+              on a laptop — see components/ProOffer. */}
           <div className="mt-5">
-            <PlanGate
-              feature="card-pro-design"
-              nativeCopy="Pro feature — material finishes, any color, and photo or video card backgrounds are part of the Pro plan"
-            >
-            <div className="rounded-2xl border border-blue-400/25 bg-blue-500/[0.07] px-4 py-3.5">
-              {trialEligible ? (
-                <>
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="text-white font-extrabold text-[1.5rem] leading-none">
-                      {TRIAL_DAYS} days free
-                    </span>
-                    <span className="text-slate-400 text-[0.8125rem]">
-                      then ${(PLAN_PRICES.PRO_MONTHLY_CENTS / 100).toFixed(2)} / month
-                    </span>
-                  </div>
-                  <p className="text-slate-300/85 text-[0.8125rem] leading-snug mt-1.5">
-                    Every finish, any color, photo and video backgrounds, unlimited links, and
-                    your card without the SwiftCard badge. Cancel anytime before day {TRIAL_DAYS} and
-                    you are not charged.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-white font-extrabold text-[1.5rem] leading-none">
-                      ${(PLAN_PRICES.PRO_MONTHLY_CENTS / 100).toFixed(2)}
-                    </span>
-                    <span className="text-slate-400 text-[0.8125rem]">/ month</span>
-                  </div>
-                  <p className="text-slate-300/85 text-[0.8125rem] leading-snug mt-1.5">
-                    Every finish, any color, photo and video backgrounds, unlimited links, and
-                    your card without the SwiftCard badge. Cancel anytime.
-                  </p>
-                </>
-              )}
-            </div>
-            </PlanGate>
+            <ProOfferBlock
+              trialEligible={trialEligible}
+              blurb="Every finish, any color, photo and video backgrounds, unlimited links, and your card without the SwiftCard badge."
+            />
           </div>
         </div>
 
         <div className="px-5 pt-4 mt-auto shrink-0 flex flex-col gap-2 border-t border-white/[0.07]">
-          {!native && (
-            <Link
-              href={trialEligible ? "/checkout?plan=pro&interval=monthly" : "/checkout?plan=pro&interval=monthly&trial=0"}
-              className="rd-btn rd-btn-aurora w-full !py-3.5 !min-h-[46px] text-center text-[0.9375rem] font-bold"
-            >
-              {trialEligible ? `Start my ${TRIAL_DAYS} days free` : "Upgrade to Pro"}
-            </Link>
-          )}
+          <ProOfferCta trialEligible={trialEligible} />
 
-          {/* The way out is plainly labelled and says what actually happens.
-              This is the only action on native. */}
+          {/* The way out is plainly labelled and says what actually happens. */}
           <button
             type="button"
             onClick={onSaveWithoutPro}

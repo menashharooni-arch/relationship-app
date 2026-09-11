@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
-import { useIsNativeApp } from "@/lib/platform";
-import { PlanGate } from "@/components/PlanGate";
+import { TRIAL_DAYS } from "@/lib/plan";
+import { ProOfferBlock, ProOfferCta } from "@/components/ProOffer";
 
 // ── "Add card", for everyone ─────────────────────────────────────────────────
 //
@@ -22,9 +21,9 @@ import { PlanGate } from "@/components/PlanGate";
 // The sheet deliberately mirrors ProRequiredDialog: same bottom-sheet chrome,
 // same `sc-dark-sheet` class — which is what carries the light-theme exemption
 // in globals.css, so a dark panel inside the light-themed app keeps its own
-// colours instead of being flipped to white-on-white — and the same PlanGate,
-// so the platform rule (web sells, the shell uses in-app purchase) is decided
-// in one component rather than twice here.
+// colours instead of being flipped to white-on-white — and the same ProOffer,
+// so the price, the trial wording and the button are one implementation and the
+// phone cannot drift away from the laptop again.
 
 function AddCardIcon() {
   return (
@@ -74,7 +73,6 @@ export function SecondCardSheet({
   trialEligible: boolean;
   onClose: () => void;
 }) {
-  const native = useIsNativeApp();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -127,64 +125,23 @@ export function SecondCardSheet({
           <h2 id="second-card-title" className="text-white font-bold text-[1.3125rem] leading-tight mt-3">
             More than one card is part of Pro
           </h2>
+          {/* ONE sentence, both platforms. */}
           <p className="text-slate-300/90 text-[0.875rem] leading-snug mt-1.5">
-            {native
-              ? "A second card comes with the Pro plan. One card for each role, company or language, each with its own link, design and contacts."
-              : trialEligible
-                ? `Keep a card for each role, company or language — each with its own link, design and contacts. Try Pro free for ${TRIAL_DAYS} days.`
-                : "Keep a card for each role, company or language — each with its own link, design and contacts."}
+            {trialEligible
+              ? `Keep a card for each role, company or language — each with its own link, design and contacts. Try Pro free for ${TRIAL_DAYS} days.`
+              : "Keep a card for each role, company or language — each with its own link, design and contacts."}
           </p>
 
           <div className="mt-5">
-            <PlanGate
-              feature="second-card"
-              nativeCopy="Pro feature — Multiple cards are only available on the Pro plan"
-            >
-              <div className="rounded-2xl border border-blue-400/25 bg-blue-500/[0.07] px-4 py-3.5">
-                {trialEligible ? (
-                  <>
-                    <div className="flex items-baseline gap-1.5 flex-wrap">
-                      <span className="text-white font-extrabold text-[1.5rem] leading-none">
-                        {TRIAL_DAYS} days free
-                      </span>
-                      <span className="text-slate-400 text-[0.8125rem]">
-                        then ${(PLAN_PRICES.PRO_MONTHLY_CENTS / 100).toFixed(2)} / month
-                      </span>
-                    </div>
-                    <p className="text-slate-300/85 text-[0.8125rem] leading-snug mt-1.5">
-                      Unlimited cards, every finish and colour, photo and video backgrounds,
-                      unlimited links, and your cards without the SwiftCard badge. Cancel
-                      anytime before day {TRIAL_DAYS} and you are not charged.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-white font-extrabold text-[1.5rem] leading-none">
-                        ${(PLAN_PRICES.PRO_MONTHLY_CENTS / 100).toFixed(2)}
-                      </span>
-                      <span className="text-slate-400 text-[0.8125rem]">/ month</span>
-                    </div>
-                    <p className="text-slate-300/85 text-[0.8125rem] leading-snug mt-1.5">
-                      Unlimited cards, every finish and colour, photo and video backgrounds,
-                      unlimited links, and your cards without the SwiftCard badge. Cancel anytime.
-                    </p>
-                  </>
-                )}
-              </div>
-            </PlanGate>
+            <ProOfferBlock
+              trialEligible={trialEligible}
+              blurb="Unlimited cards, every finish and colour, photo and video backgrounds, unlimited links, and your cards without the SwiftCard badge."
+            />
           </div>
         </div>
 
         <div className="px-5 pt-4 mt-auto shrink-0 flex flex-col gap-2 border-t border-white/[0.07]">
-          {!native && (
-            <Link
-              href={trialEligible ? "/checkout?plan=pro&interval=monthly" : "/checkout?plan=pro&interval=monthly&trial=0"}
-              className="rd-btn rd-btn-aurora w-full !py-3.5 !min-h-[46px] text-center text-[0.9375rem] font-bold"
-            >
-              {trialEligible ? `Start my ${TRIAL_DAYS} days free` : "Upgrade to Pro"}
-            </Link>
-          )}
+          <ProOfferCta trialEligible={trialEligible} />
           <button
             type="button"
             onClick={onClose}

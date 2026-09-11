@@ -93,74 +93,36 @@ describe("the save is actually gated", () => {
   });
 });
 
-describe("the iOS shell may not sell (App Store 3.1.1)", () => {
-  const DLG = read("src/components/ProRequiredDialog.tsx");
+describe("the offer is one implementation, shared by both platforms", () => {
+  const DLG2 = read("src/components/ProRequiredDialog.tsx");
 
-  // The platform rule is no longer hand-rolled here. The offer is a PlanGate,
-  // which owns it for every locked surface in the app — so the assertion is
-  // that this dialog USES the gate rather than deciding for itself, plus the
-  // one piece it still gates by hand: the checkout link in the pinned footer.
-  it("the offer goes through PlanGate, not a hand-rolled platform check", () => {
-    expect(DLG).toContain('import { PlanGate }');
-    expect(DLG).toMatch(/<PlanGate\s+feature="card-pro-design"/);
-    expect(DLG).toContain("nativeCopy=");
+  // The owner's report was that the popup on the phone was not the popup on the
+  // computer. It is now: this dialog renders ProOffer, and so does the Add card
+  // sheet, so neither can drift from the other or from itself across platforms.
+  // Parity and the two App Store rules (no hardcoded price in the shell, no web
+  // purchase link in the shell) are measured on RENDERED OUTPUT in
+  // tests/render/pro-offer-parity.test.ts — a stronger check than the copy
+  // strings this file used to scan for.
+  it("renders the shared offer rather than its own", () => {
+    expect(DLG2).toContain("ProOfferBlock");
+    expect(DLG2).toContain("ProOfferCta");
   });
 
-  it("the price sits inside the gate, which never renders it on native", () => {
-    const open = DLG.indexOf("<PlanGate");
-    const close = DLG.indexOf("</PlanGate>");
-    const price = DLG.indexOf("PLAN_PRICES.PRO_MONTHLY_CENTS");
-    expect({ open: open > -1, close: close > -1, price: price > -1 }).toMatchObject({ open: true, close: true, price: true });
-    expect(price).toBeGreaterThan(open);
-    expect(price).toBeLessThan(close);
+  it("decides nothing about the platform itself", () => {
+    // Every platform branch lives in ProOffer now. A `native` check creeping
+    // back in here is how the two sheets diverged in the first place.
+    expect(DLG2).not.toContain("useIsNativeApp");
+    expect(DLG2).not.toMatch(/\{!native && \(/);
   });
 
-  it("the checkout link is still gated by hand, because it lives outside the gate", () => {
-    // The CTA is pinned in the sheet's footer, not in the scrolling body the
-    // PlanGate wraps, so it carries its own !native guard.
-    const at = DLG.indexOf("/checkout?plan=pro");
-    expect(at).toBeGreaterThan(-1);
-    const guard = DLG.lastIndexOf("{!native && (", at);
-    const close = DLG.indexOf(")}", guard);
-    expect({ insideGuard: guard > -1 && close > at }).toMatchObject({ insideGuard: true });
-  });
-
-  it("never links the shell to the website's checkout", () => {
-    // The gate's own tests forbid a link on native; this forbids the specific
-    // one this dialog owns from ever escaping its guard.
-    expect(DLG).not.toMatch(/href="\/upgrade"/);
-  });
-
-  it("still explains itself on native, and still offers the way out", () => {
-    expect(DLG).toContain("useIsNativeApp");
-    // "Save without them" is outside every !native guard.
-    const at = DLG.indexOf("Save without them");
-    const guard = DLG.lastIndexOf("{!native && (", at);
-    const close = guard > -1 ? DLG.indexOf(")}", guard) : -1;
-    expect(close).toBeLessThan(at);
-  });
-
-  // THE OFFER IS THE TRIAL (owner, 2026-09-11): 14 days free, then $4.99 — and
-  // the button has to create the session that actually does that.
-  it("offers the free trial to a first-time subscriber", () => {
-    expect(DLG).toContain("TRIAL_DAYS");
-    expect(DLG).toMatch(/trialEligible \? `Start my \$\{TRIAL_DAYS\} days free`/);
-    expect(DLG).toMatch(/\{TRIAL_DAYS\} days free/);
-  });
-
-  // The promise and the Stripe session must not drift. An eligible user goes to
-  // the plain checkout (which grants trial_period_days); an ex-subscriber
-  // carries trial=0, exactly as /upgrade does, so the checkout page's copy
-  // matches what it will charge.
-  it("sends the eligible to a trial checkout and everyone else to trial=0", () => {
-    expect(DLG).toMatch(/trialEligible\s*\?\s*"\/checkout\?plan=pro&interval=monthly"\s*:\s*"\/checkout\?plan=pro&interval=monthly&trial=0"/);
-  });
-
-  it("eligibility is decided on the server, never guessed in the browser", () => {
-    const PAGE = read("src/app/cards/[id]/edit/page.tsx");
-    expect(PAGE).toContain("isProTrialEligible");
-    expect(PAGE).toContain("trialEligible={trialEligible}");
-    // The dialog only ever receives it.
-    expect(DLG).not.toContain("isProTrialEligible");
+  it("hardcodes no price and no checkout link of its own", () => {
+    // Comments stripped: the file legitimately EXPLAINS the pricing history,
+    // and matching prose about a price as if it were a rendered price is how a
+    // guard cries wolf.
+    const src = DLG2.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    expect(src).not.toMatch(/\$\{?\d/);
+    expect(src).not.toContain("PLAN_PRICES");
+    expect(src).not.toContain("/checkout");
+    expect(src).not.toContain("/upgrade");
   });
 });
