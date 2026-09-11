@@ -48,6 +48,10 @@ export async function PATCH(req: NextRequest) {
     : null;
   const hasAddr = !!cleanAddr && Object.values(cleanAddr).some(Boolean);
   const lockTemplate = body.lockTemplate !== false; // default: locked (uniform template)
+  // Opt-in, so an absent field means OFF. lockTemplate defaults ON because a
+  // uniform look is the point of an office; this one takes something away from
+  // members, so it only exists when the admin asks for it.
+  const lockLinks = body.lockLinks === true;
 
   // Company IDENTITY + look are set HERE — the Branding page is the brand's
   // single source of truth (the primary-card concept is gone). A field the
@@ -95,7 +99,7 @@ export async function PATCH(req: NextRequest) {
     brand_phone: typeof body.phone === "string" ? body.phone.trim() || null : null,
     brand_fax: typeof body.fax === "string" ? body.fax.trim() || null : null,
     brand_address: hasAddr ? cleanAddr : null,
-    brand_locks: { template: lockTemplate },
+    brand_locks: { template: lockTemplate, links: lockLinks },
     ...(design !== undefined ? { brand_design: design } : {}),
   };
 

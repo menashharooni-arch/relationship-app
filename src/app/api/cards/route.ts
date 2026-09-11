@@ -125,6 +125,12 @@ export async function POST(req: NextRequest) {
     if (brand.phone || brand.fax || brand.address) cust = overlayOfficeContact(cust, brand);
     // Locked look (colours + fonts) — no-op while the office leaves it unlocked.
     cust = overlayOfficeDesign(cust, brand);
+    // LINKS LOCK: a new member card starts with no link buttons when the office
+    // has locked them. Sub-users only — an owner's own card is theirs.
+    if (subCtx && brand.lockLinks) {
+      cust = { ...cust };
+      delete (cust as Record<string, unknown>).links;
+    }
   }
 
   const cardRow = {

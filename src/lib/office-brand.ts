@@ -28,6 +28,25 @@ export type OfficeBrand = {
   // contact fields (logo/company/website/phone/fax/address) are ALWAYS
   // company-controlled regardless of this flag.
   lockTemplate: boolean;
+  /**
+   * Stop members adding their own link buttons to a company-branded card.
+   *
+   * lockTemplate governs how a card LOOKS. It says nothing about what is ON
+   * it, and a member has always fully controlled their Swift Links — so an
+   * employee could put any URL they liked on a card carrying the company's
+   * logo, and the office had no way to prevent it. For a compliance-minded
+   * buyer that is the objection, not the colours.
+   *
+   * Scoped deliberately to the arbitrary link buttons. Social profiles are
+   * normalised to known platforms (lib/social-url), and a person's own
+   * LinkedIn is theirs; a bio is theirs too. An unrestricted outbound URL on
+   * company letterhead is the thing a company needs to be able to say no to.
+   *
+   * DEFAULT FALSE, unlike lockTemplate: this is a new restriction, and an
+   * existing office must never silently acquire it and start discarding edits
+   * its members were allowed to make yesterday.
+   */
+  lockLinks: boolean;
 };
 
 // Pull just the design keys out of a card's customization blob. Used to seed a
@@ -86,7 +105,7 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
       && !office.brand_phone && !office.brand_fax && !hasAddr && !hasDesign) {
     return null;
   }
-  const locks = (office.brand_locks as { template?: boolean } | null) ?? null;
+  const locks = (office.brand_locks as { template?: boolean; links?: boolean } | null) ?? null;
   return {
     logoUrl: (office.brand_logo_url as string) ?? null,
     company: (office.brand_company as string) ?? null,
@@ -98,6 +117,7 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
     fax: (office.brand_fax as string) ?? null,
     address: hasAddr ? (addr as OfficeAddress) : null,
     lockTemplate: locks?.template !== false, // default true (preserve uniform look)
+    lockLinks: locks?.links === true,        // default FALSE — opt-in restriction
   };
 }
 
