@@ -30,13 +30,31 @@ export function appStoreReady(): boolean {
   return APP_STORE_URL !== null;
 }
 
-// The numeric App Store id, parsed out of the listing URL (".../app/id6798…").
-// Derived rather than its own env var so the URL stays the single switch: the
-// Smart App Banner (root layout `itunes` metadata) appears and disappears with
-// every other App Store surface. Null when unset or when the URL has no /idNNN
-// segment — consumers hide, same contract as APP_STORE_URL.
+// The numeric App Store id. NEXT_PUBLIC_APP_STORE_ID is the explicit source
+// (digits only — anything else is ignored rather than baked into a link);
+// when it is unset the id is parsed out of the listing URL (".../app/id6798…"),
+// so an environment that only ever set NEXT_PUBLIC_APP_STORE_URL keeps working.
+// Null when neither yields an id — every consumer hides, same contract as
+// APP_STORE_URL. Feeds the Smart App Banner (root layout `itunes` metadata) and
+// the "Rate us" links below.
 export const APP_STORE_ID: string | null =
-  APP_STORE_URL?.match(/\/id(\d+)/)?.[1] ?? null;
+  process.env.NEXT_PUBLIC_APP_STORE_ID?.trim().match(/^\d+$/)?.[0] ??
+  APP_STORE_URL?.match(/\/id(\d+)/)?.[1] ??
+  null;
+
+// Where a "Rate us" button points. Built from the id, never hardcoded.
+//
+// In the iOS app it is the write-review page: Capacitor hands a target=_blank
+// link to UIApplication.open, and iOS opens apps.apple.com links in the App
+// Store app itself — straight onto the review form, which is what Apple's own
+// docs prescribe for a user-initiated "rate this app" control.
+//
+// On the web it is the plain listing: a web visitor may not have the app, and
+// you cannot review an app you have not downloaded.
+export const APP_STORE_LISTING_URL: string | null =
+  APP_STORE_ID ? `https://apps.apple.com/app/id${APP_STORE_ID}` : null;
+export const APP_STORE_WRITE_REVIEW_URL: string | null =
+  APP_STORE_LISTING_URL ? `${APP_STORE_LISTING_URL}?action=write-review` : null;
 
 /**
  * Email-safe "Download on the App Store" block — the badge for TRANSACTIONAL

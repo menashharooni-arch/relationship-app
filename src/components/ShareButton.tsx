@@ -11,6 +11,12 @@ type Props = {
   text?: string;
   label?: string;
   variant?: "primary" | "secondary";
+  /**
+   * The signed-in owner sharing their OWN card (the dashboard). Completed shares
+   * then count toward the App Store rating moment — see lib/app-review.ts. Off
+   * everywhere else: a visitor sharing someone else's card is not our user's win.
+   */
+  ownCard?: boolean;
 };
 
 // `title` is accepted for backwards compatibility but intentionally not shared —
@@ -20,8 +26,14 @@ export default function ShareButton({
   text = "Save my contact and connect with me instantly.",
   label = "Share Card",
   variant = "primary",
+  ownCard = false,
 }: Props) {
   const [status, setStatus] = useState<"idle" | "copied" | "menu">("idle");
+
+  // Records only — the rating sheet is never requested from a tap.
+  function shared() {
+    if (ownCard) import("@/lib/app-review").then((m) => m.noteReviewMoment("card_shared")).catch(() => {});
+  }
 
   // Heat the link preview before anyone asks for it — once when the button
   // appears, again on tap. See lib/share-preview.ts for the headshot bug this
@@ -44,6 +56,7 @@ export default function ShareButton({
       try {
         const { Share } = await import("@capacitor/share");
         await Share.share({ url });
+        shared();
         triggerSignupNudge("share_card");
         return;
       } catch { /* fall through to web share / menu */ }
@@ -54,6 +67,7 @@ export default function ShareButton({
         // card preview only when the message is the bare URL — sharing extra
         // text makes it a plain text message with a link and no preview.
         await navigator.share({ url });
+        shared();
         triggerSignupNudge("share_card");
         return;
       } catch {
@@ -67,6 +81,7 @@ export default function ShareButton({
     try {
       await navigator.clipboard.writeText(url);
       setStatus("copied");
+      shared();
       triggerSignupNudge("share_card");
       setTimeout(() => setStatus("idle"), 2500);
     } catch {
@@ -78,6 +93,7 @@ export default function ShareButton({
   function shareWhatsApp() {
     const msg = encodeURIComponent(`${text}\n${url}`);
     window.open(`https://wa.me/?text=${msg}`, "_blank", "noopener,noreferrer");
+    shared();
     triggerSignupNudge("share_card");
     setStatus("idle");
   }

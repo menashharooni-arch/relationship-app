@@ -206,14 +206,20 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
     setOpen(false);
     setState("idle");
     openText();
-    // Handing your card to a real contact is the other honest win. Same gate.
-    if (!isDark) import("@/lib/app-review").then((m) => m.noteReviewMoment("card_shared")).catch(() => {});
+    noteShared();
   }
 
   function shareEmailNow() {
     setOpen(false);
     setState("idle");
     openEmail();
+    noteShared();
+  }
+
+  // Handing your card to a real contact counts toward the App Store rating
+  // moment (lib/app-review.ts). Records only — the sheet is never shown from a tap.
+  function noteShared() {
+    if (!isDark) import("@/lib/app-review").then((m) => m.noteReviewMoment("card_shared")).catch(() => {});
   }
 
   // Send BOTH through our own senders, in one request. No app opens; the
@@ -245,6 +251,7 @@ export default function ShareMyInfoButton({ firstName, phone, email, cardOwner, 
       const sent = d.sent ?? [];
       const both = sent.includes("sms") && sent.includes("email");
       onSent?.();
+      if (sent.length) noteShared();
       if (both) {
         setState("sent");
         setNote(`Texted and emailed ${firstName}`);

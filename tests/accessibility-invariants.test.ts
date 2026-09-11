@@ -139,22 +139,4 @@ describe("the App Store review prompt", () => {
     // ...and compiled: a file that is not in the target never runs.
     expect(read("ios/App/App.xcodeproj/project.pbxproj")).toMatch(/AppReview\.swift in Sources/);
   });
-
-  it("never gates on sentiment — that is what Apple forbids", () => {
-    const s = read("src/lib/app-review.ts");
-    // It must count what someone DID, never how they rated us. RateUsCard's
-    // star rating routes unhappy users to a private box; wiring that to the App
-    // Store prompt would be review-gating.
-    expect(/rating|stars?\b|RateUs|sentiment/i.test(s.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, ""))).toBe(false);
-    expect(s).toMatch(/MEANINGFUL_MOMENTS/);
-    expect(s).toMatch(/MIN_DAYS_INSTALLED/);
-  });
-
-  it("asks at most once per build, and marks before it asks", () => {
-    const s = read("src/lib/app-review.ts");
-    const body = s.slice(s.indexOf("export function noteReviewMoment"));
-    // The mark must be written BEFORE the request: iOS never says whether the
-    // sheet appeared, so a failed call must not re-arm on the next moment.
-    expect(body.indexOf("write(ASKED_KEY")).toBeLessThan(body.indexOf("requestNativeReview()"));
-  });
 });

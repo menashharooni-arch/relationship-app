@@ -502,11 +502,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       });
       if (res.ok) {
         setStatus("saved");
-        // A saved card is the product doing its job — one of the few honest
-        // moments to ask for a rating. noteReviewMoment decides whether this is
-        // actually the right one (3rd win, day 3+, once per build) and does
-        // nothing on the web. See src/lib/app-review.ts.
-        import("@/lib/app-review").then((m) => m.noteReviewMoment("card_saved")).catch(() => {});
         // A name/company change may have auto-renamed the card URL — follow the
         // slug the server reports, or ?card= selects a card that no longer exists.
         const okJson = await res.json().catch(() => ({} as { renamedTo?: string }));
