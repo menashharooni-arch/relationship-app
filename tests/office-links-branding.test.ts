@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { pinOfficeLinks, overlayOfficeLinks } from "@/lib/office-brand";
+import { pinOfficeLinks, overlayOfficeLinks, overlayOfficeInstagram, releaseOfficeLinks, OWN_BIO, OWN_INSTAGRAM } from "@/lib/office-brand";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
@@ -92,14 +92,28 @@ describe("the server pins them — the UI is not the boundary", () => {
 
   it("on a new member card too", () => {
     const route = read("src/app/api/cards/route.ts");
-    expect(route).toMatch(/if \(subCtx\) cust = overlayOfficeLinks\(/);
+    expect(route).toMatch(/if \(subCtx\) \{\s*\n\s*cust = overlayOfficeLinks\(/);
+    // …and the Instagram slot is resolved through the same helper, so a new
+    // card preserves the member's handle exactly like an existing one.
+    expect(route).toMatch(/officeInstagram = ig\.instagram/);
   });
 
   it("forces the office Instagram as a TOP-LEVEL column, not a customization key", () => {
     // cards.instagram is a real column. Writing customization.instagram would
     // have created a second copy that the links page never reads.
-    expect(read("src/app/api/cards/[id]/route.ts")).toMatch(/updates\.instagram = brand\.linkInstagram/);
-    expect(read("src/app/api/cards/route.ts")).toMatch(/subCtx && brand\?\.linkInstagram\) \|\| instagram/);
+    // Resolved through overlayOfficeInstagram now rather than assigned raw, so
+    // the member's own handle is stashed before the office's takes the slot.
+    // What must still hold: it is written to the COLUMN, never customization.
+    const idRoute = read("src/app/api/cards/[id]/route.ts");
+    expect(idRoute).toMatch(/updates\.instagram = out\.instagram/);
+    expect(idRoute).toMatch(/overlayOfficeInstagram\(/);
+    // The STORED handle is what gets stashed — a submitted one is the company's.
+    expect(idRoute).toMatch(/\.select\("instagram"\)/);
+    expect(idRoute, "customization.instagram is a second, silently ignored copy")
+      .not.toMatch(/customization\.instagram\s*=/);
+    // The create route resolves the slot through the same helper: `officeInstagram`
+    // is set only when an office owns it, and falls back to what the member typed.
+    expect(read("src/app/api/cards/route.ts")).toMatch(/instagram: officeInstagram \?\? normalizeSocial\(/);
     const lib = read("src/lib/office-brand.ts");
     const fn = lib.slice(lib.indexOf("export function overlayOfficeLinks"), lib.indexOf("// ── Pure overlay: apply the company-controlled contact"));
     expect(fn, "the overlay is writing a customization.instagram copy").not.toMatch(/cust\.instagram =/);
@@ -119,7 +133,11 @@ describe("the member can tell which links are theirs", () => {
 
   it("marks the office's links and gives them no remove control", () => {
     // A remove button the server undoes on save is worse than no button.
-    expect(form).toContain("isOfficeLink(l.url)");
+    // isOfficeRow, not isOfficeLink: a company SECTION HEADER has no URL, so a
+    // URL-only matcher left company headers looking like the member's own —
+    // editable and removable, then silently restored by the server on save.
+    expect(form).toContain("isOfficeRow(l)");
+    expect(form, "a URL-only matcher cannot see a company header").not.toContain("isOfficeLink(");
     expect(form).toMatch(/Company<\/span>/);
   });
 
@@ -241,5 +259,242 @@ describe("the member is never shown a field the server will overwrite", () => {
   it("Instagram is the ONE social that can be managed", () => {
     expect(form).toMatch(/const managed = key === "instagram" && instagramManaged/);
     expect(form).toMatch(/readOnly=\{managed\}/);
+  });
+});
+
+// ── The office replaces what a member wrote; it must never destroy it ────────
+//
+// Verified against a real office before this existed: the admin typed a company
+// bio, pressed Save & apply, and every teammate's own bio was gone from the
+// database with no copy anywhere. Clearing the company bio afterwards gave them
+// an empty box, not their words back. Same for the company Instagram.
+//
+// A Swift Links page has ONE Instagram button and one bio, so the office's
+// winning the slot is correct. Deleting the member's is not.
+describe("a member's own bio and Instagram survive the office taking the slot", () => {
+  const brand = (over: Record<string, unknown> = {}) => ({
+    linkDesign: null, lockLinkDesign: false, linkBio: null, linkInstagram: null, links: null, ...over,
+  }) as never;
+
+  it("stashes the member's bio the first time the office sets one", () => {
+    const out = overlayOfficeLinks({ bio: "Ben's own words" }, brand({ linkBio: "Northbeam — one team" }));
+    expect(out.bio).toBe("Northbeam — one team");
+    expect(out[OWN_BIO]).toBe("Ben's own words");
+  });
+
+  it("does not re-stash on every later save", () => {
+    // The member's form posts the COMPANY bio back (the field is read-only), so
+    // a naive stash would overwrite their words with the company's on save #2.
+    const first = overlayOfficeLinks({ bio: "Ben's own words" }, brand({ linkBio: "Company bio" }));
+    const second = overlayOfficeLinks(first, brand({ linkBio: "Company bio" }));
+    expect(second[OWN_BIO]).toBe("Ben's own words");
+  });
+
+  it("hands the bio back when the office clears its own", () => {
+    const set = overlayOfficeLinks({ bio: "Ben's own words" }, brand({ linkBio: "Company bio" }));
+    const cleared = overlayOfficeLinks(set, brand({ linkBio: null }));
+    expect(cleared.bio).toBe("Ben's own words");
+    expect(cleared[OWN_BIO]).toBeUndefined();
+  });
+
+  it("remembers a member who had NO bio, and restores them to none", () => {
+    const set = overlayOfficeLinks({}, brand({ linkBio: "Company bio" }));
+    expect(set[OWN_BIO]).toBe("");
+    expect(overlayOfficeLinks(set, brand({ linkBio: null })).bio).toBe("");
+  });
+
+  it("stashes the member's Instagram and returns the company's for the page", () => {
+    const out = overlayOfficeInstagram({}, "benpersonal", brand({ linkInstagram: "northbeamgroup" }));
+    expect(out.instagram).toBe("northbeamgroup");
+    expect(out.customization[OWN_INSTAGRAM]).toBe("benpersonal");
+  });
+
+  it("never stashes a submitted company handle as the member's own", () => {
+    // What the member's form posts back while the field is managed.
+    const first = overlayOfficeInstagram({}, "benpersonal", brand({ linkInstagram: "northbeamgroup" }));
+    const second = overlayOfficeInstagram(first.customization, "northbeamgroup", brand({ linkInstagram: "northbeamgroup" }));
+    expect(second.customization[OWN_INSTAGRAM]).toBe("benpersonal");
+  });
+
+  it("hands the handle back when the office clears its own", () => {
+    const set = overlayOfficeInstagram({}, "benpersonal", brand({ linkInstagram: "northbeamgroup" }));
+    const cleared = overlayOfficeInstagram(set.customization, "northbeamgroup", brand({ linkInstagram: null }));
+    expect(cleared.instagram).toBe("benpersonal");
+    expect(cleared.customization[OWN_INSTAGRAM]).toBeUndefined();
+  });
+
+  it("leaves a non-member card alone when there is no brand", () => {
+    const out = overlayOfficeInstagram({}, "benpersonal", null);
+    expect(out.instagram).toBe("benpersonal");
+  });
+});
+
+// ── Leaving the office ──────────────────────────────────────────────────────
+// stripBrandFromUserCards exists so an ex-employee does not walk away with the
+// former employer's branding live on their public page. The Swift Links fields
+// were missing from it entirely when the feature shipped.
+describe("leaving the office returns the page to the person", () => {
+  const brand = {
+    linkBio: "Northbeam — one team",
+    linkInstagram: "northbeamgroup",
+    links: [{ label: "Book a viewing", url: "https://northbeam.example.com/book" }],
+  } as never;
+
+  it("gives back their bio and handle, and drops the company's links", () => {
+    const joined = {
+      bio: "Northbeam — one team",
+      [OWN_BIO]: "Ben's own words",
+      [OWN_INSTAGRAM]: "benpersonal",
+      links: [
+        { label: "Book a viewing", url: "https://northbeam.example.com/book" },
+        { label: "My calendar", url: "https://cal.example.com/ben" },
+      ],
+    };
+    const out = releaseOfficeLinks(joined, "northbeamgroup", brand);
+    expect(out.customization.bio).toBe("Ben's own words");
+    expect(out.instagram).toBe("benpersonal");
+    expect(out.customization.links).toEqual([{ label: "My calendar", url: "https://cal.example.com/ben" }]);
+    expect(out.customization[OWN_BIO]).toBeUndefined();
+    expect(out.customization[OWN_INSTAGRAM]).toBeUndefined();
+  });
+
+  it("does not touch a bio they changed away from the company's", () => {
+    // Conservative, exactly like the logo/company strip above it: only clear a
+    // field that still MATCHES the office's value.
+    const out = releaseOfficeLinks({ bio: "Something else entirely", [OWN_BIO]: "old" }, "benpersonal", brand);
+    expect(out.customization.bio).toBe("Something else entirely");
+    expect(out.instagram).toBe("benpersonal");
+  });
+
+  it("matches company links loosely, so a trailing slash cannot orphan one", () => {
+    const out = releaseOfficeLinks(
+      { links: [{ label: "Book a viewing", url: "https://Northbeam.example.com/book/" }] },
+      null,
+      brand,
+    );
+    expect(out.customization.links).toEqual([]);
+  });
+});
+
+// ── Section headers among the company links ─────────────────────────────────
+//
+// A company page can be chaptered the way a personal one can: a row with
+// kind:"header" and no URL. That breaks the identity rule the rest of this file
+// relies on — office links are matched BY URL, and every header's URL is the
+// empty string, so without a second signal the office's first header and the
+// member's own header are indistinguishable. Office rows are therefore stamped
+// `office: true` as they are pinned, and the stamp is what identifies them.
+describe("company section headers", () => {
+  const brand = {
+    links: [
+      { label: "Listings", url: "", kind: "header" as const },
+      { label: "Book a viewing", url: "https://northbeam.example.com/book" },
+    ],
+  } as never;
+
+  it("pins a header with no URL, and stamps every office row", () => {
+    const out = pinOfficeLinks([], brand) as Record<string, unknown>[];
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ label: "Listings", kind: "header", office: true });
+    expect(out[1]).toMatchObject({ label: "Book a viewing", office: true });
+  });
+
+  it("keeps the member's OWN header, which also has no URL", () => {
+    // The bug this prevents: matching on URL makes "" === "", so the member's
+    // section header is swallowed as if it were the company's.
+    const out = pinOfficeLinks(
+      [{ label: "My videos", url: "", kind: "header" }, { label: "My calendar", url: "https://cal.example.com/me" }],
+      brand,
+    ) as Record<string, unknown>[];
+    expect(out.map((l) => l.label)).toEqual(["Listings", "Book a viewing", "My videos", "My calendar"]);
+    expect(out.find((l) => l.label === "My videos")?.office).toBeUndefined();
+  });
+
+  it("refuses a forged office stamp from a member payload", () => {
+    // A crafted save claiming `office: true` must not make a member's own row
+    // unremovable, or let it masquerade as company content.
+    const out = pinOfficeLinks(
+      [{ label: "Mine, pretending", url: "https://evil.example.com", office: true }],
+      brand,
+    ) as Record<string, unknown>[];
+    expect(out.map((l) => l.label)).toEqual(["Listings", "Book a viewing"]);
+  });
+
+  it("a member cannot rename or delete a company header", () => {
+    const out = pinOfficeLinks(
+      [{ label: "Renamed by me", url: "", kind: "header", office: true }],
+      brand,
+    ) as Record<string, unknown>[];
+    expect(out.find((l) => l.kind === "header")?.label).toBe("Listings");
+  });
+
+  it("leaving strips the company's headers and keeps the member's", () => {
+    const joined = pinOfficeLinks([{ label: "My videos", url: "", kind: "header" }], brand);
+    const out = releaseOfficeLinks({ links: joined }, null, brand);
+    expect((out.customization.links as { label: string }[]).map((l) => l.label)).toEqual(["My videos"]);
+  });
+});
+
+describe("the brand API accepts a header, but not a dead link", () => {
+  const route = read("src/app/api/office/brand/route.ts");
+
+  it("keeps a header on its label alone", () => {
+    expect(route).toMatch(/l\.kind === "header" \? !!l\.label : !!l\.label && \/\^https\?/);
+  });
+
+  it("still rejects a link with no destination", () => {
+    expect(route).toMatch(/\^https\?:\\\/\\\//);
+  });
+
+  it("coerces any other kind to a plain link", () => {
+    // So a crafted payload cannot invent a third row type the page can't render.
+    expect(route).toMatch(/l\.kind === "header" \? \("header" as const\) : undefined/);
+  });
+});
+
+describe("the brand LOADER keeps section headers", () => {
+  const lib = read("src/lib/office-brand.ts");
+
+  it("carries kind through the parse", () => {
+    // Dropping `kind` turned a header into a link with an empty URL, which the
+    // next filter then deleted — so the header saved, rendered on the admin's
+    // own screen, and never reached a single teammate's card. Nothing errored.
+    expect(lib).toMatch(/\? \{ label, url: "", kind: "header" as const \}/);
+  });
+
+  it("does not require a URL on a header row", () => {
+    expect(lib).toMatch(/l\.kind === "header" \? !!l\.label : !!l\.label && !!l\.url/);
+  });
+});
+
+describe("a company header cannot be duplicated", () => {
+  const brand = { links: [{ label: "Listings", url: "", kind: "header" as const }] } as never;
+
+  it("drops an unmarked echo of the company's header", () => {
+    // A card saved before office rows were stamped posts the header back with
+    // no marker. Keeping it as "theirs" put a second copy on the page on every
+    // single save — the list grew by one header each time.
+    const out = pinOfficeLinks([{ label: "Listings", url: "", kind: "header" }], brand) as { label: string }[];
+    expect(out.filter((l) => l.label === "Listings")).toHaveLength(1);
+    expect(out).toHaveLength(1);
+  });
+
+  it("matches a header loosely on case and spacing", () => {
+    const out = pinOfficeLinks([{ label: "  listings ", url: "", kind: "header" }], brand) as unknown[];
+    expect(out).toHaveLength(1);
+  });
+
+  it("still keeps a genuinely different header of theirs", () => {
+    const out = pinOfficeLinks([{ label: "My videos", url: "", kind: "header" }], brand) as { label: string }[];
+    expect(out.map((l) => l.label)).toEqual(["Listings", "My videos"]);
+  });
+
+  it("removes an unmarked company header on the way out too", () => {
+    const out = releaseOfficeLinks(
+      { links: [{ label: "Listings", url: "", kind: "header" }, { label: "Mine", url: "", kind: "header" }] },
+      null,
+      brand,
+    );
+    expect((out.customization.links as { label: string }[]).map((l) => l.label)).toEqual(["Mine"]);
   });
 });

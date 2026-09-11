@@ -32,6 +32,9 @@ import { OFFICE_LINK_DESIGN_KEYS } from "@/lib/office-link-design";
 // they simply cannot touch the office's. An office wants its booking link on
 // every page, not to stop a salesperson linking their own calendar.
 
+/** A company link, or a section header that chapters the page (no URL). */
+type OfficeLinkRow = { label: string; url: string; kind?: "header" };
+
 type OfficeRow = {
   // No id: /api/office/brand resolves the office from the SESSION, never from
   // anything the client sends, so this component never needs to know it.
@@ -42,7 +45,7 @@ type OfficeRow = {
   brand_link_design?: Record<string, unknown> | null;
   brand_link_bio?: string | null;
   brand_link_instagram?: string | null;
-  brand_links?: { label: string; url: string }[] | null;
+  brand_links?: OfficeLinkRow[] | null;
   brand_locks?: { template?: boolean; linkDesign?: boolean } | null;
 };
 
@@ -83,7 +86,10 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
 
   const [bio, setBio] = useState(office.brand_link_bio ?? "");
   const [instagram, setInstagram] = useState(office.brand_link_instagram ?? "");
-  const [links, setLinks] = useState<{ label: string; url: string }[]>(office.brand_links ?? []);
+  // A row is either a link (label + url) or a SECTION HEADER (label only,
+  // kind: "header") — the same two shapes a teammate can add under their own
+  // links, so a company page can be chaptered the way a personal one can.
+  const [links, setLinks] = useState<OfficeLinkRow[]>(office.brand_links ?? []);
   const [newLink, setNewLink] = useState({ label: "", url: "" });
   // Opt-in: an office that has never opened this tab must not silently start
   // overwriting pages its members already built.
@@ -138,7 +144,9 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
                 className={`${inputCls} resize-none`}
               />
               <p className="text-[0.625rem] text-gray-600 mt-1">
-                {bio ? "Everyone's page shows this. Leave it empty to let each person write their own." : "Empty — each teammate writes their own."}
+                {bio
+                  ? "Everyone's page shows this. Their own bio is kept and returns if you clear this."
+                  : "Empty — each teammate writes their own."}
               </p>
             </div>
 
@@ -152,19 +160,42 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
                 className={inputCls}
               />
               <p className="text-[0.625rem] text-gray-600 mt-1">
-                The only social the office sets. LinkedIn, TikTok, X and the rest stay each teammate&apos;s own.
+                The only social the office sets — a Swift Links page has one Instagram button, so yours is
+                the one it shows. Each teammate&apos;s own handle is kept and comes back if you clear this.
+                LinkedIn, TikTok, X and the rest stay theirs either way.
               </p>
             </div>
 
             <div>
-              <p className="block text-xs font-medium text-gray-400 mb-1">Company link buttons</p>
+              <p className="block text-xs font-medium text-gray-400 mb-1">Company Additional Links</p>
               <p className="text-[0.625rem] text-gray-600 mb-2.5">
                 These appear at the top of every teammate&apos;s page and they can&apos;t change them — but they can
                 still add their own underneath.
               </p>
               {links.length > 0 && (
                 <div className="space-y-2 mb-2">
-                  {links.map((l, i) => (
+                  {links.map((l, i) => l.kind === "header" ? (
+                    // Label only, edited in place — the same control the
+                    // teammate's own "Add a section header" produces.
+                    <div key={`h-${i}`} className="flex items-center gap-2.5 bg-gray-950 border border-gray-700 border-dashed rounded-xl px-3 py-2.5">
+                      <span className="text-[0.5625rem] font-bold uppercase tracking-wide text-gray-500 shrink-0">Section</span>
+                      <input
+                        type="text"
+                        value={l.label}
+                        onChange={(e) => setLinks((prev) => prev.map((x, xi) => (xi === i ? { ...x, label: e.target.value.slice(0, 120) } : x)))}
+                        placeholder="Section title (e.g. Listings)"
+                        className="flex-1 min-w-0 bg-transparent text-gray-200 text-xs font-bold uppercase tracking-wide focus:outline-none placeholder-gray-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setLinks((prev) => prev.filter((_, xi) => xi !== i))}
+                        aria-label={`Remove section ${l.label || "header"}`}
+                        className="shrink-0 grid place-items-center w-9 h-9 -mr-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors text-lg leading-none"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
                     <div key={`${l.url}-${i}`} className="flex items-center gap-2.5 bg-gray-950 border border-gray-800 rounded-xl px-3 py-2.5">
                       <div className="flex-1 min-w-0">
                         <p className="text-gray-200 text-xs font-semibold truncate">{l.label}</p>
@@ -186,6 +217,18 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
                   ))}
                 </div>
               )}
+              {/* Outside the list wrapper on purpose: a header has to be able to
+                  open the first section before any company link exists. */}
+              <button
+                type="button"
+                onClick={() => setLinks((prev) => [...prev, { label: "", url: "", kind: "header" as const }])}
+                // Real padding, not a bare text link: measured at 15px tall
+                // without it, which is a miss on a phone — and this control
+                // sits on the page fifteen people hand to customers.
+                className="block mb-1 -ml-1.5 px-1.5 py-2 rounded-lg text-[0.6875rem] font-semibold text-gray-400 hover:text-gray-200 hover:bg-gray-800/60 transition-colors"
+              >
+                + Add a section header
+              </button>
               <div className="space-y-2">
                 <input
                   value={newLink.label}
@@ -247,7 +290,7 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
                 {[
                   ...(bio ? ["The bio"] : []),
                   ...(instagram ? ["Company Instagram"] : []),
-                  ...(links.length ? ["Company link buttons"] : []),
+                  ...(links.length ? ["Company Additional Links"] : []),
                   ...(lockLinkDesign ? ["The page's whole look"] : []),
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-1.5 text-[0.6875rem] text-gray-500">
