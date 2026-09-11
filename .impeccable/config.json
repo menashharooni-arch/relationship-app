@@ -65,6 +65,15 @@
         ],
         "createdAt": "2026-09-11T17:29:57.471Z",
         "reason": "Hover-state false positive of the same class already scoped elsewhere: text-gray-500 with hover:bg-red-500/10 AND hover:text-red-400 on one line. The gray never renders on the red tint — the hover swaps both together. Pre-dates this session's edits (the link delete buttons)."
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/components/SwiftLinkDesign.tsx"
+        ],
+        "createdAt": "2026-09-11T19:20:45.076Z",
+        "reason": "The selected/unselected pill idiom already scoped off in the card editor, wizard, dashboard, ContactsClient and Office branding: a one-line ternary where 'border-blue-600 bg-blue-600/10 text-blue-200' is the ACTIVE branch and 'bg-gray-800/40 text-gray-300' is the inactive one. The gray text never renders on the blue tint; the single-line regex cannot see the ternary. All three flagged lines pre-date this session (git-confirmed: the 2026-09-11 unlock touched only the disabled attributes)."
       }
     ]
   }
