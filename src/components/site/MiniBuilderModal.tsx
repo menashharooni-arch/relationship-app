@@ -118,7 +118,7 @@ export default function MiniBuilderModal({
               className="md:hidden flex flex-col items-center px-6 pt-12 pb-5 border-b border-white/10"
               style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(93,107,255,0.14), transparent 60%), #0A0B10" }}
             >
-              <span className="text-white/35 text-[0.6875rem] font-semibold uppercase tracking-widest mb-3">Live preview</span>
+              <span className="text-white/70 text-[0.6875rem] font-semibold uppercase tracking-widest mb-3">Live preview</span>
               <div className="w-full flex items-center justify-center">{preview}</div>
             </div>
           )}

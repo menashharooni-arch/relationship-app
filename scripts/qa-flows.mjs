@@ -383,6 +383,14 @@ FLOWS["sign-out"] = async () => {
     }
     if (!(await out.isVisible().catch(() => false))) { fail("sign-out", "no Sign out control anywhere on /settings/flows"); return; }
     await out.click();
+    // Sign out is CONFIRMED, never immediate (owner call 2026-09-09): the first
+    // control opens a "Sign out of SwiftCard?" card and the red button in it is
+    // what actually signs out. Clicking only the trigger left the session
+    // fully alive, and this flow then reported the login wall as broken when
+    // nothing had been asked to sign out at all.
+    const confirm = page.locator('[role="dialog"] button:has-text("Sign out")').first();
+    if (await confirm.isVisible({ timeout: 3000 }).catch(() => false)) await confirm.click();
+    else { fail("sign-out", "the confirm card did not appear after tapping Sign out"); return; }
     await page.waitForTimeout(4000);
     // Going back must NOT reveal the signed-in dashboard.
     await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });

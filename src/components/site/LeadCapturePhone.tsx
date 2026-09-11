@@ -76,7 +76,7 @@ function LinkExperience() {
                   The mock previously showed name → email → phone with nothing
                   marked required, which is not the form a visitor meets. */}
               {["Your name *", "Your phone number *", "Your email (optional)", "Quick message (optional)"].map((ph) => (
-                <div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[0.75rem] text-slate-400" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>
+                <div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[0.75rem] text-slate-500" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>
               ))}
               {/* The SMS consent checkbox, directly above the submit button —
                   the position and copy our A2P 10DLC campaign (COJQ2MB) is

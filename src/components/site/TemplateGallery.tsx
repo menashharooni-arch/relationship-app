@@ -102,7 +102,7 @@ function LinkExperience({ id, Component, data }: { id: string; Component: Tmpl["
               {/* The real form's fields, in the real order: name and PHONE are
                   required, email is optional, and there is a message field. */}
               {["Your name *", "Your phone number *", "Your email (optional)", "Quick message (optional)"].map((ph) => (
-                <div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[0.75rem] text-slate-400" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>
+                <div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[0.75rem] text-slate-500" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>
               ))}
               {/* The SMS consent checkbox, shown UNTICKED as it always renders
                   (optional; pre-checking would break TCPA). Copy trimmed to the
@@ -158,7 +158,7 @@ export default function TemplateGallery({ linkedinEnabled = false }: { linkedinE
     <div className="grid lg:grid-cols-[0.82fr_1.18fr] gap-12 items-start">
       {/* Phone — reflects the hovered template's live link experience */}
       <div className="flex flex-col items-center gap-3 order-2 lg:order-1 lg:sticky lg:top-24">
-        <div className="flex items-center gap-1.5 text-slate-400 text-[0.75rem] font-medium">
+        <div className="flex items-center gap-1.5 text-slate-500 text-[0.75rem] font-medium">
           <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 5v14M12 19l-4-4M12 19l4-4" strokeLinecap="round" strokeLinejoin="round" /></svg>
           Scroll on phone to view
         </div>

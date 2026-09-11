@@ -175,7 +175,7 @@ export default function SignatureDemo() {
       <div className="rd-card-l overflow-hidden max-w-3xl mx-auto" data-reveal="scale">
         <div className="flex items-center gap-2 px-4 h-11 border-b border-slate-100 bg-slate-50">
           <span className="w-3 h-3 rounded-full bg-[#ff5f57]" /><span className="w-3 h-3 rounded-full bg-[#febc2e]" /><span className="w-3 h-3 rounded-full bg-[#28c840]" />
-          <span className="ml-3 text-[0.75rem] text-slate-400 font-medium">New Message</span>
+          <span className="ml-3 text-[0.75rem] text-slate-500 font-medium">New Message</span>
         </div>
         <div className="p-6 sm:p-8 text-slate-700">
           <div className="text-[0.8125rem] space-y-1.5 pb-3 border-b border-slate-100">

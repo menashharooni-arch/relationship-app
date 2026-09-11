@@ -126,7 +126,7 @@ export default function TemplatesPage() {
                 </div>
                 <div>
                   <span className="text-white font-semibold text-sm">{tmpl.name}</span>
-                  <span className="text-gray-500 text-sm ml-2">— {tmpl.tagline}</span>
+                  <span className="text-gray-400 text-sm ml-2">— {tmpl.tagline}</span>
                 </div>
               </div>
 
@@ -175,7 +175,7 @@ export default function TemplatesPage() {
                     <span
                       key={tag}
                       className="text-[0.625rem] font-medium px-2 py-0.5 rounded-full"
-                      style={{ background: "#111827", color: "#6b7280" }}
+                      style={{ background: "#111827", color: "#9ca3af" }}
                     >
                       {tag}
                     </span>

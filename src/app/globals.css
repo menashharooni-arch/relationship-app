@@ -391,6 +391,10 @@ body {
 /* …but keep white text white on colored buttons/badges, where the background
    class and text-white sit on the same element (higher specificity → wins). */
 [data-sc-theme="light"] .sc-app :is(.bg-blue-500, .bg-blue-600, .bg-blue-700, .bg-indigo-600, .bg-violet-600, .bg-purple-600, .bg-green-500, .bg-green-600, .bg-emerald-600, .bg-red-500, .bg-red-600).text-white { color: #FFFFFF !important; }
+/* Danger text. red-400 (#f87171) was drawn for the dark surface; on the cream
+   it sits at 2.9:1 (axe, /settings). red-700 holds 5.9:1 on white and still
+   reads as the same warning. */
+[data-sc-theme="light"] .sc-app .text-red-400 { color: #b91c1c !important; }
 [data-sc-theme="light"] .sc-app .text-gray-200,
 [data-sc-theme="light"] .sc-app .text-gray-300 { color: #1F2937 !important; }
 /* The muted end of this ramp did not survive its own remap. Measured against

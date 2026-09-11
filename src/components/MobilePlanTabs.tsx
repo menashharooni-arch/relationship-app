@@ -40,7 +40,7 @@ export default function MobilePlanTabs({
             className="px-4 py-1.5 rounded-full text-xs font-bold transition-colors"
             style={{
               background: active === t.key ? "#2563EB" : "transparent",
-              color: active === t.key ? "#fff" : dark ? "rgba(255,255,255,0.5)" : "#64748b",
+              color: active === t.key ? "#fff" : dark ? "rgba(255,255,255,0.7)" : "#334155",
             }}
           >
             {t.label}

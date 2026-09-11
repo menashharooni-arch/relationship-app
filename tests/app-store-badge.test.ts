@@ -159,7 +159,14 @@ describe("self-activating contract", () => {
     const mod = await import("@/components/AppStoreBadge");
     const out = renderToStaticMarkup(h(mod.default));
     expect(out).toContain("https://apps.apple.com/app/id6798875872");
-    expect(out).toContain('aria-label="Download SwiftCard on the App Store"');
+    // The accessible name must CONTAIN the visible label, word for word. Voice
+    // Control users say what they see — "tap Download on the App Store" — and
+    // the command fails if the name does not carry that phrase. The old label
+    // reordered the words around "SwiftCard" and never matched (caught by
+    // scripts/qa-a11y.mjs on every page the badge appears on).
+    expect(out).toContain('aria-label="Download on the App Store"');
+    const visible = out.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+    expect(visible).toContain("Download on the App Store");
     expect(out).toContain("rd-appstore-shine");
     // Opens out of the site; never without noopener.
     expect(out).toContain('rel="noopener noreferrer"');

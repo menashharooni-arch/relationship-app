@@ -51,8 +51,8 @@ const SIZES: Record<Size, { pad: string; glyph: string; top: string; main: strin
 // Black on light surfaces, glass on dark ones — matching what the hero and the
 // footer each already used.
 const TONES: Record<Tone, { shell: string; top: string }> = {
-  black: { shell: "bg-slate-900 hover:bg-slate-800", top: "text-white/60" },
-  glass: { shell: "border border-white/15 bg-white/[0.06] hover:bg-white/10", top: "text-white/50" },
+  black: { shell: "bg-slate-900 hover:bg-slate-800", top: "text-white/70" },
+  glass: { shell: "border border-white/15 bg-white/[0.06] hover:bg-white/10", top: "text-white/70" },
 };
 
 export function AppleGlyph({ className }: { className?: string }) {
@@ -81,7 +81,7 @@ export default function AppStoreBadge({
       href={APP_STORE_URL}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Download SwiftCard on the App Store"
+      aria-label="Download on the App Store"
       // overflow-hidden clips the shine to the pill; relative is what it anchors
       // to. Both are load-bearing — without them the sweep runs across whatever
       // sits next to the badge.
@@ -89,7 +89,7 @@ export default function AppStoreBadge({
     >
       <AppleGlyph className={s.glyph} />
       <span className="leading-tight">
-        <span className={`block ${t.top} ${s.top}`}>Download on the</span>
+        <span className={`block ${t.top} ${s.top}`}>Download on the{" "}</span>
         <span className={`block text-white font-semibold ${s.main} tracking-tight`}>App&nbsp;Store</span>
       </span>
       <span className="rd-appstore-shine" aria-hidden="true" />
