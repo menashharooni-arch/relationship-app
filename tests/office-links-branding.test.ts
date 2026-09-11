@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { pinOfficeLinks } from "@/lib/office-brand";
+import { pinOfficeLinks, overlayOfficeLinks } from "@/lib/office-brand";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
@@ -153,5 +153,93 @@ describe("the Swift Links DESIGN lock is separate from the links", () => {
   it("says what is still the member's", () => {
     const form = read("src/app/cards/[id]/edit/CardEditForm.tsx");
     expect(form).toMatch(/Your bio, your socials\s*\n?\s*and your own link buttons are still yours/);
+  });
+});
+
+// ── overlayOfficeLinks: the two rules, kept apart ───────────────────────────
+//
+// THE LOOK follows the lock, exactly as the card's design follows lockTemplate.
+// THE CONTENT (bio, pinned links) follows the company-information rule and
+// applies whether or not the look is locked — the same way brand_company does.
+
+const FULL = {
+  linkDesign: { linkLook: "midnight", linkAccentColor: "#7c3aed" } as Record<string, unknown>,
+  lockLinkDesign: true,
+  linkBio: "Northwind Partners — commercial real estate.",
+  linkInstagram: "@northwind",
+  links: OFFICE,
+};
+
+describe("overlayOfficeLinks", () => {
+  it("applies the look only while the office locks it", () => {
+    const locked = overlayOfficeLinks({}, FULL);
+    expect(locked.linkLook).toBe("midnight");
+    const unlocked = overlayOfficeLinks({ linkLook: "paper" }, { ...FULL, lockLinkDesign: false });
+    expect(unlocked.linkLook, "an unlocked office overwrote a member's look").toBe("paper");
+  });
+
+  it("clears a look key the office did NOT set, so nothing off-brand survives", () => {
+    // Same rule as the card's design overlay: a member cannot keep a colour the
+    // office left out of its scheme.
+    const out = overlayOfficeLinks({ linkLook: "paper", linkBgColor: "#ff0000" }, FULL);
+    expect(out.linkLook).toBe("midnight");
+    expect(out.linkBgColor).toBeUndefined();
+  });
+
+  it("applies the bio and the links even when the look is UNLOCKED", () => {
+    // Content is company information, not appearance. This is the distinction
+    // the whole feature turns on.
+    const out = overlayOfficeLinks({ bio: "mine" }, { ...FULL, lockLinkDesign: false });
+    expect(out.bio).toBe(FULL.linkBio);
+    expect((out.links as { url: string }[])[0].url).toBe(OFFICE[0].url);
+  });
+
+  it("leaves a member's bio alone when the office set none", () => {
+    const out = overlayOfficeLinks({ bio: "mine" }, { ...FULL, linkBio: null });
+    expect(out.bio).toBe("mine");
+  });
+
+  it("never writes a customization.instagram copy", () => {
+    // cards.instagram is a real column; a second copy here would be silently
+    // ignored by the links page and drift out of date forever.
+    const out = overlayOfficeLinks({}, FULL);
+    expect(out.instagram).toBeUndefined();
+  });
+
+  it("keeps the member's own links after the office's", () => {
+    const out = overlayOfficeLinks({ links: [{ label: "Mine", url: "https://mine.example" }] }, FULL) as { links: { url: string }[] };
+    expect(out.links.map((l) => l.url)).toEqual([OFFICE[0].url, OFFICE[1].url, "https://mine.example"]);
+  });
+
+  it("is a no-op for a member with no office", () => {
+    const cust = { bio: "mine", linkLook: "paper" };
+    expect(overlayOfficeLinks(cust, null)).toEqual(cust);
+  });
+
+  it("never mutates its input", () => {
+    const cust = { bio: "mine", links: [{ label: "Mine", url: "https://mine.example" }] };
+    const before = JSON.stringify(cust);
+    overlayOfficeLinks(cust, FULL);
+    expect(JSON.stringify(cust)).toBe(before);
+  });
+
+  it("survives an office that has set nothing at all", () => {
+    const empty = { linkDesign: null, lockLinkDesign: false, linkBio: null, linkInstagram: null, links: null };
+    expect(overlayOfficeLinks({ bio: "mine" }, empty)).toEqual({ bio: "mine" });
+  });
+});
+
+describe("the member is never shown a field the server will overwrite", () => {
+  const form = read("src/app/cards/[id]/edit/CardEditForm.tsx");
+
+  it("a managed bio is read-only and labelled", () => {
+    expect(form).toMatch(/readOnly=\{bioManaged\}/);
+    expect(form).toMatch(/bioManaged\s*\n?\s*\? <ManagedTag/);
+    expect(form).toMatch(/value=\{bioManaged \? \(org\?\.linkBio \?\? ""\) : bio\}/);
+  });
+
+  it("Instagram is the ONE social that can be managed", () => {
+    expect(form).toMatch(/const managed = key === "instagram" && instagramManaged/);
+    expect(form).toMatch(/readOnly=\{managed\}/);
   });
 });

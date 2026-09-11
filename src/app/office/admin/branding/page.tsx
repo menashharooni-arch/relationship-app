@@ -27,7 +27,10 @@ export default async function OfficeBrandingPage() {
       {/* This page IS the brand source — logo, company, website, template and
           the colors/fonts all live on the office row and push to every card. */}
       <div data-tour="admin-branding-note" className="bg-purple-500/5 border border-purple-500/20 rounded-2xl px-4 py-3 mb-5">
-        <p className="text-sm text-purple-200 font-medium">This page sets the look for every card</p>
+        {/* Named both halves once the page gained tabs. An admin who opened
+            Branding looking for the Swift Links design and read "for every
+            card" would reasonably conclude it wasn't here. */}
+        <p className="text-sm text-purple-200 font-medium">This page sets the look for every card and Swift Links page</p>
         <p className="text-xs text-purple-200/70 mt-1 leading-relaxed">
           {/* NOT "yours included" — that was false and contradicted the line
               directly above this panel ("Your own cards stay yours to design"),
@@ -37,8 +40,9 @@ export default async function OfficeBrandingPage() {
               card ✓", then opened their own card and found no logo would
               reasonably conclude the feature was broken. */}
           Logo, company details, template, colors and fonts set here apply to your team&apos;s
-          cards. Change them once, and every teammate&apos;s card updates with them. Your own
-          cards are yours — they stay exactly as you designed them.
+          cards. Change them once, and every teammate&apos;s card updates with them. Use
+          the <strong>Links</strong> tab to do the same for their Swift Links pages.
+          Your own cards are yours — they stay exactly as you designed them.
         </p>
       </div>
 

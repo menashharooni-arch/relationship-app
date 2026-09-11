@@ -105,7 +105,10 @@ describe("the branding page does not contradict itself", () => {
 
   it("says the true thing in both places", () => {
     expect(page).toContain("stay yours to design");
-    expect(page).toMatch(/Your own\s+cards are yours/);
+    // Whitespace-tolerant throughout: this asserts the PROMISE, and a reflow of
+    // the paragraph (adding the Links-tab pointer moved the line breaks) must
+    // not read as the promise being withdrawn.
+    expect(page).toMatch(/Your\s+own\s+cards\s+are\s+yours/);
   });
 });
 
