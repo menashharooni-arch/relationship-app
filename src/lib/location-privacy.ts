@@ -76,6 +76,20 @@ export function redactPlaces(text: string): string {
 }
 
 /**
+ * Redact a BARE place label — a lead's `location` column, not a sentence.
+ *
+ * The contacts panel prints that column straight out ("Zzyzx, California"),
+ * which handed a Free account the very thing the Locations tab charges for,
+ * on every contact they open. Same treatment as a notification: the real name
+ * is replaced here, on the server, and the app blurs what is left.
+ */
+export function redactPlaceLabel(label: string | null | undefined): string | null {
+  const raw = (label ?? "").trim();
+  if (!raw) return null;
+  return markPlace(REDACT_CHAR.repeat(Math.min(Math.max(raw.length, 3), REDACT_MAX)));
+}
+
+/**
  * Split a body into the pieces a renderer needs: plain text, and the place
  * spans it should blur. Marks are removed from every piece.
  */

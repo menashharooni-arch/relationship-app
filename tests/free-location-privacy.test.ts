@@ -5,8 +5,7 @@ import { cardEventNotice } from "@/lib/card-event-notify";
 import { locationPhrase } from "@/lib/location-display";
 import {
   PLACE_MARK, PHRASE_MARK,
-  redactPlaces, redactLegacyPlace, splitLocationParts, stripLocationMarks, withoutLocation,
-} from "@/lib/location-privacy";
+  redactPlaces, redactLegacyPlace, splitLocationParts, stripLocationMarks, withoutLocation, redactPlaceLabel } from "@/lib/location-privacy";
 import { redactForPlan } from "@/lib/notification-privacy";
 
 // ── Locations are Pro, including the ones hiding inside a sentence ───────────
@@ -152,5 +151,42 @@ describe("nothing else has to remember", () => {
     })!.body);
     expect(redactPlaces(once)).toBe(once);
     expect(redactLegacyPlace("Someone viewed your card near █████.")).toContain("█");
+  });
+});
+
+// ── The contacts panel, added 2026-09-11 ────────────────────────────────────
+//
+// The notification bodies were fixed first, and the very next probe found the
+// same place name printed in plain text on every contact a Free account opened
+// — the lead's own `location` column, straight out of the database. Locations
+// are a Pro feature wherever they appear, so the column is redacted on the
+// server and blurred in the panel, exactly like a notification body.
+describe("a lead's location is a Pro feature too", () => {
+  const page = readFileSync("src/app/contacts/page.tsx", "utf8");
+  const panel = readFileSync("src/components/ContactsClient.tsx", "utf8");
+
+  it("replaces the place on the SERVER for a Free account, before it can be shipped", () => {
+    expect(page).toMatch(/import \{ redactPlaceLabel \} from "@\/lib\/location-privacy"/);
+    expect(page).toMatch(/location: redactPlaceLabel\(l\.location as string\), geo_accuracy: null/);
+    // and only for Free — a paid account still gets the real rows untouched
+    expect(page).toMatch(/const leads = paid\s*\n\s*\? rawLeads/);
+  });
+
+  it("blurs what is left instead of printing blocks", () => {
+    expect(panel).toMatch(/hasMarkedPlace\(selected\.location\)/);
+    expect(panel).toMatch(/<BlurredPlace text=\{splitLocationParts\(selected\.location\)/);
+  });
+
+  it("says nothing about Pro, upgrading or price", () => {
+    const block = panel.slice(Math.max(0, panel.indexOf("hasMarkedPlace(selected.location)") - 600), panel.indexOf("hasMarkedPlace(selected.location)") + 600);
+    expect(block).not.toMatch(/\bPro\b|upgrade|\$\d/i);
+  });
+
+  it("redactPlaceLabel keeps nothing readable and keeps the shape", () => {
+    const out = redactPlaceLabel("Roslyn, New York")!;
+    expect(out).not.toMatch(/Roslyn|New York/);
+    expect(splitLocationParts(out).some((p) => p.place)).toBe(true);
+    expect(redactPlaceLabel("")).toBeNull();
+    expect(redactPlaceLabel(null)).toBeNull();
   });
 });

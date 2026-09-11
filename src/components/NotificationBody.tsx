@@ -21,20 +21,31 @@ export default function NotificationBody({ text }: { text: string }) {
     <>
       {parts.map((part, i) =>
         part.place ? (
-          <span key={i} className="inline-flex items-center align-baseline">
-            {/* aria-hidden: a screen reader must not read out a row of blocks. */}
-            <span
-              aria-hidden
-              className="select-none pointer-events-none blur-[3px] opacity-70 tracking-tight"
-            >
-              {part.text}
-            </span>
-            <span className="sr-only">location hidden</span>
-          </span>
+          <BlurredPlace key={i} text={part.text} />
         ) : (
           <GateCopy key={i} copy={part.text} />
         ),
       )}
     </>
+  );
+}
+
+/**
+ * The smudge itself, shared.
+ *
+ * Used by the notification list and by the contacts detail panel, so the one
+ * place a Free account meets a withheld location looks the same in both. The
+ * text handed in is already blocks — see lib/location-privacy — so there is
+ * nothing readable underneath the blur.
+ */
+export function BlurredPlace({ text }: { text: string }) {
+  return (
+    <span className="inline-flex items-center align-baseline">
+      {/* aria-hidden: a screen reader must not read out a row of blocks. */}
+      <span aria-hidden className="select-none pointer-events-none blur-[3px] opacity-70 tracking-tight">
+        {text}
+      </span>
+      <span className="sr-only">location hidden</span>
+    </span>
   );
 }

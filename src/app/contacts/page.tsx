@@ -10,6 +10,7 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import GrowLinkButton from "@/components/GrowLinkButton";
 import SettingsLinkButton from "@/components/SettingsLinkButton";
 import { isPaidPlan, LOCKED_LEAD_TAG, PLAN_LIMITS } from "@/lib/plan";
+import { redactPlaceLabel } from "@/lib/location-privacy";
 import UpgradeButton from "@/components/UpgradeButton";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
 import Link from "next/link";
@@ -110,9 +111,19 @@ export default async function ContactsPage({
   // Free plan: leads captured beyond the 5/month cap are locked — hide them here
   // too (same as the dashboard) so they're never revealed until the account is Pro.
   const paid = isPaidPlan(profile.plan);
+  // Locations are a Pro feature, and this panel printed the lead's own
+  // `location` column in plain text to everybody — the same leak the
+  // notification bodies had, on every contact a Free account opened. The real
+  // name is replaced HERE, so it never reaches the browser; the panel blurs
+  // what is left (components/NotificationBody → BlurredPlace). Nothing in the
+  // UI mentions Pro or upgrading — owner, 2026-09-11: "just blur the location
+  // name". `geo_accuracy` goes with it: it only exists to qualify a real place
+  // name, and against blocks it would print "(approximate)" under a smudge.
   const leads = paid
     ? rawLeads
-    : (rawLeads ?? []).filter((l) => !(Array.isArray(l.tags) && l.tags.includes(LOCKED_LEAD_TAG)));
+    : (rawLeads ?? [])
+        .filter((l) => !(Array.isArray(l.tags) && l.tags.includes(LOCKED_LEAD_TAG)))
+        .map((l) => (l.location ? { ...l, location: redactPlaceLabel(l.location as string), geo_accuracy: null } : l));
 
   // How many real contacts we're withholding. The dashboard has always counted
   // these and said so; this page filtered them out in silence — so a Free user at
