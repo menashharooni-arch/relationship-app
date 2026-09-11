@@ -108,7 +108,7 @@ export default function WelcomePlan({ cardSlug, designConverted = false }: { car
             <button
               onClick={() => checkout(paidIntent.plan as PaidPlan, !!paidIntent.annual, paidIntent.seats ?? 2)}
               disabled={loading !== null}
-              className="mt-5 w-full py-3.5 rounded-full text-sm font-bold text-white transition-colors disabled:opacity-50"
+              className="sc-dark-sheet mt-5 w-full py-3.5 rounded-full text-sm font-bold text-white transition-colors disabled:opacity-50"
               style={{ background: "var(--rd-aurora)" }}
             >
               {loading ? "Redirecting to checkout…" : `Continue to secure checkout →`}

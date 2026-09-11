@@ -25,8 +25,11 @@ const SITES: Site[] = [
     native: ["Pro feature — The custom card designer is only available on the Pro plan"],
   },
   {
+    // Same 2026-09-11 change as IntegrationsSettings: the loud button became a
+    // padlock that opens the same paywall, because five of them down one list
+    // read as nagging rather than as an offer.
     file: "src/components/ZapierSettings.tsx",
-    web: ["Upgrade · Pro", "Upgrade to Pro to connect Zapier and automate your lead workflow."],
+    web: [">Pro</Link>", "Upgrade to Pro to connect Zapier and automate your lead workflow."],
     native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan"],
   },
   {
@@ -35,8 +38,13 @@ const SITES: Site[] = [
     native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan"],
   },
   {
+    // The web copy changed on 2026-09-11: five identical "Upgrade · Pro"
+    // buttons down the CRM list read as nagging, so the selling moved into ONE
+    // card ("Get Pro") above the list and each row kept a quiet padlock that
+    // opens the same paywall. Both strings are pinned so neither half can be
+    // dropped and leave a locked row with no way out of it.
     file: "src/components/IntegrationsSettings.tsx",
-    web: ["Upgrade · Pro"],
+    web: [">Pro</Link>", "Get Pro"],
     native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan"],
   },
   // LeadCard's entry was removed with the component (no importers left —

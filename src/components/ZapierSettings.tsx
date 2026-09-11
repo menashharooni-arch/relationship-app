@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { PlanGate, GateCopy } from "@/components/PlanGate";
-import { IapProPill } from "@/components/NativePaywall";
+import { IapProLock, Lock } from "@/components/NativePaywall";
 import CardScopePicker, { ScopeChooser, scopeChoiceReady, scopeChoiceValue, type ScopeChoice, type ScopeCard, type Scope } from "@/components/CardScopePicker";
 
 const INTEGRATIONS_NATIVE_COPY =
@@ -88,9 +88,9 @@ export default function ZapierSettings({
           <PlanGate
             feature="integration-zapier"
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
-            nativeContent={<span className="ml-auto"><IapProPill /></span>}
+            nativeContent={<span className="ml-auto"><IapProLock /></span>}
           >
-            <Link href="/upgrade" title="Upgrade to Pro to use Zapier" className="ml-auto text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-0.5 rounded-full transition-colors">Upgrade · Pro</Link>
+            <Link href="/upgrade" title="Get Pro to connect Zapier" className="ml-auto inline-flex items-center gap-1 rounded-full border border-[#D4C8B8] bg-[#F0EBE1] px-2 py-1 text-[0.6875rem] font-semibold text-slate-500 transition-colors hover:border-[#1D4ED8] hover:text-[#1D4ED8]"><Lock className="h-2.5 w-2.5" />Pro</Link>
           </PlanGate>
         )}
       </div>

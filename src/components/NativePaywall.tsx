@@ -162,7 +162,7 @@ export default function IapSubscribeButton({
       <button
         type="button"
         onClick={() => (needsAccount ? onNeedsAccount!() : setOpen(true))}
-        className={`relative inline-flex flex-col items-center justify-center overflow-hidden rounded-full px-5 py-1.5 text-[0.8125rem] font-bold leading-tight text-white transition-[transform,box-shadow] duration-150 active:scale-[0.97] ${className}`}
+        className={`sc-dark-sheet relative inline-flex flex-col items-center justify-center overflow-hidden rounded-full px-5 py-1.5 text-[0.8125rem] font-bold leading-tight text-white transition-[transform,box-shadow] duration-150 active:scale-[0.97] ${className}`}
         style={{ background: "var(--rd-aurora)", boxShadow: "0 8px 22px -10px rgba(37,99,235,0.85), inset 0 1px 0 rgba(255,255,255,0.28)" }}
       >
         <span className="relative z-[4]">{label}</span>
@@ -196,7 +196,7 @@ export function IapProPill({ tier = "pro" }: { tier?: "pro" | "office" }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[0.625rem] font-bold uppercase leading-none tracking-wide text-white transition-transform active:scale-95"
+        className="sc-dark-sheet inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[0.625rem] font-bold uppercase leading-none tracking-wide text-white transition-transform active:scale-95"
         style={{ background: "var(--rd-aurora)" }}
       >
         <Spark className="h-2.5 w-2.5" />
@@ -204,6 +204,53 @@ export function IapProPill({ tier = "pro" }: { tier?: "pro" | "office" }) {
       </button>
       {open && <PaywallSheet onClose={() => setOpen(false)} />}
     </>
+  );
+}
+
+/**
+ * The QUIET Pro marker for a locked row.
+ *
+ * Owner, 2026-09-11, looking at five stacked "GET PRO" buttons on the CRM
+ * screen: "it's like they're trying to spam the Get Pro button in my face."
+ * He was right — a list of five identical shouting buttons is not an offer,
+ * it is nagging, and it made the whole screen feel hostile to the people we
+ * most want to convert.
+ *
+ * So a locked row now wears this: a small padlock and the word Pro, in the
+ * page's own muted ink. It still OPENS the paywall when tapped — nothing is
+ * hidden and nothing is harder to reach — but the selling is done once, by
+ * the single card above the list, instead of five times down it.
+ */
+export function IapProLock({ label = "Pro" }: { label?: string }) {
+  const available = useIapStatus() === "ready";
+  const [open, setOpen] = useState(false);
+  const chip = (
+    <span className="inline-flex items-center gap-1 rounded-full border border-[#D4C8B8] bg-[#F0EBE1] px-2 py-1 text-[0.6875rem] font-semibold text-slate-500">
+      <Lock className="h-2.5 w-2.5" />
+      {label}
+    </span>
+  );
+  if (!available) return <span className="shrink-0">{chip}</span>;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Get Pro to connect this integration"
+        className="shrink-0 transition-opacity active:opacity-70"
+      >
+        {chip}
+      </button>
+      {open && <PaywallSheet onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+export function Lock({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M10 1.5A3.75 3.75 0 006.25 5.25V8H6a1.5 1.5 0 00-1.5 1.5v7A1.5 1.5 0 006 18h8a1.5 1.5 0 001.5-1.5v-7A1.5 1.5 0 0014 8h-.25V5.25A3.75 3.75 0 0010 1.5zm2.25 6.5h-4.5V5.25a2.25 2.25 0 014.5 0V8z" />
+    </svg>
   );
 }
 
@@ -274,13 +321,17 @@ function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchas
       className="fixed inset-0 z-[120] flex items-end justify-center p-3 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:items-center sm:pb-3"
       style={{ background: "rgba(0,0,0,0.65)" }}
     >
-      <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-gray-800 bg-gray-900 shadow-2xl">
+      {/* sc-dark-sheet: this panel is dark ON PURPOSE. Without it the light
+          theme flips .bg-gray-900 to white and .text-gray-300 to near-black,
+          which is what the owner photographed on 2026-09-11: a see-through
+          sheet with the settings page showing through it. */}
+      <div className="sc-dark-sheet w-full max-w-sm overflow-hidden rounded-3xl border border-gray-800 bg-gray-900 shadow-2xl">
         {/* Aurora header — the same gradient the Pro card wears everywhere else. */}
-        <div className="relative px-6 pt-6 pb-5" style={{ background: "var(--rd-aurora)" }}>
+        <div className="sc-dark-sheet relative px-6 pt-6 pb-5" style={{ background: "var(--rd-aurora)" }}>
           <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
           <div className="relative z-[2]">
             <span className="inline-block rounded-full bg-white/25 px-2.5 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-white">SwiftCard</span>
-            <p id="iap-paywall-title" className="mt-2 text-2xl font-extrabold tracking-tight text-black">
+            <p id="iap-paywall-title" className="mt-2 text-2xl font-extrabold tracking-tight text-white">
               Go Pro
             </p>
             <p className="mt-1 text-[0.8125rem] text-white/85">
