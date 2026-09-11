@@ -117,6 +117,30 @@ describe("who the 8am catch-up is for", () => {
     expect(pushes).toHaveLength(0);
   });
 
+  it("still goes out at 9am when the scheduler ran late", async () => {
+    // GitHub's cron is best-effort. Losing someone's whole morning to a
+    // twenty-minute delay would be a worse bug than the one this fixes.
+    vi.setSystemTime(new Date("2026-09-11T13:10:00.000Z")); // 9:10am in New York
+    await run();
+    expect(pushes).toHaveLength(1);
+  });
+
+  it("accepts the GitHub job's own secret as well as the Vercel cron's", async () => {
+    process.env.PUSH_CATCHUP_SECRET = "github-side-secret";
+    const res = await run("github-side-secret");
+    expect(res.status).toBe(200);
+    expect(pushes).toHaveLength(1);
+    delete process.env.PUSH_CATCHUP_SECRET;
+  });
+
+  it("authorizes nobody when both secrets are unset", async () => {
+    delete process.env.CRON_SECRET;
+    delete process.env.PUSH_CATCHUP_SECRET;
+    const res = await run("undefined");
+    expect(res.status).toBe(401);
+    expect(pushes).toHaveLength(0);
+  });
+
   it("skips anyone whose timezone we have not learned — 8am UTC is 4am in New York", async () => {
     profile = { plan: "free", customization: {} };
     const res = await run();
@@ -230,11 +254,31 @@ describe("the window is exactly quiet hours", () => {
     expect(quietWindowStart(now, "Mars/Olympus_Mons")).toBe(now - QUIET_WINDOW_MS);
   });
 
-  it("runs hourly, because 8am local is a different hour everywhere", () => {
+  // ── The schedule lives on GitHub, and that is not a preference ────────────
+  //
+  // Vercel's Hobby plan allows two cron jobs per project, each at most once a
+  // day. An hourly entry in vercel.json does not warn — it makes EVERY later
+  // deployment fail validation with cron_jobs_limits_reached, so the whole
+  // pipeline stops, for every session working in this repo. That happened on
+  // 2026-09-11 and cost a deploy window; these two keep it from happening twice.
+  it("runs hourly on GitHub's scheduler, because 8am local is a different hour everywhere", () => {
+    const wf = readFileSync(join(process.cwd(), ".github/workflows/push-catchup.yml"), "utf8");
+    expect(wf).toMatch(/- cron: "0 \* \* \* \*"/);
+    expect(wf).toMatch(/\/api\/push\/catchup/);
+    // The secret is read through env:, never interpolated into the shell.
+    expect(wf).toMatch(/SECRET: \$\{\{ secrets\.PUSH_CATCHUP_SECRET \}\}/);
+  });
+
+  it("keeps vercel.json inside the Hobby plan's two daily cron jobs", () => {
     const vercel = JSON.parse(readFileSync(join(process.cwd(), "vercel.json"), "utf8"));
-    const cron = vercel.crons.find((c: { path: string }) => c.path === "/api/push/catchup");
-    expect(cron).toBeTruthy();
-    expect(cron.schedule).toBe("0 * * * *");
+    expect(vercel.crons.length).toBeLessThanOrEqual(2);
+    for (const c of vercel.crons as { path: string; schedule: string }[]) {
+      // A daily schedule pins the hour and the minute: "0 18 * * *" is fine,
+      // anything with a "*" in those two fields runs more than once a day.
+      const [minute, hour] = c.schedule.split(" ");
+      expect(minute, c.path).not.toContain("*");
+      expect(hour, c.path).not.toContain("*");
+    }
   });
 });
 

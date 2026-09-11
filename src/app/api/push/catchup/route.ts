@@ -73,9 +73,23 @@ function destinationFor(category: PushCategory, cardOwner: string | null): strin
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  // The env var must exist AND match — with it unset, `Bearer undefined` would
+  // Two accepted credentials, because this job cannot be a Vercel cron.
+  //
+  // 8am local is a different hour in every timezone, so this has to run hourly
+  // — and the account is on Vercel's HOBBY plan, where crons are limited to two
+  // per project and to ONCE A DAY each. (Adding an hourly one does not warn:
+  // it makes every subsequent deployment fail validation, which is how this was
+  // found.) The caller is .github/workflows/push-catchup.yml instead, on
+  // GitHub's scheduler, which is free and has no such limit.
+  //
+  // CRON_SECRET stays accepted so the job can move back onto a Vercel cron the
+  // day the plan allows it, with no code change.
+  const accepted = [process.env.PUSH_CATCHUP_SECRET, process.env.CRON_SECRET]
+    .filter((s): s is string => Boolean(s))
+    .map((s) => `Bearer ${s}`);
+  // A secret that is unset must never authorize: `Bearer undefined` would
   // otherwise be a valid credential for anyone who guessed it.
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!accepted.length || !auth || !accepted.includes(auth)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -117,7 +131,12 @@ export async function GET(req: NextRequest) {
       // rule exists to prevent. TimezoneSync learns the zone on the next launch;
       // until then this person is simply skipped.
       if (!prefs.timezone) continue;
-      if (localHour(now, prefs.timezone) !== QUIET_END_HOUR) continue;
+      // 8am, or 9am if the scheduler was late. GitHub's cron is best-effort and
+      // can lag under load; a strict equality would silently skip a person's
+      // whole morning over a twenty-minute delay. The once-a-day mark below is
+      // what keeps the wider window from meaning two notifications.
+      const hour = localHour(now, prefs.timezone);
+      if (hour !== QUIET_END_HOUR && hour !== QUIET_END_HOUR + 1) continue;
       counts.atEight++;
 
       // Once a day, even if the cron fires twice in the hour.
