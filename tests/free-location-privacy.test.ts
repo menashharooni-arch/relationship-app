@@ -190,3 +190,32 @@ describe("a lead's location is a Pro feature too", () => {
     expect(redactPlaceLabel(null)).toBeNull();
   });
 });
+
+// ── A milestone must never send a Free account to a padlock ─────────────────
+//
+// lib/milestones.ts states the rule itself: "Every action below is a feature
+// the person already has on whatever plan they are on." The 50-view note broke
+// it by pointing at Locations, which is Pro. These fire for everybody, so the
+// copy is held to the plan with the least.
+describe("milestone copy works on every plan", () => {
+  const src = readFileSync("src/lib/milestones.ts", "utf8");
+  const bodies = [...src.matchAll(/body: "([^"]+)"/g)].map((m) => m[1]);
+
+  it("has milestones to check", () => {
+    expect(bodies.length).toBeGreaterThan(5);
+  });
+
+  it("never sends anyone to a Pro-only surface", () => {
+    for (const body of bodies) {
+      expect(body, body).not.toMatch(/\bLocations\b/);
+      expect(body, body).not.toMatch(/\bCSV\b|\bexport\b/i);
+      expect(body, body).not.toMatch(/custom designer/i);
+    }
+  });
+
+  it("still says nothing about price, plans or upgrading (App Review 3.1.1)", () => {
+    for (const body of bodies) {
+      expect(body, body).not.toMatch(/\bPro\b|upgrade|unlock|\$\d|free trial/i);
+    }
+  });
+});
