@@ -66,13 +66,19 @@ describe("the cron reports its failures", () => {
 });
 
 describe("the welcome email actually has a caller now", () => {
-  it("onboarding sends it", () => {
-    expect(code("src/app/onboarding/page.tsx")).toMatch(/sendWelcomeEmail\(user\.id, user\.email\)/);
+  // It has FOUR, and signup is not one of them any more (owner, 2026-09-11):
+  // "Your SwiftCard is live" may only go out once a card is. The full rule and
+  // its behaviour live in tests/welcome-email-waits-for-the-card.test.ts.
+  it("every card-creation path sends it, and signup does not", () => {
+    for (const f of ["src/app/api/cards/route.ts", "src/app/api/drafts/claim/route.ts", "src/lib/ensure-cards.ts"]) {
+      expect(code(f), `${f} does not send the welcome email`).toMatch(/sendWelcomeWhenCardLive\(/);
+    }
+    expect(code("src/app/onboarding/page.tsx")).not.toMatch(/sendWelcome/);
   });
 
   it("the route delegates to the same helper rather than duplicating it", () => {
     const c = code("src/app/api/welcome/route.ts");
-    expect(c).toMatch(/sendWelcomeEmail/);
+    expect(c).toMatch(/sendWelcomeWhenCardLive/);
     expect(c, "the route still has its own copy of the send logic").not.toMatch(/resend\.emails\.send/);
   });
 
