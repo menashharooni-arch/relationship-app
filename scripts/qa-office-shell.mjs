@@ -206,7 +206,10 @@ try {
       await add.click(); await page.waitForTimeout(1200);
       const dlg = page.locator('[role="dialog"]').first();
       if (await dlg.isVisible().catch(() => false)) {
-        const bb = await dlg.boundingBox();
+        // The dialog element is the fixed inset-0 wrapper (backdrop + sheet); its box
+        // IS the viewport. Measure the sheet inside it, which is what can go off-screen.
+        const sheet = dlg.locator(":scope > :not(button)").last();
+        const bb = (await sheet.boundingBox().catch(() => null)) ?? (await dlg.boundingBox());
         if (bb && (bb.y < TOP || bb.y + bb.height > VH - BOTTOM + 2 || bb.x < 0 || bb.x + bb.width > VW + 1)) note("admin-invite-dialog", "dialog-off-screen", JSON.stringify(bb));
         await audit(page, "admin-invite-dialog", { scrollBottom: false });
       } else note("admin-invite-dialog", "no-dialog", "Add team member opened nothing with role=dialog");

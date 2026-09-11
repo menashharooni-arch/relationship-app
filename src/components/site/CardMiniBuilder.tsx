@@ -229,7 +229,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
         previewCaption="This is your real card — recipients open it as a full page in their browser."
         preview={
           <InertPreview className="w-[260px] max-w-full">
-            <div className="rounded-2xl overflow-hidden shadow-2xl">
+            <div className="rounded-[var(--rd-r-lg)] overflow-hidden shadow-[var(--rd-sh-lg)]">
               <CardScaler><Preview data={data} /></CardScaler>
             </div>
           </InertPreview>

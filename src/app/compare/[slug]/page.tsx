@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Eyebrow from "@/components/site/Eyebrow";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
@@ -255,7 +256,7 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
 
       {/* Hero */}
       <section className="text-center px-6 pt-28 pb-10">
-        <p className="rd-eyebrow text-brand mb-4">Comparison</p>
+        <div className="mb-4"><Eyebrow dark={false}>Comparison</Eyebrow></div>
         <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">Looking for a {c.name} alternative?</h1>
         <p className="text-ink-muted text-lg max-w-xl mx-auto mb-2">{c.heroSub}</p>
         <p className="text-ink-muted text-xs max-w-xl mx-auto">
@@ -334,7 +335,7 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
 
       {/* Sibling comparisons — internal links keep these pages crawlable and ranking */}
       <section className="max-w-2xl mx-auto w-full px-6 pb-16 text-center">
-        <p className="rd-eyebrow text-slate-600 mb-3">More comparisons</p>
+        <div className="mb-3"><Eyebrow dark={false}>More comparisons</Eyebrow></div>
         <div className="flex flex-wrap justify-center gap-2">
           <Link href="/compare" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Full comparison table</Link>
           <Link href="/business-card-view-tracking" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>

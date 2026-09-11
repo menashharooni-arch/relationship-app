@@ -210,6 +210,21 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   // Social-design toggle: "View SwiftCard →" on the Swift Links page (default shown).
   const [showCardLinkBtn, setShowCardLinkBtn] = useState(card.customization?.hideCardLink !== true);
   const [website, setWebsite] = useState(orgWebsite ?? (card.website || ""));
+  // HYDRATION CATCH-UP. Everything is interactive before it is hydrated: a
+  // person who starts typing the instant the editor paints fills the DOM while
+  // these hooks still hold the saved values, and Save would then send the old
+  // text with a green tick (measured on production 2026-09-11 on the profile
+  // form; same shape here). Once React attaches, read what is actually in the
+  // six core fields and adopt it. Runs once, costs nothing when nobody typed.
+  useEffect(() => {
+    const adopt = (key: string, current: string, set: (v: string) => void) => {
+      const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-hydrate="${key}"]`);
+      if (el && !el.readOnly && el.value !== current) set(el.value);
+    };
+    adopt("name", name, setName); adopt("company", company, setCompany); adopt("title", title, setTitle);
+    adopt("email", email, setEmail); adopt("website", website, setWebsite); adopt("bio", bio, setBio);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only by design
+  }, []);
   const [links, setLinks] = useState<CardLink[]>(card.customization?.links ?? []);
   const [newLink, setNewLink] = useState({ label: "", url: "" });
   const [socials, setSocials] = useState<Record<SocialKey, string>>({
@@ -684,18 +699,18 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Full name <span className="text-red-500">*</span></label>
-              <input type="text" placeholder="John Smith" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+              <input type="text" placeholder="John Smith" data-hydrate="name" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
             </div>
             {!org && (
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">Company name</label>
-                <input type="text" placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
+                <input type="text" placeholder="Acme Corp" data-hydrate="company" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls} />
                 <CardUrlEditor cardId={card.id} currentSlug={card.username} />
               </div>
             )}
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Job title</label>
-              <input type="text" placeholder="Sales Director" value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
+              <input type="text" placeholder="Sales Director" data-hydrate="title" value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -737,7 +752,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                       type="button"
                       onClick={() => updatePhone(i, { showOnCard: !p.showOnCard })}
                       title={p.showOnCard ? "Showing on card" : "Hidden from card"}
-                      className={`shrink-0 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-colors ${p.showOnCard ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-500"}`}
+                      // gray-400, not gray-500: same button as the wizard, same
+                      // reason — gray-500 on gray-900 is 3.67:1, under the 4.5:1
+                      // this 12px label needs (see NewCardWizard "Off card").
+                      className={`shrink-0 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-colors ${p.showOnCard ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-400"}`}
                     >
                       {p.showOnCard ? "On card ✓" : "Off card"}
                     </button>
@@ -756,7 +774,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Email</label>
-              <input type="email" placeholder="john@company.com" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
+              <input type="email" placeholder="john@company.com" data-hydrate="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
             </div>
 
             {/* Website is CARD information — it renders on the card itself (and
@@ -769,7 +787,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 <input
                   type="text"
                   placeholder="yoursite.com"
-                  value={website}
+                  data-hydrate="website" value={website}
                   onChange={(e) => setWebsite(e.target.value)}
                   className={inputCls}
                 />
@@ -965,6 +983,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               </div>
               <textarea
                 value={bioManaged ? (org?.linkBio ?? "") : bio}
+                data-hydrate="bio"
                 onChange={(e) => setBio(e.target.value)}
                 readOnly={bioManaged}
                 rows={3}

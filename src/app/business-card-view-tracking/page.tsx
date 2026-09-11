@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Eyebrow from "@/components/site/Eyebrow";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooterMini from "@/components/site/SiteFooterMini";
@@ -60,7 +61,7 @@ export default function ViewTrackingPage() {
       <SiteNav />
 
       <section className="text-center px-6 pt-28 pb-10">
-        <p className="rd-eyebrow text-brand mb-4">View tracking</p>
+        <div className="mb-4"><Eyebrow dark={false}>View tracking</Eyebrow></div>
         <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 max-w-2xl mx-auto [text-wrap:balance]">A business card that tells you who&apos;s looking</h1>
         <p className="text-ink-muted text-lg max-w-xl mx-auto">
           Paper cards disappear into pockets. A SwiftCard reports back — every view, its source, and whether they came back for a second look.
@@ -95,7 +96,7 @@ export default function ViewTrackingPage() {
       </FaqAccordion>
 
       <section className="max-w-2xl mx-auto w-full px-6 pb-16 text-center">
-        <p className="rd-eyebrow text-slate-600 mb-3">Keep exploring</p>
+        <div className="mb-3"><Eyebrow dark={false}>Keep exploring</Eyebrow></div>
         <div className="flex flex-wrap justify-center gap-2">
           <Link href="/products/analytics" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Dashboard &amp; analytics</Link>
           <Link href="/products/lead-capture" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Lead capture</Link>

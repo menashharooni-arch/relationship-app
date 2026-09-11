@@ -180,6 +180,7 @@ body {
 /* ── Scroll progress bar (top of viewport) ─────────────────────────────────── */
 .sc-scroll-progress {
   position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 80;
+  pointer-events: none; /* a 3px bar must never intercept a tap at the top edge */
   transform: scaleX(var(--sc-progress, 0)); transform-origin: 0 50%;
   background: linear-gradient(90deg, #1D3FB8 0%, #2563EB 50%, #4DA8F5 100%);
   box-shadow: 0 0 12px rgba(37,99,235,0.55);
@@ -549,7 +550,12 @@ body {
   --rd-line-dark:  rgba(255,255,255,.09);
   --rd-line-dark2: rgba(255,255,255,.14);
   --rd-line-light: rgba(18,26,58,.12);
+  /* THE radius scale. Chips and inputs r-sm, controls r-md, inner tiles r-lg,
+     cards and panels r-xl, device frames and modals r-2xl. Buttons and pills
+     are 999px. Nothing on the marketing site should pick a fourth number. */
   --rd-r-sm: 10px; --rd-r-md: 14px; --rd-r-lg: 20px; --rd-r-xl: 28px; --rd-r-2xl: 36px;
+  /* THE shadow scale: sh-sm for things that rest on the page, sh-md for cards,
+     sh-lg for framed product renders and modals, sh-aura under primary CTAs. */
   --rd-sh-sm: 0 1px 2px rgba(6,12,30,.24);
   --rd-sh-md: 0 12px 30px -12px rgba(6,12,30,.42);
   --rd-sh-lg: 0 40px 80px -32px rgba(6,12,30,.55), 0 12px 30px -18px rgba(6,12,30,.38);

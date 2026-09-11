@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Eyebrow from "@/components/site/Eyebrow";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooterMini from "@/components/site/SiteFooterMini";
@@ -40,7 +41,7 @@ export default function SmsTermsPage() {
 
         {/* At-a-glance summary card */}
         <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
-          <p className="rd-eyebrow text-slate-600 mb-3">The short version</p>
+          <div className="mb-3"><Eyebrow dark={false}>The short version</Eyebrow></div>
           <ul>
             <LI><strong>Swift Card Inc is the sender</strong> of every text in this program. We send them from our own registered number, using our own templates, to people who ticked the SMS consent box when sharing their contact information with a SwiftCard user — a card link and follow-ups about that exchange. Our users do not send texts through SwiftCard and do not write the content of an automated one.</LI>
             <LI>SwiftCard does <strong>not</strong> send marketing text blasts of its own, and never texts its own account holders.</LI>

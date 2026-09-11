@@ -154,6 +154,10 @@ const AUDIT = () => {
       if (hr.width >= W - 1 && hr.height >= H - 1 && !(hit.innerText || "").trim()) continue; // modal backdrop
     }
     if (hit.closest("[role='dialog'], [aria-modal='true']") && !el.closest("[role='dialog'], [aria-modal='true']")) continue;
+    // A control inside a nested scroll area (the "scroll on phone to view" demo)
+    // can sit under the sticky site nav at the moment it is measured; a real
+    // visitor scrolls the phone, not the page. Only the page-level nav counts.
+    if (hit.closest("nav") && (() => { for (let n = el.parentElement, i = 0; n && i < 8; n = n.parentElement, i++) { if (/auto|scroll/.test(getComputedStyle(n).overflowY)) return true; } return false; })()) continue;
     if (hit.tagName === "NEXTJS-PORTAL" || hit.closest("nextjs-portal")) continue; // dev overlay
     if (++covered <= 6) out.push(["covered-control", `${desc(el)} covered by ${desc(hit)}`]);
   }
@@ -168,6 +172,10 @@ function wirePage(page, screenRef) {
     // Chromium logs a console error for every non-2xx resource; the response
     // listener below already reports those with method + status.
     if (/Failed to load resource/i.test(t)) return;
+    // Google Identity Services complains on any origin that is not on the
+    // OAuth client allowlist (localhost, a CI runner) and when FedCM has no
+    // signed-in account. Environment, not product.
+    if (/GSI_LOGGER|FedCM|Provider's accounts list is empty|Not signed in with the identity provider/i.test(t)) return;
     note(screenRef.name, "console-error", t.split("\n")[0].slice(0, 160));
   });
   page.on("response", (r) => {
