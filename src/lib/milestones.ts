@@ -27,7 +27,11 @@ const MILESTONES: Record<number, { title: string; body: string }> = {
   5:     { title: "First 5 views!", body: "Add Swift Signature to your email footer — your card keeps working without you." },
   10:    { title: "10 views — you're getting noticed!", body: "Your QR code is on the Links tab. Print it once and it keeps earning views." },
   25:    { title: "25 views and climbing!", body: "Swift Links turns one link into everything you share — it's on the Links tab." },
-  50:    { title: "50 views — on fire!", body: "Check Locations on your dashboard to see where your reach is coming from." },
+  // Was "Check Locations on your dashboard…" — which breaks rule 2 directly
+  // above it: Locations is a Pro tab, so on a Free account this cheerful note
+  // sent people to a padlock. Every milestone has to name something the reader
+  // already has, whatever they pay (2026-09-11).
+  50:    { title: "50 views — on fire!", body: "Add your card to Apple Wallet — it rides on your phone, ready the second you meet someone." },
   100:   { title: "100 views!", body: "Your traffic chart shows which source brings the most views. Lean into it." },
   250:   { title: "250 views!", body: "Reach only counts once it becomes conversations — take a look at Contacts." },
   500:   { title: "500 views!", body: "Most cards never see this. Check your top source and do more of it." },
