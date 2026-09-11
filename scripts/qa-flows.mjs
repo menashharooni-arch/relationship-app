@@ -227,10 +227,21 @@ FLOWS["profile-persistence"] = async () => {
     const marker = `Bio marker ${stamp}`;
     await bio.fill(marker);
     const submit = page.locator('button[type="submit"]:has-text("Save Changes")').first();
+    // Wait for the save to ANSWER, not a fixed 3.5s: a cold production function
+    // took longer than that in CI (2026-09-11) and the reload below cancelled
+    // the in-flight PATCH, which read as "data loss". A slow save is reported
+    // as a slow save.
+    const saved = page.waitForResponse((r) => r.url().includes("/api/profile") && r.request().method() === "PATCH", { timeout: 15000 }).catch(() => null);
+    const t0 = Date.now();
     const writes = await countWrites(page, "/api/profile", async () => {
       await submit.click();
       await submit.click({ force: true, timeout: 2000 }).catch(() => {});
-      await page.waitForTimeout(3500);
+      const res = await saved;
+      const ms = Date.now() - t0;
+      if (!res) fail("profile-persistence", "the save never answered within 15s");
+      else if (ms > 4000) fail("profile-save-speed", `save took ${ms}ms (budget 4000)`);
+      else pass("profile save speed", `${ms}ms`);
+      await page.waitForTimeout(800);
     });
     if (writes.length > 1) fail("profile-persistence", `double-tap wrote ${writes.length}×`);
     else pass("profile double-submit guard", `${writes.length} write`);
