@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getSourceLabel } from "@/lib/source-labels";
 import { locationLabel } from "@/lib/location-display";
+import { hasMarkedPlace, splitLocationParts } from "@/lib/location-privacy";
+import { BlurredPlace } from "@/components/NotificationBody";
 import type { GeoAccuracy } from "@/lib/request-geo";
 import { CRON_HOUR_UTC } from "@/lib/cron-schedule";
 import AddContactModal from "@/components/AddContactModal";
@@ -1303,7 +1305,11 @@ export default function ContactsClient({
                   <svg className="w-4 h-4 text-gray-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                   </svg>
-                  <span className="min-w-0 break-words text-gray-400 text-sm">{locationLabel(selected.location, selected.geo_accuracy as GeoAccuracy | null)}</span>
+                  <span className="min-w-0 break-words text-gray-400 text-sm">
+                    {hasMarkedPlace(selected.location)
+                      ? <BlurredPlace text={splitLocationParts(selected.location).map((p) => p.text).join("")} />
+                      : locationLabel(selected.location, selected.geo_accuracy as GeoAccuracy | null)}
+                  </span>
                 </div>
               )}
               <div className="flex items-center gap-3 pt-1 border-t border-gray-800">
