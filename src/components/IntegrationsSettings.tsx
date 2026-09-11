@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import CardScopePicker, { ScopeChooser, scopeChoiceReady, scopeChoiceValue, type ScopeChoice, type ScopeCard, type Scope } from "@/components/CardScopePicker";
 import { PlanGate } from "@/components/PlanGate";
-import { IapProPill } from "@/components/NativePaywall";
+import { IapProPill, IapProLock, Lock, Spark } from "@/components/NativePaywall";
 import { detectNativeApp } from "@/lib/platform";
 
 /**
@@ -200,9 +200,9 @@ function IntegrationCard({
           <PlanGate
             feature="integration-google"
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
-            nativeContent={<span className="shrink-0"><IapProPill /></span>}
+            nativeContent={<span className="shrink-0"><IapProLock /></span>}
           >
-            <Link href="/upgrade" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</Link>
+            <Link href="/upgrade" title="Get Pro to connect this integration" className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#D4C8B8] bg-[#F0EBE1] px-2 py-1 text-[0.6875rem] font-semibold text-slate-500 transition-colors hover:border-[#1D4ED8] hover:text-[#1D4ED8]"><Lock className="h-2.5 w-2.5" />Pro</Link>
           </PlanGate>
         )}
       </div>
@@ -415,9 +415,9 @@ function TokenCard({
           <PlanGate
             feature={`integration-${provider}`}
             nativeCopy={INTEGRATIONS_NATIVE_COPY}
-            nativeContent={<span className="shrink-0"><IapProPill /></span>}
+            nativeContent={<span className="shrink-0"><IapProLock /></span>}
           >
-            <Link href="/upgrade" title="Upgrade to Pro to connect this integration" className="text-xs bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold px-2.5 py-1.5 rounded-full transition-colors shrink-0">Upgrade · Pro</Link>
+            <Link href="/upgrade" title="Get Pro to connect this integration" className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#D4C8B8] bg-[#F0EBE1] px-2 py-1 text-[0.6875rem] font-semibold text-slate-500 transition-colors hover:border-[#1D4ED8] hover:text-[#1D4ED8]"><Lock className="h-2.5 w-2.5" />Pro</Link>
           </PlanGate>
         ) : connected && !showForm ? (
           <button
@@ -506,6 +506,57 @@ function TokenCard({
   );
 }
 
+/**
+ * ONE offer, at the top of the list.
+ *
+ * Owner, 2026-09-11: "I feel like if I was a free user, this would look so
+ * annoying... my goal is to try getting them to upgrade to Pro but still enjoy
+ * our app." Five identical buttons down a list is nagging; one card that says
+ * plainly what Pro unlocks here, above five calm rows, is an offer. The rows
+ * below keep a small padlock that opens the same paywall, so nothing is
+ * further away than it was — there is just one voice instead of five.
+ *
+ * No prices on either platform: the native sheet shows Apple's own, and the
+ * web card sends people to /upgrade, which owns that wording.
+ */
+function CrmProCard() {
+  return (
+    <div className="rounded-2xl border border-[#D4C8B8] bg-[#F5F0E6] px-5 py-4">
+      <div className="flex items-start gap-3">
+        <span
+          className="sc-dark-sheet mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white"
+          style={{ background: "var(--rd-aurora)" }}
+        >
+          <Spark className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-slate-900">Send your leads straight to your CRM</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            Pro connects Salesforce, HubSpot, Pipedrive, GoHighLevel and Google Contacts, so every
+            contact you capture lands where you already work — no copy-paste, no exports.
+          </p>
+          <div className="mt-3">
+            <PlanGate
+              feature="integrations-crm"
+              nativeCopy={INTEGRATIONS_NATIVE_COPY}
+              nativeContent={<IapProPill />}
+            >
+              <Link
+                href="/upgrade"
+                className="sc-dark-sheet inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold text-white transition-transform active:scale-[0.98]"
+                style={{ background: "var(--rd-aurora)" }}
+              >
+                <Spark className="h-3 w-3" />
+                Get Pro
+              </Link>
+            </PlanGate>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, highlevelConnected, salesforceConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, highlevelSyncError, salesforceSyncError, teamCrmNames = [], isPro, cards = [], scopes = {} }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
@@ -560,6 +611,8 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
           </p>
         </div>
       )}
+
+      {!isPro && <CrmProCard />}
 
       <IntegrationCard
         name="Salesforce"
