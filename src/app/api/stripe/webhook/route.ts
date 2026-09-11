@@ -162,6 +162,52 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
   }).catch(() => {});
 }
 
+
+// ── Releasing a member without destroying the team ──────────────────────────
+//
+// Both automated cascades — a seat count shrinking, and the subscription ending
+// — used to DELETE the office_members row. Two things were wrong with that.
+//
+// 1. The roster was unrecoverable. lib/office-roles states that "the offices row
+//    outlives the subscription on purpose (so re-subscribing restores the
+//    team)" — but every membership was hard-deleted, so re-subscribing meant
+//    re-inviting all fourteen people and each of them accepting a fresh email.
+//    The offices row surviving on its own restores nothing.
+//
+// 2. The member's cards were stranded. The manual removal path deliberately
+//    clears is_office_card, with a comment explaining that without it "removal
+//    was terminal". Neither cascade got that fix, so api/cards/[id] kept
+//    refusing to bring those cards back online — "Your company manages this
+//    card. Ask your Office admin" — when, after a lapse, there is no office and
+//    no admin. Permanently dead short of a database edit.
+//
+// `suspended` fixes both. Every office query filters on status 'active' or
+// 'pending', so a suspended row is inert: it reserves no seat, receives no
+// brand, and its leads leave the office list — which is exactly what the old
+// delete comment wanted. But the row survives, so provisionOfficeForOwner can
+// restore it, and a fresh invite to the same address reuses it (the invite
+// route flips any non-active row back to 'pending').
+//
+// Cards are NOT taken offline here, unlike a manual removal. Nobody did
+// anything wrong: the company stopped paying. Their card stays live, loses the
+// office branding, and becomes theirs again.
+async function releaseOfficeMember(
+  admin: ReturnType<typeof getAdminSupabase>,
+  memberRowId: string,
+  userId: string | null,
+): Promise<void> {
+  if (userId) {
+    // Hand the cards back before the membership goes inert, so a failure here
+    // cannot leave a card flagged to an office that no longer claims it.
+    // Best-effort: a failure here must not stop the membership from going
+    // inert, or a lapsed office would keep an active-looking member forever.
+    try {
+      await admin.from("cards").update({ is_office_card: false }).eq("user_id", userId);
+    } catch { /* the suspend below is the part that must happen */ }
+  }
+  await admin.from("office_members").update({ status: "suspended" }).eq("id", memberRowId);
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
@@ -591,7 +637,7 @@ export async function POST(req: NextRequest) {
                 body: officeAccessEndedMessage(fallback),
               }).catch(() => {});
             }
-            await admin.from("office_members").delete().eq("id", m.id);
+            await releaseOfficeMember(admin, m.id as string, m.user_id as string | null);
           }
         }
       }
@@ -710,12 +756,11 @@ export async function POST(req: NextRequest) {
                 body: officeAccessEndedMessage(fallback),
               }).catch(() => {});
             }
-            // Remove the membership row itself (same as the owner's "Remove
-            // member" action) — without this it stays status='active' forever,
-            // and the office owner keeps seeing this ex-member's leads /
-            // propagating brand onto their card if the subscription is later
-            // reinstated or the member's card is reused.
-            await admin.from("office_members").delete().eq("id", m.id);
+            // Suspend rather than delete — see releaseOfficeMember. The row
+            // going inert is what the old delete was really after; keeping it
+            // is what makes re-subscribing restore the team instead of
+            // re-inviting fourteen people one at a time.
+            await releaseOfficeMember(admin, m.id as string, m.user_id as string | null);
           }
         }
       }

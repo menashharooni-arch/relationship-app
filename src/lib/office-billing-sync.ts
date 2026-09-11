@@ -50,6 +50,71 @@ export async function provisionOfficeForOwner(admin: Admin, ownerId: string, sea
   // brand identity is set; the /office/admin guard self-heals as a safety net.
   if (officeId) {
     try { await seedBrandFromOwnersFirstCard(officeId, ownerId); } catch { /* best-effort — the console self-heal covers it */ }
+    try { await restoreSuspendedMembers(admin, officeId, seats); } catch { /* best-effort — the team can always be re-invited */ }
+  }
+}
+
+/**
+ * Bring a suspended roster back when an office starts paying again.
+ *
+ * A lapsed subscription (or a seat cut) leaves members at status 'suspended'
+ * rather than deleting them — see releaseOfficeMember in the Stripe webhook.
+ * This is the other half of that promise: re-subscribing restores the team
+ * instead of making the owner re-invite fourteen people one at a time.
+ *
+ * FOUR RULES, each of which would otherwise be a bug:
+ *
+ *  • Capacity. Restore at most `seats − 1 − (already active) − (pending)`. An
+ *    owner who comes back on fewer seats than they left with must not end up
+ *    over capacity, which would put the seat gate into a state the UI cannot
+ *    explain.
+ *  • Oldest first, by joined_at — the same ordering the seat trim uses to
+ *    decide who goes, so coming back is the exact inverse of leaving.
+ *  • Never steal someone. A suspended member who has since joined ANOTHER
+ *    office is skipped; their active membership there wins.
+ *  • Plan and office_id are restored too. The cascade set them to free/null,
+ *    and a membership row without them is a member who cannot use anything.
+ *
+ * The brand is deliberately NOT re-pushed here: the owner may have changed it
+ * while lapsed, and propagation belongs to the Branding page, which is one
+ * click away and shows what it is about to do.
+ */
+async function restoreSuspendedMembers(admin: Admin, officeId: string, seats: number): Promise<void> {
+  const { data: suspended } = await admin
+    .from("office_members")
+    .select("id, user_id, joined_at")
+    .eq("office_id", officeId)
+    .eq("status", "suspended")
+    .not("user_id", "is", null)
+    .order("joined_at", { ascending: true });
+  if (!suspended?.length) return;
+
+  const [{ count: activeCount }, { count: pendingCount }] = await Promise.all([
+    admin.from("office_members").select("*", { count: "exact", head: true }).eq("office_id", officeId).eq("status", "active"),
+    admin.from("office_members").select("*", { count: "exact", head: true }).eq("office_id", officeId).eq("status", "pending"),
+  ]);
+  // The owner always holds seat 1.
+  let room = Math.max(0, seats - 1 - (activeCount ?? 0) - (pendingCount ?? 0));
+  if (room <= 0) return;
+
+  // Anyone already active in a different office keeps that membership.
+  const ids = suspended.map((m) => m.user_id as string);
+  const { data: elsewhere } = await admin
+    .from("office_members")
+    .select("user_id")
+    .in("user_id", ids)
+    .eq("status", "active")
+    .neq("office_id", officeId);
+  const taken = new Set((elsewhere ?? []).map((r) => r.user_id as string));
+
+  for (const m of suspended) {
+    if (room <= 0) break;
+    const uid = m.user_id as string;
+    if (taken.has(uid)) continue;
+    const { error } = await admin.from("office_members").update({ status: "active" }).eq("id", m.id);
+    if (error) continue;
+    await admin.from("profiles").update({ plan: "enterprise", office_id: officeId }).eq("id", uid);
+    room--;
   }
 }
 
