@@ -38,6 +38,33 @@
         ],
         "createdAt": "2026-09-11T06:32:17.972Z",
         "reason": "Same on/off pill idiom with the Office admin purple accent (bg-purple-600 text-white selected; text-gray-400 on gray-900 otherwise). Regex cannot see the ternary; no value-specific ignore exists for this rule."
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/app/dashboard/page.tsx"
+        ],
+        "createdAt": "2026-09-11T16:54:44.972Z",
+        "reason": "Same selected/unselected pill idiom already scoped off in the card editor, wizard and Office branding: a one-line ternary where bg-blue-600 + text-white is the Pro/active branch and text-gray-400 sits on bg-gray-800 in the other. The gray never renders on the blue; the single-line regex cannot see the ternary."
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/components/ContactsClient.tsx"
+        ],
+        "createdAt": "2026-09-11T16:59:38.919Z",
+        "reason": "Same one-line ternary idiom scoped off in the card editor, wizard, dashboard and Office branding: a blue active/unread branch (text-blue-400 or bg-blue-*) against a gray inactive branch on the same line. The gray never renders on the blue; the single-line regex cannot see the ternary. Both flagged lines pre-date this session's edits."
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/components/OfficeLinksBranding.tsx"
+        ],
+        "createdAt": "2026-09-11T17:29:57.471Z",
+        "reason": "Hover-state false positive of the same class already scoped elsewhere: text-gray-500 with hover:bg-red-500/10 AND hover:text-red-400 on one line. The gray never renders on the red tint — the hover swaps both together. Pre-dates this session's edits (the link delete buttons)."
       }
     ]
   }

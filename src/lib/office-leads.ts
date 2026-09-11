@@ -1,8 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOfficeUserIds } from "@/lib/office-cards";
-// Used by getOfficeUncontactedLeadCount below. A re-export at the foot of this
-// file makes the names available to IMPORTERS, not to this module itself.
-import { WORKED_STATUS_VALUES } from "@/lib/lead-status";
+import { followUpState, type FollowUpState, type FollowUpStep } from "@/lib/lead-followup";
 
 // ── Org-wide leads, with attribution that survives member removal ───────────
 // Leads are keyed by card slug, and a removed member's slugs drop out of the
@@ -25,6 +23,16 @@ export type OfficeLead = {
   card_owner: string;
   capturedBy: string; // the PERSON's display name — never a URL slug
   tags: string[] | null;
+  /**
+   * What the team has actually done about this lead — DERIVED from the contact's
+   * follow-up sequence, never set by hand (lib/lead-followup.ts).
+   *
+   * It replaced a CRM status column (New / Contacted / Closed / Not interested)
+   * that nothing in the product could write: two of those four had no writer
+   * anywhere, and the one an admin could set appeared on no other screen. See
+   * the note at the top of the Leads table.
+   */
+  followUp: FollowUpState;
 };
 
 /** One page of the office's leads, plus the exact total behind it. */
@@ -109,7 +117,7 @@ async function fetchLeadPage(
   const offset = Math.max(0, Math.floor(opts.offset ?? 0));
   const slugs = Array.from(bySlug.keys());
 
-  const select = "id, name, email, phone, status, created_at, card_owner, tags";
+  const select = "id, name, email, phone, status, created_at, card_owner, tags, follow_up_sequence";
   const { data, count } = await admin
     .from("leads")
     .select(select, { count: "exact" })
@@ -131,6 +139,10 @@ async function fetchLeadPage(
       // leaking the slug.
       capturedBy: bySlug.get(slug) ?? "Former team member",
       tags: (row.tags as string[] | null) ?? null,
+      followUp: followUpState(
+        row.follow_up_sequence as FollowUpStep[] | null,
+        (row.tags as string[] | null) ?? null,
+      ),
     };
   });
 
@@ -145,27 +157,6 @@ export async function getOfficeLeads(
   return fetchLeadPage(officeId, await officeSlugMap(officeId), opts);
 }
 
-/**
- * Does this office own this lead? The authorization gate for changing a lead's
- * status.
- *
- * One row, matched by id AND the office filter — not "load the list and look
- * for it". That list was capped, so a lead past the cap was genuinely
- * unreachable: the office could see it in an export but marking it contacted
- * answered "That lead isn't part of your team." It also re-ran the entire
- * team resolution plus a 600-row fetch on every single status click.
- */
-export async function officeOwnsLead(officeId: string, leadId: string): Promise<boolean> {
-  const admin = getAdminSupabase();
-  const bySlug = await officeSlugMap(officeId);
-  const { data } = await admin
-    .from("leads")
-    .select("id")
-    .eq("id", leadId)
-    .or(officeLeadFilter(Array.from(bySlug.keys()), officeLeadTag(officeId)))
-    .maybeSingle();
-  return !!data;
-}
 
 /**
  * Every lead the office owns, oldest last, for CSV export. Pages through in
@@ -195,21 +186,6 @@ export async function getAllOfficeLeads(officeId: string, hardCap = 20_000): Pro
 // How many team leads nobody has worked yet — drives the "new leads waiting"
 // item in Needs attention. Counted the same way the Leads tab labels them, so
 // the number and the list can never disagree.
-export async function getOfficeUncontactedLeadCount(officeId: string): Promise<number> {
-  const admin = getAdminSupabase();
-  const bySlug = await officeSlugMap(officeId);
-  // An EXACT count, not the length of a capped page. leadStatusView treats
-  // anything outside the three worked values — including null — as New, so
-  // "uncontacted" is the negation of that set, and the null case has to be
-  // spelled out because SQL's `NOT IN` drops nulls.
-  const worked = WORKED_STATUS_VALUES.join(",");
-  const { count } = await admin
-    .from("leads")
-    .select("id", { count: "exact", head: true })
-    .or(officeLeadFilter(Array.from(bySlug.keys()), officeLeadTag(officeId)))
-    .or(`status.is.null,status.not.in.(${worked})`);
-  return count ?? 0;
-}
 
 // ── Plain-English lead status ────────────────────────────────────────────────
 // The app's real status values are new_contact | touch | dissolved (see

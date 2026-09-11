@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { requireOfficeCapability } from "@/lib/office-roles";
 import { getAllOfficeLeads } from "@/lib/office-leads";
-import { leadStatusView } from "@/lib/lead-status";
+import { FOLLOW_UP_COPY } from "@/lib/lead-followup";
 
 // GET /api/office/leads/export → every lead the office owns, as CSV.
 //
@@ -46,14 +46,16 @@ export async function GET() {
       // The PERSON who captured it, never the raw card slug — the same rule
       // the table follows, and the column an office actually wants.
       esc(l.capturedBy),
-      // The label the admin sees in the UI, not the stored enum, so the file
-      // and the screen agree.
-      esc(leadStatusView(l.status).label),
+      // The label the admin sees in the UI, not a stored enum, so the file and
+      // the screen agree. It is the contact's follow-up state — derived from
+      // what their automations are doing — which is what replaced the old CRM
+      // status nothing in the product could set (lib/lead-followup.ts).
+      esc(FOLLOW_UP_COPY[l.followUp].label),
       esc(new Date(l.created_at).toISOString().slice(0, 10)),
     ].join(","),
   );
 
-  const csv = ["Name,Email,Phone,Captured by,Status,Date added", ...rows].join("\n");
+  const csv = ["Name,Email,Phone,Captured by,Follow-up,Date added", ...rows].join("\n");
   const stamp = new Date().toISOString().slice(0, 10);
 
   return new NextResponse(csv, {

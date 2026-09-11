@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import NotificationBody from "@/components/NotificationBody";
 
 type Notification = {
   id: string;
@@ -282,7 +283,10 @@ export default function NotificationBell({
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
                       <div className="min-w-0 flex-1">
                         <p className="text-white text-xs font-semibold truncate">{n.title}</p>
-                        {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
+                        {/* Same renderer as the dashboard list: on a Free
+                            account the place a view came from arrives blocked
+                            out from the server, and this blurs what is left. */}
+                        {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed"><NotificationBody text={n.body} /></p>}
                         {/* Meta line: card tag + time — chip lives here so the
                             title keeps full width on narrow phones. */}
                         <div className="flex items-center gap-2 mt-1 min-w-0">

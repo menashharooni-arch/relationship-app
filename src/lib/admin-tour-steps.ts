@@ -120,6 +120,17 @@ export const ADMIN_TOUR_STEPS: TourStep[] = [
     placement: "bottom",
   },
   {
+    id: "admin-branding-tabs",
+    path: BRANDING,
+    anchor: "admin-branding-tabs",
+    title: "Two things to brand",
+    // Added 2026-09-11: Branding grew a second half and the tour never
+    // mentioned it, so an admin who took the tour left believing the Swift
+    // Links page was out of their hands.
+    body: "Card is the business card itself. Links is your team's Swift Links page — the one link they share that holds everything. Both are yours to set.",
+    placement: "bottom",
+  },
+  {
     id: "admin-branding-form",
     path: BRANDING,
     anchor: "admin-branding-form",
@@ -128,9 +139,20 @@ export const ADMIN_TOUR_STEPS: TourStep[] = [
     placement: "top",
   },
   {
+    id: "admin-branding-links",
+    path: BRANDING,
+    // `section` opens the surface before the anchor is looked for — the Links
+    // half only renders when its tab is on. OfficeBranding reads the hash.
+    section: "links",
+    anchor: "admin-branding-links",
+    title: "The team's Swift Links page",
+    body: "Set the company bio, the company Instagram and any company links every teammate's page carries — theirs are kept and simply sit underneath. Leave a field blank and that part stays their own.",
+    placement: "top",
+  },
+  {
     id: "admin-finish",
     path: BRANDING,
     title: "You're all set",
-    body: "That's Team, Analytics, Leads, and Branding. Replay this anytime from the Tour button on the Team page.",
+    body: "That's Team, Analytics, Leads, and Branding — both the card and the Swift Links halves. Replay this anytime from the Tour button on the Team page.",
   },
 ];

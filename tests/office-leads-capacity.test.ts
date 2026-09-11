@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { WORKED_STATUS_VALUES, leadStatusView } from "@/lib/lead-status";
 
-const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+const root = process.cwd();
+const read = (p: string) => readFileSync(join(root, p), "utf8");
+/** Source with comments removed — these files EXPLAIN what was taken out. */
+const code = (p: string) =>
+  read(p).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 const lib = read("src/lib/office-leads.ts");
 
 // ── The team Leads tab told the truth about 600 leads and no more ───────────
@@ -57,48 +60,45 @@ describe("one query, an exact total, and real paging", () => {
   });
 });
 
-describe("a lead past the first page can still be marked contacted", () => {
-  it("ownership is one targeted row, not a search of the loaded list", () => {
-    expect(lib).toContain("export async function officeOwnsLead(");
-    const fn = lib.slice(lib.indexOf("export async function officeOwnsLead("));
-    expect(fn).toMatch(/\.eq\("id", leadId\)/);
-    expect(fn).toMatch(/\.or\(officeLeadFilter\(/);
+// ── The CRM status is gone, and so is everything that served it ─────────────
+//
+// New / Contacted / Closed / Not interested, plus a "Mark contacted" button and
+// an uncontacted counter, all removed 2026-09-11. The owner asked what the
+// statuses connected to and the answer was nothing: two of the four had no
+// writer anywhere in the product, the one an admin could set showed up on no
+// other screen, and the teammate who owns the contact never saw any of it.
+//
+// The column now shows the contact's FOLLOW-UP state, derived from what their
+// automations are actually doing — the same thing that teammate sees on the
+// contact itself. Nothing to mark, nothing to keep in sync.
+describe("nothing on the leads table is a status an admin has to maintain", () => {
+  it("the status setter and its route are gone", () => {
+    expect(lib).not.toContain("officeOwnsLead");
+    expect(existsSync(join(root, "src/app/api/office/leads/[id]/route.ts"))).toBe(false);
+    const table = code("src/app/office/admin/leads/LeadsTable.tsx");
+    expect(table).not.toMatch(/Mark contacted/);
+    expect(table).not.toMatch(/setLeadStatus/);
   });
 
-  it("the status route uses it", () => {
-    const route = read("src/app/api/office/leads/[id]/route.ts");
-    expect(route).toContain("officeOwnsLead(ctx.officeId, id)");
-    // And no longer refetches every lead on every click.
-    expect(route).not.toMatch(/const leads = await getOfficeLeads\(/);
-  });
-});
-
-describe("the uncontacted count is exact and agrees with the labels", () => {
-  it("counts in SQL rather than measuring a capped page", () => {
-    const fn = lib.slice(lib.indexOf("export async function getOfficeUncontactedLeadCount"));
-    expect(fn).toMatch(/count: "exact", head: true/);
-    expect(fn).not.toContain("getOfficeLeads(");
+  it("so is the counter that depended on it", () => {
+    expect(lib).not.toContain("getOfficeUncontactedLeadCount");
+    expect(lib).not.toContain("WORKED_STATUS_VALUES");
   });
 
-  it("spells out the null case, which SQL's NOT IN drops", () => {
-    const fn = lib.slice(lib.indexOf("export async function getOfficeUncontactedLeadCount"));
-    expect(fn).toMatch(/status\.is\.null,status\.not\.in\./);
-  });
-
-  it("derives the worked set from the same source the labels use", () => {
-    // If these ever drift, a number computed in SQL and a badge rendered in
-    // the UI would disagree about the same lead.
-    for (const v of WORKED_STATUS_VALUES) {
-      expect(leadStatusView(v).worked, `${v} is in the SQL worked set but reads as New`).toBe(true);
+  it("none of the four orphan labels is offered anywhere on the table", () => {
+    const table = code("src/app/office/admin/leads/LeadsTable.tsx");
+    for (const label of ["Contacted", "Closed", "Not interested", "Any status", "nobody has followed up yet"]) {
+      expect(table, `"${label}" is still on the leads table`).not.toContain(label);
     }
-    // And everything the UI calls New must be OUTSIDE that set.
-    for (const v of ["new_contact", "new", "", null, undefined, "anything-else"]) {
-      if (leadStatusView(v as string | null).worked) continue;
-      expect(
-        (WORKED_STATUS_VALUES as readonly string[]).includes(String(v)),
-        `${String(v)} reads as New but is in the SQL worked set`,
-      ).toBe(false);
-    }
+  });
+
+  it("the follow-up state is derived from the row, never stored", () => {
+    expect(lib).toContain("followUp: followUpState(");
+    expect(lib).toMatch(/follow_up_sequence/);
+    const followup = code("src/lib/lead-followup.ts");
+    // Pure: no database, nothing to set.
+    expect(followup).not.toMatch(/supabase|admin|fetch\(/i);
+    expect(followup).toContain("export function followUpState(");
   });
 });
 
@@ -146,10 +146,10 @@ describe("export takes everything", () => {
     expect(route).toMatch(/replace\(\/"\/g, '""'\)/);
   });
 
-  it("writes the person's name and the visible status label", () => {
+  it("writes the person's name and the same follow-up label the table shows", () => {
     expect(route).toContain("esc(l.capturedBy)");
-    expect(route).toContain("leadStatusView(l.status).label");
-    expect(route).toContain("Name,Email,Phone,Captured by,Status,Date added");
+    expect(route).toContain("FOLLOW_UP_COPY[l.followUp].label");
+    expect(route).toContain("Name,Email,Phone,Captured by,Follow-up,Date added");
   });
 
   it("is never cached — it is a snapshot of live customer data", () => {

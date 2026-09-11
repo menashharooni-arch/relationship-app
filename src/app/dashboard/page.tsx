@@ -47,6 +47,7 @@ import CardSelectionPersist from "@/components/CardSelectionPersist";
 import TourContextPersist from "@/components/TourContextPersist";
 import { Suspense } from "react";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
+import { redactForPlan } from "@/lib/notification-privacy";
 import { readUsage } from "@/lib/usage";
 import { backfillCardPhotos } from "@/lib/card-media";
 import { buildCardData } from "@/lib/card-data";
@@ -462,6 +463,12 @@ export default async function DashboardPage({
     panelNotifications ??= fallback;
     bellNotifications ??= fallback;
   }
+  // A Free account never receives the place a view came from — the Locations
+  // tab above is Pro, and this list used to say it in a sentence several times
+  // a day. Blocked out HERE, on the server, so there is nothing to read in
+  // devtools; the app blurs what is left (lib/location-privacy.ts).
+  panelNotifications = redactForPlan(panelNotifications ?? [], isPro);
+  bellNotifications = redactForPlan(bellNotifications ?? [], isPro);
 
   // Basic-panel "best day" (last 30 LOCAL days) — available to every plan.
   // Keyed by the owner's local calendar day (not UTC) so a busy evening isn't

@@ -283,7 +283,9 @@ describe("a milestone is a bell row and a headline, never a push of its own", ()
 
   it("leaves the CRM the plain event, not our gamification", () => {
     const src = cardEvents();
-    expect(src).toMatch(/type: "conversation\.notification",\s*\n\s*event: isView \? "card_viewed" : "contact_saved",\s*\n\s*title: notice\.title,\s*\n\s*body: notice\.body,/);
+    // The body is stripped of the invisible location marks on the way out — a
+    // customer's CRM record is not the place for them (lib/location-privacy.ts).
+    expect(src).toMatch(/type: "conversation\.notification",\s*\n\s*event: isView \? "card_viewed" : "contact_saved",\s*\n\s*title: notice\.title,[\s\S]{0,600}?body: stripLocationMarks\(notice\.body\),/);
   });
 });
 

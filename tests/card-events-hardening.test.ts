@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cardEventNotice } from "@/lib/card-event-notify";
+import { stripLocationMarks, withoutLocation } from "@/lib/location-privacy";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE EVENT ROW AND THE NOTIFICATION MUST BE THE SAME FACT.
@@ -113,22 +114,35 @@ describe("the notification carries the right context", () => {
 });
 
 describe("cardEventNotice — surface + location copy", () => {
+  // The sentence is unchanged; since 2026-09-11 it carries two INVISIBLE marks
+  // around the location so a Free account's copy can have the place blocked out
+  // (lib/location-privacy.ts). Every assertion on wording strips them, which is
+  // exactly what every plain-text consumer does.
+  const body = (input: Parameters<typeof cardEventNotice>[0]) =>
+    stripLocationMarks(cardEventNotice(input)!.body);
+
   it("names the location when the event has one, honestly coarse", () => {
-    expect(cardEventNotice({ eventType: "viewed_card", visitorName: "Mina R", location: "Austin, US" })!.body)
+    expect(body({ eventType: "viewed_card", visitorName: "Mina R", location: "Austin, US" }))
       .toBe("Mina R viewed your card near Austin, US.");
   });
 
+  it("marks that location so a Free account never reads it", () => {
+    const raw = cardEventNotice({ eventType: "viewed_card", visitorName: "Mina R", location: "Austin, US" })!.body;
+    expect(raw).not.toBe(stripLocationMarks(raw));
+    expect(withoutLocation(raw)).toBe("Mina R viewed your card.");
+  });
+
   it("omits it entirely when unknown — never a placeholder", () => {
-    expect(cardEventNotice({ eventType: "viewed_card", visitorName: "Mina R", location: null })!.body)
+    expect(body({ eventType: "viewed_card", visitorName: "Mina R", location: null }))
       .toBe("Mina R viewed your card.");
-    expect(cardEventNotice({ eventType: "viewed_card", location: "  " })!.body)
+    expect(body({ eventType: "viewed_card", location: "  " }))
       .toBe("Someone viewed your card.");
   });
 
   it("the explicit surface field decides the wording; legacy source=swift_links still works", () => {
-    expect(cardEventNotice({ eventType: "viewed_card", surface: "links", source: "qr_code" })!.body)
+    expect(body({ eventType: "viewed_card", surface: "links", source: "qr_code" }))
       .toBe("Someone viewed your Swift Links.");
-    expect(cardEventNotice({ eventType: "viewed_card", source: "swift_links" })!.body)
+    expect(body({ eventType: "viewed_card", source: "swift_links" }))
       .toBe("Someone viewed your Swift Links.");
   });
 
@@ -136,7 +150,7 @@ describe("cardEventNotice — surface + location copy", () => {
     // "saved your contact card" was a claim we cannot make — the save happens in
     // the OS "Add to Contacts" sheet and no API reports the outcome back. The
     // download is the part SwiftCard performed, so that is what it says.
-    expect(cardEventNotice({ eventType: "downloaded_vcard", visitorName: "Mina R", source: "qr_code", location: "Austin, US" })!.body)
+    expect(body({ eventType: "downloaded_vcard", visitorName: "Mina R", source: "qr_code", location: "Austin, US" }))
       .toMatch(/^Mina R downloaded your contact card from .+ near Austin, US\.$/);
     // The TYPE is unchanged: it is the VISIT_RANK key, the push category and the
     // CRM event name, and renaming it would break five consumers for nothing.

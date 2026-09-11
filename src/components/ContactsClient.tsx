@@ -222,9 +222,12 @@ export default function ContactsClient({
   cardSigners = {},
   initialCardFilter = null,
   initialSelectedId = null,
+  isPro = false,
 }: {
   leads: Lead[];
   primaryUsername?: string;
+  /** Paid account? Follow-up automations are Pro-only (see the channel cards). */
+  isPro?: boolean;
   userCards?: { username: string; name: string }[];
   /** Per card slug: what a share from one of its contacts is signed with. */
   cardSigners?: Record<string, CardSigner>;
@@ -1452,19 +1455,32 @@ export default function ContactsClient({
                   const chPaused = channelPausedFor(ch);
                   const presetName = PRESET_FROM_COUNT(activeItems.length);
                   const switchOn = isDrafting || (running && !chPaused);
+                  // Pro-only to SET UP — never to stop. A downgraded account
+                  // still has to be able to switch off a sequence it already
+                  // has (the cron pauses those anyway), and this card is where
+                  // that switch lives.
+                  const needsPro = !isPro && !hasActive;
 
                   return (
                     <div key={ch} className={`border rounded-xl p-4 ${switchOn ? (ch === "sms" ? "border-emerald-800/50 bg-emerald-950/10" : "border-blue-800/50 bg-blue-950/10") : "border-gray-800 bg-gray-800/20"}`}>
                       {/* Header + on/off toggle */}
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-100">{label} automation</p>
+                          <p className="text-sm font-semibold text-gray-100 flex items-center gap-1.5">
+                            {label} automation
+                            {/* SMALL (owner: "a very small pro badge… I don't
+                                want it to be shoved in their face"). Same 8px
+                                tag the card finishes use. Only where the thing
+                                is actually Pro, and only until they are. */}
+                            {needsPro && <span className="text-[0.5rem] font-bold text-blue-400 shrink-0">PRO</span>}
+                          </p>
                           <p className="text-gray-600 text-[0.6875rem] mt-0.5">
                             {!can ? `No ${ch === "email" ? "email" : "phone"} on file for this contact`
                               : running && chPaused ? `Off — remaining ${noun} won't send. Switch on to resume.`
                               : running ? `On · ${presetName} · auto-sending ${noun}`
                               : allSent ? `Completed · all ${activeItems.length} ${noun} sent`
                               : isDrafting ? "Choose a cadence, then submit to activate"
+                              : needsPro ? `Automatic ${noun} to this contact, on a cadence you pick`
                               : `Off — set up a ${word} follow-up`}
                           </p>
                         </div>
@@ -1481,6 +1497,14 @@ export default function ContactsClient({
                             // A live flow toggles ITS OWN channel off/on; otherwise the
                             // switch opens (or closes) the setup flow.
                             if (running) { toggleChannelPause(ch); return; }
+                            // Free account, nothing set up yet: say what it is
+                            // once, where they tapped. Nothing pops up
+                            // uninvited — the PRO tag is the only standing
+                            // mention (owner: don't shove it in their face).
+                            if (needsPro) {
+                              setAiUpgrade("Follow-up automations are part of Pro — set an email or text cadence and SwiftCard sends it for you.");
+                              return;
+                            }
                             if (isDrafting) cancelDraft(); else startDraft(ch);
                           }}
                           className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${!can ? "opacity-60 cursor-not-allowed" : ""}`}

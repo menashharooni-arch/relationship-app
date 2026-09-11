@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CardScaler from "@/components/CardScaler";
 import InertPreview from "@/components/InertPreview";
 import ClassicPro from "@/components/card-templates/ClassicPro";
@@ -130,6 +130,26 @@ export default function OfficeBranding({ office }: { office: Brand }) {
   // Each tab posts only its own keys, so saving one can never blank the other.
   const [tab, setTab] = useState<"card" | "links">("card");
 
+  // The URL hash picks the tab: /office/admin/branding#links opens Links.
+  //
+  // Two things need it. The admin tour walks through both halves of Branding,
+  // and its engine opens a collapsed surface by setting the hash — the same
+  // mechanism SettingsShell uses (lib/admin-tour-steps.ts, `section`). And a
+  // link straight to the Links half is a reasonable thing to send someone.
+  //
+  // Read in an effect, never in the initial state: the server cannot see a
+  // hash, so initialising from it would make the first client render disagree
+  // with the HTML.
+  useEffect(() => {
+    const fromHash = () => {
+      const h = window.location.hash.replace("#", "");
+      if (h === "links" || h === "card") setTab(h);
+    };
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    return () => window.removeEventListener("hashchange", fromHash);
+  }, []);
+
   const setAddr = (k: keyof Addr, v: string) => setAddress((a) => ({ ...a, [k]: v }));
 
   async function save() {
@@ -189,6 +209,10 @@ export default function OfficeBranding({ office }: { office: Brand }) {
       <div
         role="tablist"
         aria-label="What to brand"
+        // The admin tour stops here to say there are two surfaces to brand —
+        // without it the tour talked about the card and never mentioned that
+        // the Swift Links page has its own half (lib/admin-tour-steps.ts).
+        data-tour="admin-branding-tabs"
         className="inline-flex items-center gap-1 p-1 mb-4 rounded-full bg-gray-900 border border-gray-800"
       >
         {([["card", "Card"], ["links", "Links"]] as const).map(([id, label]) => (
