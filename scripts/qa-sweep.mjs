@@ -241,6 +241,14 @@ async function login(page, email) {
   await page.click('button[type="submit"]');
   await page.waitForURL(/dashboard|onboarding|welcome|office/, { timeout: 45000 }).catch(() => {});
   await page.waitForTimeout(2500);
+  // A sign-in that silently fails turns every later screen into a clean-looking
+  // login wall (2026-09-11, CI: the Free account never got in and eleven
+  // screens "passed"). Say so, loudly, with whatever the form said.
+  if (await page.locator("#auth-email").isVisible().catch(() => false)) {
+    const msg = await page.locator("[role='alert'], .text-red-600, .text-red-500, .text-red-400").first().innerText().catch(() => "");
+    note("login", "login-failed", `${email} still on ${page.url().replace(BASE, "")} — ${msg.slice(0, 120) || "no message shown"}`);
+    await page.screenshot({ path: `${OUT}/login-failed-${email.split("@")[0]}.png` }).catch(() => {});
+  }
 }
 
 async function dismissOverlays(page) {
