@@ -59,11 +59,9 @@ const pickOff = "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-
 
 function LinkMediaControl({
   link,
-  locked,
   onChange,
 }: {
   link: CardLink;
-  locked: boolean;
   onChange: (patch: Partial<CardLink>) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -119,7 +117,7 @@ function LinkMediaControl({
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
-            disabled={busy || locked}
+            disabled={busy}
             onClick={() => fileRef.current?.click()}
             className="px-2.5 py-1.5 rounded-lg border border-gray-700 bg-gray-800/40 text-[0.6875rem] font-semibold text-gray-300 hover:border-gray-600 transition-colors disabled:opacity-50"
           >
@@ -128,7 +126,6 @@ function LinkMediaControl({
           {media && !busy && (
             <button
               type="button"
-              disabled={locked}
               onClick={() => onChange({ media: undefined })}
               className="px-2.5 py-1.5 rounded-lg text-[0.6875rem] font-semibold text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50"
             >
@@ -149,15 +146,20 @@ function LinkMediaControl({
   );
 }
 
+// EVERY CONTROL HERE IS LIVE ON EVERY PLAN (owner, 2026-09-11). Per-link
+// looks, photos and row styles used to be disabled for a Free account; they now
+// behave like the card's design panel — you build the page you want, see it, and
+// meet the wall at Save Changes, which names what needs Pro and offers to save
+// the Free version instead. The `locked` prop is gone rather than ignored, so
+// nothing here can half-disable again by accident; the PRO tag lives on the
+// section heading in SwiftLinkDesign.
 export default function LinkButtonsControls({
   links,
   onChange,
-  locked,
   pageRowStyle,
 }: {
   links: CardLink[];
   onChange: (links: CardLink[]) => void;
-  locked: boolean;
   /** The page-wide row style older pages saved (linkButtonStyle) — what a
    *  link shows as until it gets its own pick. */
   pageRowStyle?: string;
@@ -206,7 +208,6 @@ export default function LinkButtonsControls({
                 <button
                   key={o.id}
                   type="button"
-                  disabled={locked}
                   title={o.hint}
                   aria-pressed={size === o.id}
                   onClick={() => patch(i, { size: o.id })}
@@ -225,7 +226,6 @@ export default function LinkButtonsControls({
                     <button
                       key={o.id}
                       type="button"
-                      disabled={locked}
                       title={o.hint}
                       aria-pressed={rowStyle === o.id}
                       // Written explicitly (even "tile") so a per-link pick
@@ -240,7 +240,7 @@ export default function LinkButtonsControls({
                 </div>
               </div>
             ) : (
-              <LinkMediaControl link={l} locked={locked} onChange={(p) => patch(i, p)} />
+              <LinkMediaControl link={l} onChange={(p) => patch(i, p)} />
             )}
           </div>
         );

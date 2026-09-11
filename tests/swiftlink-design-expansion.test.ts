@@ -143,10 +143,14 @@ describe("both editors edit it", () => {
     // picker lives in LinkButtonsControls since 2026-09-09).
     expect(src).toMatch(/HERO_STYLES\.map[\s\S]{0,700}onClick/);
     expect(src).toMatch(/HERO_CONTENTS\.map[\s\S]{0,400}onClick/);
-    expect(src).toMatch(/<LinkButtonsControls links=\{links\} onChange=\{onLinksChange\} locked=\{locked\}/);
+    expect(src).toMatch(/<LinkButtonsControls links=\{links\} onChange=\{onLinksChange\} pageRowStyle=/);
     const perLink = read("src/components/LinkButtonsControls.tsx");
-    expect(perLink).toMatch(/TILE_SIZES\.map[\s\S]{0,300}disabled=\{locked\}/);
-    expect(perLink).toMatch(/BUTTON_STYLES\.map[\s\S]{0,300}disabled=\{locked\}/);
+    // Both rows are LIVE on every plan since 2026-09-11 — the Social design
+    // panel previews Pro, and Save Changes is the wall — so what is pinned is
+    // that they exist and are clickable, not that they disable.
+    expect(perLink).toMatch(/TILE_SIZES\.map[\s\S]{0,300}onClick=/);
+    expect(perLink).toMatch(/BUTTON_STYLES\.map[\s\S]{0,400}onClick=/);
+    expect(perLink).not.toMatch(/disabled=\{locked\}/);
     // "Header shows" hides for the "No header" layout (nothing to show).
     expect(src).toMatch(/normalizeHeroStyle\(value\.linkHeroStyle\) !== "none" && \(/);
     // A Look pick clears the custom button color along with bg/text.
