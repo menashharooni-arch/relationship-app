@@ -112,8 +112,6 @@ export type VisitNotice = {
    * pushCategory there is still nothing to title.
    */
   pushTitle?: string;
-  /** Attach a one-tap "Save contact" vCard to the push. */
-  vcardUrl?: string;
   /**
    * THE ONCE-EVER MILESTONE LEDGER, e.g. "milestone_50".
    *
@@ -208,7 +206,6 @@ export async function notifyVisit(opts: {
       title: notice.pushTitle ?? notice.title,
       body: notice.pushBody ?? notice.body,
       url: notice.url,
-      ...(notice.vcardUrl ? { vcardUrl: notice.vcardUrl } : {}),
       // Same tag for every notification in this visit → the messenger replaces
       // the banner instead of stacking a second one.
       tag,

@@ -156,8 +156,23 @@ describe("every notifier goes through the visit ledger", () => {
     expect(src).not.toMatch(/sendPushToUser/);
   });
 
-  it("a locked lead's push still withholds the vCard", () => {
-    expect(leads()).toMatch(/locked \|\| !insertedLead\?\.id/);
+  // ── Every tap lands in the app ────────────────────────────────────────────
+  //
+  // The lead push used to carry a vCard, and the web notification put a "Save
+  // to Contacts" button on it that downloaded the contact without SwiftCard
+  // ever opening. Removed 2026-09-11 on the owner's reasoning: "someone shared
+  // their details" is the highest-intent moment the product gets, the person
+  // should see who it is and what they wrote before deciding to keep them, and
+  // finishing the job on the lock screen spends the one visit it earned.
+  it("no push carries a vCard, and no notification can be finished without opening the app", () => {
+    for (const src of [leads(), read("src/lib/visit-notify.ts"), read("src/lib/push.ts")]) {
+      expect(src).not.toMatch(/vcardUrl/);
+    }
+    const worker = sw();
+    expect(worker).not.toMatch(/Save to Contacts/);
+    expect(worker).not.toMatch(/vcardUrl/);
+    // One action, and it opens SwiftCard.
+    expect(worker).toMatch(/const actions = \[\{ action: "view", title: "Open SwiftCard" \}\]/);
   });
 });
 

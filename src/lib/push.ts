@@ -36,7 +36,6 @@ export async function sendPushToUser(userId: string, payload: {
   title: string;
   body: string;
   url: string;
-  vcardUrl?: string;
   tag?: string;
   /** Set by the policy, never by a caller: no sound, no screen — see PushMode. */
   silent?: boolean;
