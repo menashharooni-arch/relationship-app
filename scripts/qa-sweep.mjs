@@ -176,6 +176,12 @@ function wirePage(page, screenRef) {
     // OAuth client allowlist (localhost, a CI runner) and when FedCM has no
     // signed-in account. Environment, not product.
     if (/GSI_LOGGER|FedCM|Provider's accounts list is empty|Not signed in with the identity provider|accounts\.google\.com.*Content Security Policy/i.test(t)) return;
+    // A fetch cancelled because the page navigated. The sweep walks a dozen
+    // screens in a row, so an in-flight request is routinely abandoned; the
+    // browser logs it with no page attached, which is why it arrived as
+    // screen "unknown". A request that actually FAILED is reported by the
+    // response listener below, with its method and status.
+    if (/The request has been aborted|The user aborted a request|AbortError|Failed to fetch/i.test(t) && screenRef.name === "unknown") return;
     note(screenRef.name, "console-error", t.split("\n")[0].slice(0, 160));
   });
   page.on("response", (r) => {
