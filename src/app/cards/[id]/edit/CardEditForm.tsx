@@ -949,14 +949,21 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-medium text-gray-400">Swiftlinks bio</label>
-                <span className="text-[0.625rem] font-semibold text-blue-400">Tip: be descriptive</span>
+                {/* The office can write one bio for the whole team. When it has,
+                    the field is read-only rather than editable-then-overwritten:
+                    the server replaces it on save, so an editable box here would
+                    quietly throw their words away. */}
+                {bioManaged
+                  ? <ManagedTag owner={org?.ownerInherited} />
+                  : <span className="text-[0.625rem] font-semibold text-blue-400">Tip: be descriptive</span>}
               </div>
               <textarea
-                value={bio}
+                value={bioManaged ? (org?.linkBio ?? "") : bio}
                 onChange={(e) => setBio(e.target.value)}
+                readOnly={bioManaged}
                 rows={3}
                 placeholder="e.g. Austin realtor helping first-time buyers find their dream home — 10+ years, 200+ closings. Let's talk!"
-                className={`${inputCls} resize-none`}
+                className={`${inputCls} resize-none ${bioManaged ? "opacity-70 cursor-default" : ""}`}
               />
               <p className="text-gray-600 text-[0.6875rem] mt-1">
                 Shows at the top of your Swift Links — the first thing visitors read. Say <strong className="text-gray-400">who you help, what you do, and why they should reach out</strong>. Descriptive bios get more taps.
@@ -970,11 +977,17 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               <p className="text-gray-600 text-[0.6875rem] mb-3">Paste a profile URL or type an @handle — we link it automatically.</p>
               <div className="space-y-3">
                 {SOCIALS.map(({ key, label: socialLabel, placeholder }) => {
+                  // Instagram is the ONE social an office can set. Every other
+                  // one stays the member's, by the owner's explicit rule.
+                  const managed = key === "instagram" && instagramManaged;
                   const linked = socials[key].trim().length > 0;
                   return (
                     <div key={key}>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs text-gray-500">{socialLabel}</label>
+                        <label className="block text-xs text-gray-500">
+                          {socialLabel}
+                          {managed && <span className="ml-1.5 align-middle"><ManagedTag owner={org?.ownerInherited} /></span>}
+                        </label>
                         {linked && socialUrl(key, socials[key]) && (
                           <a href={socialUrl(key, socials[key])!} target="_blank" rel="noopener noreferrer"
                             className="flex items-center gap-1 text-[0.625rem] font-semibold text-blue-400 hover:text-blue-300">
@@ -986,10 +999,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                       <input
                         type="text"
                         placeholder={placeholder}
-                        value={socials[key]}
+                        value={managed ? (org?.linkInstagram ?? "") : socials[key]}
                         onChange={(e) => setSocial(key, e.target.value)}
                         onBlur={() => normalizeOnBlur(key)}
-                        className={inputCls}
+                        readOnly={managed}
+                        className={`${inputCls} ${managed ? "opacity-70 cursor-default" : ""}`}
                       />
                       {/* Say where this will actually go. "Open link" above tells
                           you nothing until you click it, and nobody clicks it

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
-import { overlayOfficeContact, stripOfficeContact, propagateBrandToOfficeCards, OFFICE_DESIGN_KEYS } from "@/lib/office-brand";
+import { overlayOfficeContact, stripOfficeContact, propagateBrandToOfficeCards, OFFICE_DESIGN_KEYS, OFFICE_LINK_DESIGN_KEYS } from "@/lib/office-brand";
 import { writeAudit } from "@/lib/audit";
 import { requireOfficeCapability } from "@/lib/office-roles";
 
@@ -49,9 +49,9 @@ export async function PATCH(req: NextRequest) {
   const hasAddr = !!cleanAddr && Object.values(cleanAddr).some(Boolean);
   const lockTemplate = body.lockTemplate !== false; // default: locked (uniform template)
   // Opt-in, so an absent field means OFF. lockTemplate defaults ON because a
-  // uniform look is the point of an office; this one takes something away from
-  // members, so it only exists when the admin asks for it.
-  const lockLinks = body.lockLinks === true;
+  // uniform card is the point of an office; this one would overwrite Swift
+  // Links pages members have already built, so it only exists when asked for.
+  const lockLinkDesign = body.lockLinkDesign === true;
 
   // Company IDENTITY + look are set HERE — the Branding page is the brand's
   // single source of truth (the primary-card concept is gone). A field the
@@ -91,6 +91,40 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  // ── Swift Links branding ──────────────────────────────────────────────────
+  // Only touched when the request actually carries the Links tab's fields, so
+  // saving the Card tab can never blank the Links half and vice versa. Each
+  // tab posts its own keys.
+  const linkFields: Record<string, unknown> = {};
+  if ("linkDesign" in body) {
+    const d = body.linkDesign;
+    const clean: Record<string, unknown> = {};
+    if (d && typeof d === "object") {
+      for (const [k, v] of Object.entries(d as Record<string, unknown>)) {
+        // Allow-listed to the Swift Links vocabulary, so a crafted request
+        // cannot smuggle card keys (or anything else) into the links blob.
+        if (!OFFICE_LINK_DESIGN_KEYS.includes(k as never)) continue;
+        if (v === undefined || v === null || v === "") continue;
+        clean[k] = typeof v === "string" ? v.slice(0, 500) : v;
+      }
+    }
+    linkFields.brand_link_design = Object.keys(clean).length ? clean : null;
+  }
+  if ("linkBio" in body) linkFields.brand_link_bio = (str(body.linkBio) || null)?.slice(0, 500) ?? null;
+  if ("linkInstagram" in body) linkFields.brand_link_instagram = (str(body.linkInstagram) || null)?.slice(0, 120) ?? null;
+  if ("links" in body) {
+    const raw = Array.isArray(body.links) ? (body.links as unknown[]) : [];
+    const clean = raw
+      .map((l) => (l && typeof l === "object" ? (l as { label?: unknown; url?: unknown }) : null))
+      .filter((l): l is { label?: unknown; url?: unknown } => !!l)
+      .map((l) => ({ label: String(l.label ?? "").trim().slice(0, 120), url: String(l.url ?? "").trim().slice(0, 500) }))
+      // Both halves required: a link with no destination is a dead button on
+      // fifteen people's pages.
+      .filter((l) => !!l.label && /^https?:\/\//i.test(l.url))
+      .slice(0, 20);
+    linkFields.brand_links = clean.length ? clean : null;
+  }
+
   const brand = {
     brand_logo_url: "logoUrl" in body ? (str(body.logoUrl) || null) : ((office.brand_logo_url as string | null) ?? null),
     brand_company: "company" in body ? (str(body.company) || null) : ((office.brand_company as string | null) ?? null),
@@ -99,13 +133,21 @@ export async function PATCH(req: NextRequest) {
     brand_phone: typeof body.phone === "string" ? body.phone.trim() || null : null,
     brand_fax: typeof body.fax === "string" ? body.fax.trim() || null : null,
     brand_address: hasAddr ? cleanAddr : null,
-    brand_locks: { template: lockTemplate, links: lockLinks },
+    brand_locks: { template: lockTemplate, linkDesign: lockLinkDesign },
     ...(design !== undefined ? { brand_design: design } : {}),
+    ...linkFields,
   };
 
   // Save, retrying without the newer columns if the migration isn't run yet, so
   // the core logo/company/website/template save never fails.
   let { error } = await admin.from("offices").update(brand).eq("id", office.id);
+  if (error && Object.keys(linkFields).length) {
+    // Swift Links columns missing (pre office-swiftlinks-branding.sql) — the
+    // Card tab must still save.
+    const withoutLinks = { ...brand };
+    for (const k of Object.keys(linkFields)) delete (withoutLinks as Record<string, unknown>)[k];
+    ({ error } = await admin.from("offices").update(withoutLinks).eq("id", office.id));
+  }
   if (error) {
     ({ error } = await admin.from("offices").update({
       brand_logo_url: brand.brand_logo_url, brand_company: brand.brand_company,

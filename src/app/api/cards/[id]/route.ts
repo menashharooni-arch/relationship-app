@@ -3,7 +3,7 @@ import { revalidateCardPage } from "@/lib/card-page-data";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations } from "@/lib/office-brand";
+import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations, overlayOfficeLinks } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { cardContentChanged, signatureContentChanged } from "@/lib/card-changed";
@@ -192,22 +192,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // /office/admin/branding, not by exempting any particular card.
   const brand = await getMemberBrandForUser(user.id);
 
-  // LINKS LOCK. When the office turns this on, a member cannot add, change or
-  // remove the link buttons on their company-branded card — the one place they
-  // could otherwise put an arbitrary outbound URL on the company's letterhead.
+  // THE OFFICE'S SWIFT LINKS BRANDING. The look (only while the office locks
+  // it), the bio, and the pinned link buttons — which are ADDITIVE: the
+  // office's lead the list and the member's follow, because an office wants
+  // its booking link on every page, not to stop a salesperson linking their
+  // own calendar.
   //
-  // Restores the STORED value rather than emptying the field: turning the lock
-  // on must freeze what is there, never delete links a member was allowed to
-  // add yesterday. And it is applied to the merged result, because
-  // CardEditForm sends `links` on every save whether or not it changed.
-  //
-  // Sub-users only. The owner's own cards are theirs (the same rule every
-  // brand target follows), and an office with the lock off is untouched.
-  if (subCtx && brand?.lockLinks && updates.customization) {
-    const merged = updates.customization as Record<string, unknown>;
-    if (hadStoredLinks) merged.links = storedLinks;
-    else delete merged.links;
+  // Applied to the MERGED result, because CardEditForm sends `links` and the
+  // style keys on every save whether or not they changed. Sub-users only: the
+  // owner's own cards are theirs, the rule every brand target follows.
+  if (subCtx && brand && updates.customization) {
+    updates.customization = overlayOfficeLinks(updates.customization as Record<string, unknown>, brand);
   }
+  // Instagram is a top-level column, so it is forced here beside company and
+  // website rather than in the overlay. Every OTHER social stays the member's.
+  if (subCtx && brand?.linkInstagram) updates.instagram = brand.linkInstagram;
 
   // Company-level fields are org territory for a SUB-USER even when the office
   // has no brand set yet (the UI never shows those inputs to a member): a

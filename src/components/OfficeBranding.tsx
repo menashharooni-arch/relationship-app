@@ -15,6 +15,7 @@ import { withoutSocials } from "@/components/card-templates/types";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
+import OfficeLinksBranding from "@/components/OfficeLinksBranding";
 import type { TemplateStyle } from "@/components/card-templates/shared";
 
 // Dark-theme form matching the /office/admin shell (bg-gray-900 panels, purple
@@ -123,6 +124,11 @@ export default function OfficeBranding({ office }: { office: Brand }) {
   // links they were allowed to add before this setting existed.
   const [lockLinks, setLockLinks] = useState(office.brand_locks?.links === true);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // WHICH HALF OF THE BRAND. A card and a Swift Links page are two different
+  // surfaces with two different vocabularies, and an admin works on one at a
+  // time — so they are two tabs over one page rather than one very long form.
+  // Each tab posts only its own keys, so saving one can never blank the other.
+  const [tab, setTab] = useState<"card" | "links">("card");
 
   const setAddr = (k: keyof Addr, v: string) => setAddress((a) => ({ ...a, [k]: v }));
 
@@ -177,6 +183,33 @@ export default function OfficeBranding({ office }: { office: Brand }) {
     // instead of scrolling past every section to find the preview at the
     // bottom. Desktop pins each item back into its column/row explicitly, so
     // the two-column sticky-preview layout is unchanged there.
+    <>
+      {/* Card | Links. Two equal halves of the same job, so a segmented pair
+          rather than a nav: an admin is switching surface, not navigating. */}
+      <div
+        role="tablist"
+        aria-label="What to brand"
+        className="inline-flex items-center gap-1 p-1 mb-4 rounded-full bg-gray-900 border border-gray-800"
+      >
+        {([["card", "Card"], ["links", "Links"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            type="button"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+              tab === id ? "bg-purple-600 text-white" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "links" ? (
+        <OfficeLinksBranding office={office} />
+      ) : (
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_300px] lg:items-start">
       {/* 1 ── Company information ─────────────────────────────────────── */}
       <div className="lg:col-start-1 min-w-0">
@@ -362,5 +395,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         </div>
       </div>
     </div>
+      )}
+    </>
   );
 }

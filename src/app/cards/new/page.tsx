@@ -170,7 +170,13 @@ export default async function NewCardPage({
         fax: brand?.fax ?? null,
         address: brand?.address ?? null,
         lockDesign: brand?.lockTemplate ?? false,
-        lockLinks: brand?.lockLinks ?? false,
+        // ── The Swift Links half of the brand ──────────────────────────
+        // Content the office set (applied and read-only for the member),
+        // plus whether the office holds the page's LOOK.
+        officeLinks: brand?.links ?? null,
+        linkBio: brand?.linkBio ?? null,
+        linkInstagram: brand?.linkInstagram ?? null,
+        lockLinkDesign: brand?.lockLinkDesign ?? false,
         // The locked look, so the sub-user's live preview matches the office
         // template + colors/fonts while they build (not only after saving).
         template: brand?.template ?? null,
