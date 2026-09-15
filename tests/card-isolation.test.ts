@@ -165,12 +165,12 @@ describe("every card-rendering surface goes through the one builder", () => {
     // this codebase has had, so the column list is the thing under test.
     const ALLOWED = new Set(["photo_url", "customization", "plan"]);
     for (const f of [
-      // resolve-card.ts delegates its profile read to the cached loader too;
-      // the loader is in this list, so the column contract is still covered.
-      "src/app/links/[username]/page.tsx",
-      // The card page's own profile reads moved into the cached loader
-      // (lib/card-page-data.ts) when the page stopped querying per view; the
-      // column list is still what is under test, just one file over.
+      // EVERY public surface now reads the owner's profile through this one
+      // cached loader — the card page first, and the Swift Links page since the
+      // 2026-09-14 performance audit (it used to repeat the same three queries
+      // per view). resolve-card.ts delegates here too. So this single column
+      // list is the whole contract for public traffic, which is a stronger
+      // guarantee than the two hand-kept copies it replaced.
       "src/lib/card-page-data.ts",
     ]) {
       const code = src(f);
@@ -184,6 +184,13 @@ describe("every card-rendering surface goes through the one builder", () => {
             .toContain(col);
         }
       }
+    }
+
+    // And the public pages must keep delegating rather than growing a profiles
+    // query of their own again — which is what this test caught the first time.
+    for (const page of ["src/app/links/[username]/page.tsx", "src/app/[username]/page.tsx"]) {
+      expect(src(page), `${page} queries profiles directly again`).not.toMatch(/from\("profiles"\)/);
+      expect(src(page), `${page} no longer reads the shared cached loader`).toMatch(/getCardPageData/);
     }
   });
 

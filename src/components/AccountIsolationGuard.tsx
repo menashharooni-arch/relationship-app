@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { createBrowserClient } from "@supabase/ssr";
 import {
   clearPersonScopedState,
   isAccountSwitch,
@@ -25,13 +24,56 @@ import {
 // button's cleanup running. This guard closes every one of those paths by
 // checking identity itself, on every page load and on every auth state change.
 //
-// The check is two localStorage reads and a local session decode — no network.
+// ── WHY THE SUPABASE CLIENT IS NOT IMPORTED AT THE TOP (perf audit 2026-09-14)
+//
+// This component lives in the ROOT layout, so a static
+// `import { createBrowserClient } from "@supabase/ssr"` here dragged the entire
+// Supabase browser SDK — auth, postgrest, storage AND the realtime websocket
+// client, 239 kB of raw JavaScript — into the chunk set that every page must
+// download and parse before it can hydrate. Every page: the marketing
+// homepage, /pricing, and every public card and Swift Links page, none of
+// which have a signed-in user at all. (Realtime is not used anywhere in this
+// codebase — there is not one `.channel(` call — so a third of that was
+// unreachable code shipped to strangers scanning a business card.)
+//
+// TWO CHANGES, NO BEHAVIOUR LOST:
+//
+//   1. A SESSION IS A COOKIE, and a cookie can be read with no SDK at all.
+//      @supabase/ssr stores the session in `sb-<ref>-auth-token` cookies —
+//      that is the whole point of the ssr package, and src/app/[username]/page.tsx
+//      already uses exactly this test server-side to skip its own auth hop. With
+//      no such cookie there is provably no session, so there is nothing to
+//      reconcile: mark the barrier resolved and stop. That is also FASTER than
+//      before for anonymous visitors, who used to make trackers wait on a
+//      getSession() that could only ever answer "nobody".
+//
+//   2. When there IS a session, the SDK is loaded with a dynamic import. Same
+//      getSession() decode, same reconcile, same onAuthStateChange
+//      subscription — it just arrives as its own chunk after hydration instead
+//      of blocking it.
+//
+// What this deliberately does NOT do is guess. The cookie test is the same one
+// the server trusts; anything that looks even slightly like a session takes the
+// full, unchanged path.
+
+/** Does this browser carry a Supabase session cookie? No SDK required. */
+function hasAuthCookie(): boolean {
+  if (typeof document === "undefined") return false;
+  // Same shape the server checks (src/app/[username]/page.tsx): the ssr client
+  // writes `sb-<project-ref>-auth-token`, sometimes chunked with a `.0`/`.1`
+  // suffix, which `includes` covers.
+  return document.cookie
+    .split(";")
+    .some((c) => {
+      const name = c.split("=")[0]?.trim() ?? "";
+      return name.startsWith("sb-") && name.includes("auth-token");
+    });
+}
+
 export default function AccountIsolationGuard() {
   useEffect(() => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    let unsubscribe: (() => void) | null = null;
+    let cancelled = false;
 
     const reconcile = (sessionUid: string | null) => {
       const lastUid = readLastAuthUid();
@@ -52,23 +94,56 @@ export default function AccountIsolationGuard() {
       void import("@/lib/push-device").then(({ unbindDevicePush }) => unbindDevicePush()).catch(() => {});
     };
 
-    // getSession() decodes the cookie locally (no network) — all that's needed
-    // here is the uid to compare. Server code never trusts this value; it does
-    // its own getUser()/getClaims() per request.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      reconcile(session?.user?.id ?? null);
-    }).finally(() => {
-      // Trackers hold their first event until this first pass lands, so a view
-      // right after an account switch can't ship the previous person's ids.
+    // No session cookie → no session → nothing this guard can act on. Resolve
+    // the barrier immediately so CardEventTracker and friends don't sit on
+    // their 2s timeout, and never touch the SDK.
+    if (!hasAuthCookie()) {
       markIdentityReconciled();
-    });
+      return;
+    }
 
-    // Belt and braces for auth changes that happen without a full navigation
-    // (multi-tab sign-ins broadcast here too).
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      reconcile(session?.user?.id ?? null);
-    });
-    return () => sub.subscription.unsubscribe();
+    void (async () => {
+      try {
+        const { createBrowserClient } = await import("@supabase/ssr");
+        if (cancelled) return;
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        // getSession() decodes the cookie locally (no network) — all that's
+        // needed here is the uid to compare. Server code never trusts this
+        // value; it does its own getUser()/getClaims() per request.
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!cancelled) reconcile(session?.user?.id ?? null);
+        } finally {
+          // Trackers hold their first event until this first pass lands, so a
+          // view right after an account switch can't ship the previous
+          // person's ids.
+          markIdentityReconciled();
+        }
+        if (cancelled) return;
+
+        // Belt and braces for auth changes that happen without a full
+        // navigation (multi-tab sign-ins broadcast here too).
+        const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+          reconcile(session?.user?.id ?? null);
+        });
+        unsubscribe = () => sub.subscription.unsubscribe();
+      } catch {
+        // The SDK chunk failed to load (offline, cache miss on a flaky
+        // connection). Releasing the barrier is the safe direction: it restores
+        // exactly the pre-barrier behaviour rather than stalling every tracker
+        // on the page for its full timeout.
+        markIdentityReconciled();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, []);
 
   return null;

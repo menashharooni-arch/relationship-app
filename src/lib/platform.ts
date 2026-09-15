@@ -1,24 +1,47 @@
 import { useEffect, useState } from "react";
-import { Capacitor } from "@capacitor/core";
 
 /**
  * Native-platform detection for the SwiftCard Capacitor iOS shell.
  *
  * ABSOLUTE RULE for this file: on the web (and during any server render) every
  * export here must resolve to `false`. It only becomes `true` when our bundle is
- * actually running inside the native Capacitor iOS webview, where
- * `window.Capacitor` is injected before our JS executes.
+ * actually running inside the native Capacitor iOS webview.
  *
  * SSR-safety: `detectNativeApp()` guards on `typeof window` first, so it is safe
- * to call during Next.js server-side rendering (no `window`/`document`) and it
- * returns `false` there. `@capacitor/core`'s `Capacitor.isNativePlatform()` is
- * itself import-safe in a plain Node/browser context (it returns `false` rather
- * than throwing), but we never even reach it on the server thanks to the guard.
+ * to call during Next.js server-side rendering (no `window`/`document`).
+ *
+ * ── WHY THIS NO LONGER IMPORTS @capacitor/core (perf audit 2026-09-14) ───────
+ *
+ * It used to be `Capacitor.isNativePlatform()`. Fifty-five files import this
+ * module — hooks, buttons, gates, layout components — so that one import pulled
+ * 55 kB of the Capacitor runtime into the JavaScript of every page on the
+ * WEBSITE, where the answer is always false, for a single boolean.
+ *
+ * The two signals below are exactly what @capacitor/core reads internally
+ * (getPlatformId), and they are the same two the root layout's `sc-boot` script
+ * already tests before first paint — which also documents why the RAW check is
+ * the more reliable of the two: `window.Capacitor` is created by Capacitor's
+ * own injected bundle, so testing only that is a race against our own script,
+ * whereas `window.webkit.messageHandlers.bridge` is installed by WKWebView
+ * before any page script runs. Reading both, in that order, is strictly more
+ * dependable than the old call and costs nothing.
+ *
+ * Pinned by tests/native-detection.test.ts.
  */
+type CapacitorGlobal = {
+  webkit?: { messageHandlers?: Record<string, unknown> };
+  Capacitor?: { isNativePlatform?: () => boolean; isNative?: boolean };
+};
+
 export function detectNativeApp(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return Capacitor.isNativePlatform();
+    const w = window as unknown as CapacitorGlobal;
+    // The native message handler WKWebView installs before any page script.
+    if (w.webkit?.messageHandlers?.bridge) return true;
+    const c = w.Capacitor;
+    if (!c) return false;
+    return typeof c.isNativePlatform === "function" ? c.isNativePlatform() : !!c.isNative;
   } catch {
     return false;
   }
