@@ -3,6 +3,7 @@ import { isRateLimited } from "@/lib/rate-limit";
 import { recordView } from "@/lib/record-view";
 import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot } from "@/lib/bot-detection";
+import { attachVisitIdentity, deviceKeyFor, resolveVisitIdentity } from "@/lib/visit-identity";
 
 export async function POST(
   req: NextRequest,
@@ -52,12 +53,29 @@ export async function POST(
       ? body.source.trim().slice(0, 48)
       : null;
 
+  // The DURABLE identity, not the body's value. The sc_vid cookie wins over
+  // the client's localStorage id, which is adopted (never overwritten) on
+  // first sight and then kept server-side — see lib/visit-identity.ts for the
+  // four-views-per-visit bug this closes.
+  const identity = resolveVisitIdentity(req, visitorId);
+  const deviceKey = deviceKeyFor({ ip, userAgent: req.headers.get("user-agent"), username });
+
   // Everything from here — active-card check, owner self-view skip, the
   // VIEW_VISIT_WINDOW_MS dedupe, the insert, CRM mirror and milestone — lives
   // in lib/record-view.ts so /api/card-events records the SAME row before it
   // notifies (one request, one truth; see that file).
-  const { outcome } = await recordView({ req, username, visitorId, source, ip });
-  if (outcome === "self") return NextResponse.json({ ok: true, self: true });
-  if (outcome === "deduped") return NextResponse.json({ ok: true, deduped: true });
-  return NextResponse.json({ ok: true });
+  const { outcome } = await recordView({
+    req, username, visitorId: identity.visitorId, deviceKey, source, ip,
+  });
+
+  // The cookie rides on EVERY outcome, including the declined ones. A view that
+  // was deduped or refused is exactly the request whose next attempt has to be
+  // recognisable as the same visit.
+  //
+  // The response body still says only what it always said: `self` and
+  // `deduped`. "inactive" stays silent on purpose — telling a caller which
+  // slugs exist is not this endpoint's job.
+  const flag =
+    outcome === "self" ? { self: true } : outcome === "deduped" ? { deduped: true } : {};
+  return attachVisitIdentity(NextResponse.json({ ok: true, ...flag }), identity);
 }

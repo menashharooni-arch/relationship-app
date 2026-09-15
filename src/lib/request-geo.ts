@@ -121,6 +121,10 @@ export type GeoResult = {
   /** The network anonymises or relocates its users (Private Relay, VPN, cloud
    *  egress), so even a confident town is the relay's town, not theirs. */
   isRelay: boolean;
+  /** Narrower than isRelay: a datacenter/cloud egress that is NOT a known
+   *  consumer privacy relay. A person is never on the other end of one, so the
+   *  view pipeline declines to count it (record-view.ts). */
+  isHosting: boolean;
 };
 
 /**
@@ -147,6 +151,7 @@ export async function resolveGeo(req: NextRequest, ip: string): Promise<GeoResul
     source: base.label === null ? null : second ? "edge+second" : "edge",
     org,
     isRelay,
+    isHosting: isCloudHostingOrg(org),
   };
 }
 
@@ -337,15 +342,47 @@ async function lookup(ip: string): Promise<GeoGuess | null> {
 //   views on the `swiftcard` slug came from (seven views, seven different
 //   visitor ids, a fresh browser each time).
 //
-// DELIBERATELY NOT AN EXCLUSION. Private Relay traffic lands on these same
-// operators, so dropping views for a hosting match would silently stop counting
-// a slice of ordinary iPhone users — the exact over-broad filtering that costs
-// an owner real visitors. The match downgrades location confidence and is
-// recorded as a classification in analytics_ingest_log; whether any of it
-// should stop counting is a decision to make from that evidence, not a guess
-// made here.
-const RELAY_OR_HOSTING =
-  /\b(amazon|aws|amazon technologies|google cloud|google llc|microsoft|azure|digitalocean|linode|akamai|cloudflare|fastly|ovh|hetzner|vultr|contabo|m247|datacamp|leaseweb|choopa|quadranet|hostinger|godaddy|namecheap|oracle cloud|alibaba|tencent cloud|scaleway|upcloud|packet|equinix|zenlayer|nordvpn|expressvpn|surfshark|mullvad|private internet access|proton|ipvanish|cyberghost|windscribe|tunnelbear|hosting|datacenter|data center|server|colocation|cloud)\b/i;
+// THE TWO FAMILIES ARE NOW SEPARATE PATTERNS, because they deserve opposite
+// answers and blending them into one alternation is what forced the old
+// all-or-nothing call.
+//
+//   PRIVACY_RELAY still COUNTS. Apple's Private Relay egresses through
+//   Cloudflare, Akamai and Fastly — that is published, and it is why a blanket
+//   hosting exclusion would have quietly stopped counting a slice of ordinary
+//   iPhone users. Consumer VPNs are the same story. Location confidence is
+//   downgraded to the region and nothing else changes.
+//
+//   CLOUD_HOSTING no longer counts. Apple does not relay a customer's Safari
+//   through Azure or AWS, and a person does not read a business card from a
+//   rack. The evidence the old comment asked to decide from is now in:
+//   analytics_ingest_log shows the "Ashburn, US" pattern repeating on new
+//   slugs — 2026-09-14 15:55-15:56, four counted views on a card ninety seconds
+//   old, four fresh visitor ids, three different desktop User-Agents, geo
+//   "Quincy, WA" (an Azure region), is_relay true, and a push to the owner's
+//   phone for each. Those views are not people. They are recorded as
+//   reason "hosting" / classification "datacenter" instead of being counted,
+//   so the decision stays as auditable as it was before and reverting it is
+//   one line.
+const PRIVACY_RELAY =
+  /\b(akamai|cloudflare|fastly|nordvpn|expressvpn|surfshark|mullvad|private internet access|proton|ipvanish|cyberghost|windscribe|tunnelbear)\b/i;
+
+const CLOUD_HOSTING =
+  /\b(amazon|aws|amazon technologies|google cloud|google llc|microsoft|azure|digitalocean|linode|ovh|hetzner|vultr|contabo|m247|datacamp|leaseweb|choopa|quadranet|hostinger|godaddy|namecheap|oracle cloud|alibaba|tencent cloud|scaleway|upcloud|packet|equinix|zenlayer|hosting|datacenter|data center|colocation)\b/i;
+
+/** Either family: the IP belongs to infrastructure, so a town derived from it
+ *  is the infrastructure's town. Drives the accuracy downgrade only — unchanged
+ *  in meaning and in effect from the single pattern it replaced. */
+const RELAY_OR_HOSTING = new RegExp(`${PRIVACY_RELAY.source}|${CLOUD_HOSTING.source}`, "i");
+
+/** Cloud/hosting egress and NOT a known privacy relay. The relay check wins on
+ *  purpose: an org string naming both ("Cloudflare, Inc. hosting") is far more
+ *  likely a real person behind Private Relay than a crawler, and the direction
+ *  to fail in is counting a machine, never dropping a person. */
+export function isCloudHostingOrg(org: string | null | undefined): boolean {
+  if (!org) return false;
+  if (PRIVACY_RELAY.test(org)) return false;
+  return CLOUD_HOSTING.test(org);
+}
 
 // Mobile carriers: an address here is a regional gateway, not a place.
 const CELLULAR =

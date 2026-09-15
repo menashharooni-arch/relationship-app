@@ -8,7 +8,7 @@ import { isOwnerRequest } from "@/lib/self-traffic";
 import { resolveGeo, type GeoResult } from "@/lib/request-geo";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 
-export type RecordViewOutcome = "recorded" | "deduped" | "self" | "inactive" | "error";
+export type RecordViewOutcome = "recorded" | "deduped" | "self" | "inactive" | "hosting" | "error";
 
 /**
  * THE one place a view becomes a card_views row.
@@ -27,7 +27,14 @@ export type RecordViewOutcome = "recorded" | "deduped" | "self" | "inactive" | "
 export async function recordView(opts: {
   req: NextRequest;
   username: string;
+  /** The DURABLE identity from lib/visit-identity.ts — the sc_vid cookie, the
+   *  client's adopted localStorage id, or a freshly minted one. Callers must
+   *  resolve it there rather than passing the request body's value straight
+   *  through; that is what stopped one visit counting four times. */
   visitorId: string | null;
+  /** Last-resort dedupe key for a browser whose storage cannot hold an
+   *  identity at all (lib/visit-identity.ts). Null when there is no usable IP. */
+  deviceKey?: string | null;
   source: string | null;
   ip: string;
 }): Promise<{
@@ -38,7 +45,7 @@ export async function recordView(opts: {
   geo?: GeoResult | null;
   milestone?: MilestoneNotice | null;
 }> {
-  const { req, visitorId, source, ip } = opts;
+  const { req, visitorId, deviceKey = null, source, ip } = opts;
   const username = opts.username.toLowerCase();
 
   // Only record views for cards that actually serve. Blocks spam inflation of
@@ -66,32 +73,58 @@ export async function recordView(opts: {
   const location = geo.label;
   const supabase = getAdminSupabase();
 
-  // Dedupe within ONE VISIT (see view-window.ts): a reload, double-fire, or
-  // back-navigation inside the window is the same visit and must not add a
-  // row. Beyond the window, the same visitor coming back is a GENUINE REPEAT
-  // VIEW and records again.
-  if (visitorId) {
-    const since = new Date(Date.now() - VIEW_VISIT_WINDOW_MS).toISOString();
-    const { data: recent } = await supabase
+  // A datacenter is not a person. Cloud/hosting egress that is NOT a consumer
+  // privacy relay never becomes a view, a location, a CRM event or a push —
+  // see the two patterns in request-geo.ts for why those are now separable and
+  // what evidence turned this from a downgrade into an exclusion. iCloud
+  // Private Relay and VPN traffic is unaffected and still counts.
+  if (geo.isHosting) return { outcome: "hosting", location, geo };
+
+  // ── Dedupe within ONE VISIT (see view-window.ts) ───────────────────────────
+  // A reload, a double-fire, a back-navigation or a retry inside the window is
+  // the same visit and must not add a row. Beyond the window, the same visitor
+  // coming back is a GENUINE REPEAT VIEW and records again.
+  //
+  // TWO KEYS, CHECKED IN ORDER, and the second is the fix for the four-views-
+  // per-visit bug. The identity key alone was never enough: a browser that
+  // cannot keep an id hands up a brand new one on every load, matches nothing,
+  // and — because the per-IP backstop used to live in an `else` — skipped the
+  // only other check there was. Now the device key is consulted whenever the
+  // identity key found nothing, so a storage-less client is still one visit.
+  const since = new Date(Date.now() - VIEW_VISIT_WINDOW_MS).toISOString();
+  const recentBy = async (column: "visitor_id" | "device_key", value: string) => {
+    const { data, error } = await supabase
       .from("card_views")
       .select("id, source")
       .eq("username", username)
-      .eq("visitor_id", visitorId)
+      .eq(column, value)
       .gte("viewed_at", since)
       .order("viewed_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (recent) {
-      // Same visit, more specific source (a QR scan after a plain open):
-      // upgrade in place so the scan isn't lost from attribution.
-      const isGeneric = (s: string | null) => !s || s === "direct_link";
-      if (source && !isGeneric(source) && isGeneric(recent.source as string | null)) {
-        await supabase.from("card_views").update({ source }).eq("id", recent.id);
-      }
-      return { outcome: "deduped", location, geo };
+    // Column not migrated yet (device_key): treat as "nothing found" rather
+    // than letting a failed filter read as a duplicate and silently stop
+    // counting every view on the card.
+    if (error) return null;
+    return data ?? null;
+  };
+
+  let recent = visitorId ? await recentBy("visitor_id", visitorId) : null;
+  if (!recent && deviceKey) recent = await recentBy("device_key", deviceKey);
+
+  if (recent) {
+    // Same visit, more specific source (a QR scan after a plain open):
+    // upgrade in place so the scan isn't lost from attribution.
+    const isGeneric = (s: string | null) => !s || s === "direct_link";
+    if (source && !isGeneric(source) && isGeneric(recent.source as string | null)) {
+      await supabase.from("card_views").update({ source }).eq("id", recent.id);
     }
-  } else if (await isRateLimited(`views-anon:${ip}:${username}`, 1, VIEW_VISIT_WINDOW_MS)) {
-    // No visitor id → one counted view per (IP, card) per visit window.
+    return { outcome: "deduped", location, geo };
+  }
+
+  if (!visitorId && !deviceKey && await isRateLimited(`views-anon:${ip}:${username}`, 1, VIEW_VISIT_WINDOW_MS)) {
+    // Neither key available — the last backstop, unchanged: one counted view
+    // per (IP, card) per visit window.
     return { outcome: "deduped", location, geo };
   }
 
@@ -110,14 +143,19 @@ export async function recordView(opts: {
     // it were a town (lib/location-display.ts renders the pair).
     geo_accuracy: geo.accuracy,
     geo_source: geo.source,
+    // Salted hash of (card + IP + User-Agent) — never the IP, never an
+    // identity, never displayed. Added by supabase/view-identity-hardening.sql
+    // so the dedupe above has something to match on when the visitor's browser
+    // cannot keep an id of its own.
+    device_key: deviceKey,
   };
   let { error: insertErr } = await supabase.from("card_views").insert(viewRow);
   if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
-    // Confidence columns not migrated yet — record the view without them rather
-    // than losing it. Same degrade-and-carry-on pattern as card_events.location
-    // and notifications.visit_key.
-    const { geo_accuracy: _ga, geo_source: _gs, ...legacyRow } = viewRow;
-    void _ga; void _gs;
+    // Confidence/device columns not migrated yet — record the view without them
+    // rather than losing it. Same degrade-and-carry-on pattern as
+    // card_events.location and notifications.visit_key.
+    const { geo_accuracy: _ga, geo_source: _gs, device_key: _dk, ...legacyRow } = viewRow;
+    void _ga; void _gs; void _dk;
     ({ error: insertErr } = await supabase.from("card_views").insert(legacyRow));
   }
   if (insertErr) {

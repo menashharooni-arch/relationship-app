@@ -28,9 +28,14 @@ describe("input hardening", () => {
     // The str() helper is the single funnel: non-strings and oversized values
     // degrade to absent instead of becoming permanent row values.
     expect(route).toMatch(/function str\(v: unknown, max: number\)/);
-    for (const field of ["card_owner_username", "visitor_id", "event_type", "source", "visitor_name", "visitor_email", "visitor_phone", "device_info"]) {
+    for (const field of ["card_owner_username", "event_type", "source", "visitor_name", "visitor_email", "visitor_phone", "device_info"]) {
       expect(route).toMatch(new RegExp(`const ${field} = (\\(?)str\\(body\\?\\.${field}`));
     }
+    // visitor_id goes through str() like the rest AND then through the
+    // server-side identity resolution — the body's value is never what a row
+    // is keyed on (lib/visit-identity.ts, tests/view-identity.test.ts).
+    expect(route).toMatch(/const client_visitor_id = str\(body\?\.visitor_id, 64\)/);
+    expect(route).toMatch(/const visitor_id = visitIdentity\.visitorId/);
   });
 
   it("referrer URLs are stored without query strings — they carry other sites' tokens", () => {
