@@ -6,7 +6,8 @@ import { dispatchCrmEvent } from "@/lib/crm-events";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { isCardActive } from "@/lib/card-active";
 import { isRateLimited } from "@/lib/rate-limit";
-import { isSelfTraffic, resolveOwnerId } from "@/lib/self-traffic";
+import { isOwnerActivity, resolveOwnerId } from "@/lib/self-traffic";
+import { attachVisitIdentity, deviceKeyFor, resolveVisitIdentity } from "@/lib/visit-identity";
 import { authoritativeEventIdentity, corroboratedContact, resolveSessionViewer } from "@/lib/viewer-identity";
 import { clientIp } from "@/lib/client-ip";
 import { isLikelyBot, botFamily } from "@/lib/bot-detection";
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     const card_owner_username = str(body?.card_owner_username, 80);
-    const visitor_id = str(body?.visitor_id, 64);
+    const client_visitor_id = str(body?.visitor_id, 64);
     const event_type = str(body?.event_type, 40);
     const source = str(body?.source, 48);
     const surface: "card" | "links" = body?.surface === "links" ? "links" : "card";
@@ -65,6 +66,19 @@ export async function POST(req: NextRequest) {
       // to, and a forged event type is noise, not a measurement.
       return NextResponse.json({ ok: true });
     }
+
+    // ── The visitor's DURABLE identity ────────────────────────────────────────
+    // Every row, every dedupe key and every conversation match below keys on
+    // `visitor_id`, and until now that was whatever the page script had in
+    // localStorage this millisecond. A browser that cannot keep that value
+    // (an in-app browser, a fresh WKWebView, a partitioned or evicted store)
+    // sent a new one on every load, so one visit wrote four rows and counted
+    // four unique visitors. The sc_vid cookie is the durable answer, the
+    // client's id is ADOPTED into it on first sight so no existing visitor
+    // loses their history, and the device key below covers the browser that
+    // can keep neither. See lib/visit-identity.ts.
+    const visitIdentity = resolveVisitIdentity(req, client_visitor_id);
+    const visitor_id = visitIdentity.visitorId;
 
     // ── Every exit from here on records WHY ───────────────────────────────────
     // The pipeline used to decline a request and keep no trace, so "why is that
@@ -92,7 +106,10 @@ export async function POST(req: NextRequest) {
         visitorId: visitor_id,
         ...extra,
       });
-      return NextResponse.json({ ok: true, ...responseFlags });
+      // The identity cookie rides on every exit, declined ones included: the
+      // request that was just deduped is exactly the one whose next attempt
+      // has to be recognisable as the same visit.
+      return attachVisitIdentity(NextResponse.json({ ok: true, ...responseFlags }), visitIdentity);
     };
 
     // Public, unauthenticated, and both accepted events reach the card owner's
@@ -137,8 +154,21 @@ export async function POST(req: NextRequest) {
     // card must not create events or "saved your contact" notifications to
     // themselves. (Client components also suppress this; server closes it.)
     // Shared, identity-based check — never IP-based (see self-traffic.ts).
-    if (sessionViewer && isSelfTraffic(await resolveOwnerId(admin, card_owner_username), sessionViewer.userId)) {
-      return decided("self", { self: true }, { identityLevel: "confirmed" });
+    //
+    // TWO SIGNALS, not one. The session was the only one for months and
+    // production shows it never fired once: zero "self" rows in
+    // analytics_ingest_log, while the owner's own views of his own cards were
+    // recorded as anonymous strangers and pushed to his phone. Public card and
+    // Swift Links routes sit outside the proxy's matcher, so a signed-in owner
+    // whose access token has expired reads as signed-out here. The httpOnly
+    // sc_device cookie the proxy already plants on authenticated routes answers
+    // "which account is signed in on this browser", which survives all of that.
+    const ownerId = await resolveOwnerId(admin, card_owner_username);
+    if (await isOwnerActivity(admin, ownerId, sessionViewer?.userId)) {
+      return decided("self", { self: true }, {
+        identityLevel: sessionViewer ? "confirmed" : "associated",
+        classificationReason: sessionViewer ? "owner_session" : "owner_device",
+      });
     }
 
     // VIEWS: record the card_views row (chart, counters, locations) HERE,
@@ -161,7 +191,16 @@ export async function POST(req: NextRequest) {
     if (event_type === "viewed_card") {
       const viewsKey = surface === "links" ? `${card_owner_username}__links` : card_owner_username;
       const { outcome, geo: recordedGeo, milestone: crossed } = await recordView({
-        req, username: viewsKey, visitorId: visitor_id, source, ip,
+        req,
+        username: viewsKey,
+        visitorId: visitor_id,
+        // Keyed on the SURFACE, like the row itself, so the card page and the
+        // Swift Links page each get their own last-resort dedupe slot.
+        deviceKey: deviceKeyFor({
+          ip, userAgent: req.headers.get("user-agent"), username: viewsKey,
+        }),
+        source,
+        ip,
       });
       milestone = crossed ?? null;
       if (outcome !== "recorded") {

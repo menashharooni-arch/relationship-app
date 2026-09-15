@@ -62,7 +62,13 @@ describe("the views route validates what it stores", () => {
   });
 
   it("the dedup select is ordered so the source upgrade touches THIS visit's row", () => {
-    const dedup = viewsRoute.slice(viewsRoute.indexOf("if (visitorId) {"), viewsRoute.indexOf("} else {"));
+    // The lookup is now one helper used for BOTH keys (visitor id, then the
+    // device backstop) instead of a single inline `if (visitorId)` block —
+    // see tests/view-identity.test.ts for why the second key had to exist.
+    const dedup = viewsRoute.slice(
+      viewsRoute.indexOf("const recentBy = async"),
+      viewsRoute.indexOf("let recent = visitorId"),
+    );
     expect(dedup).toMatch(/order\("viewed_at", \{ ascending: false \}\)/);
   });
 

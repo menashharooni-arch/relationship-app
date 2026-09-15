@@ -37,6 +37,10 @@ export type IngestReason =
   | "self"
   /** The slug doesn't serve: deleted, taken offline, or past a plan limit. */
   | "inactive"
+  /** Cloud/datacenter egress that is not a consumer privacy relay — a crawler
+   *  or render farm with a browser-shaped User-Agent. See request-geo.ts for
+   *  why this is separable from Private Relay traffic, which still counts. */
+  | "hosting"
   /** Positive User-Agent match (see classification for which family). */
   | "bot"
   /** Announced prefetch/prerender/link-preview load — a speculative fetch. */

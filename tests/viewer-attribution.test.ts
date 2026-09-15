@@ -124,7 +124,19 @@ describe("wiring — the ingest route actually enforces this server-side", () =>
   });
 
   it("owner self-views are still excluded by SERVER identity (never client-supplied, never IP)", () => {
-    expect(route).toMatch(/isSelfTraffic\(await resolveOwnerId\(admin, card_owner_username\), sessionViewer\.userId\)/);
+    // TWO server signals now, because one was never enough: production's
+    // analytics_ingest_log held zero "self" decisions over its whole life while
+    // the owner's own views were being counted and pushed to his own phone.
+    // The session is still authoritative when present; the httpOnly sc_device
+    // cookie covers the public routes the proxy does not refresh a session on.
+    // Both are identity/ownership-based — see lib/self-traffic.ts.
+    expect(route).toMatch(/await isOwnerActivity\(admin, ownerId, sessionViewer\?\.userId\)/);
+    expect(route).toMatch(/const ownerId = await resolveOwnerId\(admin, card_owner_username\)/);
+    const selfTraffic = read("src/lib/self-traffic.ts");
+    expect(selfTraffic).toMatch(/isSelfTraffic\(ownerId, sessionUserId\)/);
+    expect(selfTraffic).toMatch(/isSelfTraffic\(ownerId, await deviceOwnerId\(admin\)\)/);
+    // Still never an IP.
+    expect(selfTraffic).not.toMatch(/\bip\b\s*[:=]/);
   });
 
   it("(11) the events GET stays scoped to the caller's own cards and refuses foreign lead ids", () => {

@@ -40,7 +40,7 @@ export const dashboardDocs = defineDocs([
     answer:
       "One visit is one view. The same person touching the same page again within 30 minutes doesn't add another — reloads and back-navigation are the same visit. After 30 minutes, the same person coming back genuinely is a repeat view and counts again. Your own views of your own card never count.",
     detail:
-      "Older answers that said \"one view per person per day\" are wrong — the window is 30 minutes, not 24 hours. Bot traffic is filtered out, and seeded demo views are excluded from milestone counts.",
+      "Older answers that said \"one view per person per day\" are wrong — the window is 30 minutes, not 24 hours. Bot traffic is filtered out, and seeded demo views are excluded from milestone counts. Your own views are recognised two ways: by being signed in, and by the browser you signed in on — so opening your own card from the same browser doesn't count even if the session has since lapsed. Opening it from a browser you have never signed in on cannot be told apart from a stranger, and will count. Automated traffic from a cloud or datacenter connection — link scanners and preview crawlers that arrive with an ordinary-looking browser — doesn't count either; iCloud Private Relay and VPN visitors are real people and still do.",
   },
   {
     id: "notifications",
