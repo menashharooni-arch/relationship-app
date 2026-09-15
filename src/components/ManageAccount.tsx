@@ -56,6 +56,18 @@ export default function ManageAccount({ isPro, plan = "free", email = "", isOffi
   const [saved, setSaved] = useState<string | null>(null);
 
   const retPlan: RetentionPlan = isPro || plan !== "free" ? "pro" : "free";
+  // Free accounts get a QUIETER entry point (owner order 2026-09-14): the panel
+  // and its trigger drop the red, because nothing destructive has happened yet
+  // — red belongs on the act, not on the door to it. Location, label and wording
+  // are untouched, so Apple 5.1.1(v) findability is unaffected and the knowledge
+  // base ("Settings → Advanced account settings → Account ownership and deletion
+  // → Delete account") stays true. Pro is deliberately left exactly as it was.
+  //
+  // text-gray-400 is the SECONDARY token in both themes and is what ghostBtn
+  // below already uses. Do not "tidy" it to gray-300: globals.css remaps
+  // gray-200/300 to #1F2937 in light mode — primary near-black body text, which
+  // would make this control MORE prominent than the neutral copy above it.
+  const quietEntry = retPlan === "free";
   const steps = stepsFor(retPlan, elig, native);
   const offer = offerStep(retPlan, elig, native);
   const keep = keepStep(retPlan, elig, source);
@@ -213,7 +225,7 @@ export default function ManageAccount({ isPro, plan = "free", email = "", isOffi
       </button>
 
       {expanded && (
-        <div className="mt-3 bg-gray-900 border border-red-900/40 rounded-2xl p-5">
+        <div className={`mt-3 bg-gray-900 border rounded-2xl p-5 ${quietEntry ? "border-gray-800" : "border-red-900/40"}`}>
           <p className="text-white text-sm font-semibold">Delete account</p>
           <p className="text-gray-500 text-xs mt-0.5 mb-3 leading-relaxed">
             Permanently deletes your cards and contacts and cancels any subscription. Your email can&apos;t be used to sign up again.
@@ -229,7 +241,11 @@ export default function ManageAccount({ isPro, plan = "free", email = "", isOffi
           <button
             type="button"
             onClick={openModal}
-            className="text-xs font-semibold text-red-400 hover:text-red-300 border border-red-900/60 hover:border-red-700 rounded-full px-4 py-2 transition-colors"
+            className={
+              quietEntry
+                ? "text-xs text-gray-400 hover:text-white underline underline-offset-2 rounded-sm transition-colors"
+                : "text-xs font-semibold text-red-400 hover:text-red-300 border border-red-900/60 hover:border-red-700 rounded-full px-4 py-2 transition-colors"
+            }
           >
             Delete account
           </button>
