@@ -109,18 +109,26 @@ describe("connecting from the headshot section auto-applies the photo", () => {
   it("the OAuth return leg (?integration=linkedin&status=connected) imports without a second click", () => {
     // Owner bug report 2026-09-02: connect finished, nothing happened — the
     // user had to press "Suggest my profile picture" again to see the photo.
+    // The leg now lives in finishLinkedInReturn(), which BOTH the popup
+    // message and a plain ?integration= navigation call — so assert on the
+    // handler, not on the effect body it used to live in.
     const effect = suggest.slice(suggest.indexOf("useEffect"), suggest.indexOf("async function suggest"));
     expect(effect).toMatch(/integration.*linkedin/);
-    expect(effect).toMatch(/status === "connected"/);
-    expect(effect).toMatch(/\/api\/integrations\/linkedin.*method: "POST"|method: "POST"/);
-    expect(effect).toMatch(/onConfirm\(data\.url\)/);
+    // Imports on "connected" and on nothing else.
+    expect(suggest).toMatch(/status !== "connected"\)\s*return;/);
+    expect(suggest).toMatch(/\/api\/integrations\/linkedin.*method: "POST"|method: "POST"/);
+    expect(suggest).toMatch(/onConfirm\(data\.url\)/);
   });
 
   it("strips the params before importing so a refresh can't re-run the leg", () => {
     const effect = suggest.slice(suggest.indexOf("useEffect"), suggest.indexOf("async function suggest"));
     expect(effect).toMatch(/replaceState/);
-    // The strip happens before the import call.
-    expect(effect.indexOf("replaceState")).toBeLessThan(effect.indexOf('status === "connected"'));
+    // The strip still happens before the import is kicked off — the import is
+    // now a call to the shared handler rather than inline code.
+    // Anchor on the CALL, not the handler's definition (which sits above).
+    const call = effect.indexOf("void finishLinkedInReturn(status)");
+    expect(call, "return leg is no longer kicked off from the effect").toBeGreaterThan(-1);
+    expect(effect.indexOf("replaceState")).toBeLessThan(call);
   });
 
   it("falls back to the visible suggestion flow when the import can't complete", () => {
@@ -133,5 +141,66 @@ describe("connecting from the headshot section auto-applies the photo", () => {
     const effect = suggest.slice(suggest.indexOf("useEffect"), suggest.indexOf("async function suggest"));
     expect(effect).toMatch(/if \(guest\) return/);
     expect(read("src/app/cards/new/NewCardWizard.tsx")).toMatch(/li_photo/);
+  });
+});
+
+// ── The consent hop must not cost the user their unsaved card ───────────────
+//
+// Verified 2026-09-15: tapping "Connect LinkedIn" from the card editor was a
+// full-page navigation, so an unsaved title was gone on return. Worse, the
+// callback landed back on /cards/<id>/edit, which always opens on the "content"
+// tab — and the importer lives on the "design" tab, so it never mounted and the
+// photo was never imported at all. Both halves are pinned here.
+describe("the LinkedIn hop preserves the page the user was editing", () => {
+  const suggest = read("src/components/ProfilePhotoSuggest.tsx");
+  const relay = read("src/app/linkedin-connected/page.tsx");
+  const editorPage = read("src/app/cards/[id]/edit/page.tsx");
+  const editor = read("src/app/cards/[id]/edit/CardEditForm.tsx");
+
+  it("runs the web consent hop in a popup so the editor never unloads", () => {
+    expect(suggest).toMatch(/window\.open\(/);
+    expect(suggest).toMatch(/popupConnectUrl\(/);
+  });
+
+  it("still falls back to a normal navigation when the popup is blocked", () => {
+    // window.open returns null when blocked; a dead button would be worse than
+    // losing the edits we are trying to protect.
+    expect(suggest).toMatch(/window\.location\.href = href/);
+  });
+
+  it("keeps native on the in-app sheet — never the popup", () => {
+    // The shell's hop is ASWebAuthenticationSession via @capacitor/browser and
+    // must stay that way: the LinkedIn app cannot return an authorization code
+    // to our redirect_uri, so deep-linking it would import nothing.
+    const nativeBranch = suggest.slice(
+      suggest.indexOf("async function openLinkedInConnect"),
+      suggest.indexOf("// \"Suggest my profile picture\""),
+    );
+    const nativeIdx = nativeBranch.indexOf("detectNativeApp()");
+    const popupIdx = nativeBranch.indexOf("window.open(");
+    expect(nativeIdx).toBeGreaterThan(-1);
+    expect(popupIdx).toBeGreaterThan(-1);
+    // Native is handled and returned FIRST, so it can never reach window.open.
+    expect(nativeIdx).toBeLessThan(popupIdx);
+    expect(nativeBranch).toMatch(/Browser\.open/);
+  });
+
+  it("the relay only accepts its own message and only same-origin", () => {
+    expect(relay).toMatch(/postMessage\(/);
+    expect(relay).toMatch(/window\.location\.origin/);
+    expect(suggest).toMatch(/e\.origin !== window\.location\.origin/);
+    expect(suggest).toMatch(/data\.source !== LINKEDIN_MESSAGE/);
+  });
+
+  it("the relay refuses an off-site ?to=", () => {
+    // Same class of hole as ?next= — it ends up in window.location.
+    expect(relay).toMatch(/safeNextPath\(/);
+  });
+
+  it("the editor opens the tab that owns the headshot when returning", () => {
+    // Decided on the server so the first paint is right and hydration matches.
+    expect(editorPage).toMatch(/integration === "linkedin"/);
+    expect(editorPage).toMatch(/initialTab/);
+    expect(editor).toMatch(/useState<TabId>\(initialTab \?\? "content"\)/);
   });
 });

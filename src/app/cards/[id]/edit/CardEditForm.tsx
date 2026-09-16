@@ -113,7 +113,7 @@ export type OrgManaged = {
   ownerInherited?: boolean;
 };
 
-type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; trialEligible?: boolean; isPrimary?: boolean; org?: OrgManaged | null; linkedinEnabled?: boolean };
+type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; trialEligible?: boolean; isPrimary?: boolean; org?: OrgManaged | null; linkedinEnabled?: boolean; /** Server-chosen opening tab — the LinkedIn return leg opens "design". */ initialTab?: TabId };
 
 // Small "who owns this field" tag shown next to org-controlled values.
 function ManagedTag({ owner }: { owner?: boolean }) {
@@ -131,11 +131,18 @@ function ManagedTag({ owner }: { owner?: boolean }) {
 // guest-auth-flow contract no useGuestDraft/requireAuth wiring is needed here.
 // Guest mode lives in NewCardWizard.
 
-export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, trialEligible = false, isPrimary = false, org = null, linkedinEnabled = false }: Props) {
+export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, trialEligible = false, isPrimary = false, org = null, linkedinEnabled = false, initialTab }: Props) {
   const saveUrl = isPrimary ? "/api/profile" : `/api/cards/${card.id}`;
   const logoCardId = isPrimary ? undefined : card.id;
   const router = useRouter();
-  const [tab, setTab] = useState<TabId>("content");
+  // `initialTab` is decided on the SERVER from the query string. It exists for
+  // the LinkedIn return leg: the importer lives in ProfilePhotoSuggest, which
+  // sits on the DESIGN tab, and this editor otherwise always opens on
+  // "content" — so the component never mounted and the photo was never
+  // imported. The user connected LinkedIn and nothing happened at all.
+  // Choosing the tab server-side keeps the first paint right and avoids a
+  // hydration mismatch.
+  const [tab, setTab] = useState<TabId>(initialTab ?? "content");
 
   // Org-managed fields (office sub-users). Each flag is per-field: the office
   // manages exactly what it has set; blanks stay in the employee's hands.
