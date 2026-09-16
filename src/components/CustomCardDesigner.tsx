@@ -25,11 +25,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CardData, CardEmphasis, CardSkeleton, CardZone, CustomBlock, CustomLayout } from "@/components/card-templates/types";
-import { CustomBlockCard, FaceCard } from "@/components/card-templates/CustomCard";
+import CustomCard, { CustomBlockCard, FaceCard } from "@/components/card-templates/CustomCard";
 import CardScaler from "@/components/CardScaler";
 import {
   ADDABLE, LAYOUT_PRESETS, MAX_VISIBLE_BLOCKS, SKELETONS, blockHasValue, blockLabel,
-  blockLoad, buildPreset, canChangeZone, hasBlocks, isFull, newBlockId, zoneFor, zoneLabels,
+  blockLoad, buildPreset, canChangeZone, hasBlocks, isFull, legacyToBlocks, newBlockId,
+  normalizeCustomLayout, zoneFor, zoneLabels,
 } from "@/lib/custom-layout";
 
 const FONTS = [
@@ -153,16 +154,28 @@ export default function CustomCardDesigner({
   const [transfer, setTransfer] = useState<{ src: string; b64: string; url: string; checklist: string[] } | null>(null);
   const [hoverLook, setHoverLook] = useState<string | null>(null);
 
-  // A layout without blocks is a card saved by the old designer (or the legacy
-  // default the page still seeds). Upgrade it once, here, so the page's preview
-  // and this editor can never disagree about what the card looks like.
+  // A layout with no blocks comes in two kinds, and they must not be treated
+  // alike.
+  //
+  // EMPTY (no blocks, no positioned elements): the live card already renders it
+  // as the default block layout (normalizeCustomLayout falls back to ink), so
+  // filling the blocks in here changes nothing anyone can see. Done once, as
+  // before.
+  //
+  // LEGACY (positioned `elements` from the pre-2026-08-07 designer): the live
+  // card still renders those elements exactly where their owner put them. This
+  // used to be "upgraded" on mount too — so merely opening the Design tab
+  // replaced the owner's layout with the stock one, and any Save (even a
+  // phone-number edit) made that permanent. Now the card is shown as it is and
+  // converts only when its owner presses Convert.
+  const isLegacy = !hasBlocks(layout) && normalizeCustomLayout(layout).elements.length > 0;
   const upgraded = useRef(false);
   useEffect(() => {
-    if (hasBlocks(layout) || upgraded.current) return;
+    if (hasBlocks(layout) || isLegacy || upgraded.current) return;
     upgraded.current = true;
     const base = buildPreset("ink");
     onChange({ ...base, ...layout, blocks: base.blocks, elements: [] });
-  }, [layout, onChange]);
+  }, [layout, isLegacy, onChange]);
 
   const blocks = useMemo(() => layout.blocks ?? [], [layout.blocks]);
   const zones = zoneLabels(layout.skeleton);
@@ -381,6 +394,34 @@ export default function CustomCardDesigner({
   const chip = "sc-tap text-[0.8125rem] font-semibold px-3 py-1.5 rounded-lg border transition-colors";
   const chipOff = "bg-gray-800 border-gray-600 text-gray-100 hover:text-white hover:border-gray-400";
   const chipOn = "bg-blue-600 border-blue-600 text-white";
+
+  if (isLegacy) {
+    // Owner-initiated and undoable (commit pushes history): positions become
+    // zones and reading order via legacyToBlocks, keeping colours and font.
+    const convert = () => {
+      const base = buildPreset("ink");
+      const converted = legacyToBlocks(normalizeCustomLayout(layout).elements);
+      commit({ ...base, ...layout, blocks: converted.length ? converted : base.blocks, elements: [] });
+    };
+    return (
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-gray-800 bg-[radial-gradient(120%_90%_at_50%_0%,#141a26_0%,#0b0f17_70%)] p-4 sm:p-6 max-w-[560px] mx-auto">
+          <CardScaler>
+            <CustomCard data={previewData} />
+          </CardScaler>
+        </div>
+        <div className={`${card} p-3 flex flex-col sm:flex-row sm:items-center gap-3 max-w-[560px] mx-auto`}>
+          <p className="text-[0.8125rem] text-gray-300 leading-snug flex-1 min-w-0">
+            This card was made with our previous designer, and it stays exactly as it is.
+            To edit it here, convert it to blocks — you can undo that before saving.
+          </p>
+          <button type="button" onClick={convert} className={`${chip} ${chipOn} shrink-0`}>
+            Convert to edit
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!hasBlocks(layout)) {
     return <div className="h-24 rounded-xl bg-gray-900 border border-gray-800 animate-pulse" aria-label="Preparing your design" />;

@@ -23,17 +23,13 @@ import CardScaler from "@/components/CardScaler";
 import { DEFAULT_PRESET, buildPreset } from "@/lib/custom-layout";
 import InertPreview from "@/components/InertPreview";
 import ClassicPro from "@/components/card-templates/ClassicPro";
-import ModernBold from "@/components/card-templates/ModernBold";
-import PhotoFirst from "@/components/card-templates/PhotoFirst";
-import LocalBusiness from "@/components/card-templates/LocalBusiness";
-import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import LogoFirst from "@/components/card-templates/LogoFirst";
 import CustomCard from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
-import CustomDesignCard from "@/components/CustomDesignCard";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
+import TemplatePicker, { PRESET_TEMPLATES } from "@/components/card-templates/TemplatePicker";
+import DockedCardPreview from "@/components/DockedCardPreview";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
-import { Segmented, Switch } from "@/components/ui/DesignControls";
+import { MoreOptions, Segmented, Switch } from "@/components/ui/DesignControls";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
@@ -56,14 +52,6 @@ const SOCIALS: { key: SocialKey; label: string; placeholder: string }[] = [
   { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@you" },
 ];
 
-const TEMPLATES = [
-  { id: "classic-pro",    label: "Classic Pro",    Component: ClassicPro },
-  { id: "modern-bold",    label: "Modern Bold",    Component: ModernBold },
-  { id: "photo-first",    label: "Photo First",    Component: PhotoFirst },
-  { id: "local-business", label: "Local Business", Component: LocalBusiness },
-  { id: "luxury-minimal", label: "Luxury Minimal", Component: LuxuryMinimal },
-  { id: "logo-first",     label: "Logo First",     Component: LogoFirst },
-];
 
 const inputCls =
   "w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors";
@@ -244,6 +232,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   // "circle" renders the whole mark inside a circular plate (never cropped).
   const [logoShape, setLogoShape] = useState<"auto" | "circle">(card.customization?.logoShape === "circle" ? "circle" : "auto");
   const [photoState, setPhotoState] = useState<string | null>(photoUrl ?? null);
+  // Card design → Photos opens by itself only while something is still missing.
+  // Read ONCE at mount (see MoreOptions): a live value would fold the section
+  // shut under the owner the moment an upload finished. An office member's logo
+  // is the organization's, so only their headshot counts.
+  const [photosStartOpen] = useState(() => !((org ? true : !!initialLogoUrl) && !!photoUrl));
   const [template, setTemplate] = useState(card.template || "classic-pro");
   const [customLayout, setCustomLayout] = useState<CustomLayout>(card.customization?.customLayout ?? buildPreset(DEFAULT_PRESET));
   // Preset-template styling (Pro). Undefined fields fall back to each template's
@@ -386,7 +379,13 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       ...templateStyleState,
     },
   };
-  const PreviewTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
+  const hasLogo = !!(org ? org.logoUrl : cardLogoUrl);
+  const photosSummary = hasLogo && photoState
+    ? "Both added"
+    : hasLogo ? "Logo added · add a headshot"
+    : photoState ? (org ? "Headshot added" : "Headshot added · add a logo")
+    : "Add your logo and headshot";
+  const PreviewTemplate = template === "custom" ? CustomCard : (PRESET_TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
   const customSelected = template === "custom";
 
   // Pro design on a Free account: the editor lets it all be tried on — every
@@ -540,6 +539,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   // pushed the actual fields off-screen and showed a card preview even while
   // editing the Swift Links page. Now each step places its own, next to the
   // controls that change it.
+  // The card itself, built ONCE. The inline/pinned preview and the phone's
+  // docked preview (Card design tab) both render this exact element, so the two
+  // can never show different cards.
+  const cardTemplateEl = <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />;
+
   const cardPreviewInner = (
     // Look-only: the card's own phone/email/links stay clickable on the
     // PUBLISHED card, but never here — design is changed with the controls, not
@@ -548,7 +552,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       {/* Scale from the 460px natural width (same as the published card) so a
           long name/title/company never clips in-preview. */}
       <CardScaler>
-        <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+        {cardTemplateEl}
       </CardScaler>
     </InertPreview>
   );
@@ -814,14 +818,35 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           </div>
         )}
 
-        {/* ── CARD DESIGN — photos + template + colors (matches the wizard's
-            step 2). Photos stay editable even under an office design lock:
-            the lock covers template/colors, never someone's own headshot. ── */}
+        {/* ── CARD DESIGN — Photos · Template · Look · Fine-tune · More (matches
+            the wizard's step 2). Photos stay editable even under an office
+            design lock: the lock covers template/colors, never someone's own
+            headshot. ── */}
         {tab === "design" && (
-          <div className="space-y-4">
-            {/* Photos */}
-            <div className="space-y-4">
-              <p className={sectionLabel}>Photos</p>
+          <div className="space-y-5">
+            {/* Photos — open while something is missing, folded to a one-row
+                summary once both are set, so a returning owner lands on the
+                design rather than on two upload blocks. `photosStartOpen` is
+                computed once at mount: a live value would snap the section shut
+                the moment an upload finished. Native <details>: works before
+                hydration. */}
+            <MoreOptions
+              label="Logo & headshot"
+              hint={photosSummary}
+              defaultOpen={photosStartOpen}
+              lead={
+                <span className="flex -space-x-2 shrink-0" aria-hidden>
+                  {[org ? orgLogo : cardLogoUrl, photoState].map((src, i) =>
+                    src ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={src} alt="" className={`w-7 h-7 border-2 border-gray-900 bg-white object-contain ${i === 1 ? "rounded-full object-cover" : "rounded-lg"}`} />
+                    ) : (
+                      <span key={i} className={`w-7 h-7 border-2 border-gray-900 bg-gray-800 ${i === 1 ? "rounded-full" : "rounded-lg"}`} />
+                    ),
+                  )}
+                </span>
+              }
+            >
               {/* Company logo is editable only on a NON-office card. Every card
                   under an office (org set — employee or owner alike) inherits
                   the brand logo, which is set on the office Branding page; the
@@ -882,9 +907,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   onConfirm={(url) => setPhotoState(url)}
                 />
               </div>
-            </div>
+            </MoreOptions>
 
-            {/* Template + colors — locked for sub-users while the office's Lock
+            {/* Template + look — locked for sub-users while the office's Lock
                 Card Design setting is on. The server rejects locked-design
                 writes regardless; this just makes the rule visible. */}
             {designLocked ? (
@@ -900,69 +925,39 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 </p>
               </div>
             ) : (
-            <div className="space-y-4 border-t border-gray-800 pt-4">
-            <div>
-              <p className={`${sectionLabel} mb-2`}>Template</p>
-              {/* Custom design — the freeform "edit every element" path */}
-              <div className="mb-2">
-                <CustomDesignCard isPro={isPro} selected={customSelected} onSelect={() => setTemplate("custom")} />
-              </div>
+            <div className="space-y-5">
+              <TemplatePicker
+                template={template}
+                onSelect={setTemplate}
+                data={withoutSocials(previewData)}
+                customUnlocked={isPro}
+              />
 
-              {/* Standard templates */}
-              <div className="grid grid-cols-2 gap-2">
-                {TEMPLATES.map(({ id, label: tplLabel }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setTemplate(id)}
-                    aria-pressed={template === id}
-                    className={`sc-tap text-[0.8125rem] font-semibold py-2 px-2 rounded-xl border transition-colors ${
-                      template === id ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600"
-                    }`}
-                  >
-                    {tplLabel}
-                  </button>
-                ))}
-              </div>
-            </div>
+              {/* The designer comes AFTER the picker that selects it, and brings
+                  its own live card — so it replaces the inline preview rather than
+                  sitting beside a second one. */}
+              {customSelected && isPro ? (
+                <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} />
+              ) : (
+                /* Mobile: the preview sits BETWEEN the template gallery and the
+                   style panel — both change what it shows. Once it scrolls away,
+                   DockedCardPreview keeps a small copy on screen. */
+                <div id="design-inline-preview">{mobileCardPreview("Tap a template above, then choose a look below.")}</div>
+              )}
 
-            {/* The designer comes AFTER the picker that selects it, and brings
-                its own live card — so it replaces the inline preview rather than
-                sitting beside a second one. Having both, in the other order,
-                under a caption about restyling, is what made this tab read as
-                three cards scattered down the page. */}
-            {customSelected && isPro ? (
-              <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} />
-            ) : (
-              /* Mobile: the preview sits BETWEEN the template picker and the
-                 colour/font controls — both sides of it change what it shows, so
-                 it is visible whichever one you are touching without scrolling. */
-              mobileCardPreview("Pick a template above, then restyle it below.")
-            )}
-
-            {/* Restyle the chosen preset. Looks, swatches, fonts and three
-                finishes are EVERY plan; only "any colour", the material
-                finishes and a panel photo/video are Pro — and each of those
-                carries its own PRO tag inside the panel. The header used to
-                wear a PRO badge too, which told a Free user the whole section
-                was closed to them while every swatch under it worked. */}
-            {!customSelected && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className={sectionLabel}>Customize colors &amp; font</p>
-                </div>
+              {/* Restyle the chosen preset: Look → Fine-tune → More. Looks,
+                  swatches, fonts and three finishes are EVERY plan; only "any
+                  colour", the material finishes and a panel photo/video are Pro
+                  — and each of those carries its own PRO tag inside the panel.
+                  The wall is Save Changes, where the full offer opens. */}
+              {!customSelected && (
                 <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
-                {/* The standing upsell under these controls is gone (owner,
-                    2026-09-11). Every Pro finish and the photo/video picker are
-                    already tappable here — that IS the demo — and the wall is
-                    Save Changes, where the full offer opens. A second, smaller
-                    pitch sitting under the controls on every visit said the
-                    same thing worse, and in the shell it rendered as a notice
-                    card that looked nothing like the sheet that follows it. */}
-              </div>
-            )}
+              )}
             </div>
             )}
+            <DockedCardPreview anchorId="design-inline-preview" enabled={!designLocked && !customSelected}>
+              {cardTemplateEl}
+            </DockedCardPreview>
           </div>
         )}
 

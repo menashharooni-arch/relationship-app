@@ -34,9 +34,9 @@ describe("card editor — one preview per tab, of the right kind", () => {
 
   it("Card design: the CARD preview sits between templates and colours", () => {
     const s = src();
-    const templates = at(s, "{TEMPLATES.map(", "template grid");
-    const preview = at(s, 'mobileCardPreview("Pick a template above', "card-design preview");
-    const colours = at(s, "Customize colors", "colour controls");
+    const templates = at(s, "<TemplatePicker", "template gallery");
+    const preview = at(s, 'mobileCardPreview("Tap a template above', "card-design preview");
+    const colours = at(s, "<TemplateStyleControls", "colour controls");
     expect(preview).toBeGreaterThan(templates);
     expect(preview, "the preview is below the colour controls").toBeLessThan(colours);
   });
@@ -86,8 +86,10 @@ describe("add-card wizard — the same four placements", () => {
 
   it("step 2: the CARD preview sits between templates and colours", () => {
     const s = src();
-    const preview = at(s, '<div className="lg:hidden mt-4">{livePreview}</div>', "step 2 preview");
-    const colours = at(s, "Customize colors", "colour controls");
+    const templates = at(s, "<TemplatePicker", "template gallery");
+    const preview = at(s, '<div id="design-inline-preview" className="lg:hidden">{livePreview}</div>', "step 2 preview");
+    const colours = at(s, "<TemplateStyleControls", "colour controls");
+    expect(preview).toBeGreaterThan(templates);
     expect(preview).toBeLessThan(colours);
   });
 
@@ -173,5 +175,39 @@ describe("desktop is untouched", () => {
     const c = code(EDITOR);
     expect((c.match(/<PreviewTemplate data=/g) ?? []).length, "card preview duplicated").toBe(1);
     expect((c.match(/<SwiftLinkLivePreview/g) ?? []).length, "link preview duplicated").toBe(1);
+  });
+});
+
+// The docked preview: a small copy of the card on a phone, shown ONLY once the
+// Card design tab's inline preview has scrolled away. The always-on sticky
+// preview it replaces took a quarter of the screen at rest (see "step 2 no
+// longer pins a sticky preview" above) — so the dock must stay gated on the
+// inline preview leaving view, and must never be CSS-hidden (CardScaler reports
+// a zero-width slot as a production error).
+describe("Card design — the docked preview", () => {
+  const DOCK = "src/components/DockedCardPreview.tsx";
+
+  it("appears only after the inline preview scrolls out of view", () => {
+    const d = code(DOCK);
+    expect(d).toMatch(/IntersectionObserver/);
+    expect(d).toMatch(/boundingClientRect\.top < 0/);
+    expect(d, "the dock must mount conditionally, not hide with CSS").toMatch(/return null;/);
+    expect(d).toMatch(/InertPreview/);
+  });
+
+  it("both editors anchor it on the Card design inline preview", () => {
+    for (const f of [EDITOR, WIZARD]) {
+      const s = code(f);
+      expect(s, f).toMatch(/id="design-inline-preview"/);
+      expect(s, f).toMatch(/<DockedCardPreview anchorId="design-inline-preview"/);
+    }
+  });
+
+  it("renders the same card element as the inline preview", () => {
+    for (const f of [EDITOR, WIZARD]) {
+      const s = code(f);
+      const dock = s.slice(at(s, "<DockedCardPreview", "dock"), s.indexOf("</DockedCardPreview>"));
+      expect(dock, f).toMatch(/\{cardTemplateEl\}/);
+    }
   });
 });

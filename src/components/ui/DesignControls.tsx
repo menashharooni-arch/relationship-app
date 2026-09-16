@@ -114,6 +114,8 @@ export type SegmentedOption<T extends string> = {
   label: string;
   /** Optional glyph. Kept to one character-ish so segments stay even. */
   icon?: React.ReactNode;
+  /** Optional marker after the label — e.g. a dot saying "a Pro value is set in here". */
+  badge?: React.ReactNode;
 };
 
 /**
@@ -166,6 +168,7 @@ export function Segmented<T extends string>({
           >
             {o.icon}
             <span className="truncate">{o.label}</span>
+            {o.badge}
           </button>
         );
       })}
@@ -235,15 +238,37 @@ export function Switch({
  */
 export function MoreOptions({
   label = "More options",
+  hint,
+  badge,
+  lead,
+  defaultOpen = false,
   children,
 }: {
   label?: string;
+  /** What's inside, in a few words, so the closed row isn't a mystery box. */
+  hint?: string;
+  /** A marker after the label, e.g. "something in here is set". */
+  badge?: React.ReactNode;
+  /** Visual before the label (thumbnails of what's inside). */
+  lead?: React.ReactNode;
+  /**
+   * Starts open. Read ONCE: React sets the attribute at mount and never
+   * re-applies it unless the value changes, so pass a value computed at mount
+   * (see the editors' Photos section) — a live value would fight the user.
+   */
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <details className="group rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden">
+    <details open={defaultOpen || undefined} className="group rounded-xl border border-gray-800 bg-gray-900/40 overflow-hidden">
       <summary className="sc-tap flex items-center justify-between gap-2 px-3 py-2.5 cursor-pointer list-none [&::-webkit-details-marker]:hidden select-none hover:bg-gray-800/40 transition-colors">
-        <span className={dsType.label}>{label}</span>
+        <span className="flex items-center gap-2 min-w-0">
+          {lead}
+          <span className="min-w-0">
+            <span className={`flex items-center gap-1.5 ${dsType.label}`}>{label}{badge}</span>
+            {hint && <span className={`block ${dsType.help} truncate`}>{hint}</span>}
+          </span>
+        </span>
         <span aria-hidden className="text-gray-500 text-[0.6875rem] transition-transform group-open:rotate-180">▾</span>
       </summary>
       <div className="px-3 pb-3 pt-1 space-y-4">{children}</div>
