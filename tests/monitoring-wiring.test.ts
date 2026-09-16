@@ -58,7 +58,12 @@ describe("always-on production guards", () => {
     // the hosting exclusion. Deleting either one buys a green CI run by no
     // longer looking.
     const p = read("scripts/qa-prod-probe.mjs");
-    expect(p, "the probe no longer asks where it is running").toMatch(/analytics_ingest_log[\s\S]*reason === "hosting"/);
+    // Read from the endpoint's own flag. The first version of this read
+    // analytics_ingest_log for a hosting decision, but a refused view never
+    // reaches the log — so the probe saw no row, called itself residential, and
+    // failed the full pipeline from CI anyway. Absence is not a signal.
+    expect(p, "the probe no longer asks where it is running").toContain("v1Body.hosting === true");
+    expect(p, "it is back to inferring its location from a missing log row").not.toMatch(/some\(\(r\) => r\.reason === "hosting"\)/);
     expect(p, "the datacenter branch is gone").toContain("a datacenter's view is refused");
     expect(p, "the datacenter branch no longer checks that nobody was notified").toContain("raises NO notification");
     expect(p, "the residential branch is gone").toContain("exactly ONE notification for the visit");

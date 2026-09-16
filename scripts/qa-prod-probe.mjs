@@ -92,8 +92,13 @@ try {
   // this becomes a live regression test for the exclusion itself, which is the
   // thing that keeps view counts honest. Do not "fix" this by giving the probe
   // a bypass header — that is the hole the exclusion exists to close.
-  const ingestRows = await (await adm(`/rest/v1/analytics_ingest_log?entity_key=eq.${uname}&select=reason,counted&order=created_at.desc&limit=5`)).json();
-  const hosting = Array.isArray(ingestRows) && ingestRows.some((r) => r.reason === "hosting");
+  // The endpoint says so itself. The first attempt at this read
+  // analytics_ingest_log for a "hosting" decision — but recordView returns
+  // BEFORE anything is logged, so a refused view leaves no row at all, and the
+  // probe read that absence as "residential" and failed the full pipeline from
+  // CI anyway. Absence of evidence was the bug; the flag is the evidence.
+  const v1Body = await v1.json().catch(() => ({}));
+  const hosting = v1Body.hosting === true;
   const expectViews = hosting ? 0 : 1;
   console.log(hosting
     ? "MODE datacenter — hosting egress, so the refusal contract is what gets checked"
@@ -105,10 +110,10 @@ try {
       ? `a datacenter's view is refused, so NO card_views row (got ${Array.isArray(views) ? views.length : JSON.stringify(views).slice(0, 80)})`
       : `exactly ONE card_views row after view + reload (got ${Array.isArray(views) ? views.length : JSON.stringify(views).slice(0, 80)})`);
   if (hosting) {
-    // Assert the exclusion actively, rather than inferring it from an absence:
-    // a silently broken endpoint also records nothing.
-    pass(ingestRows.every((r) => r.reason === "hosting" && r.counted === false),
-      `every ingest decision reads hosting/not-counted (${JSON.stringify(ingestRows.map((r) => r.reason))})`);
+    // Positive evidence, not an absence: the endpoint named the reason, and
+    // nothing was counted. A silently broken endpoint records nothing either,
+    // which is exactly why the flag has to carry the verdict.
+    pass(v1Body.ok === true, `the refusal is a clean 200, not an error (${JSON.stringify(v1Body)})`);
   }
   const bot = await post(`/api/views/${uname}`, { visitorId: `bot-${stamp}`, source: "direct" }, UA_BOT);
   await wait(800);
