@@ -349,8 +349,11 @@ export const META: Record<string, TemplateMeta> = {
       fallback: "#e6ebf3",
     },
     accent: {
-      label: "Icons, title & QR",
-      hint: "Your title, icons and QR code, and the buttons on your card page.",
+      // Same setting as every other template, so the same name (owner rule
+      // 2026-09-16: one control, one label everywhere). What it paints on THIS
+      // template — the title and the QR too — belongs in the hint, not the label.
+      label: "Accent / icons",
+      hint: "Icons beside your details, your title and QR code, and the buttons on your card page.",
       help: "Draws your job title, the contact icons and the QR code. A shade too close to your background is brightened or darkened until it reads — you keep the colour you picked, at a version of it that can be seen. The QR is darkened further, because a pale code is one phones stop scanning.",
       presets: ["#ffffff", "#c9d4e8", "#b08d57", "#d4af7a", "#60a5fa", "#0f766e", "#be123c", "#141b26"],
       fallback: "#ffffff",
