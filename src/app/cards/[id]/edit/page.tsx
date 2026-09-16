@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import CardEditForm from "./CardEditForm";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
+import { trialHistoryFor } from "@/lib/trial-ledger";
 import GuestDraftClaim from "@/components/GuestDraftClaim";
 import DashboardLink from "@/components/DashboardLink";
 import ShareCardCapture from "@/components/ShareCardCapture";
@@ -43,7 +44,11 @@ export default async function CardEditPage({
   // customer, and isProTrialEligible returns true without a network call.
   const trialEligible = isPro
     ? false
-    : await isProTrialEligible(profile?.stripe_customer_id as string | null);
+    : await isProTrialEligible(
+        profile?.stripe_customer_id as string | null,
+        undefined,
+        await trialHistoryFor(user.id, user.email),
+      );
   // Per-card headshot (legacy cards fall back to the account photo).
   const cardPhoto = cardHeadshot(card.customization, profile?.photo_url);
 

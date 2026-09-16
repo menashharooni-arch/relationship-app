@@ -111,6 +111,11 @@ export function appleGrantPatch(customization: Record<string, unknown>): {
   const next: Record<string, unknown> = { ...customization, _planSource: "apple" };
   delete next._trial;
   delete next._proWarnedFor;
+  // Buying Pro settles the plan step and any open "Pro ended — choose" prompt,
+  // exactly as a Stripe checkout does (api/stripe/webhook). Literal keys, not
+  // imports: this module stays free of anything but plan.ts.
+  delete next._proEndedChoicePending;
+  if (!next._planChosen) next._planChosen = "pro";
   return { plan: "pro", plan_expires_at: null, customization: next };
 }
 

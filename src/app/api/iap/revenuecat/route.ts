@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { decideRcEvent, type PlanSource, appleGrantPatch, sandboxEventAllowed } from "@/lib/iap-entitlement";
+import { recordProTrialStarted } from "@/lib/trial-ledger";
+import { markProEnded } from "@/lib/pro-ended";
 
 // ── RevenueCat webhook: the durable path from an App Store purchase to the
 //    profiles.plan column ─────────────────────────────────────────────────────
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   const event = body?.event as
-    | { type?: string; app_user_id?: string; original_app_user_id?: string; environment?: string }
+    | { type?: string; app_user_id?: string; original_app_user_id?: string; environment?: string; period_type?: string }
     | undefined;
   if (!event?.type) return NextResponse.json({ error: "no_event" }, { status: 400 });
 
@@ -87,6 +89,12 @@ export async function POST(req: NextRequest) {
       .from("profiles")
       .update(appleGrantPatch(customization))
       .eq("id", profile.id);
+    // Apple's intro offer is the Pro trial in the app. Apple enforces one per
+    // Apple ID itself; recording it here stops the WEB offering a second one.
+    if (event.period_type?.toUpperCase() === "TRIAL") {
+      const { data: authUser } = await admin.auth.admin.getUserById(profile.id as string);
+      await recordProTrialStarted(profile.id as string, authUser?.user?.email ?? null);
+    }
     return NextResponse.json({ ok: true, applied: "grant" });
   }
 
@@ -96,6 +104,8 @@ export async function POST(req: NextRequest) {
       .from("profiles")
       .update({ plan: "free", customization })
       .eq("id", profile.id);
+    // Same "Pro ended — choose" experience as a Stripe cancellation.
+    await markProEnded(profile.id as string, { wasTrial: event.period_type?.toUpperCase() === "TRIAL" });
     return NextResponse.json({ ok: true, applied: "revoke" });
   }
 

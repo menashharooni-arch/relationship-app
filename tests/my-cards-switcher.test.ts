@@ -79,9 +79,12 @@ describe("hiding a row never renumbers another", () => {
     // The LINK OFF — PRO ONLY badge marks cards past the Free limit by
     // POSITION. The map has to run over every card, with only visibility
     // changing, or a downgraded account's badges would move.
+    // Since 2026-09-16 the live card can be CHOSEN when Pro ends, so the badge
+    // keys off the live id list the dashboard passes (same helper as the public
+    // pages), with the positional rule kept as the fallback.
     const c = code(LIST);
     expect(c).toMatch(/cards\.map\(\(card, cardIdx\) =>/);
-    expect(c).toMatch(/const planInactive = !isPro && cardIdx >= freeCardLimit/);
+    expect(c).toMatch(/const planInactive = !isPro && \(liveCardIds \? !liveCardIds\.includes\(card\.id\) : cardIdx >= freeCardLimit\)/);
   });
 
   it("collapsing is CSS, not conditional rendering", () => {

@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import UpgradeClient from "./UpgradeClient";
 import { isPaidPlan } from "@/lib/plan";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
+import { trialHistoryFor } from "@/lib/trial-ledger";
 
 export const metadata = { title: "Upgrade — SwiftCard" };
 
@@ -29,16 +30,27 @@ export default async function UpgradePage({
 
   const { data: profile } = await getAdminSupabase()
     .from("profiles")
-    .select("plan, stripe_customer_id")
+    .select("plan, stripe_customer_id, stripe_subscription_id, plan_expires_at, customization")
     .eq("id", user.id)
     .maybeSingle();
 
   // Already paying → nothing to sell. Billing settings is where they change or
   // cancel a plan they already have.
   const plan = (profile?.plan as string) ?? "free";
-  if (isPaidPlan(plan)) redirect("/settings/flows?billing=1#billing");
+  // A free-Pro GRANT (referral or retention days: an expiry, no subscription,
+  // not Apple) is not paying — it ends on its own. Bouncing it to billing made
+  // "Keep Pro" a loop with no way to actually subscribe.
+  const onGrant =
+    !!profile?.plan_expires_at &&
+    !profile?.stripe_subscription_id &&
+    (profile?.customization as { _planSource?: string } | null)?._planSource !== "apple";
+  if (isPaidPlan(plan) && !onGrant) redirect("/settings/flows?billing=1#billing");
 
-  const trialEligible = await isProTrialEligible(profile?.stripe_customer_id as string | null);
+  const trialEligible = await isProTrialEligible(
+    profile?.stripe_customer_id as string | null,
+    undefined,
+    await trialHistoryFor(user.id, user.email),
+  );
 
   return (
     <main className="min-h-screen bg-gray-950 px-5 py-12">

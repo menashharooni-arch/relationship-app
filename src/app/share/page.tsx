@@ -14,7 +14,8 @@ import EmailSignatureBox from "@/components/EmailSignatureBox";
 import ShareCardResolver from "@/components/ShareCardResolver";
 import { ACTIVE_CARD_COOKIE } from "@/lib/active-card";
 import { buildCardData } from "@/lib/card-data";
-import { isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
+import { isPaidPlan } from "@/lib/plan";
+import { pickFreeLiveCardIds } from "@/lib/card-active";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -77,9 +78,14 @@ export default async function SharePage({
   // than a broken page in the product: this is the surface whose entire job is
   // producing URLs for other people.
   //
-  // `cards` is ordered created_at ascending, so slicing takes exactly the ones
-  // that are live.
-  const shareableCards = isPro ? allCards : allCards.slice(0, PLAN_LIMITS.FREE_CARD_LIMIT);
+  // `cards` is ordered created_at ascending — the order pickFreeLiveCardIds
+  // expects — so this is the same live set the public pages serve, including
+  // the card chosen to stay live when Pro ended.
+  const liveIds = pickFreeLiveCardIds(
+    allCards.map((c) => c.id as string),
+    (profile as { free_live_card_id?: string | null }).free_live_card_id,
+  );
+  const shareableCards = isPro ? allCards : allCards.filter((c) => liveIds.includes(c.id as string));
   const activeCard =
     shareableCards.find((c) => c.username === selectedCard) ?? shareableCards[0] ?? allCards[0];
   const activeSource = activeCard;

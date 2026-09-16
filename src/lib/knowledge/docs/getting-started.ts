@@ -27,7 +27,7 @@ export const gettingStartedDocs = defineDocs([
     answer:
       "Either build a card first at /cards/new and create the account when you save it, or go straight to /login → \"Create account\". Passwords need at least 6 characters; there are no other rules. Google and Apple sign-up work from the same screen.",
     detail:
-      "New accounts start on Free — there is no automatic trial for signing up. The trial exists only when someone actively subscribes to Pro. A new account has zero cards and shows \"Let's create your first card\".",
+      "New accounts start on Free — there is no automatic trial for signing up. After the first card is saved there is a plan step, shown once: \"Continue with Free →\", or Pro, which starts a {trial.days}-day free trial with a card taken at checkout (billing starts when the trial ends unless it is cancelled). Someone who closes that step without choosing is shown it again the next time they open the dashboard. A new account has zero cards and shows \"Let's create your first card\".",
     commerce: true,
     nativeAnswer:
       "Either build a card first and create the account when you save it, or use \"Create account\" on the sign-in screen. Passwords need at least 6 characters. Google and Apple sign-up work from the same screen.",

@@ -9,8 +9,9 @@ import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 //      pass of that account is inactive.
 //   2. DELETED card     → the row is gone; nothing resolves (handled by the
 //      lookups themselves).
-//   3. DOWNGRADED plan  → a Free account only serves its FIRST card(s)
-//      (oldest, up to FREE_CARD_LIMIT). Extra cards created on Pro go
+//   3. DOWNGRADED plan  → a Free account only serves FREE_CARD_LIMIT card(s):
+//      the one it chose when Pro ended, else the oldest (pickFreeLiveCardIds).
+//      Extra cards created on Pro go
 //      inactive the moment the plan is no longer paid — links, QRs, NFC
 //      tags, wallet passes and lead capture for them all stop working.
 //      Their remaining Free-plan card's links keep working.
@@ -28,6 +29,37 @@ export function cardIsOffline(cardRow: unknown): boolean {
   return (cardRow as { is_offline?: boolean } | null)?.is_offline === true;
 }
 
+/**
+ * Which cards a Free account serves, given its cards OLDEST FIRST and the card
+ * it chose to keep live when Pro ended (profiles.free_live_card_id).
+ *
+ * The ONE statement of this rule. It used to be "the oldest FREE_CARD_LIMIT
+ * cards", written out separately here, in the card PATCH route, on /share and
+ * in the dashboard's card list — so letting someone pick which card survives
+ * would have meant four edits that could drift. A choice that no longer points
+ * at one of their cards (deleted, or never theirs) is ignored and the oldest
+ * card rule applies, which is exactly today's behaviour for every account that
+ * never chose.
+ */
+export function pickFreeLiveCardIds(orderedCardIds: string[], chosenCardId: string | null | undefined): string[] {
+  const chosen = chosenCardId && orderedCardIds.includes(chosenCardId) ? chosenCardId : null;
+  const order = chosen ? [chosen, ...orderedCardIds.filter((id) => id !== chosen)] : orderedCardIds;
+  return order.slice(0, PLAN_LIMITS.FREE_CARD_LIMIT);
+}
+
+/** The live card ids for a Free account, read from the database. */
+export async function freeLiveCardIds(userId: string): Promise<string[]> {
+  const admin = getAdminSupabase();
+  const [{ data: cards }, { data: profile, error }] = await Promise.all([
+    admin.from("cards").select("id").eq("user_id", userId).order("created_at", { ascending: true }),
+    admin.from("profiles").select("free_live_card_id").eq("id", userId).maybeSingle(),
+  ]);
+  // Before supabase/pro-trial-safeguards.sql the column does not exist and the
+  // select errors — treat that as "never chose", i.e. the oldest-card rule.
+  const chosen = error ? null : ((profile as { free_live_card_id?: string | null } | null)?.free_live_card_id ?? null);
+  return pickFreeLiveCardIds((cards ?? []).map((c: { id: string }) => c.id), chosen);
+}
+
 // Whether this card falls within its owner's plan allowance. Cheap: only
 // queries when the owner is NOT paid.
 export async function cardWithinPlanLimit(
@@ -36,14 +68,7 @@ export async function cardWithinPlanLimit(
   plan: string | null | undefined
 ): Promise<boolean> {
   if (isPaidPlan(plan)) return true;
-  const admin = getAdminSupabase();
-  const { data } = await admin
-    .from("cards")
-    .select("id")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true })
-    .limit(PLAN_LIMITS.FREE_CARD_LIMIT);
-  return (data ?? []).some((c: { id: string }) => c.id === cardId);
+  return (await freeLiveCardIds(userId)).includes(cardId);
 }
 
 // One-call resolver for API routes: is the card slug live right now?

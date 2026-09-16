@@ -5,6 +5,7 @@ import { getStripe } from "./stripe";
 import { isPaidPlan } from "./plan";
 import { REFERRAL, freeMonthDays, sourceGrantsFreeMonth, isSignupSource } from "./referral";
 import { insertNotification } from "./notify";
+import { markProEnded } from "./pro-ended";
 
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no ambiguous chars (0/O/1/I/L)
@@ -17,7 +18,7 @@ function randomCode(len = 7): string {
 
 // Normalize an email for self-referral detection: lowercase, strip +tags, and
 // collapse Gmail dots — so name+1@gmail.com / n.a.m.e@gmail.com can't bypass it.
-function normEmail(e: string | null | undefined): string {
+export function normEmail(e: string | null | undefined): string {
   const raw = (e || "").toLowerCase().trim();
   const [local, domain] = raw.split("@");
   if (!domain) return raw;
@@ -517,10 +518,21 @@ export async function expireFreeMonths(): Promise<DowngradedUser[]> {
     delete nextCust._trial;
     delete nextCust._proWarnedFor;
     if (wasTrial) nextCust._trialEnded = true;
-    await admin
+    // Conditional on the row still being an unpaid, expired grant: a Stripe
+    // checkout or Apple purchase landing between the select above and this
+    // write would otherwise be downgraded straight back to Free the moment
+    // they paid. Zero rows back = they converted; leave them alone.
+    const { data: wrote } = await admin
       .from("profiles")
       .update({ plan: "free", plan_expires_at: null, customization: nextCust })
-      .eq("id", u.id);
+      .eq("id", u.id)
+      .is("stripe_subscription_id", null)
+      .lte("plan_expires_at", new Date().toISOString())
+      .select("id");
+    if (!(wrote ?? []).length) continue;
+    // Same "Pro ended — choose" prompt as every other end of Pro. The cron
+    // sends its own notification and email wording, so no second notice here.
+    await markProEnded(u.id as string, { wasTrial, notify: false });
     downgraded.push({ id: u.id as string, email: (u.email as string) ?? null, name: (u.name as string) ?? null, wasTrial });
   }
   return downgraded;

@@ -10,6 +10,8 @@ import NotificationBody from "@/components/NotificationBody";
 const NATIVE_BODY_REMAP: Record<string, string> = {
   sequence_paused:
     "Your automated follow-up sequences are paused. Sequences are only available on the Pro plan — nothing was deleted.",
+  pro_ended:
+    "Your account is on the Free plan now. Your dashboard shows what changes and lets you choose which card stays live — nothing has been deleted.",
 };
 
 type Notification = {
