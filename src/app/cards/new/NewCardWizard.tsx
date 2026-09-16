@@ -36,10 +36,10 @@ import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, PREFILL_LINK_STYL
 // Shared with the edit form + server so a social typed here connects to the
 // same URL everywhere (blur, save, guest-draft snapshot all normalize).
 import { normalizeSocial } from "@/lib/social-url";
-import { writePlanIntent } from "@/lib/plan-intent";
 import { track } from "@/lib/events";
 import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, LINK_STRUCTURAL_KEYS, convertCustomizationToFreeClosest, describeFreeDesignChanges, proLinkFeaturesInUse } from "@/lib/plan";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
+import { Switch } from "@/components/ui/DesignControls";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import PlanCards from "@/components/PlanCards";
 import FreeDesignChoice from "@/components/FreeDesignChoice";
@@ -403,7 +403,27 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // separate part of the customization object). Returns whether anything Pro-
   // only was actually present to convert, which drives whether the "we applied
   // a basic Free design" notice is shown at all.
-  function applyFreeDesignConversion(): boolean {
+  /**
+   * Returns the converted values as well as applying them.
+   *
+   * THE BUG THIS SHAPE EXISTS FOR. This used to return only `changed`, and
+   * `confirmFreeDesignAndCreate` called it and then `handleCreate()` in the
+   * same tick — so the POST read `template` / `templateStyleState` /
+   * `linkStyleState` from the render that was already closed over, i.e. the
+   * UNCONVERTED Pro design. "Lose the designs and continue with Free" sent the
+   * Pro design to the server every single time. It was invisible only because
+   * the server re-sanitizes on write; the moment a plan is passed alongside it
+   * (chosenPlan), or the sanitizer is relaxed, it would persist.
+   *
+   * Handing the values back means the caller can pass exactly what it just
+   * decided, instead of hoping React has re-rendered.
+   */
+  function applyFreeDesignConversion(): {
+    changed: boolean;
+    template: string;
+    templateStyleState: TemplateStyle;
+    linkStyleState: SwiftLinkStyle;
+  } {
     const draftStyle: Record<string, unknown> = { ...templateStyleState, ...(template === "custom" ? { customLayout } : {}) };
     const result = convertCustomizationToFreeClosest(draftStyle, template);
     setTemplate(result.template);
@@ -424,7 +444,37 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       panelMediaPoster: result.customization.panelMediaPoster as string | undefined,
       panelDim: typeof result.customization.panelDim === "number" ? result.customization.panelDim : undefined,
     });
-    return result.changed;
+
+    // The Swift Links half. describeFreeDesignChanges + proLinkFeaturesInUse
+    // WARN about these (freeDesignChanges() lists them in the dialog), but the
+    // conversion never touched them — so the visitor was told a Glass look and
+    // photo link buttons would go, agreed, and the client carried on holding
+    // them. Only the server stripped them. Mirrors sanitizeCustomizationForPlan:
+    // every LINK_STYLE_KEY dropped, structural keys (linkLook, hero style and
+    // content) kept.
+    const freeLinkStyle: SwiftLinkStyle = { ...linkStyleState };
+    for (const k of LINK_STYLE_KEYS) delete (freeLinkStyle as Record<string, unknown>)[k];
+    setLinkStyleState(freeLinkStyle);
+
+    const converted: TemplateStyle = {
+      accentColor: result.customization.accentColor as string | undefined,
+      bgColor: result.customization.bgColor as string | undefined,
+      surfaceColor: result.customization.surfaceColor as string | undefined,
+      textColor: result.customization.textColor as string | undefined,
+      infoColor: result.customization.infoColor as string | undefined,
+      fontFamily: result.customization.fontFamily as string | undefined,
+      finish: result.customization.finish as string | undefined,
+      panelMedia: result.customization.panelMedia as string | undefined,
+      panelMediaType: result.customization.panelMediaType as string | undefined,
+      panelMediaPoster: result.customization.panelMediaPoster as string | undefined,
+      panelDim: typeof result.customization.panelDim === "number" ? result.customization.panelDim : undefined,
+    };
+    return {
+      changed: result.changed,
+      template: result.template,
+      templateStyleState: converted,
+      linkStyleState: freeLinkStyle,
+    };
   }
 
   /**
@@ -458,27 +508,31 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   }
 
   // They chose Free with their eyes open: NOW convert, then save.
+  //
+  // The converted values are passed straight into the save. Reading them back
+  // off state here would read the PRE-conversion design — setState does not
+  // apply within the same tick — which is exactly what this branch used to do.
   function confirmFreeDesignAndCreate() {
-    applyFreeDesignConversion();
+    const converted = applyFreeDesignConversion();
     setPendingFreeConfirm(false);
     setShowPlan(false);
-    handleCreate();
+    handleCreate(undefined, {
+      template: converted.template,
+      templateStyleState: converted.templateStyleState,
+      linkStyleState: converted.linkStyleState,
+    });
   }
 
   /**
    * "Keep my card exactly like this" — the trial.
    *
-   * Deliberately routed through the SAME handlers a Pro pick uses, rather than
-   * a shortcut of its own: a signed-in owner goes to checkout with the design
-   * intact, and a guest stores a Pro plan intent, which is what makes the
-   * draft claim treat them as paid and keep the Pro design on the saved card.
-   * A bespoke path here would be the thing that quietly stops matching however
-   * Pro is sold next.
+   * Authed first card only, like the gate it lives in. Routed through the SAME
+   * handler a Pro pick uses rather than a shortcut of its own, so it cannot
+   * quietly stop matching however Pro is sold next.
    */
   function keepDesignWithTrial() {
     track("upgrade_started", { placement: "wizard_free_design_choice", plan: "pro" });
     setPendingFreeConfirm(false);
-    if (guest) { pickPlanThenSignUp({ plan: "pro", ...(presetPromo ? { promo: presetPromo } : {}) }); return; }
     handleAuthedFirstCardPaid("pro", false, 1);
   }
 
@@ -487,40 +541,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     handleCreate({ plan, annual, seats });
   }
 
-  /**
-   * A GUEST picking Free. Same moment as handleAuthedFirstCardFree, different
-   * mechanics: nothing is converted here at all — the design travels in the
-   * guest draft and the claim converts it server-side after signup. So this
-   * only has to ask before the plan intent is written, because a Pro intent is
-   * what makes the claim keep the design.
-   *
-   * Without this, a guest saw nothing at this step and met the news on
-   * /welcome, after the account existed and the card had already been
-   * flattened — too late to be a choice.
-   */
-  function handleGuestFree() {
-    if (freeDesignChanges().length) { setPendingFreeConfirm(true); return; }
-    pickPlanThenSignUp({ plan: "free" });
-  }
-
-  function confirmGuestFree() {
-    setPendingFreeConfirm(false);
-    pickPlanThenSignUp({ plan: "free" });
-  }
-
-  function pickPlanThenSignUp(intent: Parameters<typeof writePlanIntent>[0]) {
-    writePlanIntent(intent);
-    track("plan_selected", {
-      plan: intent.plan,
-      interval: intent.annual ? "annual" : "monthly",
-      seats: intent.seats,
-    });
-    track("account_creation_started", { plan: intent.plan });
-    // forceGate: always make the visitor pick an account (log in, or sign up with
-    // a different email → a NEW account). Never silently save into a session that
-    // just happens to be in this browser.
-    requireAuth("save", handleCreate, { forceGate: true });
-  }
+  // handleGuestFree / confirmGuestFree / pickPlanThenSignUp lived here and are
+  // gone (2026-09-15). They existed to record a guest's plan choice BEFORE the
+  // account existed, which meant the only place to put it was localStorage —
+  // and a one-shot localStorage read is what lost a guest's "Free" and put them
+  // on a Pro trial. A guest now goes design → account → plan, and /welcome owns
+  // the plan decision with the account already in hand.
 
   // Card URL auto-fills from full name + company in the fused format
   // ("johnsmith-acmecorp") — one hyphen between name and company, none inside
@@ -796,7 +822,21 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       socials, template, bio, links, address, cleanPhones, fax, templateStyleState,
       linkStyleState, customLayout, logoUrl, headshotUrl, showCardLinkBtn]);
 
-  async function handleCreate(planChoice?: { plan: "pro" | "office"; annual: boolean; seats: number }) {
+  /**
+   * `design` overrides the design state for THIS save.
+   *
+   * React state set moments earlier is not readable here — this function closes
+   * over the values from the render it was created in. The Free conversion runs
+   * and saves in one tick, so it hands its result in directly rather than
+   * setting state and hoping. See applyFreeDesignConversion.
+   */
+  async function handleCreate(
+    planChoice?: { plan: "pro" | "office"; annual: boolean; seats: number },
+    design?: { template: string; templateStyleState: TemplateStyle; linkStyleState: SwiftLinkStyle },
+  ) {
+    const saveTemplate = design?.template ?? template;
+    const saveTemplateStyle = design?.templateStyleState ?? templateStyleState;
+    const saveLinkStyle = design?.linkStyleState ?? linkStyleState;
     if (!name.trim() || !username) {
       setStep(1);
       setError("Full name is required.");
@@ -827,7 +867,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           instagram: normalizeSocial(socials.instagram, "instagram"),
           tiktok: normalizeSocial(socials.tiktok, "tiktok"),
           twitter: normalizeSocial(socials.twitter, "twitter"),
-          template,
+          template: saveTemplate,
           logo_url: logoUrl,
           customization: {
             bio: bio.trim(),
@@ -841,17 +881,17 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             ...(logoShape === "circle" ? { logoShape: "circle" as const } : {}),
             // Preset-template style overrides (Pro; stripped server-side on Free).
             // Only fields the user actually set are present here.
-            ...templateStyleState,
+            ...saveTemplateStyle,
             // Swift Links page design: the named Look saves on every plan
             // (Free snapped to the free pair server-side); the custom bg/text/font
             // fine-tune keys are Pro and stripped on Free.
-            ...linkStyleState,
+            ...saveLinkStyle,
             // "View SwiftCard →" toggle (absent = shown, the default).
             ...(showCardLinkBtn ? {} : { hideCardLink: true }),
             // Headshot is per-card (explicit key, null when none) — never inherits
             // another card's photo.
             photoUrl: headshotUrl ?? null,
-            ...(template === "custom" ? { customLayout } : {}),
+            ...(saveTemplate === "custom" ? { customLayout } : {}),
           },
           ...(planChoice ? { chosenPlan: planChoice.plan } : {}),
         }),
@@ -1755,20 +1795,15 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               </p>
             </div>
 
-            {/* The "View SwiftCard →" link at the bottom of the page — theirs to keep or hide. */}
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
-              <span className="min-w-0">
-                <span className="text-white text-sm font-medium block">Show the &ldquo;View SwiftCard&rdquo; button</span>
-                <span className="text-gray-500 text-xs">The small link at the bottom of your Swift Links page that opens your card.</span>
-              </span>
-              <button type="button" role="switch" aria-checked={showCardLinkBtn} onClick={() => setShowCardLinkBtn((v) => !v)} className="relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0" style={{ background: showCardLinkBtn ? "#2563EB" : "#475569" }}>
-                {/* left-0 is load-bearing: without an anchor, an absolutely
-                    positioned knob takes its STATIC position inside the button
-                    (which centers content), so translateX(22px) shoved it out
-                    past the track's right edge. */}
-                <span className="absolute top-0.5 left-0 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: showCardLinkBtn ? "translateX(22px)" : "translateX(2px)" }} />
-              </button>
-            </label>
+            {/* The "View SwiftCard →" link at the bottom of the page — theirs to
+                keep or hide. The shared Switch, identical to the editor's: one
+                on/off control for the whole product. */}
+            <Switch
+              checked={showCardLinkBtn}
+              onChange={setShowCardLinkBtn}
+              label={"Show the “View SwiftCard” button"}
+              help="The small link at the bottom of your Swift Links page that opens your card."
+            />
 
             {/* Mobile-only inline copy — on desktop the SAME preview replaces
                 the card's Live Preview in the pinned sidebar (see below), so
@@ -1823,6 +1858,15 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <button onClick={() => setStep(3)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
                 ← Back
               </button>
+              {/* ── A GUEST NEVER PICKS A PLAN HERE (2026-09-15) ──────────────
+                  The order is: build → design → socials → social design →
+                  save → CREATE ACCOUNT → choose plan. Asking for the plan
+                  before the account existed meant the answer had nowhere to
+                  live but localStorage, and a one-shot localStorage read is
+                  what put a guest who chose Free onto a Pro trial: the value
+                  was gone by the time /welcome asked for it, so /welcome asked
+                  again. There is no stored intent to lose now — /welcome owns
+                  the plan decision, once, with the account already in hand. */}
               <button
                 onClick={() => {
                   if (!guest) {
@@ -1833,21 +1877,19 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                     requireAuth("save", handleCreate);
                     return;
                   }
-                  // Plan-specific entry → skip the chooser, carry the plan to payment.
-                  if (presetPlan) {
-                    pickPlanThenSignUp({ plan: presetPlan, annual: presetAnnual, seats: presetPlan === "office" ? presetSeats : 1, ...(presetPromo ? { promo: presetPromo } : {}) });
-                    return;
-                  }
-                  setShowPlan(true);
+                  // Guest: save the work and make the account. `?plan=pro` from
+                  // /pricing is carried to /welcome in the URL by the claim, not
+                  // stashed as an intent — a hint about which card to highlight,
+                  // never a decision already taken.
+                  requireAuth("save", handleCreate, { forceGate: true });
                 }}
                 disabled={status === "loading"}
                 className="flex-[2] bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
               >
                 {status === "loading" ? "Creating…"
-                  : (presetPlan && !postCheckout) ? `Continue to ${presetPlan === "office" ? "Office" : "Pro"} →`
                   : showAuthedFirstCardGate ? "Continue to plans →"
                   : !guest ? "Create card →"
-                  : "Continue to plans →"}
+                  : "Save and create your account →"}
               </button>
             </div>
           </div>
@@ -1872,13 +1914,15 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         </div>{/* grid */}
       </div>
     </main>
-    {/* Plan-choice gate — after the card is built, pick Free or Pro/Office
-        before it's created/goes live. Guest: the choice is stashed and
-        finalized on /welcome after signup. Authed first-card: creates the
-        card directly — Free converts any Pro-only design in place (with a
-        confirmation if anything actually needs converting), Pro/Office
-        creates then sends them to checkout. */}
-    {showPlan && (guest || showAuthedFirstCardGate) && (
+    {/* Plan-choice gate — AUTHED FIRST CARD ONLY.
+        A signed-in owner creating their first card already has an account, so
+        the plan can be settled here and the card created once, with any Pro-only
+        design converted in place (after a confirmation when something actually
+        needs converting).
+        A GUEST never reaches this: they have no account yet, so there is nowhere
+        to record a plan except localStorage, and that is precisely the hole that
+        put someone on a trial they declined. Their plan step is /welcome. */}
+    {showPlan && showAuthedFirstCardGate && (
       <>
       {/* Dim + blur live on their OWN non-scrolling layer. backdrop-filter on the
           SAME element as overflow-y-auto silently kills touch scrolling on iOS
@@ -1906,22 +1950,20 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <p className="text-gray-400 text-sm mt-1.5">
                 {pendingFreeConfirm
                   ? "One thing to know about the card you just designed."
-                  : guest ? "Pick a plan, then create your free account. Free to start — upgrade anytime." : "Pick a plan for this card. Free to start — upgrade anytime."}
+                  : "Pick a plan for this card. Free to start — upgrade anytime."}
               </p>
             </div>
             {pendingFreeConfirm ? (
               <FreeDesignChoice
                 changes={freeDesignChanges()}
                 onKeepWithTrial={keepDesignWithTrial}
-                onContinueFree={guest ? confirmGuestFree : confirmFreeDesignAndCreate}
+                onContinueFree={confirmFreeDesignAndCreate}
                 busy={status === "loading"}
               />
             ) : (
               <PlanCards
-                onFree={guest ? handleGuestFree : handleAuthedFirstCardFree}
-                onPaid={guest
-                  ? (plan, annual, seats) => pickPlanThenSignUp({ plan, annual, seats, ...(presetPromo ? { promo: presetPromo } : {}) })
-                  : handleAuthedFirstCardPaid}
+                onFree={handleAuthedFirstCardFree}
+                onPaid={handleAuthedFirstCardPaid}
                 busy={null}
                 // NOT "Start free →": that is the PRO card's button label too
                 // (it starts the free trial), so this screen had two buttons
@@ -1933,12 +1975,8 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 // Native IAP: the entitlement is synced before this fires, so the
                 // server keeps the Pro design; no checkout hop, straight to save.
                 onIapPurchased={() => { setShowPlan(false); handleCreate(); }}
-                // Native + guest: the Pro card had a price and a feature list
-                // and no button at all, because a purchase needs an account to
-                // attach to. Now it starts signup; /welcome then shows the real
-                // In-App Purchase. No Stripe hand-off is involved on native —
-                // /welcome drops any stored paid intent inside the shell.
-                onCreateAccountForPro={guest ? () => pickPlanThenSignUp({ plan: "pro" }) : undefined}
+                // onCreateAccountForPro is gone: it only ever existed for a
+                // guest on native, and a guest no longer sees this gate at all.
               />
             )}
           </div>

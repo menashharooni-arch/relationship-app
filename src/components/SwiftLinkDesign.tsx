@@ -18,6 +18,7 @@
 
 import { useRef, useState } from "react";
 import { CARD_FONT_OPTIONS } from "@/components/card-templates/shared";
+import { Switch } from "@/components/ui/DesignControls";
 import {
   DEFAULT_SWIFTLINK_LOOK, isFreeLook, getLook,
   LOOK_FAMILIES, looksInFamily, washGradient, hexAlpha,
@@ -685,18 +686,17 @@ function PageBackgroundMedia({
             <p className="text-[0.625rem] text-gray-500 mt-0.5 leading-snug">Darker backgrounds make your name and links easier to read.</p>
           </div>
 
-          <label className="mt-3 flex items-start gap-2.5 rounded-lg border border-gray-700 bg-gray-800/40 px-2.5 py-2 cursor-pointer hover:border-gray-600 transition-colors">
-            <input
-              type="checkbox"
+          {/* An on/off, so it is a switch — it was a 14px checkbox, the only
+              checkbox in either design panel and the smallest target in both.
+              Same control as every other on/off in the editor now. */}
+          <div className="mt-3">
+            <Switch
               checked={!!value.linkGlass}
-              onChange={(e) => onChange({ linkGlass: e.target.checked })}
-              className="mt-0.5 w-3.5 h-3.5 accent-blue-500 shrink-0"
+              onChange={(v) => onChange({ linkGlass: v })}
+              label="Blur the link buttons"
+              help="Frosted glass rows, so your background shows softly through them."
             />
-            <span className="min-w-0">
-              <span className="block text-[0.6875rem] font-semibold text-gray-200">Blur the link buttons</span>
-              <span className="block text-[0.625rem] text-gray-500 leading-snug">Frosted glass rows, so your background shows softly through them.</span>
-            </span>
-          </label>
+          </div>
         </>
       )}
     </div>

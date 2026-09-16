@@ -147,8 +147,24 @@ describe("the purchase path is In-App Purchase, wired through PlanNotice", () =>
     const wizard = read("src/app/cards/new/NewCardWizard.tsx");
     // The native card takes a signup starter…
     expect(cards).toMatch(/onNeedsAccount=\{onCreateAccountForPro\}/);
-    // …which the guest wizard supplies, and only for guests.
-    expect(wizard).toMatch(/onCreateAccountForPro=\{guest \? \(\) => pickPlanThenSignUp\(\{ plan: "pro" \}\) : undefined\}/);
+
+    // …and as of 2026-09-15 the wizard no longer supplies one, because a guest
+    // is not shown a plan there at all: the gate is authed-only, so the rejected
+    // shape cannot occur on that screen. The prop stays wired through PlanCards
+    // (asserted above) for any surface that DOES show a guest a native Pro card.
+    //
+    // Written as an either/or on purpose. The rule being protected is not "this
+    // exact line exists" — it is "a guest never meets a Pro price with no way
+    // forward". Pinning the line would have failed the moment the guest gate was
+    // removed, which is a fix, while a guest gate added back WITHOUT a signup
+    // starter is the actual regression. This still catches that one.
+    const guestCanReachGate = !/showAuthedFirstCardGate = !guest &&/.test(wizard);
+    if (guestCanReachGate) {
+      expect(
+        wizard,
+        "a guest can reach the wizard's plan gate again, so it MUST hand the native Pro card a way to start an account (App Store 3.1.1)",
+      ).toMatch(/onCreateAccountForPro=\{/);
+    }
     // It must be its OWN prop: onPaid is the web checkout hand-off and the
     // native branch may never be able to reach it (tests/wallet-hardening).
     const nativeBranch = cards.slice(cards.indexOf("if (native) {"), cards.indexOf("</div>\n    );\n  }"));

@@ -2,7 +2,7 @@ import { getAdminSupabase } from "./supabase-admin";
 import { isApplePaid } from "./iap-entitlement";
 import { getAccountEmail } from "./account-email";
 import { getStripe } from "./stripe";
-import { isPaidPlan, TRIAL_DAYS } from "./plan";
+import { isPaidPlan } from "./plan";
 import { REFERRAL, freeMonthDays, sourceGrantsFreeMonth, isSignupSource } from "./referral";
 import { insertNotification } from "./notify";
 
@@ -79,28 +79,23 @@ async function grantAppFreeMonths(userId: string, months: number, extend: boolea
   await admin.from("profiles").update({ plan, plan_expires_at: expires }).eq("id", userId);
 }
 
-// Reverse trial: every NEW signup starts on full Pro for TRIAL_DAYS days, then
-// the daily cron downgrades them to Free. Idempotent (one trial per account,
-// ever), and never touches a real paying subscriber. Tagged in customization so
-// the dashboard banner and the lifecycle emails can say "trial".
-export async function startProTrial(userId: string): Promise<void> {
-  const admin = getAdminSupabase();
-  const { data: p } = await admin
-    .from("profiles")
-    .select("plan_expires_at, stripe_subscription_id, customization")
-    .eq("id", userId)
-    .maybeSingle();
-  if (!p) return;
-  if (p.stripe_subscription_id) return;         // already a real paying subscriber
-  const cust = (p.customization ?? {}) as Record<string, unknown>;
-  if (cust._trialStarted) return;               // never re-trial an account
-  if (p.plan_expires_at) return;                // already on a timed grant
-  const expires = new Date(Date.now() + TRIAL_DAYS * 86400000).toISOString();
-  await admin
-    .from("profiles")
-    .update({ plan: "pro", plan_expires_at: expires, customization: { ...cust, _trial: true, _trialStarted: true } })
-    .eq("id", userId);
-}
+// startProTrial() USED TO LIVE HERE and is deliberately gone (2026-09-15).
+//
+// It granted `plan: "pro"` with a 14-day `plan_expires_at` for the reverse
+// trial, which was discontinued in Jul 2026. It had had zero callers ever
+// since — kept "for the users already mid-trial", except those are wound down
+// by the daily cron reading `plan_expires_at`, which never needed this
+// function. What was actually left behind was the only code in the repo that
+// could put an account on Pro with no payment of any kind, sitting unreferenced
+// where a future caller could pick it up by autocomplete.
+//
+// That matters here specifically: the bug that prompted this work was an
+// account landing on a Pro trial it had explicitly declined, and the first hour
+// of tracing it was spent proving this function was not the cause. Dead code
+// that can grant a paid plan costs more than it saves.
+//
+// Trials are granted in exactly one place now: Stripe's `trial_period_days`,
+// set in api/stripe/checkout from lib/trial-eligibility.
 
 // Reward a referrer with free months. If they're already a paying subscriber we
 // credit their Stripe balance (auto-applies to the next invoice); otherwise we

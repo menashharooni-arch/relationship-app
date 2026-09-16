@@ -320,6 +320,29 @@ body {
     touch-action: manipulation;
   }
 
+  /* ── Design-control tap targets ───────────────────────────────────────────
+     A measured audit of the Design tab (2026-09-15) found 66 interactive
+     controls in one panel and 50 of them under 44px tall — colour presets at
+     28x28, "Default" chips at 53x25. Apple's HIG and WCAG 2.5.8 both put the
+     floor at 44pt/44px, and on a phone a 25px chip between two other 25px
+     chips is a genuine mis-tap, not a nitpick.
+
+     `.sc-tap` raises the target on touch devices only, so the desktop panel
+     keeps its compact density. `any-pointer` rather than `pointer` for the
+     same reason the input rule above uses it: an iPad with a keyboard reports
+     a fine primary pointer while its touchscreen is still the thing being
+     poked.
+
+     A FLOOR on both axes. Swatches are square and set their own width, so
+     min-width would stretch a colour chip into a bar; min-height alone would
+     leave a 28px-wide square 28px wide. `.sc-tap-sq` is the square variant
+     that raises both together, `.sc-tap` raises height only for controls that
+     are already comfortably wide.
+
+     Pinned by tests/render/design-controls.test.ts, which measures every
+     control in the panel at 390px with touch emulation. */
+  .sc-tap { min-height: 44px; }
+  .sc-tap-sq { min-height: 44px; min-width: 44px; }
 }
 
 /* ── Refined input focus (forms) ───────────────────────────────────────────── */

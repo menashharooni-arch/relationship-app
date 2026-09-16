@@ -425,8 +425,12 @@ describe("uploads", () => {
     const design = read("src/components/SwiftLinkDesign.tsx");
     expect(design).toMatch(/linkGlass: value\.linkGlass \?\? true/);
     // An explicit false, not undefined — otherwise replacing the photo would
-    // silently switch frosting back on.
-    expect(design).toMatch(/onChange\(\{ linkGlass: e\.target\.checked \}\)/);
+    // silently switch frosting back on. The control became the shared <Switch>
+    // on 2026-09-15 (it was the only checkbox in either design panel, and its
+    // 14px box the smallest target in both); `v` is that switch's boolean, so
+    // the "explicit, never undefined" guarantee is unchanged.
+    expect(design).toMatch(/onChange=\{\(v\) => onChange\(\{ linkGlass: v \}\)\}/);
+    expect(design).toMatch(/<Switch\b/);
   });
 
   it("is not offered where there is no account to upload against", () => {

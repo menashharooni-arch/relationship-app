@@ -110,8 +110,10 @@ export default async function OnboardingPage({
     // that never finishes a card never gets an email claiming it has one.
 
     // NOTE: the 14-day reverse trial is DISCONTINUED (owner decision, Jul 2026) —
-    // new signups start on Free. startProTrial() is kept in referral-server for
-    // the users already mid-trial; the cron still winds those down normally.
+    // new signups start on Free, and signup grants no plan of any kind. The
+    // startProTrial() helper that used to implement it was deleted on
+    // 2026-09-15 (see lib/referral-server.ts for why); anyone still holding a
+    // timed grant is wound down by the daily cron reading plan_expires_at.
 
     // First-time signup: apply any referral/promo (free month, attribution,
     // fraud checks, referral row, own referral code). Only the request that

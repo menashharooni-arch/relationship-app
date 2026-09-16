@@ -373,9 +373,12 @@ export default function CustomCardDesigner({
   }
 
   const card = "bg-gray-900 border border-gray-800 rounded-xl";
-  const head = "text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-400";
-  const row = "text-[0.65625rem] text-gray-500 w-[52px] shrink-0 pt-1.5";
-  const chip = "text-[0.75rem] px-3 py-1.5 rounded-lg border transition-colors";
+  const head = "text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-gray-500";
+  const row = "text-[0.6875rem] text-gray-500 w-[52px] shrink-0 pt-2.5";
+  // Same 13px / filled-blue / 44px-on-touch vocabulary as the preset editor
+  // (components/ui/DesignControls). This canvas used to run 12px chips at
+  // ~30px tall, which read as a different product one tab over.
+  const chip = "sc-tap text-[0.8125rem] font-semibold px-3 py-1.5 rounded-lg border transition-colors";
   const chipOff = "bg-gray-800 border-gray-600 text-gray-100 hover:text-white hover:border-gray-400";
   const chipOn = "bg-blue-600 border-blue-600 text-white";
 
@@ -654,11 +657,14 @@ export default function CustomCardDesigner({
                   title={g.label}
                   aria-label={g.label}
                   onClick={() => commit({ ...layout, background: g.background, textColor: g.textColor, accentColor: g.accentColor, panelBackground: undefined, panelTextColor: undefined })}
-                  className="w-6 h-6 rounded-lg transition-transform hover:scale-110"
+                  aria-pressed={layout.background === g.background}
+                  className="sc-tap-sq w-6 h-6 rounded-lg transition-transform hover:scale-110"
                   style={{
                     background: g.background,
+                    // The offset ring the preset editor uses, so "selected"
+                    // is one mark across both design surfaces.
                     boxShadow: layout.background === g.background
-                      ? "0 0 0 2px #3b82f6"
+                      ? "0 0 0 2px #0b0f16, 0 0 0 4px #3b82f6"
                       : "inset 0 0 0 1px rgba(148,163,184,.35)",
                   }}
                 />
@@ -669,7 +675,7 @@ export default function CustomCardDesigner({
                   aria-label="Custom background colour"
                   value={/^#[0-9a-f]{6}$/i.test(layout.background) ? layout.background : "#2c3a52"}
                   onChange={(e) => commit({ ...layout, background: e.target.value })}
-                  className="w-6 h-6 rounded bg-transparent border border-gray-700"
+                  className="sc-tap-sq w-6 h-6 rounded bg-transparent border border-gray-700"
                 />
                 custom
               </label>
@@ -783,7 +789,7 @@ export default function CustomCardDesigner({
                         />
                       )}
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[0.6875rem] font-medium text-gray-300 w-12">Size</span>
+                        <span className="text-[0.6875rem] font-medium text-gray-400 w-12 shrink-0">Size</span>
                         {EMPHASIS.map((e) => (
                           <button key={e.key} type="button" onClick={() => patch(b.id, { emphasis: e.key })}
                             className={`${chip} ${b.emphasis === e.key ? chipOn : chipOff}`}>{e.label}</button>
@@ -793,7 +799,7 @@ export default function CustomCardDesigner({
                           the card wide and no size reads well there for text. */}
                       {canChangeZone(b) && (
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[0.6875rem] font-medium text-gray-300 w-12">Where</span>
+                          <span className="text-[0.6875rem] font-medium text-gray-400 w-12 shrink-0">Where</span>
                           {(["left", "right"] as CardZone[]).map((z) => (
                             <button key={z} type="button" onClick={() => patch(b.id, { zone: z })}
                               className={`${chip} ${b.zone === z ? chipOn : chipOff}`}>{zones[z]}</button>
