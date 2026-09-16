@@ -72,10 +72,26 @@ export async function POST(
   // was deduped or refused is exactly the request whose next attempt has to be
   // recognisable as the same visit.
   //
-  // The response body still says only what it always said: `self` and
-  // `deduped`. "inactive" stays silent on purpose — telling a caller which
-  // slugs exist is not this endpoint's job.
+  // `self` and `deduped` as before, and now `hosting` — which was the one
+  // refusal reason with no outward sign at all: no flag here, and recordView
+  // returns before anything reaches analytics_ingest_log, so a datacenter view
+  // was indistinguishable from a recorded one except by counting rows.
+  //
+  // That silence cost a night of false alarms. The nightly guard runs on GitHub
+  // Actions, which IS a datacenter, so its own views are refused — correctly —
+  // and with nothing to read it could only report the pipeline as broken.
+  // Saying so out loud is consistent with the three flags already here, and
+  // tells a caller only its own IP's class, which it necessarily knows.
+  //
+  // "inactive" stays silent on purpose — telling a caller which slugs exist is
+  // not this endpoint's job.
   const flag =
-    outcome === "self" ? { self: true } : outcome === "deduped" ? { deduped: true } : {};
+    outcome === "self"
+      ? { self: true }
+      : outcome === "deduped"
+        ? { deduped: true }
+        : outcome === "hosting"
+          ? { hosting: true }
+          : {};
   return attachVisitIdentity(NextResponse.json({ ok: true, ...flag }), identity);
 }
