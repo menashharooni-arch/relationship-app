@@ -11,7 +11,7 @@ import { chromium } from "playwright";
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 
-const ROOT = "/Users/menashharooni/Projects/relationship-app";
+const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 const BASE = process.env.BASE || "https://swiftcard.me";
 const OUT = process.env.OUT || "qa-out";
 mkdirSync(OUT, { recursive: true });
@@ -36,7 +36,7 @@ async function makeUser(email, name, uname, plan, withCard) {
   users.push(u.id);
   if (plan) {
     await adm("/rest/v1/profiles", { method: "POST", headers: { Prefer: "resolution=merge-duplicates" },
-      body: JSON.stringify({ id: u.id, username: uname, name, email, plan, customization: { _aiConsent: "accepted" } }) });
+      body: JSON.stringify({ id: u.id, username: uname, name, email, plan, customization: { _aiConsent: "accepted", _planChosen: "qa-seeded" } }) });
   }
   if (withCard) {
     await adm("/rest/v1/cards", { method: "POST", body: JSON.stringify({

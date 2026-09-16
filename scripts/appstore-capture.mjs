@@ -14,7 +14,7 @@
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync } from "node:fs";
 
-const ROOT = "/Users/menashharooni/Projects/relationship-app";
+const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 const OUT = process.env.OUT || "app-store/screenshots/_raw";
 const BASE = process.env.BASE || "https://swiftcard.me";
 mkdirSync(OUT, { recursive: true });

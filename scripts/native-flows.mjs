@@ -48,7 +48,7 @@ try {
   await adm("/rest/v1/profiles", {
     method: "POST",
     headers: { Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ id: userId, username: uname, name: "Flow Tester", email, plan: "free", template: "modern-bold" }),
+    body: JSON.stringify({ id: userId, username: uname, name: "Flow Tester", email, plan: "free", template: "modern-bold", customization: { _planChosen: "qa-seeded" } }),
   });
   const cardRes = await adm("/rest/v1/cards", {
     method: "POST",
