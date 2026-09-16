@@ -36,7 +36,7 @@ import TourAutoStart from "@/components/TourAutoStart";
 import MyCardsList from "@/components/dashboard/MyCardsList";
 import TrialBanner from "@/components/TrialBanner";
 import ProEndedPanel from "@/components/ProEndedPanel";
-import { PLAN_STEP_REQUIRED_SINCE, PRO_ENDED_PENDING_KEY, TRIAL_ENDS_KEY } from "@/lib/billing-state";
+import { PLAN_STEP_REQUIRED_SINCE, PRO_ENDED_PENDING_KEY } from "@/lib/billing-state";
 import { PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
 import type { CardLink } from "@/components/card-templates/types";
 import PushNudge from "@/components/PushNudge";
@@ -168,17 +168,7 @@ export default async function DashboardPage({
   const trialDaysLeft = onAppGrant ? daysUntil(proExpiresAt as string) : 0;
   const isTrialGrant = !!(profile.customization as { _trial?: boolean } | null)?._trial;
 
-  // A card-backed Stripe trial converting to paid soon. The webhook mirrors
-  // trial_end into customization, so this costs no Stripe call. Shown only in
-  // the last 3 days — the rest of the trial the product just works, and the
-  // full status lives in Settings → Plan and billing.
   const profileCust = (profile.customization ?? {}) as Record<string, unknown>;
-  const stripeTrialEndsAt =
-    isPro && profile.stripe_subscription_id && typeof profileCust[TRIAL_ENDS_KEY] === "string" && !profileCust._cancelAtPeriodEnd
-      ? (profileCust[TRIAL_ENDS_KEY] as string)
-      : null;
-  const stripeTrialDaysLeft = stripeTrialEndsAt ? daysUntil(stripeTrialEndsAt) : 0;
-  const showStripeTrialBanner = !!stripeTrialEndsAt && stripeTrialDaysLeft > 0 && stripeTrialDaysLeft <= 3;
 
   // Pro ended and the choice is still open (components/ProEndedPanel): which
   // card stays live, and what Free changes about the design. Named with the
@@ -892,9 +882,8 @@ export default async function DashboardPage({
             />
           )}
 
-          {/* Free-Pro grant countdown, or a card-backed trial about to convert */}
+          {/* Free-Pro grant countdown */}
           {onAppGrant && trialDaysLeft > 0 && <TrialBanner daysLeft={trialDaysLeft} isTrial={isTrialGrant} />}
-          {showStripeTrialBanner && <TrialBanner daysLeft={stripeTrialDaysLeft} isTrial converts />}
 
           {/* First-run guided-tour invitation — only on the ?tour=1/?welcome=1
               load right after the first card is created (the banner reads the

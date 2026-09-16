@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 // match the code. Update LAST_UPDATED whenever the policy meaningfully changes
 // (CalOPPA requires an effective date).
 
-const LAST_UPDATED = "July 21, 2026";
+const LAST_UPDATED = "September 16, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
@@ -85,7 +85,7 @@ export default function PrivacyPage() {
         <ul className="mb-3">
           <LI><strong>View analytics</strong> — when someone opens a card or Swift Links page, we record the view with an approximate location (city/country derived from IP address by our hosting provider), the source (QR code, link, etc.), and basic device info. We do not store visitors&apos; IP addresses with these views.</LI>
           <LI><strong>Product analytics</strong> — we record which parts of the app get used (for example: a card was started, a plan was chosen, an upgrade button was clicked) so we can improve it. These records are kept in our own systems, are not tied to your name or email, and are deleted after 90 days. We may also use PostHog for the same purpose. Product improvement only, never third-party advertising.</LI>
-          <LI><strong>Fraud-prevention signals</strong> — when you create an account we record your IP address and a coarse, non-unique device signature (derived from your browser type and language). If you subscribe, our payment processor (Stripe) also gives us a non-reversible fingerprint of your payment card — a one-way hash, never your card number. We use these solely to detect abuse of our referral program (for example, one person inviting themselves or claiming the same offer repeatedly across accounts) and to rate-limit abuse. We do not use them for advertising.</LI>
+          <LI><strong>Fraud-prevention signals</strong> — when you create an account we record your IP address and a coarse, non-unique device signature (derived from your browser type and language). If you subscribe, our payment processor (Stripe) also gives us a non-reversible fingerprint of your payment card — a one-way hash, never your card number. We use these solely to detect abuse of our referral program and free offers (for example, one person inviting themselves, or starting a second free trial from another account) and to rate-limit abuse. We do not use them for advertising.</LI>
           <LI><strong>Usage basics</strong> — standard server logs and cookies needed to keep you signed in and keep the service secure. We don&apos;t run third-party advertising trackers, and we do not use your data for cross-context behavioral advertising.</LI>
         </ul>
 
@@ -259,6 +259,12 @@ export default function PrivacyPage() {
           your data is removed from our production systems (residual copies in encrypted backups expire on their
           normal rotation). We retain billing records as required by tax law. You can export your contacts to CSV
           before deleting.
+        </P>
+        <P>
+          One exception, so free offers stay one per person: if you ever started a Pro free trial or took free Pro
+          days when deleting, we keep a one-way scrambled code made from your email address and, for a trial, the card
+          it used. It can&apos;t be turned back into your email or card details and is linked to nothing else about
+          you. It is used only to recognise that the same person has already had that free offer.
         </P>
 
         <H2>Security</H2>
