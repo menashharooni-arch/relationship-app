@@ -24,6 +24,12 @@ export type Look = { name: string; bg: string; text: string; font?: string; fini
 
 export type StyleField = {
   label: string;
+  /**
+   * One short line shown under the control in the editor. Optional: where the
+   * label already says it ("Name color"), nothing is shown. The longer `help`
+   * stays as the control's tooltip.
+   */
+  hint?: string;
   help: string;
   presets: string[];
   fallback: string;
@@ -99,12 +105,14 @@ export const META: Record<string, TemplateMeta> = {
     ],
     bg: {
       label: "Branding panel",
+      hint: "Behind your logo and name.",
       help: "The colored left panel behind your logo and name. The info panel beside it has its own colour below.",
       presets: ["#0e1b35", "#070d1c", "#111827", "#1c1612", "#052e2b", "#3f1d2e", "linear-gradient(160deg, #0e1b35 0%, #2563eb 100%)"],
       fallback: "#0e1b35",
     },
     surface: {
       label: "Info panel",
+      hint: "Where your phone, email and address sit.",
       help: "The panel your phone, email and address sit on. White by default; a deep shade flips the details to light automatically.",
       presets: ["#ffffff", "#f8fafc", "#f1f5f9", "#0e1b35", "#111827", "#1c1612"],
       fallback: "#ffffff",
@@ -117,12 +125,14 @@ export const META: Record<string, TemplateMeta> = {
     },
     info: {
       label: "Details color",
+      hint: "Your phone, email and address.",
       help: "Your phone, email, and address on the white info panel — a dark ink reads best.",
       presets: ["#0e1b35", "#111827", "#334155", "#1c1612"],
       fallback: "#0e1b35",
     },
     accent: {
       label: "Accent / icons",
+      hint: "Icons beside your details, and the buttons on your card page.",
       help: "The color of the phone, email, and address icons next to your details.",
       presets: ACCENT_PRESETS,
       fallback: "#2563eb",
@@ -143,6 +153,7 @@ export const META: Record<string, TemplateMeta> = {
     ],
     bg: {
       label: "Card background",
+      hint: "The whole card. Built for deep tones.",
       help: "The entire card surface. Modern Bold is built for deep, dark tones — lighter colors will wash out the accents.",
       presets: ["#070d1c", "#0a0a0a", "#111827", "#0e1b35", "linear-gradient(135deg, #111827 0%, #6d28d9 100%)", "linear-gradient(135deg, #0e1b35 0%, #2563eb 100%)"],
       fallback: "#070d1c",
@@ -155,12 +166,14 @@ export const META: Record<string, TemplateMeta> = {
     },
     info: {
       label: "Details color",
+      hint: "Your phone, email and address.",
       help: "Your contact details sit on the dark card — keep them light so they stay legible.",
       presets: ["#f1f5f9", "#ffffff", "#cbd5e1", "#94a3b8"],
       fallback: "#f1f5f9",
     },
     accent: {
       label: "Accent / icons",
+      hint: "Icons beside your details, and the buttons on your card page.",
       help: "The electric icon color next to your phone, email, and address.",
       presets: ["#3b82f6", "#60a5fa", "#a78bfa", "#22d3ee", "#34d399", "#f472b6", "#fbbf24", "#ffffff"],
       fallback: "#3b82f6",
@@ -180,6 +193,7 @@ export const META: Record<string, TemplateMeta> = {
     ],
     bg: {
       label: "Card background",
+      hint: "The whole card. Soft, light tones keep it premium.",
       help: "The ivory canvas of the whole card. Choose a soft, light tone to keep the premium look.",
       presets: ["#fafaf6", "#ffffff", "#fffbf0", "#f5efe3", "#f3f4f6", "#1c1612"],
       fallback: "#fafaf6",
@@ -192,12 +206,14 @@ export const META: Record<string, TemplateMeta> = {
     },
     info: {
       label: "Details color",
+      hint: "Your phone, email and address.",
       help: "Your contact details — deep ink on ivory, or a soft light or gold on the charcoal look.",
       presets: ["#1c1612", "#3f2d1a", "#8c6c34", "#d4af7a", "#e7dcc8"],
       fallback: "#1c1612",
     },
     accent: {
       label: "Accent / icons",
+      hint: "Icons beside your details, and the buttons on your card page.",
       help: "The gold accent used for the icons next to your details.",
       presets: ["#b08d57", "#c9a96e", "#8c6c34", "#d4af7a", "#1c1612", "#0e1b35", "#3f2d1a", "#a16207"],
       fallback: "#b08d57",
@@ -218,12 +234,14 @@ export const META: Record<string, TemplateMeta> = {
     ],
     bg: {
       label: "Header stripe",
+      hint: "The banner across the top.",
       help: "The colored banner across the top. The body below it has its own colour, next.",
       presets: ["linear-gradient(100deg, #b45309 0%, #d97706 60%, #f59e0b 100%)", "#b45309", "#166534", "#0f766e", "#0e1b35", "#be123c"],
       fallback: "#b45309",
     },
     surface: {
       label: "Card body",
+      hint: "Below the stripe, where your details sit.",
       help: "The area below the header stripe, where your details sit. Cream by default.",
       presets: ["#fffbf0", "#ffffff", "#fef3c7", "#f5f5f4", "#1c1612", "#292524"],
       fallback: "#fffbf0",
@@ -236,12 +254,14 @@ export const META: Record<string, TemplateMeta> = {
     },
     info: {
       label: "Details color",
+      hint: "Your phone, email and address.",
       help: "Your contact details on the warm cream body — a rich brown or near-black reads best.",
       presets: ["#7c2d12", "#78350f", "#92400e", "#1c1612"],
       fallback: "#7c2d12",
     },
     accent: {
       label: "Accent / icons",
+      hint: "Icons beside your details, and the buttons on your card page.",
       help: "The color of the icons next to your phone, email, and address.",
       presets: ["#b45309", "#d97706", "#166534", "#0f766e", "#0e1b35", "#be123c", "#7c2d12", "#f59e0b"],
       fallback: "#b45309",
@@ -262,12 +282,14 @@ export const META: Record<string, TemplateMeta> = {
     ],
     bg: {
       label: "Info panel background",
+      hint: "Behind your contact details.",
       help: "The panel behind your contact details on the right. A dark shade flips the text to light automatically; the photo panel on the left has its own colour below.",
       presets: ["#ffffff", "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)", "#4f46e5", "linear-gradient(145deg, #be123c 0%, #f43f5e 100%)", "#064e3b", "#0a0a0a"],
       fallback: "#ffffff",
     },
     surface: {
       label: "Photo panel",
+      hint: "Behind and around your photo.",
       help: "The colored panel behind your photo — it shows through around the edges, and fills the panel when there's no photo yet.",
       presets: ["linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)", "#4f46e5", "#0e1b35", "#111827", "#052e2b", "#3f1d2e"],
       fallback: "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)",
@@ -280,12 +302,14 @@ export const META: Record<string, TemplateMeta> = {
     },
     info: {
       label: "Details color",
+      hint: "Your phone, email and address.",
       help: "Your contact details on the info panel. They adapt to the panel color, or set your own here.",
       presets: ["#111827", "#1e1b4b", "#ffffff", "#e5e7eb"],
       fallback: "#111827",
     },
     accent: {
       label: "Accent / icons",
+      hint: "Icons beside your details, and the buttons on your card page.",
       help: "The color of the icons next to your phone, email, and address.",
       presets: ["#6d28d9", "#7c3aed", "#4f46e5", "#2563eb", "#be123c", "#10b981", "#0a0a0a", "#d4af7a"],
       fallback: "#6d28d9",
@@ -306,6 +330,7 @@ export const META: Record<string, TemplateMeta> = {
     ],
     bg: {
       label: "Card background",
+      hint: "The whole card, and the panel your logo sits on.",
       help: "The whole card surface, and the panel your logo sits on. Deep tones make a light logo sing; on a light background the details switch to ink automatically.",
       presets: ["#2c3a52", "#141b26", "#1e293b", "#16352c", "#3a1d22", "#0e1b35", "#f4f2ed", "#ffffff"],
       fallback: "#2c3a52",
@@ -318,12 +343,14 @@ export const META: Record<string, TemplateMeta> = {
     },
     info: {
       label: "Details color",
+      hint: "Your phone, email and address.",
       help: "Your phone, email, website, and address. They adapt to the card color, or set your own here.",
       presets: ["#e6ebf3", "#ffffff", "#c2ccdc", "#141b26", "#5a6b85"],
       fallback: "#e6ebf3",
     },
     accent: {
       label: "Icons, title & QR",
+      hint: "Your title, icons and QR code, and the buttons on your card page.",
       help: "Draws your job title, the contact icons and the QR code. A shade too close to your background is brightened or darkened until it reads — you keep the colour you picked, at a version of it that can be seen. The QR is darkened further, because a pale code is one phones stop scanning.",
       presets: ["#ffffff", "#c9d4e8", "#b08d57", "#d4af7a", "#60a5fa", "#0f766e", "#be123c", "#141b26"],
       fallback: "#ffffff",

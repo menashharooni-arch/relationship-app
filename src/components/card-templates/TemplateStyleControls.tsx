@@ -5,12 +5,14 @@
 // FONT — because layout, accents and textures are each template's signature.
 //
 // Ordered by how often a control is actually touched, not by subject:
-//   1. "Looks"  — one-tap curated themes. Where most people should live.
-//   2. "Colour" — background, second surface, name colour.
-//   3. "Style"  — font, then finish.
-//   4. "More style options" — details colour, accent colour, photo/video,
-//      behind a native <details>. Real features, just not why anyone opens
-//      this tab.
+//   1. "Look"      — Original plus the curated one-tap themes. Where most
+//                    people should live.
+//   2. "Fine-tune" — Colours (background, second surface, name, accent) ·
+//                    Font · Finish, one group at a time behind a Segmented.
+//   3. "More style options" — details colour and photo/video, behind a native
+//      <details>. Real features, just not why anyone opens this tab.
+// The template's name and blurb are NOT repeated here: the editors' template
+// gallery (TemplatePicker) already shows them beside a live thumbnail.
 // The control vocabulary (headings, fields, tap targets, what "selected" looks
 // like) is shared with every other design surface: components/ui/DesignControls.
 //
@@ -21,9 +23,9 @@
 
 import { CARD_FONT_OPTIONS, isDarkBg } from "./shared";
 import type { TemplateStyle } from "./shared";
-import { META, FALLBACK_META, type Look } from "@/lib/template-style-presets";
+import { META, FALLBACK_META, freeSafeValues, type Look, type StyleField } from "@/lib/template-style-presets";
 import { useRef, useState } from "react";
-import { Field, MoreOptions, SectionHeading } from "@/components/ui/DesignControls";
+import { Field, MoreOptions, SectionHeading, Segmented } from "@/components/ui/DesignControls";
 import {
   CARD_FINISHES, FINISH_FAMILIES, getFinish, isFreeFinish,
   composePanelBackground, PANEL_DIM_DEFAULT,
@@ -53,19 +55,62 @@ function looksActive(value: TemplateStyle, look: Look): boolean {
   );
 }
 
+/** Every key a Look sets — and so every key "Original" hands back to the template. */
+function isOriginal(value: TemplateStyle): boolean {
+  return (
+    value.bgColor === undefined &&
+    value.textColor === undefined &&
+    value.fontFamily === undefined &&
+    value.finish === undefined &&
+    value.surfaceColor === undefined
+  );
+}
+
 function LooksGallery({
   looks,
   value,
   onPick,
+  original,
+  onOriginal,
   locked = false,
 }: {
   looks: Look[];
   value: TemplateStyle;
   onPick: (look: Look) => void;
+  /** The template's own baked-in scheme, painted on the "Original" tile. */
+  original: { bg: string; text: string };
+  onOriginal: () => void;
   locked?: boolean;
 }) {
+  const originalActive = isOriginal(value);
   return (
     <div className="grid grid-cols-3 gap-2">
+      {/* ORIGINAL — the template exactly as it ships. Before this there was no
+          way back to it short of five separate "Default" taps, and a card with
+          nothing set lit no tile at all, so the untouched state read as "no
+          choice made". It writes nothing new: only the unset values those
+          Default chips already write. */}
+      <button
+        type="button"
+        onClick={onOriginal}
+        className="group text-left"
+        aria-pressed={originalActive}
+        title="The template's own colours, font and finish"
+      >
+        <div
+          className="h-11 rounded-lg flex items-center px-2.5 transition-transform group-hover:scale-[1.03]"
+          style={{
+            background: composePanelBackground(original.bg, undefined),
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: originalActive ? "0 0 0 2px #0b0f16, 0 0 0 4px #3b82f6" : undefined,
+          }}
+        >
+          <span data-ds="specimen" className="text-sm font-bold leading-none" style={{ color: isDarkBg(original.bg) ? original.text : "#111827" }}>Aa</span>
+        </div>
+        <span className="mt-1 flex items-center gap-1 min-w-0">
+          <span className={`text-[0.6875rem] leading-tight truncate ${originalActive ? "text-blue-300 font-semibold" : "text-gray-400"}`}>Original</span>
+        </span>
+      </button>
       {looks.map((look) => {
         const active = looksActive(value, look);
         // A Look built on a Pro finish still SHOWS its finish here and still
@@ -230,9 +275,7 @@ function FontPills({ value, onChange }: { value?: string; onChange: (v: string |
  *
  * Every swatch paints the finish over the card's CURRENT colour rather than a
  * stock one, so the row shows what this card would look like, not what some
- * other card would. Grouped by family for the same reason the Swift Links Looks
- * are: eight flat chips read as a list to get through, three labelled groups
- * read as a choice between kinds of thing.
+ * other card would.
  */
 function FinishPicker({
   value,
@@ -248,20 +291,15 @@ function FinishPicker({
   const base = value.bgColor ?? bgFallback;
   const current = getFinish(value.finish);
 
+  // ONE grid, in CARD_FINISHES order (plain → light → material). The three
+  // family headings with their blurbs used to cost three rows of taxonomy
+  // above eight tiles that already show exactly what they are; the family now
+  // rides in each tile's tooltip instead.
+  const familyName = (id: string) => FINISH_FAMILIES.find((fam) => fam.id === id)?.name ?? "";
   return (
     <div className="space-y-2.5">
-      {FINISH_FAMILIES.map((fam) => {
-        const finishes = CARD_FINISHES.filter((f) => f.family === fam.id);
-        if (!finishes.length) return null;
-        return (
-          <div key={fam.id}>
-            <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-gray-500 shrink-0">{fam.name}</span>
-              <span className="text-[0.6875rem] text-gray-600 truncate min-w-0">{fam.blurb}</span>
-              <span className="flex-1 h-px bg-gray-800" />
-            </div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {finishes.map((f) => {
+      <div className="grid grid-cols-3 min-[360px]:grid-cols-4 gap-1.5">
+              {CARD_FINISHES.map((f) => {
                 const active = current.id === f.id;
                 // A Pro finish stays TAPPABLE on a locked account so the card
                 // can be previewed with it — the same contract the colour
@@ -272,7 +310,7 @@ function FinishPicker({
                   <button
                     key={f.id}
                     type="button"
-                    title={f.blurb}
+                    title={`${familyName(f.family)} · ${f.blurb}`}
                     aria-pressed={active}
                     onClick={() => onChange({ finish: f.id === "flat" ? undefined : f.id })}
                     // A finish tile IS its own preview, so it takes the RING,
@@ -296,11 +334,7 @@ function FinishPicker({
                   </button>
                 );
               })}
-            </div>
-          </div>
-        );
-      })}
-
+      </div>
 
       {/* Frosted lightens the panel, so a white name can vanish into it. Said
           plainly instead of silently rewriting a colour the owner chose. */}
@@ -465,18 +499,29 @@ function PanelMediaControl({
   );
 }
 
+export type FineTuneSection = "colours" | "font" | "finish";
+
+/** Is this colour one a Free account keeps as-is? Undefined (template default) always is. */
+function freeKeeps(v: string | undefined, allowed: string[]): boolean {
+  return v === undefined || allowed.includes(v);
+}
+
 export default function TemplateStyleControls({
   value,
   onChange,
   template,
   locked = false,
+  initialSection = "colours",
 }: {
   value: TemplateStyle;
   onChange: (patch: Partial<TemplateStyle>) => void;
   template?: string;
   locked?: boolean;
+  /** Which Fine-tune group opens first. Tests render each; the editors use the default. */
+  initialSection?: FineTuneSection;
 }) {
   const meta = (template && META[template]) || FALLBACK_META;
+  const [section, setSection] = useState<FineTuneSection>(initialSection);
 
   // A Look sets the card's whole scheme in one tap, INCLUDING clearing what it
   // does not specify. Leaving the previous finish or second surface underneath
@@ -489,77 +534,112 @@ export default function TemplateStyleControls({
       finish: look.finish,
       surfaceColor: meta.surface ? look.surface : undefined,
     });
+  // Exactly the keys a Look sets, handed back to the template.
+  const applyOriginal = () =>
+    onChange({ bgColor: undefined, textColor: undefined, fontFamily: undefined, finish: undefined, surfaceColor: undefined });
+
+  // A Pro value that is ON the card but inside a Fine-tune group that isn't
+  // open would otherwise be invisible until the Save dialog names it. A dot on
+  // the segment says "something in here is Pro" without opening it. Same rules
+  // the Free snap uses (lib/plan.ts), so the dot and the dialog agree.
+  const colourIsPro =
+    locked &&
+    !(
+      freeKeeps(value.bgColor, freeSafeValues(meta, "bg")) &&
+      freeKeeps(value.textColor, freeSafeValues(meta, "text")) &&
+      (!meta.surface || freeKeeps(value.surfaceColor, freeSafeValues(meta, "surface"))) &&
+      freeKeeps(value.accentColor, meta.accent.presets)
+    );
+  const finishIsPro = locked && value.finish !== undefined && !isFreeFinish(value.finish);
+  const proDot = <span aria-label="uses a Pro option" className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />;
+
+  // Something set inside "More" is flagged on its summary, so a details colour
+  // or a background photo is never hiding where nobody would think to look.
+  const moreInUse = value.infoColor !== undefined || !!value.panelMedia;
+
+  /** The short line under a colour field. The long `help` stays as its tooltip. */
+  const colourField = (
+    f: StyleField,
+    current: string | undefined,
+    key: "bgColor" | "surfaceColor" | "textColor" | "accentColor",
+  ) => (
+    <div title={f.help}>
+      <Field label={f.label} help={f.hint}>
+        <Swatches presets={f.presets} value={current} fallbackHex={f.fallback} onPick={(v) => onChange({ [key]: v })} customLocked={locked} />
+      </Field>
+    </div>
+  );
 
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4">
-      {/* Which template this is, and a live chip of the scheme so far. */}
-      <div className="flex items-start gap-3">
-        <div
-          className="w-14 h-9 rounded-lg shrink-0 flex items-center justify-center overflow-hidden border border-gray-700"
-          style={{ background: composePanelBackground(value.bgColor ?? meta.bg.fallback, value.finish) }}
-          aria-hidden
-        >
-          <span data-ds="specimen" className="text-[0.8125rem] font-bold leading-none" style={{ color: value.textColor ?? meta.text.fallback, fontFamily: value.fontFamily }}>Aa</span>
-        </div>
-        <div className="min-w-0">
-          <p className="text-white text-[0.8125rem] font-semibold leading-tight">{meta.name}</p>
-          <p className="text-gray-500 text-[0.6875rem] leading-snug mt-0.5">{meta.blurb}</p>
-        </div>
+      {/* ── LOOK → FINE-TUNE → MORE ──────────────────────────────────────────
+          A Look is one tap and does everything, so it leads. Fine-tune holds
+          the three things people adjust after a Look — colours, font, finish —
+          one group at a time, so the panel is a single decision tall instead
+          of all three stacked open. The long tail sits in More.
+
+          Every group stays MOUNTED; the inactive ones are `hidden`. Nothing
+          here owns state that must survive a switch, but it keeps the markup
+          identical before and after hydration and lets the render tests find
+          every control. */}
+
+      <SectionHeading hint="The whole card, in one tap">Look</SectionHeading>
+      <LooksGallery
+        looks={meta.looks}
+        value={value}
+        onPick={applyLook}
+        original={{ bg: meta.bg.fallback, text: meta.text.fallback }}
+        onOriginal={applyOriginal}
+        locked={locked}
+      />
+
+      <SectionHeading hint="Adjust one thing at a time">Fine-tune</SectionHeading>
+      <Segmented<FineTuneSection>
+        label="Fine-tune"
+        value={section}
+        onChange={setSection}
+        options={[
+          { value: "colours", label: "Colours", badge: colourIsPro ? proDot : undefined },
+          { value: "font", label: "Font" },
+          { value: "finish", label: "Finish", badge: finishIsPro ? proDot : undefined },
+        ]}
+      />
+
+      <div hidden={section !== "colours"} className="space-y-4">
+        {colourField(meta.bg, value.bgColor, "bgColor")}
+        {/* Only three of the six templates have a second surface. On the rest,
+            bgColor already paints the whole card and this would do nothing. */}
+        {meta.surface && colourField(meta.surface, value.surfaceColor, "surfaceColor")}
+        {colourField(meta.text, value.textColor, "textColor")}
+        {/* Accent lives HERE, not under More: it colours the card's icons AND
+            the buttons and background wash of the public card page
+            (lib/card-page-theme.ts) — the most visible colour after the
+            background itself. */}
+        {colourField(meta.accent, value.accentColor, "accentColor")}
       </div>
 
-      {/* ── ORDERED BY HOW OFTEN IT IS TOUCHED ───────────────────────────────
-          Looks first (one tap, does everything), then the two decisions almost
-          every card makes — its colour and its typeface — then Finish, then the
-          three that most cards never touch, folded away.
-
-          The old order grouped by SUBJECT ("Surfaces", then "Text"), which put
-          Photo-or-video — a Pro feature with an uploader, a slider and an error
-          line, easily the tallest control in the panel — third, above the name
-          colour. Scrolling past an uploader you are not using to reach the
-          colour you came for is the clutter this reorganisation is about. */}
-
-      <SectionHeading hint="The whole card, in one tap">Looks</SectionHeading>
-      <LooksGallery looks={meta.looks} value={value} onPick={applyLook} locked={locked} />
-
-      <SectionHeading hint="Background and text">Colour</SectionHeading>
-      <Field label={meta.bg.label} help={meta.bg.help}>
-        <Swatches presets={meta.bg.presets} value={value.bgColor} fallbackHex={meta.bg.fallback} onPick={(v) => onChange({ bgColor: v })} customLocked={locked} />
-      </Field>
-
-      {/* Only three of the six templates have a second surface. On the rest,
-          bgColor already paints the whole card and this would do nothing. */}
-      {meta.surface && (
-        <Field label={meta.surface.label} help={meta.surface.help}>
-          <Swatches presets={meta.surface.presets} value={value.surfaceColor} fallbackHex={meta.surface.fallback} onPick={(v) => onChange({ surfaceColor: v })} customLocked={locked} />
+      <div hidden={section !== "font"}>
+        <Field label="Font" help="Your name and details, across the whole card.">
+          <FontPills value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} />
         </Field>
-      )}
+      </div>
 
-      <Field label={meta.text.label} help={meta.text.help}>
-        <Swatches presets={meta.text.presets} value={value.textColor} fallbackHex={meta.text.fallback} onPick={(v) => onChange({ textColor: v })} customLocked={locked} />
-      </Field>
-
-      <SectionHeading hint="Typeface and material">Style</SectionHeading>
-      <Field label="Font" help="Sets the typeface for your name and details across the whole card.">
-        <FontPills value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} />
-      </Field>
-
-      <Field label="Finish" help={`The material laid over your ${meta.bg.label.toLowerCase()}. Reads strongest on deeper colours.`}>
-        <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} locked={locked} />
-      </Field>
+      <div hidden={section !== "finish"}>
+        <Field label="Finish" help={`The material over your ${meta.bg.label.toLowerCase()}. Strongest on deeper colours.`}>
+          <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} locked={locked} />
+        </Field>
+      </div>
 
       {/* ── The long tail, one tap away ──────────────────────────────────────
-          Not hidden — a native <details>, so it is keyboard- and
-          screen-reader-reachable, works before hydration, and stays open once
-          opened. These three are real features; they are simply not what
-          someone opens the Design tab to do. */}
-      <MoreOptions label="More style options">
-        <Field label={meta.info.label} help={meta.info.help}>
-          <Swatches presets={meta.info.presets} value={value.infoColor} fallbackHex={meta.info.fallback} onPick={(v) => onChange({ infoColor: v })} customLocked={locked} />
-        </Field>
-
-        <Field label={meta.accent.label} help={meta.accent.help}>
-          <Swatches presets={meta.accent.presets} value={value.accentColor} fallbackHex={meta.accent.fallback} onPick={(v) => onChange({ accentColor: v })} customLocked={locked} />
-        </Field>
+          A native <details>, so it is keyboard- and screen-reader-reachable and
+          works before hydration. Real features, just not why anyone opens the
+          Design tab. */}
+      <MoreOptions label="More style options" hint="Details colour · photo or video" badge={moreInUse ? proDotNeutral : undefined}>
+        <div title={meta.info.help}>
+          <Field label={meta.info.label} help={meta.info.hint}>
+            <Swatches presets={meta.info.presets} value={value.infoColor} fallbackHex={meta.info.fallback} onPick={(v) => onChange({ infoColor: v })} customLocked={locked} />
+          </Field>
+        </div>
 
         <Field
           label="Photo or video"
@@ -572,3 +652,6 @@ export default function TemplateStyleControls({
     </div>
   );
 }
+
+/** "Something in here is set" — neutral grey, not the Pro blue. */
+const proDotNeutral = <span aria-label="has a setting" className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />;

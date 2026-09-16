@@ -13,17 +13,13 @@ import CardScaler from "@/components/CardScaler";
 import { DEFAULT_PRESET, buildPreset } from "@/lib/custom-layout";
 import InertPreview from "@/components/InertPreview";
 import ClassicPro from "@/components/card-templates/ClassicPro";
-import ModernBold from "@/components/card-templates/ModernBold";
-import PhotoFirst from "@/components/card-templates/PhotoFirst";
-import LocalBusiness from "@/components/card-templates/LocalBusiness";
-import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
-import LogoFirst from "@/components/card-templates/LogoFirst";
 import CustomCard from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
-import CustomDesignCard from "@/components/CustomDesignCard";
 import { PlanGate, PlanNotice } from "@/components/PlanGate";
 import { isNativeApp } from "@/lib/platform";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
+import TemplatePicker, { PRESET_TEMPLATES } from "@/components/card-templates/TemplatePicker";
+import DockedCardPreview from "@/components/DockedCardPreview";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
@@ -39,7 +35,7 @@ import { normalizeSocial } from "@/lib/social-url";
 import { track } from "@/lib/events";
 import { PLAN_LIMITS, PRO_CUSTOMIZATION_KEYS, LINK_STYLE_KEYS, LINK_STRUCTURAL_KEYS, convertCustomizationToFreeClosest, describeFreeDesignChanges, proLinkFeaturesInUse } from "@/lib/plan";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
-import { Switch } from "@/components/ui/DesignControls";
+import { MoreOptions, Segmented, Switch } from "@/components/ui/DesignControls";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import PlanCards from "@/components/PlanCards";
 import FreeDesignChoice from "@/components/FreeDesignChoice";
@@ -70,14 +66,6 @@ const EMPTY_SOCIALS: Socials = {
 };
 
 
-const TEMPLATES = [
-  { id: "classic-pro",    label: "Classic Pro",    Component: ClassicPro },
-  { id: "modern-bold",    label: "Modern Bold",    Component: ModernBold },
-  { id: "photo-first",    label: "Photo First",    Component: PhotoFirst },
-  { id: "local-business", label: "Local Business", Component: LocalBusiness },
-  { id: "luxury-minimal", label: "Luxury Minimal", Component: LuxuryMinimal },
-  { id: "logo-first",     label: "Logo First",     Component: LogoFirst },
-];
 
 const inputCls =
   "w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors";
@@ -284,10 +272,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   const [logoUrl, setLogoUrl] = useState<string | null>(orgLogo);
   const [logoShape, setLogoShape] = useState<"auto" | "circle">("auto");
   const [headshotUrl, setHeadshotUrl] = useState<string | null>(null);
+  // Card design → Photos opens by itself only while something is still missing
+  // (for a new card: always). Read ONCE at mount — see MoreOptions. An office
+  // member's logo is the organization's, so only their headshot counts.
+  const [photosStartOpen] = useState(() => !((org ? true : !!logoUrl) && !!headshotUrl));
   // ?template=… — set by "Apply this design" on /templates, so the design the
   // visitor picked there is already applied when the builder opens.
   const presetTemplate = searchParams.get("template");
-  const validPresetTemplate = presetTemplate && TEMPLATES.some((t) => t.id === presetTemplate) ? presetTemplate : null;
+  const validPresetTemplate = presetTemplate && PRESET_TEMPLATES.some((t) => t.id === presetTemplate) ? presetTemplate : null;
   // When the office LOCKS the design, seed the design state from the office
   // brand so the live preview shows the real template + colors/fonts from the
   // first render — not the default that only snapped to the brand after saving.
@@ -656,7 +648,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       ...templateStyleState,
     },
   };
-  const PreviewTemplate = template === "custom" ? CustomCard : (TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
+  const photosSummary = logoUrl && headshotUrl
+    ? "Both added"
+    : logoUrl ? "Logo added · add a headshot"
+    : headshotUrl ? (org ? "Headshot added" : "Headshot added · add a logo")
+    : "Add your logo and headshot";
+  const PreviewTemplate = template === "custom" ? CustomCard : (PRESET_TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
   const customSelected = template === "custom";
   // On the design step the custom designer IS a live card you edit by touching
   // it, so the pinned preview column beside it would be a second, identical,
@@ -968,6 +965,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // and an inline MOBILE copy in step 1 (below the fax field) and step 2
   // (between the template picker and the colour controls). Defined once so the
   // two viewports can never drift apart.
+  // The card itself, built ONCE: the preview and the phone's docked preview
+  // on step 2 both render this element, so they can never disagree.
+  const cardTemplateEl = <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />;
+
   const livePreview = (
     <>
       <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
@@ -975,7 +976,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           clicking the card itself. See InertPreview. */}
       <InertPreview className="rounded-2xl overflow-hidden border border-gray-800">
         <CardScaler>
-          <PreviewTemplate data={customSelected ? previewData : withoutSocials(previewData)} />
+          {cardTemplateEl}
         </CardScaler>
       </InertPreview>
       <p className="text-gray-600 text-[0.6875rem] mt-2 leading-snug">Your card so far — it updates as you fill things in.</p>
@@ -1599,7 +1600,8 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           </div>
         )}
 
-        {/* Step 2 — Card design: photos + template + colors */}
+        {/* Step 2 — Card design: Photos · Template · Look · Fine-tune · More
+            (the same tab as the edit form's Card design) */}
         {step === 2 && (
           <div className="space-y-5">
             <div className="mb-1">
@@ -1607,79 +1609,99 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <p className="text-gray-400 text-sm mt-1">Add your logo and headshot, then pick a design.</p>
             </div>
 
-
-            {/* The company logo is org territory for a sub-user — managed tile
-                when the admin has set one, and NO upload either way (a member
-                can never add their own; the branding page is the only source). */}
-            {org ? (
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-medium text-gray-400">Company logo</label>
-                  <ManagedTag />
-                </div>
-                <div className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900/60 px-3.5 py-3">
-                  {orgLogo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={orgLogo} alt="Company logo" className="w-10 h-10 rounded-lg object-contain bg-white p-1" />
-                  ) : null}
-                  <p className="text-gray-500 text-xs">
-                    {orgLogo
-                      ? "Your organization's logo is used on every connected card."
-                      : "Your organization manages the company logo — it appears here once your admin sets it on the Branding page."}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
-                <ImageUpload field="logo" currentUrl={logoUrl} label="Upload your company logo" shape="square" defer guest={guest} onUploaded={(url) => setLogoUrl(url || null)} />
-                {/* Suggest an official company logo (Agent 4 contract). Fails safe —
-                    renders nothing when the provider isn't configured. */}
-                <LogoSuggest company={company} email={email} onConfirm={(url) => setLogoUrl(url || null)} />
-                {logoUrl && (
-                  <div className="mt-2">
-                    <p className="text-[0.6875rem] text-gray-500 mb-1">Logo shape on the card</p>
-                    <div className="inline-flex items-center bg-gray-800 rounded-lg p-0.5">
-                      {([["auto", "Original"], ["circle", "Circle"]] as const).map(([id, label]) => (
-                        <button
-                          key={id}
-                          type="button"
-                          onClick={() => setLogoShape(id)}
-                          className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${logoShape === id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
+            {/* Photos — open while something is missing (always, for a new
+                card), folded to a summary once both are set. Native <details>,
+                so it works before hydration. */}
+            <MoreOptions
+              label="Logo & headshot"
+              hint={photosSummary}
+              defaultOpen={photosStartOpen}
+              lead={
+                <span className="flex -space-x-2 shrink-0" aria-hidden>
+                  {[logoUrl, headshotUrl].map((src, i) =>
+                    src ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={src} alt="" className={`w-7 h-7 border-2 border-gray-900 bg-white object-contain ${i === 1 ? "rounded-full object-cover" : "rounded-lg"}`} />
+                    ) : (
+                      <span key={i} className={`w-7 h-7 border-2 border-gray-900 bg-gray-800 ${i === 1 ? "rounded-full" : "rounded-lg"}`} />
+                    ),
+                  )}
+                </span>
+              }
+            >
+              {/* The company logo is org territory for a sub-user — managed tile
+                  when the admin has set one, and NO upload either way (a member
+                  can never add their own; the branding page is the only source). */}
+              {org ? (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-gray-400">Company logo</label>
+                    <ManagedTag />
                   </div>
-                )}
-              </div>
-            )}
+                  <div className="flex items-center gap-3 rounded-xl border border-gray-800 bg-gray-900/60 px-3.5 py-3">
+                    {orgLogo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={orgLogo} alt="Company logo" className="w-10 h-10 rounded-lg object-contain bg-white p-1" />
+                    ) : null}
+                    <p className="text-gray-500 text-xs">
+                      {orgLogo
+                        ? "Your organization's logo is used on every connected card."
+                        : "Your organization manages the company logo — it appears here once your admin sets it on the Branding page."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
+                  <ImageUpload field="logo" currentUrl={logoUrl} label="Upload your company logo" shape="square" defer guest={guest} onUploaded={(url) => setLogoUrl(url || null)} />
+                  {/* Suggest an official company logo (Agent 4 contract). Fails safe —
+                      renders nothing when the provider isn't configured. */}
+                  <LogoSuggest company={company} email={email} onConfirm={(url) => setLogoUrl(url || null)} />
+                  {logoUrl && (
+                    <div className="mt-2">
+                      {/* The shared Segmented, same as the edit form. This was a
+                          hand-rolled grey-on-grey pair whose selected state was
+                          nearly invisible. */}
+                      <p className="text-[0.6875rem] text-gray-500 mb-1.5">Logo shape on the card</p>
+                      <Segmented
+                        label="Logo shape on the card"
+                        value={logoShape}
+                        onChange={setLogoShape}
+                        options={[
+                          { value: "auto", label: "Original" },
+                          { value: "circle", label: "Circle" },
+                        ]}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
-              <ImageUpload
-                field="photo"
-                currentUrl={headshotUrl}
-                label="Upload your headshot"
-                hint="Recommended. This will also be used for your SwiftLink."
-                shape="circle"
-                defer
-                guest={guest}
-                onUploaded={(url) => setHeadshotUrl(url || null)}
-              />
-              {/* Gravatar/web lookup works from the typed email pre-account;
-                  a guest's Connect LinkedIn runs the one-shot guest OAuth
-                  photo import and returns here via ?li_photo= (see the effect
-                  above) — their draft stays local the whole time. */}
-              <ProfilePhotoSuggest
-                linkedinEnabled={linkedinEnabled}
-                returnTo={guest ? "/cards/new" : "/cards/new?add=1"}
-                guest={guest}
-                email={email}
-                onConfirm={(url) => setHeadshotUrl(url)}
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">Headshot</label>
+                <ImageUpload
+                  field="photo"
+                  currentUrl={headshotUrl}
+                  label="Upload your headshot"
+                  hint="Recommended. This will also be used for your SwiftLink."
+                  shape="circle"
+                  defer
+                  guest={guest}
+                  onUploaded={(url) => setHeadshotUrl(url || null)}
+                />
+                {/* Gravatar/web lookup works from the typed email pre-account;
+                    a guest's Connect LinkedIn runs the one-shot guest OAuth
+                    photo import and returns here via ?li_photo= (see the effect
+                    above) — their draft stays local the whole time. */}
+                <ProfilePhotoSuggest
+                  linkedinEnabled={linkedinEnabled}
+                  returnTo={guest ? "/cards/new" : "/cards/new?add=1"}
+                  guest={guest}
+                  email={email}
+                  onConfirm={(url) => setHeadshotUrl(url)}
+                />
+              </div>
+            </MoreOptions>
 
             {/* Design — locked for sub-users while the office's Lock Card Design
                 setting is on; the server enforces the office look regardless. */}
@@ -1695,67 +1717,44 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 </p>
               </div>
             ) : (
-            <div>
-              <label className="block text-xs font-medium text-gray-400 mb-2">Choose your design</label>
-
-              {!isPro && designUnlocked && (
-                <p className="text-[0.6875rem] text-blue-300 bg-blue-950/40 border border-blue-800/40 rounded-lg px-3 py-2 mb-3 leading-relaxed">
-                  Free preview — try any color, font, or the custom designer. You&apos;ll choose Free or Pro right before your card goes live.
-                </p>
-              )}
-
-              {/* Custom design — the freeform "edit every element" path */}
-              <div className="mb-2">
-                <CustomDesignCard isPro={designUnlocked} selected={customSelected} onSelect={() => setTemplate("custom")} />
-              </div>
-
-              {/* Standard templates */}
-              <div className="grid grid-cols-2 gap-2">
-                {TEMPLATES.map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setTemplate(id)}
-                    className={`text-xs font-semibold py-2 rounded-xl border transition-colors ${
-                      template === id ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+            <div className="space-y-5">
+              <TemplatePicker
+                template={template}
+                onSelect={setTemplate}
+                data={withoutSocials(previewData)}
+                customUnlocked={designUnlocked}
+                notice={!isPro && designUnlocked ? (
+                  <p className="text-[0.6875rem] text-blue-300 bg-blue-950/40 border border-blue-800/40 rounded-lg px-3 py-2 leading-relaxed">
+                    Free preview — try any color, font, or the custom designer. You&apos;ll choose Free or Pro right before your card goes live.
+                  </p>
+                ) : undefined}
+              />
 
               {/* The designer comes AFTER the picker that selects it, and is
                   itself a live card you edit by touching — so it stands in for
                   the inline preview rather than sitting above a second copy. */}
               {customSelected && designUnlocked ? (
-                <div className="mt-4">
+                <div>
                   {/* canScan={isPro}, NOT designUnlocked: the designer is shown
                       to guests and Free first-card users as a preview, but
                       /api/scan-design needs a session and a paid plan. */}
                   <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} />
                 </div>
               ) : (
-                /* Mobile: the preview sits BETWEEN the template picker and the
-                   colour/font controls — both change what it shows, so it stays
-                   in view whichever one you are touching. It used to be pinned
-                   sticky at the very top of the step, which ate the screen and
-                   left the controls to be scrolled to blind. */
-                <div className="lg:hidden mt-4">{livePreview}</div>
+                /* Mobile: the preview sits BETWEEN the template gallery and the
+                   style panel — both change what it shows. Once it scrolls away,
+                   DockedCardPreview keeps a small copy on screen. It used to be
+                   pinned sticky at the very top of the step, which ate the
+                   screen and left the controls to be scrolled to blind. */
+                <div id="design-inline-preview" className="lg:hidden">{livePreview}</div>
               )}
 
-              {/* Restyle the chosen preset — colors & typography (Pro) */}
+              {/* Restyle the chosen preset: Look → Fine-tune → More. No PRO
+                  badge on a header: Looks, swatches, fonts and three finishes
+                  work on every plan. The Pro pieces carry their own tag inside
+                  the panel (same as the editor — the two must never disagree). */}
               {!customSelected && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    {/* No PRO badge on the header: Looks, swatches, fonts and
-                        three finishes work on every plan. The Pro pieces
-                        carry their own tag inside the panel (same as the
-                        editor — the two must never disagree). */}
-                    <label className="block text-xs font-medium text-gray-400">
-                      Customize colors &amp; font
-                    </label>
-                  </div>
+                <div>
                   <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!designUnlocked} />
                   {!isPro && !designUnlocked && (
                     <PlanGate
@@ -1771,6 +1770,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               )}
             </div>
             )}
+            <DockedCardPreview anchorId="design-inline-preview" enabled={!designLocked && !(customSelected && designUnlocked)}>
+              {cardTemplateEl}
+            </DockedCardPreview>
 
             <div className="flex gap-3 mt-1">
               <button onClick={() => setStep(1)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
