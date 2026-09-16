@@ -37,6 +37,17 @@ const timed = async (fn) => { const t0 = Date.now(); const r = await fn(); retur
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let userId = null; const uname = `qa-probe-${stamp}`;
+// The notification half runs on its OWN throwaway owner, and that is not
+// incidental — both cheaper options are silently unmeasurable:
+//   · same card  — a view and a card-event on one card inside the visit window
+//     are ONE visit by design, so the notification is correctly deduped away
+//     and the check can only ever read 0 (ingest log: reason "deduped").
+//   · second card, same owner — a Free plan serves ONE card, so card #2 comes
+//     back plan-deactivated and every view against it is refused before it can
+//     notify (ingest log: reason "inactive").
+// A separate owner with one active card is the only shape that asks the real
+// question: does a first genuine visit raise exactly one notification?
+let userIdN = null; const unameN = `qa-probe-${stamp}-n`;
 try {
   // ── seed one throwaway owner with one card ───────────────────────────────
   const email = `qa-probe-${stamp}@swiftcard-test.invalid`;
@@ -45,6 +56,12 @@ try {
   userId = u.id;
   await adm("/rest/v1/profiles", { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ id: userId, username: uname, name: "Probe Owner", email, plan: "free", customization: { _aiConsent: "accepted" } }) });
   await adm("/rest/v1/cards", { method: "POST", body: JSON.stringify({ user_id: userId, username: uname, name: "Probe Owner", title: "QA", company: "Probe Co", email, template: "classic-pro" }) });
+  const emailN = `qa-probe-${stamp}-n@swiftcard-test.invalid`;
+  const uN = await (await adm("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email: emailN, password: `Qa!aA1${stamp}n`, email_confirm: true }) })).json();
+  if (!uN.id) throw new Error("seed notify user failed: " + JSON.stringify(uN).slice(0, 160));
+  userIdN = uN.id;
+  await adm("/rest/v1/profiles", { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ id: userIdN, username: unameN, name: "Probe Notify", email: emailN, plan: "free", customization: { _aiConsent: "accepted" } }) });
+  await adm("/rest/v1/cards", { method: "POST", body: JSON.stringify({ user_id: userIdN, username: unameN, name: "Probe Notify", title: "QA", company: "Probe Co", email: emailN, template: "classic-pro" }) });
   // The public page must exist before anything can be recorded against it.
   const page = await fetch(`${BASE}/${uname}`, { headers: { "User-Agent": UA_HUMAN }, signal: AbortSignal.timeout(20000) });
   pass(page.status === 200, `throwaway card page renders (${page.status})`);
@@ -71,13 +88,13 @@ try {
   // ── 2. notifications: one per visitor per visit, never two ───────────────
   // A fresh visitor: the analytics visitor above already opened a visit, so an
   // event from it is a legitimate "same visit" dedupe, not a notification.
-  const ev = { card_owner_username: uname, event_type: "viewed_card", visitor_id: `-n` };
+  const ev = { card_owner_username: unameN, event_type: "viewed_card", visitor_id: `${visitor}-n` };
   const [e1, e1ms] = await timed(() => post("/api/card-events", ev));
   const [e2] = await timed(() => post("/api/card-events", ev));
   pass(e1.status < 300 && e2.status < 300, `card-events endpoint accepts a human visit (${e1.status}, ${e2.status})`);
   pass(e1ms < 8000, `card-events answers within budget (${e1ms}ms, budget 8000)`);
   await wait(2500);
-  const notes = await (await adm(`/rest/v1/notifications?user_id=eq.${userId}&select=id,type,visit_key`)).json();
+  const notes = await (await adm(`/rest/v1/notifications?user_id=eq.${userIdN}&select=id,type,visit_key`)).json();
   const n = Array.isArray(notes) ? notes.length : -1;
   pass(n === 1, `exactly ONE notification for the visit (got ${n}: ${JSON.stringify(notes).slice(0, 120)})`);
   pass(n === 1 && !!notes[0].visit_key, `the notification carries a visit_key (dedupe index in force)`);
@@ -90,11 +107,12 @@ try {
 } catch (e) {
   console.log("ERROR", e.message); failures.push("probe threw: " + e.message);
 } finally {
-  if (userId) {
-    for (const p of [`/rest/v1/notifications?user_id=eq.${userId}`, `/rest/v1/card_events?card_owner_username=eq.${uname}`, `/rest/v1/card_views?username=eq.${uname}`, `/rest/v1/leads?card_owner=eq.${uname}`, `/rest/v1/cards?user_id=eq.${userId}`, `/rest/v1/profiles?id=eq.${userId}`]) {
+  for (const [uid, un] of [[userId, uname], [userIdN, unameN]]) {
+    if (!uid) continue;
+    for (const p of [`/rest/v1/notifications?user_id=eq.${uid}`, `/rest/v1/card_events?card_owner_username=eq.${un}`, `/rest/v1/card_views?username=eq.${un}`, `/rest/v1/leads?card_owner=eq.${un}`, `/rest/v1/cards?user_id=eq.${uid}`, `/rest/v1/profiles?id=eq.${uid}`]) {
       await adm(p, { method: "DELETE" }).catch(() => {});
     }
-    await adm(`/auth/v1/admin/users/${userId}`, { method: "DELETE" }).catch(() => {});
+    await adm(`/auth/v1/admin/users/${uid}`, { method: "DELETE" }).catch(() => {});
   }
   writeFileSync(`${OUT}/failures.json`, JSON.stringify(failures, null, 2));
   console.log(failures.length ? `\n${failures.length} FAILURES` : "\nALL PASS");
