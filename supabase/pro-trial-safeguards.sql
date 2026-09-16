@@ -1,7 +1,8 @@
 -- Pro trial safeguards (2026-09-16).
 --
--- NOT YET APPLIED. Run in the Supabase SQL editor BEFORE deploying the code
--- that reads these objects. The code degrades if they are missing (42703 /
+-- APPLIED to production 2026-09-16 (Supabase MCP apply_migration
+-- "pro_trial_safeguards"; verified: columns readable, anon denied on the ledger,
+-- guard trigger lists both new columns). The code degrades if they are missing (42703 /
 -- PGRST204 / 42P01): the abuse checks are skipped and today's behaviour
 -- continues — it never blocks a checkout or a signup.
 --
