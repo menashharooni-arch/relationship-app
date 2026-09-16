@@ -890,7 +890,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             photoUrl: headshotUrl ?? null,
             ...(saveTemplate === "custom" ? { customLayout } : {}),
           },
-          ...(planChoice ? { chosenPlan: planChoice.plan } : {}),
+          // A first card saved from the plan gate WITHOUT a paid pick is the
+          // Free choice — say so, so the server records the plan as decided
+          // (api/cards) and the dashboard does not send them back to choose.
+          ...(planChoice ? { chosenPlan: planChoice.plan } : showAuthedFirstCardGate ? { chosenPlan: "free" } : {}),
         }),
       });
     } catch {

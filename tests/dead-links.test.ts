@@ -45,7 +45,11 @@ describe("public card links resolve to a card slug, not the account handle", () 
 describe("the share page only offers cards that actually serve", () => {
   it("filters the selectable cards by the Free card limit", () => {
     const c = code("src/app/share/page.tsx");
-    expect(c).toMatch(/shareableCards = isPro \? allCards : allCards\.slice\(0, PLAN_LIMITS\.FREE_CARD_LIMIT\)/);
+    // The live set is the SAME one the public pages serve (lib/card-active
+    // pickFreeLiveCardIds) — including the card chosen to stay live when Pro
+    // ended, not just the oldest.
+    expect(c).toMatch(/const liveIds = pickFreeLiveCardIds\(/);
+    expect(c).toMatch(/shareableCards = isPro \? allCards : allCards\.filter\(\(c\) => liveIds\.includes\(/);
     expect(c).toMatch(/shareableCards\.find\(/);
   });
 

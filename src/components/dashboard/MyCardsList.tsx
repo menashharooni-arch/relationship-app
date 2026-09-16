@@ -78,6 +78,7 @@ export default function MyCardsList({
   activeUsername,
   isPro,
   freeCardLimit,
+  liveCardIds,
   view,
   sortBy,
   upsell,
@@ -86,6 +87,8 @@ export default function MyCardsList({
   activeUsername: string;
   isPro: boolean;
   freeCardLimit: number;
+  /** On Free: the ids that serve publicly (lib/card-active pickFreeLiveCardIds). */
+  liveCardIds?: string[];
   view: string;
   sortBy: string;
   /** The Free-plan "second card" upsell, rendered untouched after the rows. */
@@ -102,8 +105,9 @@ export default function MyCardsList({
       {cards.map((card, cardIdx) => {
         const isActive = activeUsername === card.username;
         // Mirrors the public kill-switch (lib/card-active): on Free, only the
-        // oldest freeCardLimit card(s) serve publicly.
-        const planInactive = !isPro && cardIdx >= freeCardLimit;
+        // live card(s) serve publicly — the one chosen when Pro ended, else the
+        // oldest freeCardLimit. Positional fallback when no live list is given.
+        const planInactive = !isPro && (liveCardIds ? !liveCardIds.includes(card.id) : cardIdx >= freeCardLimit);
 
         // The selected card is always visible and, on mobile, floats to the top
         // of the stack so the dropdown opens BENEATH it. sm:order-none puts the

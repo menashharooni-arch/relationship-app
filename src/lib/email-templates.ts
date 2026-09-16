@@ -383,6 +383,44 @@ export function trialStartedEmail(opts: {
   return built(BILLING_FROM, `Your SwiftCard ${opts.planName} starts now — first charge ${opts.firstChargeDate}`, layout(body));
 }
 
+// Sent ~3 days before a card-backed Pro trial converts to paid (Stripe's
+// customer.subscription.trial_will_end). A billing notice, not marketing: it
+// exists so nobody is charged by surprise, which is what turns a trial into a
+// dispute. Same sender, gate and shape as the trial-started email.
+export function trialConvertsSoonEmail(opts: {
+  firstName: string;
+  planName: string;
+  amount: string;
+  interval: string;
+  firstChargeDate: string;
+  manageUrl: string;
+}) {
+  const safeName = escapeHtml(opts.firstName);
+  const safePlanName = escapeHtml(opts.planName);
+  const tableRows = [
+    row("Plan", safePlanName),
+    row("First charge", escapeHtml(opts.firstChargeDate)),
+    row("Amount", `${escapeHtml(opts.amount)} ${escapeHtml(opts.interval.toLowerCase())}`),
+  ].join("");
+
+  const body = `
+    ${h1(`Your Pro trial ends on ${escapeHtml(opts.firstChargeDate)}`)}
+    ${p(`Hi ${safeName} — your free trial of SwiftCard ${safePlanName} is almost over. Your card on file will be charged on ${escapeHtml(opts.firstChargeDate)} and Pro carries on without a break. Nothing to do if you're staying.`)}
+    <div style="background:#fff;border:1px solid #E4DDD4;border-radius:16px;overflow:hidden;margin-bottom:24px;">
+      <div style="padding:0 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0">${tableRows}</table>
+      </div>
+    </div>
+    ${card(`
+      <p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">Not staying?</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Cancel before ${escapeHtml(opts.firstChargeDate)} and you won't be charged. Your cards and contacts stay on the Free plan.</p>
+      <a href="${safeUrlAttr(opts.manageUrl)}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Manage billing →</a>
+    `)}
+    ${p(`Questions? Just reply to this email.`)}
+  `;
+  return built(BILLING_FROM, `Your SwiftCard Pro trial ends ${opts.firstChargeDate}`, layout(body));
+}
+
 // Sent when a renewal charge fails (card expired, declined, insufficient funds).
 // Stripe's own Smart Retries will try again automatically; this just prompts
 // the customer to fix their payment method before access is eventually lost.

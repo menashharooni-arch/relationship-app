@@ -7,8 +7,11 @@ import { isPaidPlan } from "@/lib/plan";
 import { isApplePaid } from "@/lib/iap-entitlement";
 import { reportError } from "@/lib/report-error";
 import { alertRetention } from "@/lib/retention-alert";
+import { ledgerAdd, ledgerHas, trialHistoryFor } from "@/lib/trial-ledger";
+import { TRIAL_ENDS_KEY } from "@/lib/billing-state";
 import {
   RETENTION_GRANT_DAYS,
+  RETENTION_GRANT_DAYS_AFTER_TRIAL,
   RETENTION_DISCOUNT_MONTHS,
   RETENTION_DISCOUNT_PERCENT,
   type AccountFacts,
@@ -52,6 +55,22 @@ function retentionOf(cust: Cust): RetentionRecord {
   return (cust._retention as RetentionRecord | undefined) ?? {};
 }
 
+// Trial history for the grant rules: whether this person has had a Pro trial
+// (account marker or email ledger), whether their email already took the grant
+// on any account, and whether a card-backed trial is running now.
+async function trialFactsFor(userId: string, email: string | null | undefined, cust: Cust) {
+  const history = await trialHistoryFor(userId, email);
+  const [trialByEmail, grantLedgerUsed] = await Promise.all([
+    ledgerHas("email_trial", email),
+    ledgerHas("email_retention", email),
+  ]);
+  return {
+    hadTrial: !!history.proTrialStartedAt || trialByEmail,
+    grantLedgerUsed,
+    trialing: typeof cust[TRIAL_ENDS_KEY] === "string",
+  };
+}
+
 function planOf(plan: string | null | undefined): RetentionPlan {
   return isPaidPlan(plan) ? "pro" : "free";
 }
@@ -72,6 +91,12 @@ function eligibilityOf(opts: {
   subId: string | null;
   /** customization._retentionUsed — set by the Billing cancel-flow offer. */
   retentionUsed: unknown;
+  /** This account or email has had a Pro trial (Stripe or Apple). */
+  hadTrial?: boolean;
+  /** This email already took the grant on some account (purge-proof ledger). */
+  grantLedgerUsed?: boolean;
+  /** A card-backed trial is running right now (mirrored trial end). */
+  trialing?: boolean;
 }): Eligibility {
   const { plan, rawPlan, source, rec, planExpiresAt, subId, retentionUsed } = opts;
   // An Office/enterprise subscription is a seat-billed team plan: its price is
@@ -84,12 +109,16 @@ function eligibilityOf(opts: {
     // A Free account that has never taken retention time and is not already
     // sitting on a grant (an unexpired trial/free month) — handing 30 days to
     // someone who already has 20 left reads as a trick.
-    grant: plan === "free" && !rec.grantedAt && !planExpiresAt,
+    grant: plan === "free" && !rec.grantedAt && !planExpiresAt && !opts.grantLedgerUsed,
+    // Someone who has had a 14-day trial gets the rest of 30, not 30 more.
+    grantDays: opts.hadTrial ? RETENTION_GRANT_DAYS_AFTER_TRIAL : RETENTION_GRANT_DAYS,
     // Only a real Stripe subscription can be discounted. Apple bills Apple.
     // `_retentionUsed` is the SHARED once-per-customer flag: the same 50%/3mo
     // offer is made when cancelling a subscription in Billing, and taking it
     // there must close it here too.
-    discount: individualPro && !rec.discountedAt && retentionUsed !== true,
+    // Not during a free trial: there is no invoice yet to take 50% off, and
+    // cancelling the trial (downgrade) is the honest save there.
+    discount: individualPro && !rec.discountedAt && retentionUsed !== true && !opts.trialing,
     downgrade: individualPro,
   };
 }
@@ -119,6 +148,7 @@ export async function GET() {
     planExpiresAt: (profile.plan_expires_at as string | null) ?? null,
     subId,
     retentionUsed: cust._retentionUsed,
+    ...(await trialFactsFor(user.id, user.email, cust)),
   });
 
   // Their own numbers for the "what you lose" step. Counted with head:true so
@@ -181,6 +211,7 @@ export async function POST(req: NextRequest) {
     planExpiresAt: (profile.plan_expires_at as string | null) ?? null,
     subId,
     retentionUsed: cust._retentionUsed,
+    ...(await trialFactsFor(user.id, user.email, cust)),
   });
 
   // The reason they gave at step 1-2, so an alert carries WHY, not just WHAT.
@@ -211,7 +242,8 @@ export async function POST(req: NextRequest) {
   // ── 30 days of Pro, free, no card ─────────────────────────────────────────
   if (action === "grant") {
     if (!elig.grant) return NextResponse.json({ error: "This offer isn't available on your account." }, { status: 409 });
-    const expires = new Date(Date.now() + RETENTION_GRANT_DAYS * 86400000).toISOString();
+    const days = elig.grantDays ?? RETENTION_GRANT_DAYS;
+    const expires = new Date(Date.now() + days * 86400000).toISOString();
     // plan + expiry + the one-per-account flag in a SINGLE write: a partial
     // apply here would either give Pro with no record (repeatable) or record a
     // gift that was never given.
@@ -227,8 +259,10 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", user.id);
     if (error) return NextResponse.json({ error: "Couldn't start your free month. Please try again." }, { status: 500 });
+    // Once per PERSON: the account record above is gone after purge, this is not.
+    await ledgerAdd("email_retention", user.email);
     await saved("grant");
-    return NextResponse.json({ ok: true, days: RETENTION_GRANT_DAYS, until: expires });
+    return NextResponse.json({ ok: true, days, until: expires });
   }
 
   // ── 50% off the next 3 invoices ───────────────────────────────────────────

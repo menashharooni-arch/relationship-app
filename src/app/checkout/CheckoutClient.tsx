@@ -25,7 +25,7 @@ type Preview = {
 
 const RESUME_KEY = "sc_checkout_resume"; // set before bouncing to login → auto-continue on return
 
-export default function CheckoutClient() {
+export default function CheckoutClient({ trialEligible = true }: { trialEligible?: boolean }) {
   const params = useSearchParams();
   const plan: Plan = params.get("plan") === "office" ? "office" : "pro";
   const interval: Interval = params.get("interval") === "annual" ? "annual" : "monthly";
@@ -39,7 +39,9 @@ export default function CheckoutClient() {
   // ?trial=0 → start-and-pay, no free trial. Set by the in-product upgrade page
   // (/upgrade); the public pricing page omits it and keeps the trial offer.
   // Default true so every existing marketing link behaves exactly as before.
-  const trial = params.get("trial") !== "0";
+  // AND the account must actually be eligible (resolved by the server page) —
+  // otherwise the summary would promise a trial the session will not create.
+  const trial = params.get("trial") !== "0" && trialEligible;
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);

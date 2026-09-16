@@ -7,6 +7,7 @@ import { PLAN_LIMITS } from "@/lib/plan";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
 import type Stripe from "stripe";
 import { officeSubUserBlockMessage, getOfficeSubUserContext, roleHasCapability, resolveBillingSubjectId } from "@/lib/office-roles";
+import { stripeTrialEndIso } from "@/lib/billing-state";
 
 // GET /api/stripe/subscription — the read model the billing UI renders from.
 // Reads the profile, and (when there's a live Stripe subscription) the
@@ -74,6 +75,14 @@ export async function GET() {
     scheduledSeatsAt: null as string | null,
     minSeats: PLAN_LIMITS.OFFICE_MIN_SEATS,
     currentPeriodEnd: null as string | null,
+    // Card-backed trial: when it converts to paid (null unless status is trialing).
+    trialEnd: null as string | null,
+    // A free-Pro grant with no subscription behind it (referral or retention
+    // days): when it ends. Lets billing say so instead of "Renews" with no date.
+    grantEndsAt:
+      !profile?.stripe_subscription_id && cust._planSource !== "apple" && dbPlan !== "free" && typeof profile?.plan_expires_at === "string"
+        ? (profile.plan_expires_at as string)
+        : null,
     cancelAtPeriodEnd: false,
     renewalCents: null as number | null,
     retentionUsed: cust._retentionUsed === true,
@@ -101,6 +110,7 @@ export async function GET() {
 
     if (mapped) { base.plan = mapped.plan; base.interval = mapped.interval; }
     base.status = sub.status;
+    base.trialEnd = stripeTrialEndIso(sub);
     base.cancelAtPeriodEnd = sub.cancel_at_period_end === true;
     base.currentPeriodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
     base.seats = mapped?.plan === "office" ? (item?.quantity ?? null) : null;

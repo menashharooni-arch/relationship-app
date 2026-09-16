@@ -4,6 +4,7 @@ import { appleGrantPatch, sandboxEventAllowed } from "@/lib/iap-entitlement";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { IAP_ENTITLEMENT } from "@/lib/iap-shared";
+import { recordProTrialStarted } from "@/lib/trial-ledger";
 
 // ── Instant entitlement sync after an in-app purchase ───────────────────────
 //
@@ -25,6 +26,7 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   let active = false;
+  let introTrial = false;
   try {
     const r = await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(user.id)}`, {
       headers: { Authorization: `Bearer ${secret}` },
@@ -37,6 +39,7 @@ export async function POST() {
     // Same sandbox rule as the webhook: a $0 sandbox purchase (sandbox Apple ID
     // on the production build) unlocks Pro only for the review/test accounts.
     const backing = ent && d?.subscriber?.subscriptions?.[ent.product_identifier];
+    introTrial = backing?.period_type === "trial";
     if (active && backing?.is_sandbox && !sandboxEventAllowed(user.email)) {
       return NextResponse.json({ ok: true, skipped: "sandbox_not_allowed" });
     }
@@ -60,5 +63,7 @@ export async function POST() {
     .from("profiles")
     .update(appleGrantPatch(customization))
     .eq("id", user.id);
+  // Same trial record as the RevenueCat webhook — whichever lands first.
+  if (introTrial) await recordProTrialStarted(user.id, user.email ?? null);
   return NextResponse.json({ ok: true, applied: "grant" });
 }

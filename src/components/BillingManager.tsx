@@ -8,6 +8,7 @@ import ManageBillingButton from "@/components/ManageBillingButton";
 import { useIsNativeApp } from "@/lib/platform";
 import IapSubscribeButton from "@/components/NativePaywall";
 import { manageIapSubscription } from "@/lib/iap";
+import { trialStatusLine } from "@/lib/billing-state";
 
 // ── In-app subscription manager (Settings > Billing) ─────────────────────────
 // Native UI over our own /api/stripe/subscription/* endpoints — NOT the Stripe
@@ -29,6 +30,10 @@ type Sub = {
   scheduledSeatsAt: string | null;
   minSeats: number;
   currentPeriodEnd: string | null;
+  /** Card-backed trial converting to paid on this date (null unless trialing). */
+  trialEnd?: string | null;
+  /** Free-Pro grant (referral / retention days, no subscription) ending on this date. */
+  grantEndsAt?: string | null;
   cancelAtPeriodEnd: boolean;
   renewalCents: number | null;
   retentionUsed: boolean;
@@ -199,6 +204,13 @@ export default function BillingManager() {
                   : "Pro is enabled on this account."
                 : "Unlock everything in SwiftCard with Pro."}
         </p>
+        {/* Trial / grant end — a date, never a price (3.1.1). */}
+        {nPaid && sub?.trialEnd && (
+          <p className="mt-1 text-[0.8125rem] text-gray-400">{trialStatusLine({ trialEndsAt: sub.trialEnd, native: true })}</p>
+        )}
+        {nPaid && !sub?.trialEnd && sub?.grantEndsAt && (
+          <p className="mt-1 text-[0.8125rem] text-gray-400">Free Pro · ends {fmtDate(sub.grantEndsAt)}</p>
+        )}
         {appleBilled ? (
           <button
             type="button"
@@ -261,7 +273,19 @@ export default function BillingManager() {
         </span>
       </div>
 
-      {isPaid && !sub.cancelAtPeriodEnd && (
+      {/* Three different truths share this line: a trial about to convert
+          (say when, and for how much), a free-Pro grant with no subscription
+          behind it (say when it ends — there is nothing to renew), and a
+          normal renewal. It used to print "Renews " with no date for grants. */}
+      {isPaid && !sub.cancelAtPeriodEnd && sub.trialEnd && (
+        <p className="text-xs text-gray-500 mb-4">
+          {trialStatusLine({ trialEndsAt: sub.trialEnd, amountCents: sub.renewalCents, native: false })}
+        </p>
+      )}
+      {isPaid && !sub.cancelAtPeriodEnd && !sub.trialEnd && sub.grantEndsAt && (
+        <p className="text-xs text-gray-500 mb-4">Free Pro · ends {fmtDate(sub.grantEndsAt)}</p>
+      )}
+      {isPaid && !sub.cancelAtPeriodEnd && !sub.trialEnd && !sub.grantEndsAt && (
         <p className="text-xs text-gray-500 mb-4">
           {renewalLine ? `${renewalLine} · ` : ""}Renews {fmtDate(sub.currentPeriodEnd)}
         </p>
@@ -315,13 +339,19 @@ export default function BillingManager() {
         {/* In-product upgrade — /upgrade, not the marketing /pricing page: no
             Free column to re-pick and no trial offer, since they're already a
             user. Just Pro or Office, start and pay. */}
-        {!isPaid && (
+        {(!isPaid || (!sub.hasStripeSubscription && !!sub.grantEndsAt)) && (
           <Link href="/upgrade" className="block text-center bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm py-2.5 rounded-full transition-colors">
             Upgrade →
           </Link>
         )}
 
-        {isPaid && (
+        {/* Apple-billed Pro has nothing to manage here — Stripe knows nothing
+            about it. Say where it lives instead of a button that cannot work. */}
+        {isPaid && !sub.hasStripeSubscription && sub.planSource === "apple" && (
+          <p className="text-xs text-gray-400">Your Pro subscription is billed through your Apple account. Manage or cancel it in your iPhone&apos;s Settings → Apple ID → Subscriptions.</p>
+        )}
+
+        {isPaid && sub.hasStripeSubscription && (
           <button
             onClick={() => { setShowChange(true); setErr(null); setNotice(null); }}
             className="w-full bg-gray-800 hover:bg-gray-700 text-white font-semibold text-sm py-2.5 rounded-full transition-colors"

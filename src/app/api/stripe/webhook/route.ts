@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { Resend } from "resend";
 import { getStripe, subscriptionPeriodEndIso } from "@/lib/stripe";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { receiptEmail, trialStartedEmail, paymentFailedEmail } from "@/lib/email-templates";
+import { receiptEmail, trialStartedEmail, paymentFailedEmail, trialConvertsSoonEmail } from "@/lib/email-templates";
 import { markReferralConversion } from "@/lib/referral-server";
 import { getAccountEmail } from "@/lib/account-email";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
@@ -16,6 +16,9 @@ import { sendPushToUser } from "@/lib/push";
 import { stripeDowngradeAllowed } from "@/lib/iap-entitlement";
 import { provisionOfficeForOwner, tearDownOfficeForOwner, officeAccessEndedMessage } from "@/lib/office-billing-sync";
 import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
+import { ledgerAdd, ledgerHas, recordProTrialStarted } from "@/lib/trial-ledger";
+import { EVER_PAID_KEY, PRO_ENDED_PENDING_KEY, TRIAL_ENDS_KEY, anyInvoiceActuallyPaid, proEndedNotice, stripeTrialEndIso } from "@/lib/billing-state";
+import { revalidateCardPage } from "@/lib/card-page-data";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -263,11 +266,13 @@ export async function POST(req: NextRequest) {
       let paymentFingerprint: string | null = null;
       let trialFirstChargeDate: string | null = null;
       let recurringCents: number | null = null;
+      let trialEndsAt: string | null = null;
       try {
         if (session.subscription) {
           const sub = await getStripe().subscriptions.retrieve(session.subscription as string, { expand: ["default_payment_method"] });
           const pm = sub.default_payment_method as Stripe.PaymentMethod | null;
           paymentFingerprint = pm?.card?.fingerprint ?? null;
+          trialEndsAt = stripeTrialEndIso(sub);
           // trial_end is the moment billing starts. Also treat a $0.00 total
           // as a trial even if trial_end is somehow absent — a "receipt" for
           // nothing is never the right email.
@@ -296,6 +301,46 @@ export async function POST(req: NextRequest) {
       }
 
       const admin = getAdminSupabase();
+
+      // ── One Pro trial per PERSON ─────────────────────────────────────────
+      // Checkout already refused trial days to an account or email that has
+      // had one (lib/trial-eligibility). What it cannot see is the CARD: a new
+      // email is a new Stripe customer, so the same card could start trial
+      // after trial. If this card has trialled before, end the trial now —
+      // Stripe invoices immediately. Signing up and Pro itself are never
+      // blocked; only the free period is.
+      //
+      // A promo code's free days are exempt (the owner issued that code on
+      // purpose). Idempotent: a replay finds pro_trial_started_at already set
+      // on this account (or the subscription no longer trialing) and skips.
+      const redemptionForTrial = session.metadata?.promo_redemption_id;
+      const trialAccountEmail = trialEndsAt ? await getAccountEmail(userId, null) : null;
+      if (trialEndsAt && session.subscription && !redemptionForTrial) {
+        const { data: markerRow, error: markerErr } = await admin
+          .from("profiles")
+          .select("pro_trial_started_at")
+          .eq("id", userId)
+          .maybeSingle();
+        const alreadyStamped = !markerErr && !!(markerRow as { pro_trial_started_at?: string | null } | null)?.pro_trial_started_at;
+        if (!alreadyStamped && paymentFingerprint && (await ledgerHas("card", paymentFingerprint))) {
+          try {
+            await getStripe().subscriptions.update(session.subscription as string, { trial_end: "now", proration_behavior: "none" });
+            trialEndsAt = null;
+            trialFirstChargeDate = null;
+          } catch (e) {
+            // They keep this one trial. Worth knowing about, not worth failing
+            // the provisioning of a subscription the customer did start.
+            await reportError("stripe.webhook.repeat_trial_end_failed", e, { userId, subscription: session.subscription });
+          }
+        }
+      }
+      if (trialEndsAt) {
+        // Record the trial against the card and the email (survives account
+        // purge), and against the account (never cleared). Best-effort: the
+        // upgrade below must not depend on the safeguards migration.
+        await ledgerAdd("card", paymentFingerprint);
+        await recordProTrialStarted(userId, trialAccountEmail);
+      }
 
       // Spend the promo redemption. Checkout requires an UNCONSUMED row before
       // it will apply free days, and nothing used to ever consume one — so a
@@ -367,6 +412,13 @@ export async function POST(req: NextRequest) {
         // Payment IS the plan decision for a paid plan, so it is settled here
         // and nowhere earlier — "Your SwiftCard is live" must not arrive while
         // somebody is still on the plan screen, or before they have paid.
+        // A paid plan settles any open "Pro ended — choose" prompt, and the
+        // legacy app-grant trial keys no longer describe this account.
+        delete srcCust[PRO_ENDED_PENDING_KEY];
+        delete srcCust._trial;
+        delete srcCust._proWarnedFor;
+        if (trialEndsAt) srcCust[TRIAL_ENDS_KEY] = trialEndsAt;
+        else delete srcCust[TRIAL_ENDS_KEY];
         await admin.from("profiles").update({
           customization: { ...srcCust, _planSource: "stripe", [PLAN_CHOSEN_KEY]: plan },
         }).eq("id", userId);
@@ -394,9 +446,11 @@ export async function POST(req: NextRequest) {
           // On a trial the session total is $0.00, and showing that as the
           // price tells the customer nothing about what they'll pay. The
           // trial email needs the RECURRING amount ("then $X monthly").
-          amountCents: trialFirstChargeDate
+          // A repeat-card trial ended above charges on a separate invoice after
+          // this session closed at $0.00 — show the real recurring amount then too.
+          amountCents: trialFirstChargeDate || !session.amount_total
             ? (recurringCents ?? session.amount_total ?? 0)
-            : (session.amount_total ?? 0),
+            : session.amount_total,
           interval: mapped?.interval === "annual" ? "Annual" : "Monthly",
           invoiceUrl,
           trialFirstChargeDate,
@@ -435,9 +489,17 @@ export async function POST(req: NextRequest) {
         // update invoice — otherwise a stale clock survives and the reminders
         // cron can cancel a customer who is actively paying.
         const cust = (profile.customization ?? {}) as Record<string, unknown>;
-        if (cust._paymentFailedAt) {
+        // Money actually moved → this is a paying customer from now on, so a
+        // later failed renewal gets the 7-day grace (see payment_failed). A
+        // $0.00 trial-start invoice does not count.
+        const becamePaying = (invoice.amount_paid ?? 0) > 0 && cust[EVER_PAID_KEY] !== true;
+        if (cust._paymentFailedAt || becamePaying) {
           const rest = { ...cust };
           delete rest._paymentFailedAt;
+          if ((invoice.amount_paid ?? 0) > 0) {
+            rest[EVER_PAID_KEY] = true;
+            delete rest[TRIAL_ENDS_KEY];
+          }
           await admin.from("profiles").update({ customization: rest }).eq("id", profile.id);
         }
       }
@@ -502,11 +564,45 @@ export async function POST(req: NextRequest) {
         const admin = getAdminSupabase();
         const { data: profile } = await admin
           .from("profiles")
-          .select("id, customization")
+          .select("id, customization, stripe_subscription_id")
           .eq("stripe_customer_id", invoice.customer as string)
           .single();
         if (profile?.id) {
           const cust = (profile.customization ?? {}) as Record<string, unknown>;
+
+          // ── A trial whose FIRST charge failed gets no grace week ────────────
+          // The 7-day grace exists so a PAYING customer with an expired card
+          // doesn't lose their account overnight. Someone who has never paid —
+          // a 14-day trial whose conversion charge just failed — would get up
+          // to 21 days of Pro for nothing. Cancel now; subscription.deleted
+          // below does the downgrade and asks them to choose.
+          //
+          // "Never paid" is asked of Stripe, not just our flag, because every
+          // customer who paid before EVER_PAID_KEY existed lacks the flag. Any
+          // doubt (the lookup fails) keeps the grace: wrongly cancelling a
+          // paying customer is the worse mistake.
+          const invoiceSubRaw = invoice.parent?.subscription_details?.subscription;
+          const invoiceSubId = typeof invoiceSubRaw === "string" ? invoiceSubRaw : invoiceSubRaw?.id;
+          // subscription_cycle = the trial ran out naturally; subscription_update
+          // = a trial ended early (the repeat-card rule in checkout.completed).
+          if (
+            (isCycleInvoice || invoice.billing_reason === "subscription_update") &&
+            invoiceSubId &&
+            invoiceSubId === profile.stripe_subscription_id &&
+            cust[EVER_PAID_KEY] !== true
+          ) {
+            let neverPaid = false;
+            try {
+              const paid = await getStripe().invoices.list({ subscription: invoiceSubId, status: "paid", limit: 20 });
+              neverPaid = !anyInvoiceActuallyPaid(paid.data);
+            } catch (e) {
+              await reportError("stripe.webhook.never_paid_lookup_failed", e, { eventId: event.id, subscription: invoiceSubId });
+            }
+            if (neverPaid) {
+              await getStripe().subscriptions.cancel(invoiceSubId);
+              return NextResponse.json({ received: true, canceledUnpaidTrial: true });
+            }
+          }
           // Only set on the FIRST failure for this billing cycle — a later retry
           // failing again must not push the deadline back out. And only for a
           // RENEWAL: a failed one-off or proration invoice is not a lapsed
@@ -554,6 +650,15 @@ export async function POST(req: NextRequest) {
       // 1) Mirror the scheduled-cancel state so the UI shows "cancels on <date>"
       //    + the Keep Subscription button, even when cancelled via the portal.
       const periodEndIso = subscriptionPeriodEndIso(sub);
+      // 0) Mirror the trial end, so the dashboard banner and billing copy know
+      //    when a charge is coming without calling Stripe on every page load.
+      const trialEndIso = stripeTrialEndIso(sub);
+      if ((cust[TRIAL_ENDS_KEY] ?? null) !== trialEndIso) {
+        if (trialEndIso) cust[TRIAL_ENDS_KEY] = trialEndIso;
+        else delete cust[TRIAL_ENDS_KEY];
+        dirty = true;
+      }
+
       if (sub.cancel_at_period_end) {
         if (cust._cancelAtPeriodEnd !== true || cust._cancelAt !== periodEndIso) {
           cust._cancelAtPeriodEnd = true;
@@ -657,6 +762,58 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ── Trial converts to paid in ~3 days ────────────────────────────────────────
+  // Stripe sends this 3 days before trial_end. Tell the person when they will
+  // be charged and how much, in-app and by email, so the first charge is never
+  // a surprise. Deduplicated like every event (stripe_events); a trial already
+  // cancelled (cancel_at_period_end) is not warned about a charge that won't come.
+  if (event.type === "customer.subscription.trial_will_end") {
+    const sub = event.data.object as Stripe.Subscription;
+    const trialEndIso = stripeTrialEndIso(sub);
+    if (trialEndIso && !sub.cancel_at_period_end) {
+      const admin = getAdminSupabase();
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("id, name, email")
+        .eq("stripe_subscription_id", sub.id)
+        .maybeSingle();
+      if (profile?.id) {
+        const price = sub.items.data[0]?.price;
+        const cents = price?.unit_amount ?? 0;
+        const interval = planFromPriceId(price?.id)?.interval === "annual" ? "Annual" : "Monthly";
+        const chargeDate = new Date(trialEndIso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+        await insertNotification({
+          user_id: profile.id as string,
+          type: "trial_ending",
+          title: "Your Pro trial ends in 3 days",
+          body: `Pro continues on ${chargeDate} when your first payment goes through. You can cancel from Plan and billing before then.`,
+        }).catch(() => {});
+        try {
+          const { data: prefs } = await admin.from("email_preferences").select("receipt_emails").eq("user_id", profile.id).maybeSingle();
+          const to = await getAccountEmail(profile.id as string, (profile.email as string) ?? null);
+          if (to && prefs?.receipt_emails !== false) {
+            const tpl = trialConvertsSoonEmail({
+              firstName: (profile.name as string)?.split(" ")[0] || "there",
+              planName: "Pro",
+              amount: `$${(cents / 100).toFixed(2)}`,
+              interval,
+              firstChargeDate: chargeDate,
+              manageUrl: `${APP_URL}/settings/flows?billing=1`,
+            });
+            const { data: sent, error: sendError } = await new Resend(process.env.RESEND_API_KEY).emails.send({ ...tpl, to });
+            if (sendError || !sent?.id) {
+              await reportError("billing.email.trial_will_end", sendError?.message ?? "no id returned", { userId: profile.id });
+            } else {
+              await admin.from("email_logs").insert({ user_id: profile.id, email: to, type: "trial_will_end", subject: tpl.subject, resend_id: sent.id });
+            }
+          }
+        } catch (e) {
+          await reportError("billing.email.trial_will_end", e, { userId: profile.id });
+        }
+      }
+    }
+  }
+
   // ── Cancellation ─────────────────────────────────────────────────────────────
   if (event.type === "customer.subscription.deleted") {
     const sub = event.data.object as Stripe.Subscription;
@@ -672,6 +829,7 @@ export async function POST(req: NextRequest) {
       .select("id, customization")
       .eq("stripe_subscription_id", sub.id)
       .maybeSingle();
+    let stripeDowngraded = false;
     if (profile?.id) {
       // Re-check stripe_subscription_id at write time (not just at the
       // SELECT above) — otherwise a retry of this event arriving after the
@@ -687,7 +845,13 @@ export async function POST(req: NextRequest) {
       // paying and this cancellation must not touch the plan.
       const src = ((profile.customization as Record<string, unknown> | null) ?? {})._planSource;
       if (stripeDowngradeAllowed(src as "stripe" | "apple" | undefined)) {
-        await admin2.from("profiles").update({ plan: "free" }).eq("id", profile.id).eq("stripe_subscription_id", sub.id);
+        const { data: downgradedRows } = await admin2
+          .from("profiles")
+          .update({ plan: "free" })
+          .eq("id", profile.id)
+          .eq("stripe_subscription_id", sub.id)
+          .select("id");
+        stripeDowngraded = (downgradedRows ?? []).length > 0;
       }
     }
     // Best-effort: clear any free-month expiry so the row can't later be mistaken
@@ -698,6 +862,11 @@ export async function POST(req: NextRequest) {
       delete cust._cancelAtPeriodEnd;
       delete cust._cancelAt;
       delete cust._cancelReason;
+      delete cust[TRIAL_ENDS_KEY];
+      // Pro just ended on this account: the dashboard asks them to choose —
+      // subscribe, or continue on Free (components/ProEndedPanel). Cleared if
+      // the membership check below finds they are still Office-entitled.
+      if (stripeDowngraded) cust[PRO_ENDED_PENDING_KEY] = true;
       // Same stripe_subscription_id re-check as the plan write above — a
       // resubscribed customer's NEW subscription's cancel-mirror/expiry must
       // not be silently cleared by a stale write for the OLD, now-cancelled
@@ -725,9 +894,30 @@ export async function POST(req: NextRequest) {
           const { data: ownerProfile } = await admin2.from("profiles").select("plan").eq("id", owningOffice.owner_id).maybeSingle();
           if (ownerProfile?.plan === "enterprise") {
             await admin2.from("profiles").update({ plan: "enterprise", office_id: membership.office_id }).eq("id", profile.id);
+            if (stripeDowngraded) {
+              stripeDowngraded = false;
+              const { data: restored } = await admin2.from("profiles").select("customization").eq("id", profile.id).maybeSingle();
+              const restoredCust = { ...((restored?.customization as Record<string, unknown> | null) ?? {}) };
+              delete restoredCust[PRO_ENDED_PENDING_KEY];
+              await admin2.from("profiles").update({ customization: restoredCust }).eq("id", profile.id);
+            }
           }
         }
       }
+    }
+
+    // Pro ended and they are on Free now — say so, once, and point at the
+    // choice. The individual got NO notice of any kind before this (only Office
+    // members did), so a trial that lapsed looked like the product breaking.
+    // In-app only: this is a prompt to subscribe, which push-policy keeps out
+    // of push. Public card pages are revalidated so extra cards go offline now,
+    // not after the cache TTL.
+    if (profile?.id && stripeDowngraded) {
+      const endedSec = sub.ended_at ?? Math.floor(Date.now() / 1000);
+      const wasTrial = !!sub.trial_end && endedSec <= sub.trial_end + 2 * 86400;
+      await insertNotification({ user_id: profile.id, type: "pro_ended", ...proEndedNotice(wasTrial) }).catch(() => {});
+      const { data: ownCards } = await admin2.from("cards").select("username").eq("user_id", profile.id);
+      for (const c of ownCards ?? []) revalidateCardPage(c.username as string);
     }
 
     if (profile?.id) {

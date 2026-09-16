@@ -26,10 +26,18 @@
 // the "manage billing" pointer are web-only. Every string below therefore
 // comes in a web form and a native form, and `stepsFor()` takes the platform.
 
-import { FREE_MONTH_DAYS, PLAN_PRICES } from "@/lib/plan";
+import { FREE_MONTH_DAYS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 
 /** Days of Pro handed to a Free user who is about to delete. One per account. */
 export const RETENTION_GRANT_DAYS = FREE_MONTH_DAYS;
+
+/**
+ * Days for someone who has ALREADY had a Pro trial (owner, 2026-09-16): the
+ * trial plus this gift add up to the same 30 free days anyone else gets, never
+ * more. One per person — the email ledger (lib/trial-ledger) keeps it from
+ * coming back after delete, purge and sign up again.
+ */
+export const RETENTION_GRANT_DAYS_AFTER_TRIAL = RETENTION_GRANT_DAYS - TRIAL_DAYS;
 /** Percent off, and for how many months, offered to a paying Pro subscriber. */
 export const RETENTION_DISCOUNT_PERCENT = 50;
 export const RETENTION_DISCOUNT_MONTHS = 3;
@@ -155,8 +163,10 @@ export function reasonById(plan: RetentionPlan, id: string): Reason | null {
 
 /** What the account can actually be offered — decided on the server. */
 export type Eligibility = {
-  /** Free plan, never granted retention time before → 30 days of Pro. */
+  /** Free plan, never granted retention time before → free days of Pro. */
   grant: boolean;
+  /** How many days the grant gives: 30, or 16 after a Pro trial. Absent = 30. */
+  grantDays?: number;
   /** Paying via Stripe, never discounted before → 50% off for 3 months. */
   discount: boolean;
   /** Pro on Stripe → "switch to Free" keeps everything and stops billing. */
@@ -202,13 +212,14 @@ export type OfferCopy = {
 export function offerStep(plan: RetentionPlan, elig: Eligibility, native: boolean): OfferCopy | null {
   if (plan === "free") {
     if (!elig.grant) return null;
+    const days = elig.grantDays ?? RETENTION_GRANT_DAYS;
     const price = (PLAN_PRICES.PRO_MONTHLY_CENTS / 100).toFixed(2);
     return {
-      title: `Take ${RETENTION_GRANT_DAYS} days of Pro first — on us`,
+      title: `Take ${days} days of Pro first — on us`,
       body: native
-        ? `Before you delete anything: ${RETENTION_GRANT_DAYS} days of Pro, free, starting now. No card, nothing to cancel — it simply ends on its own. Unlimited cards and links, every contact unlocked, automatic follow-up, and the AI card scanner.`
-        : `Before you delete anything: ${RETENTION_GRANT_DAYS} days of Pro, free, starting now. No card required and nothing to cancel — it just ends on its own and you're back on Free. That's unlimited cards and links, every contact unlocked, automatic email and text follow-up, and the AI card scanner — normally $${price}/month.`,
-      accept: `Give me ${RETENTION_GRANT_DAYS} days of Pro`,
+        ? `Before you delete anything: ${days} days of Pro, free, starting now. No card, nothing to cancel — it simply ends on its own. Unlimited cards and links, every contact unlocked, automatic follow-up, and the AI card scanner.`
+        : `Before you delete anything: ${days} days of Pro, free, starting now. No card required and nothing to cancel — it just ends on its own and you're back on Free. That's unlimited cards and links, every contact unlocked, automatic email and text follow-up, and the AI card scanner — normally $${price}/month.`,
+      accept: `Give me ${days} days of Pro`,
       action: "grant",
       decline: "No thanks, keep deleting",
     };

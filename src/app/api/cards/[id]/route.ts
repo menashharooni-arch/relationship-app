@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateCardPage } from "@/lib/card-page-data";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
+import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
+import { freeLiveCardIds } from "@/lib/card-active";
 import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, findManagedFieldViolations, overlayOfficeLinks, overlayOfficeInstagram } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
@@ -93,21 +94,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (!isPaidPlan(planRow?.plan)) {
-    // Grandfathering: a downgraded user keeps every card, but only the first
-    // FREE_CARD_LIMIT stay editable — extras are view-only (still live publicly).
-    const { data: owned } = await admin
-      .from("cards")
-      .select("id")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: true });
-    if ((owned?.length ?? 0) > PLAN_LIMITS.FREE_CARD_LIMIT) {
-      const editable = (owned ?? []).slice(0, PLAN_LIMITS.FREE_CARD_LIMIT).map((c) => c.id);
-      if (!editable.includes(id)) {
-        return NextResponse.json(
-          { code: "CARD_VIEW_ONLY", error: "view_only", message: "This card is view-only on Free. Upgrade to Pro to edit all your cards.", upgrade: "/upgrade" },
-          { status: 403 }
-        );
-      }
+    // Grandfathering: a downgraded user keeps every card, but only the live
+    // one(s) stay editable — the card they chose to keep when Pro ended, else
+    // the oldest (lib/card-active). Extras are view-only and offline publicly.
+    const editable = await freeLiveCardIds(user.id);
+    if (!editable.includes(id)) {
+      return NextResponse.json(
+        { code: "CARD_VIEW_ONLY", error: "view_only", message: "This card is view-only on Free. Upgrade to Pro to edit all your cards.", upgrade: "/upgrade" },
+        { status: 403 }
+      );
     }
     if (updates.template === "custom") updates.template = "classic-pro";
   }

@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
+import { ledgerHas } from "@/lib/trial-ledger";
 
 // ── Who gets the 14-day Pro free trial ───────────────────────────────────────
 //
@@ -58,7 +59,24 @@ import { getStripe } from "@/lib/stripe";
 export async function isProTrialEligible(
   stripeCustomerId?: string | null,
   stripeClient?: Stripe,
+  history?: {
+    /** profiles.pro_trial_started_at — set when any trial (Stripe or Apple) began. */
+    proTrialStartedAt?: string | null;
+    /** The ACCOUNT email, checked against the purge-proof trial ledger. */
+    accountEmail?: string | null;
+  },
 ): Promise<boolean> {
+  // RULE 4 (2026-09-16), layered on rule 1: one trial per PERSON, not per
+  // Stripe customer. A new email is a new customer, so rule 1 alone let the
+  // same person trial again from a second account, or from the same email
+  // once the 30-day account purge freed it. The account marker and the email
+  // ledger (lib/trial-ledger) close both; the card itself is checked in the
+  // Stripe webhook, the first point a card exists. Both fail OPEN like the
+  // Stripe check below: a missing marker or unreachable ledger reads as "no
+  // record", never as a refusal.
+  if (history?.proTrialStartedAt) return false;
+  if (history?.accountEmail && (await ledgerHas("email_trial", history.accountEmail))) return false;
+
   if (!stripeCustomerId) return true;
 
   try {

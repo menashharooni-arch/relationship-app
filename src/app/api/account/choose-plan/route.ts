@@ -5,6 +5,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { revalidateCardPage } from "@/lib/card-page-data";
+import { PRO_ENDED_PENDING_KEY } from "@/lib/billing-state";
 
 // ── "I'll stay on Free" — the moment the plan becomes real ───────────────────
 //
@@ -29,10 +30,16 @@ import { revalidateCardPage } from "@/lib/card-page-data";
 // Deliberately NOT a plan write: Free IS the absence of a paid plan, and
 // profiles.plan already reads "free". Writing it again would be the one place
 // that could race the Stripe webhook if somebody paid in another tab.
-export async function POST() {
+export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
+  // Optional body. `liveCardId` comes from ProEndedPanel: the card this person
+  // wants to keep live on Free now that Pro has ended. The /welcome plan step
+  // sends no body at all.
+  const body = (await req.json().catch(() => null)) as { liveCardId?: unknown } | null;
+  const liveCardId = typeof body?.liveCardId === "string" ? body.liveCardId : null;
 
   const admin = getAdminSupabase();
 
@@ -48,11 +55,29 @@ export async function POST() {
   const alreadyPaid = isPaidPlan(profile.plan as string | null);
 
   const cust = (profile.customization ?? {}) as Record<string, unknown>;
-  if (!cust[PLAN_CHOSEN_KEY]) {
-    await admin
-      .from("profiles")
-      .update({ customization: { ...cust, [PLAN_CHOSEN_KEY]: alreadyPaid ? profile.plan : "free" } })
-      .eq("id", user.id);
+  // Pro ENDED (a trial or subscription ran out) as opposed to a brand-new
+  // account picking Free. Same conversion, one difference: nothing that is
+  // content gets removed, so Swift Links past the Free cap stay stored.
+  const proEnded = cust[PRO_ENDED_PENDING_KEY] === true;
+  if (!cust[PLAN_CHOSEN_KEY] || proEnded) {
+    const next: Record<string, unknown> = { ...cust };
+    if (!next[PLAN_CHOSEN_KEY]) next[PLAN_CHOSEN_KEY] = alreadyPaid ? profile.plan : "free";
+    delete next[PRO_ENDED_PENDING_KEY];
+    await admin.from("profiles").update({ customization: next }).eq("id", user.id);
+  }
+
+  // The card that stays live. Validated as theirs — an id that is not one of
+  // this account's cards is ignored and the oldest-card rule stands.
+  if (liveCardId && !alreadyPaid) {
+    const { data: owned } = await admin
+      .from("cards")
+      .select("id")
+      .eq("id", liveCardId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (owned) {
+      await admin.from("profiles").update({ free_live_card_id: liveCardId }).eq("id", user.id);
+    }
   }
 
   // Convert every card this account owns down to its Free-safe design. In
@@ -68,10 +93,15 @@ export async function POST() {
 
     for (const card of cards ?? []) {
       const before = (card.customization ?? {}) as Record<string, unknown>;
-      const afterCust = sanitizeCustomizationForPlan(before, false, (card.template as string) || "classic-pro");
+      const afterCust = sanitizeCustomizationForPlan(before, false, (card.template as string) || "classic-pro", { keepLinks: proEnded });
       // Only write when something actually changed — an untouched Free card
       // must not take a pointless UPDATE and a cache invalidation.
-      if (JSON.stringify(afterCust) === JSON.stringify(before)) continue;
+      if (JSON.stringify(afterCust) === JSON.stringify(before)) {
+        // Pro ended: which card is live may have just changed even when its
+        // design did not, so the public pages still need to hear about it.
+        if (proEnded) revalidateCardPage(card.username as string);
+        continue;
+      }
       const { error } = await admin
         .from("cards")
         .update({ customization: afterCust })

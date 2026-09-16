@@ -35,6 +35,10 @@ import { findPendingInviteForEmail } from "@/lib/pending-invite";
 import TourAutoStart from "@/components/TourAutoStart";
 import MyCardsList from "@/components/dashboard/MyCardsList";
 import TrialBanner from "@/components/TrialBanner";
+import ProEndedPanel from "@/components/ProEndedPanel";
+import { PLAN_STEP_REQUIRED_SINCE, PRO_ENDED_PENDING_KEY, TRIAL_ENDS_KEY } from "@/lib/billing-state";
+import { PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
+import type { CardLink } from "@/components/card-templates/types";
 import PushNudge from "@/components/PushNudge";
 import { hasWalletConfig } from "@/lib/wallet-config";
 import TrackEvent from "@/components/TrackEvent";
@@ -47,7 +51,8 @@ import { PlanGate, PlanNotice } from "@/components/PlanGate";
 import CardSelectionPersist from "@/components/CardSelectionPersist";
 import TourContextPersist from "@/components/TourContextPersist";
 import { Suspense } from "react";
-import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
+import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan, describeFreeDesignChanges, proLinkFeaturesInUse } from "@/lib/plan";
+import { pickFreeLiveCardIds } from "@/lib/card-active";
 import { redactForPlan } from "@/lib/notification-privacy";
 import { readUsage } from "@/lib/usage";
 import { backfillCardPhotos } from "@/lib/card-media";
@@ -151,7 +156,10 @@ export default async function DashboardPage({
   // Free and never subscribed → no Stripe customer → true with no network call.
   const trialEligible = isPro
     ? false
-    : await isProTrialEligible(profile.stripe_customer_id as string | null);
+    : await isProTrialEligible(profile.stripe_customer_id as string | null, undefined, {
+        proTrialStartedAt: (profile as { pro_trial_started_at?: string | null }).pro_trial_started_at,
+        accountEmail: user.email,
+      });
 
   // App-level Pro grant (14-day reverse trial or a stacked referral/free month):
   // plan is pro, with an expiry, and NO real Stripe subscription behind it.
@@ -160,10 +168,61 @@ export default async function DashboardPage({
   const trialDaysLeft = onAppGrant ? daysUntil(proExpiresAt as string) : 0;
   const isTrialGrant = !!(profile.customization as { _trial?: boolean } | null)?._trial;
 
+  // A card-backed Stripe trial converting to paid soon. The webhook mirrors
+  // trial_end into customization, so this costs no Stripe call. Shown only in
+  // the last 3 days — the rest of the trial the product just works, and the
+  // full status lives in Settings → Plan and billing.
+  const profileCust = (profile.customization ?? {}) as Record<string, unknown>;
+  const stripeTrialEndsAt =
+    isPro && profile.stripe_subscription_id && typeof profileCust[TRIAL_ENDS_KEY] === "string" && !profileCust._cancelAtPeriodEnd
+      ? (profileCust[TRIAL_ENDS_KEY] as string)
+      : null;
+  const stripeTrialDaysLeft = stripeTrialEndsAt ? daysUntil(stripeTrialEndsAt) : 0;
+  const showStripeTrialBanner = !!stripeTrialEndsAt && stripeTrialDaysLeft > 0 && stripeTrialDaysLeft <= 3;
+
+  // Pro ended and the choice is still open (components/ProEndedPanel): which
+  // card stays live, and what Free changes about the design. Named with the
+  // same two checkers /welcome and the editor use, so all three agree.
+  const proEndedPending = !isPro && profileCust[PRO_ENDED_PENDING_KEY] === true;
+  const proEndedDesignChanges = proEndedPending
+    ? [...new Set(allCards.flatMap((c) => {
+        const cc = (c.customization ?? {}) as Record<string, unknown>;
+        return [
+          ...describeFreeDesignChanges(cc, (c.template as string) || "classic-pro"),
+          ...proLinkFeaturesInUse(cc, (cc.links as CardLink[] | undefined) ?? []).map((n) => `${n} is not included`),
+        ];
+      }))]
+    : [];
+  const proEndedLiveCardId = proEndedPending
+    ? (pickFreeLiveCardIds(allCards.map((c) => c.id as string), (profile as { free_live_card_id?: string | null }).free_live_card_id)[0] ?? null)
+    : null;
+
   // An unaccepted team invite for this email: the person reached the dashboard
   // without tapping the invite link (installed the app first, or signed in on
   // the web). Only looked up for accounts that aren't already Office members.
   const pendingInvite = isEnterprise ? null : await findPendingInviteForEmail(user.email);
+
+  // The plan step, once, for every NEW account (owner, 2026-09-16: start on
+  // Free unless they choose Pro at the plan step — and they must get to see
+  // it). A guest who closed the tab on /welcome, or anyone who got a card
+  // without passing the step, lands here with a card and no recorded choice;
+  // send them to choose. Choosing Free records it (api/account/choose-plan,
+  // api/cards); paying records it (Stripe/Apple). Accounts created before this
+  // rule shipped are never redirected — they were never asked to choose, and
+  // "existing users unchanged" is the constraint. Office members and pending
+  // invitees have their plan decided by the team.
+  if (
+    hasCards &&
+    !isPro &&
+    !profile.office_id &&
+    !pendingInvite &&
+    !proEndedPending &&
+    !profileCust[PLAN_CHOSEN_KEY] &&
+    typeof profile.created_at === "string" &&
+    profile.created_at >= PLAN_STEP_REQUIRED_SINCE
+  ) {
+    redirect("/welcome");
+  }
 
   // No cards yet → show the "create your card" empty state.
   if (!hasCards) {
@@ -820,8 +879,22 @@ export default async function DashboardPage({
           {/* Unaccepted team invite for this email — their way into the hub. */}
           {pendingInvite && <PendingInviteBanner officeName={pendingInvite.officeName} token={pendingInvite.token} />}
 
-          {/* Reverse-trial / free-Pro countdown */}
+          {/* Pro ended — subscribe, or continue on Free and pick the live card */}
+          {proEndedPending && (
+            <ProEndedPanel
+              wasTrial={!!(profile as { pro_trial_started_at?: string | null }).pro_trial_started_at && profileCust._everPaid !== true}
+              cards={allCards.map((c) => ({
+                id: c.id as string,
+                label: ((c.label as string | null) || (c.name as string | null) || (c.username as string)) as string,
+              }))}
+              defaultLiveCardId={proEndedLiveCardId}
+              designChanges={proEndedDesignChanges}
+            />
+          )}
+
+          {/* Free-Pro grant countdown, or a card-backed trial about to convert */}
           {onAppGrant && trialDaysLeft > 0 && <TrialBanner daysLeft={trialDaysLeft} isTrial={isTrialGrant} />}
+          {showStripeTrialBanner && <TrialBanner daysLeft={stripeTrialDaysLeft} isTrial converts />}
 
           {/* First-run guided-tour invitation — only on the ?tour=1/?welcome=1
               load right after the first card is created (the banner reads the
@@ -897,6 +970,10 @@ export default async function DashboardPage({
               activeUsername={activeUsername}
               isPro={isPro}
               freeCardLimit={PLAN_LIMITS.FREE_CARD_LIMIT}
+              liveCardIds={pickFreeLiveCardIds(
+                allCards.map((c) => c.id as string),
+                (profile as { free_live_card_id?: string | null }).free_live_card_id,
+              )}
               view={view}
               sortBy={sortBy}
               // No standing upsell under My Cards any more. The pitch lives

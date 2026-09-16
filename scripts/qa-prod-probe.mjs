@@ -144,6 +144,21 @@ try {
   const hj = await h.json().catch(() => ({}));
   pass(h.status === 200 && hj.ok === true, `/api/health ok (db=${hj.db}, dbMs=${hj.dbMs}, ${hms}ms)`);
   pass(Number(hj.dbMs) < 1200, `database answers within budget (dbMs=${hj.dbMs})`);
+
+  // ── 4. no free Pro outlives its end date (2026-09-16) ────────────────────
+  // A free-Pro grant (referral or delete-flow days) is Pro with an expiry and
+  // no subscription; the daily /api/reminders cron moves it back to Free. If
+  // that job dies, every grant quietly becomes permanent Pro and nothing else
+  // would ever notice. The cron runs once a day, so anything more than 26 hours
+  // past its expiry means it did not run. Apple-billed rows are excluded — the
+  // Apple grant clears the expiry, and a stale one there is not access leaking.
+  const staleBefore = new Date(Date.now() - 26 * 3600 * 1000).toISOString();
+  const stale = await (await adm(
+    `/rest/v1/profiles?plan=in.(pro,enterprise)&stripe_subscription_id=is.null&plan_expires_at=lt.${encodeURIComponent(staleBefore)}` +
+    `&or=(customization->>_planSource.is.null,customization->>_planSource.neq.apple)&select=id&limit=20`,
+  )).json();
+  pass(Array.isArray(stale) && stale.length === 0,
+    `no free-Pro grant is still Pro past its end date (got ${Array.isArray(stale) ? stale.length : JSON.stringify(stale).slice(0, 80)})`);
 } catch (e) {
   console.log("ERROR", e.message); failures.push("probe threw: " + e.message);
 } finally {

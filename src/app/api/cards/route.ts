@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
-import { sendWelcomeWhenCardLive } from "@/lib/welcome-email";
+import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, seedBrandFromOwnersFirstCard, overlayOfficeLinks, overlayOfficeInstagram } from "@/lib/office-brand";
 import { seedDemoContact } from "@/lib/demo-contact";
 import { normalizeSocial } from "@/lib/social-url";
@@ -204,6 +204,19 @@ export async function POST(req: NextRequest) {
   // slug that was actually inserted (may differ from our first pick after a race).
   if ((count ?? 0) === 0) {
     await seedDemoContact(data.username);
+  }
+
+  // Free chosen at the in-wizard plan gate (the wizard sends chosenPlan "free"
+  // only from that gate). Record the plan as decided — the same marker
+  // api/account/choose-plan writes for /welcome — so the welcome email is
+  // released and the dashboard never asks them to choose again. Paid picks are
+  // settled by Stripe/Apple, never here.
+  if (!paid && chosenPlan === "free") {
+    const { data: acct } = await admin.from("profiles").select("customization").eq("id", user.id).maybeSingle();
+    const acctCust = (acct?.customization ?? {}) as Record<string, unknown>;
+    if (!acctCust[PLAN_CHOSEN_KEY]) {
+      await admin.from("profiles").update({ customization: { ...acctCust, [PLAN_CHOSEN_KEY]: "free" } }).eq("id", user.id);
+    }
   }
 
   // "Your SwiftCard is live" — sent HERE, the first time this account has a

@@ -354,13 +354,21 @@ export function sanitizeCustomizationForPlan<T extends Record<string, unknown>>(
      * are stored and hidden, which is what the plan actually means.
      */
     preserveDowngraded?: boolean;
+    /**
+     * Convert the DESIGN to Free but keep every Swift Link stored. Used when
+     * someone whose Pro ended confirms "Continue on Free": the owner's rule is
+     * that their design converts but no content is ever deleted, and links are
+     * content. Every renderer already hides links past FREE_MAX_LINKS, so the
+     * extras stay invisible on Free and come back with Pro.
+     */
+    keepLinks?: boolean;
   },
 ): T {
   let cust = { ...(customization ?? {}) } as Record<string, unknown>;
   if (paid || opts?.preserveDowngraded) return cust as T;
   // Free is capped at FREE_MAX_LINKS Swift Links (action-link buttons); extras
   // are trimmed. Pro/Office get unlimited links plus full design control.
-  if (Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_MAX_LINKS) {
+  if (!opts?.keepLinks && Array.isArray(cust.links) && cust.links.length > PLAN_LIMITS.FREE_MAX_LINKS) {
     cust.links = (cust.links as unknown[]).slice(0, PLAN_LIMITS.FREE_MAX_LINKS);
   }
   cust = convertCustomizationToFreeClosest(cust, template).customization;

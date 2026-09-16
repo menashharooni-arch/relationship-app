@@ -9,6 +9,7 @@ import { isFreeDays } from "@/lib/promo";
 import { priceIdForPlan, type BillingInterval } from "@/lib/subscription";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
+import { trialHistoryFor } from "@/lib/trial-ledger";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -194,7 +195,15 @@ export async function POST(req: NextRequest) {
     // eligibility check, so this flag can't be abused to mint one.
     const trialAllowed = body.trial !== false;
     let trialDays: number | undefined;
-    if (isPro && trialAllowed && (await isProTrialEligible(profile.stripe_customer_id as string | null, stripe))) {
+    if (
+      isPro &&
+      trialAllowed &&
+      (await isProTrialEligible(
+        profile.stripe_customer_id as string | null,
+        stripe,
+        await trialHistoryFor(user.id, user.email),
+      ))
+    ) {
       trialDays = TRIAL_DAYS;
     }
 
