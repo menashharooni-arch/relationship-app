@@ -40,7 +40,12 @@ export default function PlanCards({
   onFree,
   onPaid,
   busy = null,
-  freeLabel = "Get started free →",
+  // "Continue with Free →", not "Get started free →". The DEFAULT matters more
+  // than any single call site: the wizard passed an explicit override to dodge
+  // the collision with the Pro button, /welcome did not, and /welcome is the
+  // screen that actually charged someone. A safe default means the next caller
+  // cannot reintroduce it by forgetting a prop.
+  freeLabel = "Continue with Free →",
   onIapPurchased,
   onCreateAccountForPro,
 }: {
@@ -156,8 +161,17 @@ export default function PlanCards({
             <ul className="space-y-2.5 mb-7 flex-1">
               {PLAN_FEATURES.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-white"><Check pro />{f}</li>))}
             </ul>
+            {/* "Try Pro free for 14 days →", never a bare "Start free →".
+                This button sits inches from the Free plan's button, and when
+                both read as some flavour of "free" the only genuinely free one
+                is indistinguishable from the one that takes a card. That is not
+                hypothetical: a guest chose Free, was shown this chooser again
+                on /welcome because the stored choice had been consumed, tapped
+                this button, and was put on a 14-day Pro trial they had
+                explicitly declined a minute earlier (owner report 2026-09-15).
+                The word "free" here is bound to Pro and to a time limit. */}
             <button onClick={() => onPaid("pro", annual, 1)} disabled={disabled} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
-              {busy === "pro" ? "Loading…" : "Start free →"}
+              {busy === "pro" ? "Loading…" : `Try Pro free for ${TRIAL_DAYS} days →`}
             </button>
             {/* Eligibility + billing terms stay here; ProTrialCallout above
                 carries the offer itself. "for new customers" is load-bearing —
@@ -248,7 +262,7 @@ function NativePro({
         </ul>
         <IapSubscribeButton
           className="!w-full !py-3.5 !text-sm !bg-white !text-[#2450d8]"
-          label="Start free →"
+          label={`Try Pro free for ${TRIAL_DAYS} days →`}
           sublabel={`${TRIAL_DAYS} days free, then billed by Apple`}
           onPurchased={onPurchased}
           onNeedsAccount={onNeedsAccount}
