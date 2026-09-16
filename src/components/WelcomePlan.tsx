@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import EnablePushButton from "@/components/EnablePushButton";
 import { GetTheAppCard } from "@/components/AppStoreBadge";
 import PlanCards, { type PaidPlan } from "@/components/PlanCards";
+import FreeDesignChoice from "@/components/FreeDesignChoice";
 import { consumePlanIntent, type PlanIntent } from "@/lib/plan-intent";
 import { detectNativeApp } from "@/lib/platform";
 
@@ -20,12 +21,26 @@ import { detectNativeApp } from "@/lib/platform";
 // and an auto-started guided tour — everything a new account should get.
 const LANDING = "/dashboard?welcome=1&tour=1";
 
-export default function WelcomePlan({ cardSlug, designConverted = false }: { cardSlug: string | null; designConverted?: boolean }) {
+export default function WelcomePlan({
+  cardSlug,
+  designConverted = false,
+  // What Free will change about the card they just built, in plain English,
+  // computed server-side in welcome/page.tsx from the saved row (never from
+  // React state, which is a tick behind). Empty for a card that uses nothing
+  // Pro — and an empty list is the whole reason `chooseFree` has a fast path.
+  proDesignChanges = [],
+}: {
+  cardSlug: string | null;
+  designConverted?: boolean;
+  proDesignChanges?: string[];
+}) {
   const router = useRouter();
   // undefined = not read yet (avoids a hydration flash); null = no stored choice.
   const [intent, setIntent] = useState<PlanIntent | null | undefined>(undefined);
   const [loading, setLoading] = useState<"free" | PaidPlan | null>(null);
   const [error, setError] = useState("");
+  // Asked only when there is something to lose; see chooseFree.
+  const [pendingFreeConfirm, setPendingFreeConfirm] = useState(false);
 
   useEffect(() => {
     // NATIVE (App Store 3.1.1): never resume a stored paid-plan intent inside
@@ -36,9 +51,54 @@ export default function WelcomePlan({ cardSlug, designConverted = false }: { car
     setIntent(detectNativeApp() ? null : consumePlanIntent());
   }, []);
 
+  // Straight to the dashboard, settling nothing. Used ONLY after a purchase has
+  // already happened (onIapPurchased) — they are on a paid plan, so the free
+  // settle below must not run and tell the account otherwise.
   function goFree() {
     setLoading("free");
     router.push(LANDING);
+  }
+
+  /**
+   * "I'll stay on Free" — the gate, mirroring handleAuthedFirstCardFree in
+   * NewCardWizard so the two paths cannot drift.
+   *
+   * A card that uses nothing Pro has nothing to be warned about, so asking
+   * would be a pointless extra screen. A card that DOES is not flattened
+   * silently: the panel names what changes and offers to keep it on a trial.
+   */
+  function chooseFree() {
+    if (proDesignChanges.length) { setPendingFreeConfirm(true); return; }
+    void confirmFree();
+  }
+
+  /**
+   * They chose Free with their eyes open — make it real.
+   *
+   * One endpoint rather than three calls because the three things have to
+   * happen together (see api/account/choose-plan): the design is converted for
+   * good, the plan is marked settled, and THAT is what releases the welcome
+   * email. Navigating without it would leave an account whose plan was never
+   * decided and which therefore never gets greeted.
+   */
+  async function confirmFree() {
+    setLoading("free");
+    setError("");
+    try {
+      const res = await fetch("/api/account/choose-plan", { method: "POST" });
+      if (res.status === 401) { window.location.href = "/login?next=/welcome"; return; }
+      if (!res.ok) {
+        const { error: err } = await res.json().catch(() => ({ error: null }));
+        setError(err || "Couldn't save your plan. Please try again.");
+        setLoading(null);
+        return;
+      }
+      setPendingFreeConfirm(false);
+      router.push(LANDING);
+    } catch {
+      setError("Couldn't reach the server. Please try again.");
+      setLoading(null);
+    }
   }
 
   async function checkout(plan: PaidPlan, annual: boolean, seats: number) {
@@ -119,32 +179,49 @@ export default function WelcomePlan({ cardSlug, designConverted = false }: { car
               <Link href="/terms" className="underline hover:text-gray-300">Terms</Link> and{" "}
               <Link href="/privacy" className="underline hover:text-gray-300">Privacy Policy</Link>.
             </p>
-            <button onClick={goFree} disabled={loading !== null} className="mt-3 text-gray-500 hover:text-gray-300 text-xs transition-colors">
+            {/* chooseFree, not goFree: backing out of checkout is still a
+                choice of Free, so it has to settle the plan like any other —
+                otherwise this one path leaves an account whose plan was never
+                decided, and the welcome email waits forever on a decision that
+                already happened. */}
+            <button onClick={chooseFree} disabled={loading !== null} className="mt-3 text-gray-500 hover:text-gray-300 text-xs transition-colors">
               Actually, start on the free plan instead →
             </button>
           </div>
-        ) : intent?.plan === "free" ? (
-          // They picked Free before signing up → straight to the dashboard.
-          <div className="max-w-md mx-auto text-center">
-            <h2 className="text-white font-bold text-xl">You&apos;re on the Free plan</h2>
-            <p className="text-gray-400 text-sm mt-1.5">Everything you need to start sharing and capturing leads — upgrade anytime.</p>
-            {designConverted && (
-              <p className="mt-4 rounded-xl border border-blue-800/40 bg-blue-950/30 px-4 py-3 text-left text-blue-200/90 text-xs leading-relaxed">
-                Custom colors and premium design options are available on Pro. Your card content will be saved, but we&apos;ll apply a basic Free design that you can still customize.
-              </p>
-            )}
-            <button onClick={goFree} disabled={loading !== null} className="mt-5 w-full py-3.5 rounded-full text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50">
-              {loading === "free" ? "Setting up…" : "Go to your dashboard →"}
+        ) : pendingFreeConfirm ? (
+          // Free, on a card built with Pro design. Asked HERE because this is
+          // where the plan is actually decided — and because the card was
+          // stored exactly as designed, "keep it" is a real offer rather than
+          // an undo of something already flattened.
+          <div className="max-w-md mx-auto">
+            <div className="text-center mb-5">
+              <h2 className="text-white font-bold text-xl">Before you go Free</h2>
+              <p className="text-gray-400 text-sm mt-1.5">One thing to know about the card you just designed.</p>
+            </div>
+            <FreeDesignChoice
+              changes={proDesignChanges}
+              onKeepWithTrial={() => checkout("pro", false, 1)}
+              onContinueFree={confirmFree}
+              busy={loading !== null}
+            />
+            <button
+              onClick={() => setPendingFreeConfirm(false)}
+              disabled={loading !== null}
+              className="mt-4 w-full text-gray-500 hover:text-gray-300 text-xs transition-colors disabled:opacity-50"
+            >
+              ← Back to plans
             </button>
           </div>
         ) : (
-          // No stored choice (e.g. signed up another way) → show the chooser.
+          // THE plan step. Every account passes through here exactly once, with
+          // the card already saved and the account already made — so the answer
+          // has somewhere real to go the moment it is given.
           <>
             <div className="text-center mb-6">
               <h2 className="text-white font-bold text-xl">Choose your plan</h2>
-              <p className="text-gray-400 text-sm mt-1">Start free — upgrade anytime as your network grows.</p>
+              <p className="text-gray-400 text-sm mt-1">Your card is saved either way — pick how you want to run it.</p>
             </div>
-            <PlanCards onFree={goFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} />
+            <PlanCards onFree={chooseFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} freeLabel="Continue with Free →" />
           </>
         )}
 

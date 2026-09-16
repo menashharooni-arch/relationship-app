@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearDraft, hasClaimConsent, hasPendingDraft, loadDraft } from "@/lib/guest-draft";
-import { peekPlanIntent } from "@/lib/plan-intent";
 
 // Mounted on the pages an authenticated user lands on after signing in with a
 // pending guest draft (the editor wrappers, dashboard, onboarding). On mount it
@@ -42,12 +41,12 @@ export default function GuestDraftClaim() {
 
     (async () => {
       try {
-        // Read (not consume) the plan the guest picked before signing up — the
-        // claim needs it to decide whether to keep the Pro design as-designed
-        // (pending checkout) or convert it to the closest Free look. /welcome
-        // still does the one-time consumePlanIntent() to finalize the choice.
-        const intendedPlan = peekPlanIntent()?.plan ?? null;
-
+        // No plan is sent any more. The guest has not chosen one yet — that
+        // happens on /welcome, now that the account exists — so the card is
+        // stored exactly as it was designed and nothing is flattened on a guess.
+        // Safe: the public card page re-sanitizes against the REAL plan on every
+        // view, so a Free account still SHOWS Free until they either pay or
+        // confirm Free (which converts the stored design for good).
         const res = await fetch("/api/drafts/claim", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -56,7 +55,6 @@ export default function GuestDraftClaim() {
             payload: draft.payload,
             images: draft.images,
             step: draft.step,
-            intendedPlan,
           }),
         });
 

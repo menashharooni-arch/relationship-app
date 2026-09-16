@@ -3,6 +3,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { welcomeEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { ensureEmailPreferences } from "@/lib/email-prefs";
 import { getAccountEmail } from "@/lib/account-email";
+import { isPaidPlan } from "@/lib/plan";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -138,15 +139,32 @@ export async function sendWelcomeEmail(userId: string, accountEmail: string | nu
   }
 }
 
+/** Set on profiles.customization the moment a plan is settled — "free" when the
+ *  visitor confirms Free, or the plan name when Stripe/Apple provisions a paid
+ *  one. The welcome email waits for it. */
+export const PLAN_CHOSEN_KEY = "_planChosen";
+
 /**
- * Send the welcome email if — and only if — this account now has a card.
+ * Send the welcome email if — and only if — the card is live AND the plan is
+ * settled.
  *
  * THE ONE ENTRY POINT the app uses. Call it from anywhere a card can come into
- * existence; it is cheap, it never throws, and it cannot double-send:
+ * existence or a plan can be decided; it is cheap, it never throws, and it
+ * cannot double-send:
  *
- *   • no card yet            → "skipped", nothing written, nothing sent
- *   • card, not yet welcomed → sends, and claims the row that blocks the rest
+ *   • no card yet            → "skipped"
+ *   • card but no plan yet   → "skipped"
+ *   • both, not yet welcomed → sends, and claims the row that blocks the rest
  *   • already welcomed       → "already_sent"
+ *
+ * ── WHY THE PLAN GATE (2026-09-15) ──────────────────────────────────────────
+ * The card row is created the moment a guest's draft is claimed, which is now
+ * BEFORE they have chosen a plan. Sending on card creation therefore mailed
+ * "Your SwiftCard is live" to someone still sitting on the plan screen, and —
+ * worse — before a Pro buyer had paid. The owner's rule is that the mail goes
+ * out once the plan is settled: after payment for a paid plan, or on confirming
+ * Free. The card genuinely IS live before then (no publish step exists), so
+ * this is about the promise the email makes, not about visibility.
  *
  * The account email is resolved from AUTH, not from profiles.email — that
  * column drifts to the card's public contact address the moment someone sets
@@ -164,6 +182,18 @@ export async function sendWelcomeWhenCardLive(
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
     if (!count) return "skipped";
+
+    // A paid plan on the profile IS a settled plan, even without the marker —
+    // an account upgraded by an admin, by Apple, or before this marker existed
+    // must still be able to receive its welcome.
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("plan, customization")
+      .eq("id", userId)
+      .maybeSingle();
+    const cust = (profile?.customization ?? {}) as Record<string, unknown>;
+    const planSettled = !!cust[PLAN_CHOSEN_KEY] || isPaidPlan(profile?.plan as string | null);
+    if (!planSettled) return "skipped";
 
     const to = await getAccountEmail(userId, fallbackEmail ?? null);
     return await sendWelcomeEmail(userId, to);

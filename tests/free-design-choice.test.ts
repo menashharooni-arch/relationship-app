@@ -100,45 +100,178 @@ describe("the wizard decides before it converts", () => {
     expect(fn).toContain("applyFreeDesignConversion()");
   });
 
-  it("asks a GUEST too, before the plan intent is written", () => {
-    // A guest used to see nothing here and meet the news on /welcome, after
-    // the account existed and the card had already been flattened.
-    const fn = src.slice(src.indexOf("function handleGuestFree"), src.indexOf("function confirmGuestFree"));
-    expect(fn).toContain("freeDesignChanges()");
-    expect(fn).toContain("setPendingFreeConfirm(true)");
-    expect(src).toContain("onFree={guest ? handleGuestFree : handleAuthedFirstCardFree}");
+  it("asks a GUEST too — on /welcome now, not in the wizard", () => {
+    // A guest used to see nothing here and meet the news on /welcome, after the
+    // account existed and the card had already been flattened. The wizard grew
+    // handleGuestFree/confirmGuestFree to fix that, and they were deleted on
+    // 2026-09-15 for a better reason: a guest's answer had nowhere to live but
+    // localStorage, and a one-shot read of it is what lost somebody's "Free"
+    // and put them on a trial they had declined.
+    //
+    // So the question moved to where the account exists. The GUARANTEE has not
+    // moved and is pinned here either way: a guest is never silently flattened.
+    // Follow the asking, not the file.
+    expect(src, "the wizard is offering a guest a plan gate again").toContain("!guest && isFirstCard");
+    // Called or defined, not merely named: the wizard keeps a comment saying
+    // these helpers "lived here and are gone", which is the note that stops
+    // someone reinventing them. Matching the bare name would fail on the
+    // gravestone and push the next person into deleting the explanation.
+    expect(src, "the deleted localStorage plan-intent helpers are back").not.toMatch(/pickPlanThenSignUp\s*\(/);
+    expect(src, "the guest plan branch is back in the wizard").not.toMatch(/function (handleGuestFree|confirmGuestFree)\b/);
+
+    const welcome = read("src/components/WelcomePlan.tsx");
+    const gate = welcome.slice(welcome.indexOf("function chooseFree"), welcome.indexOf("async function confirmFree"));
+    expect(gate, "/welcome settles Free without asking about a Pro design").toContain("proDesignChanges.length");
+    expect(gate).toContain("setPendingFreeConfirm(true)");
+    expect(welcome, "the panel that names what Free changes is gone").toContain("<FreeDesignChoice");
+    // And the answer must actually settle the plan server-side — navigating
+    // alone would leave an account whose plan was never decided, which is the
+    // state the welcome email refuses to greet.
+    expect(welcome).toContain('fetch("/api/account/choose-plan"');
+  });
+
+  it("saves the CONVERTED design, not the one React still has in state", () => {
+    // THE BUG: confirmFreeDesignAndCreate() called applyFreeDesignConversion()
+    // — which is setState — and then handleCreate() in the same tick. Nothing
+    // had re-rendered, so the POST carried the untouched Pro design. Every
+    // single "lose the designs and continue with Free" sent Pro to the server.
+    // It was invisible only because the server re-sanitizes on write; add a
+    // chosenPlan alongside it, or relax the sanitizer, and it persists.
+    //
+    // The fix is structural: the converter hands its result back and the save
+    // takes it as an argument, so there is no window in which the two can
+    // disagree.
+    const fn = src.slice(src.indexOf("function confirmFreeDesignAndCreate"), src.indexOf("function keepDesignWithTrial"));
+    expect(fn).toMatch(/const converted = applyFreeDesignConversion\(\)/);
+    expect(fn, "the converted design must be handed to the save, not re-read from state")
+      .toMatch(/handleCreate\(\s*undefined,\s*\{/);
+    expect(fn).toContain("templateStyleState: converted.templateStyleState");
+    expect(fn).toContain("linkStyleState: converted.linkStyleState");
+
+    // And the save must actually USE the override rather than the closure.
+    expect(src).toMatch(/template: saveTemplate,/);
+    expect(src).toMatch(/\.\.\.saveTemplateStyle,/);
+    expect(src).toMatch(/\.\.\.saveLinkStyle,/);
+  });
+
+  it("converts the Swift Links half too, not just the card", () => {
+    // freeDesignChanges() lists the Swift Links Pro features in the dialog
+    // (proLinkFeaturesInUse), so the visitor is told a Glass look and photo
+    // link buttons will go. The conversion never touched linkStyleState, so
+    // the client agreed and then kept them; only the server stripped them.
+    const fn = src.slice(src.indexOf("function applyFreeDesignConversion"), src.indexOf("function freeDesignChanges"));
+    expect(fn, "LINK_STYLE_KEYS must be stripped client-side as well")
+      .toMatch(/for \(const k of LINK_STYLE_KEYS\) delete/);
+    expect(fn).toContain("setLinkStyleState(freeLinkStyle)");
+  });
+
+  it("reads the card with the ADMIN client, or the question is never asked", () => {
+    // Found end to end on 2026-09-16, and invisible to every other check here.
+    //
+    // /welcome computed proDesignChanges through the SESSION client. `cards` has
+    // no owner-read policy, so selecting your own card that way returns an empty
+    // list — not an error. So the list was always [], `chooseFree` always took
+    // its fast path, and a card built with Pro design was flattened in silence:
+    // exactly the outcome this whole step exists to prevent. The code read
+    // correctly, the types were fine, and the suite was green.
+    //
+    // dashboard/page.tsx already had the right shape (getAdminSupabase, scoped
+    // by the authenticated id). This pins /welcome to it.
+    const page = read("src/app/welcome/page.tsx");
+    const cardRead = page.slice(page.indexOf('.from("cards")') - 300, page.indexOf('.from("cards")') + 200);
+    expect(cardRead, "/welcome is reading cards through the session client again — RLS returns [] and the panel dies")
+      .toMatch(/getAdminSupabase\(\)\s*\n?\s*\.from\("cards"\)/);
+    // Still scoped to the caller — the admin client bypasses RLS, so the
+    // ownership filter is the only thing keeping this to their own card.
+    expect(cardRead).toContain('.eq("user_id", user.id)');
   });
 
   it("keeps the design by taking the SAME route a Pro pick takes", () => {
     // A guest's Pro intent is what makes the draft claim treat them as paid
     // and keep the design. A bespoke path here would silently stop matching
     // however Pro is sold next.
-    const fn = src.slice(src.indexOf("function keepDesignWithTrial"), src.indexOf("function handleGuestFree"));
-    expect(fn).toContain('pickPlanThenSignUp({ plan: "pro"');
+    const fn = src.slice(src.indexOf("function keepDesignWithTrial"), src.indexOf("function handleAuthedFirstCardPaid"));
     expect(fn).toContain('handleAuthedFirstCardPaid("pro"');
+
+    // Same rule on /welcome, which is where a guest now answers: "keep my card
+    // exactly like this" goes through the ordinary checkout call, not a path of
+    // its own that could quietly stop matching however Pro is sold next.
+    const welcome = read("src/components/WelcomePlan.tsx");
+    expect(welcome).toContain('onKeepWithTrial={() => checkout("pro"');
   });
 });
 
-describe("the plan step never offers two different things under one label", () => {
-  it("the Free button does not wear the Pro trial's words", () => {
-    // The Pro card's button used to read "Start free →" — it starts the free
-    // TRIAL, which takes a card and renews. The wizard passed the same string
-    // as the Free plan's label, so this one screen had two identical buttons:
-    // one genuinely free, one a paid subscription. Nothing told them apart, and
-    // a guest who had chosen Free tapped the Pro one and was put on a 14-day
-    // trial they had declined a minute earlier (owner report, 2026-09-15).
-    //
-    // The labels are now bound to what they do ("Try Pro free for N days",
-    // "Continue with Free"), which means the Pro label is a TEMPLATE LITERAL —
-    // it reads the trial length from config rather than typing it in. So this
-    // must accept a backtick label as well as a quoted one, or the fix for the
-    // bug reads as the label having gone missing.
-    const wizard = read("src/app/cards/new/NewCardWizard.tsx");
-    const label = /freeLabel="([^"]+)"/.exec(wizard)?.[1];
-    expect(label, "the wizard stopped setting a free label").toBeTruthy();
-    const proLabel = /busy === "pro" \? "Loading…" : [`"]([^`"]+)[`"]/.exec(read("src/components/PlanCards.tsx"))?.[1];
-    expect(proLabel, "PlanCards' Pro button label moved").toBeTruthy();
-    expect(label).not.toBe(proLabel);
+describe("no plan chooser offers two different things under one label", () => {
+  // ── THE BUG THIS EXISTS FOR, AND WHY IT SHIPPED ANYWAY ────────────────────
+  //
+  // The Pro button used to read "Start free →" — it starts the free TRIAL,
+  // which takes a card and renews. The Free plan's button read "Get started
+  // free →". Side by side, nothing told them apart.
+  //
+  // This describe block already existed and already caught that. It only ever
+  // read NewCardWizard.tsx. So the wizard was fixed, the guard passed, and the
+  // SAME collision sat untouched on /welcome and /pricing — and /welcome is
+  // where a guest who had chosen Free is dropped, and where the stored choice
+  // has usually already been consumed, so they are asked again. One tap on the
+  // wrong "free" button and they are on a 14-day trial they declined (owner
+  // report, 2026-09-15).
+  //
+  // The lesson is in the scope, not the assertion: a guard aimed at one file
+  // protects one file. Every surface that renders a paid CTA beside a free one
+  // is checked here now.
+
+  /** A button label, whether written as a plain string or a template literal. */
+  const labelAfter = (src: string, prefix: RegExp): string | null => {
+    const m = new RegExp(prefix.source + String.raw`\s*[`+ "`" + String.raw`"]([^`+ "`" + String.raw`"]+)`).exec(src);
+    return m?.[1] ?? null;
+  };
+
+  /** Would a person scanning this button think it is the free plan? */
+  const readsAsFreePlan = (label: string) => {
+    const l = label.toLowerCase();
+    // "free" bound to Pro or to a time limit is fine — "Try Pro free for 14
+    // days". A bare "start free" / "get started free" is not.
+    if (/\bpro\b/.test(l)) return false;
+    if (/\d+\s*days?/.test(l)) return false;
+    return /\bfree\b/.test(l);
+  };
+
+  it("PlanCards' Pro button never reads as the free plan", () => {
+    const label = labelAfter(read("src/components/PlanCards.tsx"), /busy === "pro" \? "Loading…" :/);
+    expect(label, "PlanCards' Pro button label moved — re-point this test").toBeTruthy();
+    expect(readsAsFreePlan(label!), `Pro button reads as free: "${label}"`).toBe(false);
+  });
+
+  it("the /pricing Pro button never reads as the free plan", () => {
+    const label = labelAfter(read("src/app/pricing/page.tsx"), /promo\.status === "valid" \? `[^`]+` :/);
+    expect(label, "the /pricing Pro button moved — re-point this test").toBeTruthy();
+    expect(readsAsFreePlan(label!), `Pro button reads as free: "${label}"`).toBe(false);
+  });
+
+  it("the Free label differs from the Pro label wherever both are shown", () => {
+    const proLabel = labelAfter(read("src/components/PlanCards.tsx"), /busy === "pro" \? "Loading…" :/)!;
+    // The DEFAULT is what protects a caller who forgets the prop — which is
+    // precisely how /welcome ended up with the collision.
+    const defaultFree = /freeLabel = "([^"]+)"/.exec(read("src/components/PlanCards.tsx"))?.[1];
+    expect(defaultFree, "PlanCards lost its default free label").toBeTruthy();
+    expect(defaultFree).not.toBe(proLabel);
+
+    // …and every caller that does pass one must also differ.
+    for (const f of ["src/app/cards/new/NewCardWizard.tsx", "src/components/WelcomePlan.tsx"]) {
+      const label = /freeLabel="([^"]+)"/.exec(read(f))?.[1];
+      expect(label, `${f} stopped setting a free label`).toBeTruthy();
+      expect(label, `${f} reuses the Pro label`).not.toBe(proLabel);
+    }
+  });
+
+  it("every surface that renders PlanCards is covered by this test", () => {
+    // A new caller must not be able to inherit the bug silently. If this fails,
+    // add the file to the loop above rather than deleting the assertion.
+    const callers = ["src/app/cards/new/NewCardWizard.tsx", "src/components/WelcomePlan.tsx"];
+    const found = ["src/app/cards/new/NewCardWizard.tsx", "src/components/WelcomePlan.tsx",
+      "src/app/upgrade/UpgradeClient.tsx", "src/app/checkout/CheckoutClient.tsx"]
+      .filter((f) => /<PlanCards\b/.test(read(f)));
+    expect(found.sort(), "a new <PlanCards> caller appeared — cover it above").toEqual(callers.sort());
   });
 });
 

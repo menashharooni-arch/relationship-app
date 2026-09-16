@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
-import { isPaidPlan } from "@/lib/plan";
+import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isPaidPlan, describeFreeDesignChanges, proLinkFeaturesInUse } from "@/lib/plan";
+import type { CardLink } from "@/components/card-templates/types";
 import WelcomePlan from "@/components/WelcomePlan";
 
 // Post-signup onboarding step. A brand-new account lands here right after its
@@ -28,6 +30,45 @@ export default async function WelcomePage({
   // Someone who already picked a paid plan doesn't need the plan step.
   if (isPaidPlan(profile?.plan)) redirect("/dashboard?welcome=1&tour=1");
 
+  // WHAT FREE WOULD COST THEM, worked out server-side so the choice can be
+  // honest at the moment it is made.
+  //
+  // The card was stored exactly as designed (api/drafts/claim no longer guesses
+  // a plan), so if it uses Pro-only design this is where they find out — before
+  // choosing, not after, and with the option to keep it. Named by the same two
+  // checkers the wizard and the editor use, so all three agree about what
+  // counts as Pro.
+  // The ADMIN client, scoped by the authenticated id — the same shape
+  // dashboard/page.tsx uses (adminDb + .eq("user_id", authedUserId)) and for the
+  // same reason: `cards` has no owner-read policy, so a user-scoped SELECT of
+  // your own card comes back EMPTY rather than erroring. Read through the
+  // session client and this list is always [], the panel below can never open,
+  // and a card built with Pro design is flattened in silence — which is the one
+  // thing this whole step exists to prevent. Caught end to end; no source-level
+  // test can see it, because the code looks right.
+  const { data: card } = await getAdminSupabase()
+    .from("cards")
+    .select("template, customization")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const cust = (card?.customization ?? {}) as Record<string, unknown>;
+  const template = (card?.template as string) || "classic-pro";
+  const proDesignChanges = card
+    ? [
+        ...describeFreeDesignChanges(cust, template),
+        ...proLinkFeaturesInUse(cust, (cust.links as CardLink[] | undefined) ?? []).map((n) => `${n} is not included`),
+      ]
+    : [];
+
   const cardSlug = typeof sp.card === "string" && sp.card ? sp.card : null;
-  return <WelcomePlan cardSlug={cardSlug} designConverted={sp.designConverted === "1"} />;
+  return (
+    <WelcomePlan
+      cardSlug={cardSlug}
+      designConverted={sp.designConverted === "1"}
+      proDesignChanges={proDesignChanges}
+    />
+  );
 }

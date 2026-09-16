@@ -24,14 +24,20 @@ describe("the View SwiftCard button toggle", () => {
     const wizard = read("src/app/cards/new/NewCardWizard.tsx");
     const editor = read("src/app/cards/[id]/edit/CardEditForm.tsx");
     for (const src of [wizard, editor]) {
-      expect(src).toContain("Show the &ldquo;View SwiftCard&rdquo; button");
+      // Both editors render the SHARED Switch now (2026-09-15) rather than each
+      // hand-rolling a track and a knob. The label reads identically; it is a
+      // prop instead of markup rather than a nested <span>.
+      expect(src).toContain("Show the “View SwiftCard” button");
+      expect(src).toMatch(/<Switch\b/);
       expect(src).toMatch(/showCardLinkBtn/);
-      // The knob must be anchored: absolute WITHOUT left-0 took its static
-      // (centered) position inside the button, and translateX(22px) then
-      // pushed it out past the track's right edge (owner bug report
-      // 2026-09-01: "the toggle falls out").
-      expect(src).toMatch(/absolute top-0\.5 left-0 w-5 h-5 bg-white rounded-full/);
     }
+    // The knob must stay anchored: absolute WITHOUT a left offset takes its
+    // static (centered) position inside the button, and the translate then
+    // pushes it out past the track's right edge (owner bug report 2026-09-01:
+    // "the toggle falls out"). One implementation now, so this is asserted
+    // once, where it lives.
+    expect(read("src/components/ui/DesignControls.tsx"))
+      .toMatch(/absolute top-\[3px\] left-\[3px\] w-5 h-5 rounded-full bg-white/);
     // Wizard writes the flag only when hidden (fresh rows stay clean)…
     expect(wizard).toMatch(/showCardLinkBtn \? \{\} : \{ hideCardLink: true \}/);
     // …the editor sends it explicitly both ways, so the server merge can CLEAR it.

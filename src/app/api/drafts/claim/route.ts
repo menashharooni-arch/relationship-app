@@ -109,12 +109,14 @@ export async function POST(req: NextRequest) {
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Invalid draft." }, { status: 400 });
   }
-  const { draftId, payload, images, step, intendedPlan } = body as {
+  // `intendedPlan` used to ride along here. It is gone: the guest has not
+  // picked a plan at this point in the flow any more, and an older client
+  // sending one must not change what is stored.
+  const { draftId, payload, images, step } = body as {
     draftId?: unknown;
     payload?: Record<string, unknown>;
     images?: Record<string, unknown>;
     step?: unknown;
-    intendedPlan?: unknown;
   };
 
   const safeDraftId = typeof draftId === "string" ? draftId : null;
@@ -158,8 +160,21 @@ export async function POST(req: NextRequest) {
   // than staying stuck with Pro colors. The Free-card-count-limit check above
   // deliberately still uses the real `paid`, not intent — intent alone must
   // never bypass the actual card cap.
-  const safeIntendedPlan = typeof intendedPlan === "string" ? intendedPlan : null;
-  const treatAsPaidForDesign = paid || safeIntendedPlan === "pro" || safeIntendedPlan === "office";
+  // ── The design is stored EXACTLY as it was built ───────────────────────────
+  // A guest reaches here before choosing a plan (2026-09-15: plan comes after
+  // the account), so there is nothing to decide from — flattening now would be
+  // guessing, and guessing wrong destroys work the visitor cannot get back.
+  //
+  // Safe, because nothing about this makes the card LOOK Pro to the public: the
+  // card page re-sanitizes against the account's real plan on every view
+  // ([username]/page.tsx), so a Free account renders Free either way. The
+  // difference is only what is kept in the row — and that is what lets
+  // /welcome offer "keep your design with a trial" as a real choice, and
+  // convert for good the moment they confirm Free.
+  //
+  // The Free CARD-COUNT limit above is unaffected; it still uses the real
+  // `paid`, so intent can never bypass the cap.
+  const treatAsPaidForDesign = true;
 
   // ── Build the insert (ownership: user_id is ALWAYS this session user) ─────
   const built = buildClaimInsert(user.id, (payload ?? {}) as Record<string, unknown>, treatAsPaidForDesign);

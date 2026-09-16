@@ -33,6 +33,7 @@ import CustomCardDesigner from "@/components/CustomCardDesigner";
 import CustomDesignCard from "@/components/CustomDesignCard";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
+import { Segmented, Switch } from "@/components/ui/DesignControls";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
@@ -833,20 +834,23 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   <LogoSuggest company={company} email={email} onConfirm={(url) => setCardLogoUrl(url || null)} />
                   {cardLogoUrl && (
                     <div className="mt-2">
-                      <p className="text-[0.6875rem] text-gray-500 mb-1">Logo shape on the card</p>
-                      <div className="inline-flex items-center bg-gray-800 rounded-lg p-0.5">
-                        {([["auto", "Original"], ["circle", "Circle"]] as const).map(([id, label]) => (
-                          <button
-                            key={id}
-                            type="button"
-                            onClick={() => setLogoShape(id)}
-                            className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${logoShape === id ? "bg-gray-700 text-white" : "text-gray-500 hover:text-gray-300"}`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-[0.625rem] text-gray-600 mt-1">
+                      {/* Was a hand-rolled pair of buttons whose SELECTED state
+                          was bg-gray-700 sitting on a bg-gray-800 track — two
+                          greys one step apart, which on a phone in daylight
+                          told you nothing about which shape was active. Now the
+                          shared Segmented: filled blue, like every other
+                          either/or choice in the editor. */}
+                      <p className="text-[0.6875rem] text-gray-500 mb-1.5">Logo shape on the card</p>
+                      <Segmented
+                        label="Logo shape on the card"
+                        value={logoShape}
+                        onChange={setLogoShape}
+                        options={[
+                          { value: "auto", label: "Original" },
+                          { value: "circle", label: "Circle" },
+                        ]}
+                      />
+                      <p className="text-[0.6875rem] text-gray-500 mt-1.5 leading-snug">
                         {logoShape === "circle" ? "Your full logo inside a clean circle — nothing gets cut off." : "Adapts to your logo — square, wide, or banner."}
                       </p>
                     </div>
@@ -911,8 +915,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                     key={id}
                     type="button"
                     onClick={() => setTemplate(id)}
-                    className={`text-xs font-semibold py-2 rounded-xl border transition-colors ${
-                      template === id ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white"
+                    aria-pressed={template === id}
+                    className={`sc-tap text-[0.8125rem] font-semibold py-2 px-2 rounded-xl border transition-colors ${
+                      template === id ? "bg-blue-600 border-blue-600 text-white" : "bg-gray-900 border-gray-700 text-gray-400 hover:text-white hover:border-gray-600"
                     }`}
                   >
                     {tplLabel}
@@ -1222,20 +1227,16 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 mini-phone width. At full column width it scaled to ~0.9 and
                 filled the screen before you could reach a single colour. */}
             {mobileLinkPreview("It updates live as you pick colors and fonts.")}
-            {/* The "View SwiftCard →" link at the bottom of the page — theirs to keep or hide. */}
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-800 bg-gray-900 px-4 py-3">
-              <span className="min-w-0">
-                <span className="text-white text-sm font-medium block">Show the &ldquo;View SwiftCard&rdquo; button</span>
-                <span className="text-gray-500 text-xs">The small link at the bottom of your Swift Links page that opens your card.</span>
-              </span>
-              <button type="button" role="switch" aria-checked={showCardLinkBtn} onClick={() => setShowCardLinkBtn((v) => !v)} className="relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0" style={{ background: showCardLinkBtn ? "#2563EB" : "#475569" }}>
-                {/* left-0 is load-bearing: without an anchor, an absolutely
-                    positioned knob takes its STATIC position inside the button
-                    (which centers content), so translateX(22px) shoved it out
-                    past the track's right edge. */}
-                <span className="absolute top-0.5 left-0 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: showCardLinkBtn ? "translateX(22px)" : "translateX(2px)" }} />
-              </button>
-            </label>
+            {/* The "View SwiftCard →" link at the bottom of the page — theirs to
+                keep or hide. A genuine on/off, so it is the shared Switch: the
+                whole row is the target rather than a 44x24 track, and it is the
+                same control as every other on/off in the editor. */}
+            <Switch
+              checked={showCardLinkBtn}
+              onChange={setShowCardLinkBtn}
+              label={"Show the “View SwiftCard” button"}
+              help="The small link at the bottom of your Swift Links page that opens your card."
+            />
             {/* The per-link "Link buttons" section edits the SAME links array
                 the office may have locked. Its controls render only when both
                 props are passed, so when the office holds the links they are

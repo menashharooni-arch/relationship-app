@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import Stripe from "stripe";
 import { Resend } from "resend";
 import { getStripe, subscriptionPeriodEndIso } from "@/lib/stripe";
@@ -15,6 +15,7 @@ import { insertNotification } from "@/lib/notify";
 import { sendPushToUser } from "@/lib/push";
 import { stripeDowngradeAllowed } from "@/lib/iap-entitlement";
 import { provisionOfficeForOwner, tearDownOfficeForOwner, officeAccessEndedMessage } from "@/lib/office-billing-sync";
+import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -362,8 +363,20 @@ export async function POST(req: NextRequest) {
       try {
         const { data: srcProfile } = await admin.from("profiles").select("customization").eq("id", userId).single();
         const srcCust = { ...((srcProfile?.customization as Record<string, unknown> | null) ?? {}) };
-        await admin.from("profiles").update({ customization: { ...srcCust, _planSource: "stripe" } }).eq("id", userId);
+        // _planChosen is what releases the welcome email (lib/welcome-email).
+        // Payment IS the plan decision for a paid plan, so it is settled here
+        // and nowhere earlier — "Your SwiftCard is live" must not arrive while
+        // somebody is still on the plan screen, or before they have paid.
+        await admin.from("profiles").update({
+          customization: { ...srcCust, _planSource: "stripe", [PLAN_CHOSEN_KEY]: plan },
+        }).eq("id", userId);
       } catch { /* best-effort */ }
+
+      // The plan is settled and the card already exists (the guest flow creates
+      // it before signup completes), so this is the moment the welcome is true.
+      // Gated and idempotent — it no-ops if there is no card yet, and the
+      // email_logs claim makes it once per account however often it is reached.
+      after(() => sendWelcomeWhenCardLive(userId));
 
       // Referral: the friend just became a PAYING customer — grant the referrer
       // their one-time reward (verified Stripe event, never from the browser).

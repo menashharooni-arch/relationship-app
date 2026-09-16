@@ -4,11 +4,15 @@
 // keeps a card looking professional — BACKGROUND surface, NAME/text color, and
 // FONT — because layout, accents and textures are each template's signature.
 //
-// Two tiers so it's powerful without being overwhelming:
-//   1. "Looks" — one-tap curated themes (coordinated background + name + font),
-//      tailored to each template. This is where most people should live.
-//   2. "Fine-tune" — the granular background / name color / font controls,
-//      collapsed by default.
+// Ordered by how often a control is actually touched, not by subject:
+//   1. "Looks"  — one-tap curated themes. Where most people should live.
+//   2. "Colour" — background, second surface, name colour.
+//   3. "Style"  — font, then finish.
+//   4. "More style options" — details colour, accent colour, photo/video,
+//      behind a native <details>. Real features, just not why anyone opens
+//      this tab.
+// The control vocabulary (headings, fields, tap targets, what "selected" looks
+// like) is shared with every other design surface: components/ui/DesignControls.
 //
 // Purely presentational — the parent owns the TemplateStyle value and persists
 // it on customization. Clearing a fine-tune field ("Default") returns that
@@ -19,6 +23,7 @@ import { CARD_FONT_OPTIONS, isDarkBg } from "./shared";
 import type { TemplateStyle } from "./shared";
 import { META, FALLBACK_META, type Look } from "@/lib/template-style-presets";
 import { useRef, useState } from "react";
+import { Field, MoreOptions, SectionHeading } from "@/components/ui/DesignControls";
 import {
   CARD_FINISHES, FINISH_FAMILIES, getFinish, isFreeFinish,
   composePanelBackground, PANEL_DIM_DEFAULT,
@@ -28,8 +33,6 @@ import { isAllowedMedia, uploadMedia, uploadErrorMessage, WRONG_TYPE_MESSAGE, IM
 function isHex(v?: string): v is string {
   return !!v && /^#[0-9a-fA-F]{6}$/.test(v);
 }
-
-const rowLabel = "text-[11px] font-semibold text-gray-300 uppercase tracking-wide";
 
 // Is this Look exactly what the card is wearing right now?
 //
@@ -88,16 +91,20 @@ function LooksGallery({
                 // colour beside it, so the two reads that matter — sea glass,
                 // brushed metal — were invisible until after you picked one.
                 background: composePanelBackground(look.bg, look.finish),
-                border: active ? "2px solid #3b82f6" : "1px solid rgba(255,255,255,0.12)",
-                boxShadow: active ? "0 0 0 2px rgba(59,130,246,0.25)" : undefined,
+                border: "1px solid rgba(255,255,255,0.12)",
+                // The same offset ring the colour swatches use. A Look tile IS
+                // its preview, so filling it blue would destroy the thing being
+                // chosen — but the ring has to be the identical ring, or
+                // "selected" means two different marks on one screen.
+                boxShadow: active ? "0 0 0 2px #0b0f16, 0 0 0 4px #3b82f6" : undefined,
               }}
             >
               {/* Aa uses a legible color for the picker even on light themes */}
-              <span className="text-sm font-bold leading-none" style={{ color: isDarkBg(look.bg) ? look.text : "#111827", fontFamily: look.font }}>Aa</span>
+              <span data-ds="specimen" className="text-sm font-bold leading-none" style={{ color: isDarkBg(look.bg) ? look.text : "#111827", fontFamily: look.font }}>Aa</span>
             </div>
             <span className="mt-1 flex items-center gap-1 min-w-0">
-              <span className={`text-[10px] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-500"}`}>{look.name}</span>
-              {needsPro && <span className="text-[8px] font-bold text-blue-400 shrink-0">PRO</span>}
+              <span className={`text-[0.6875rem] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-400"}`}>{look.name}</span>
+              {needsPro && <span data-ds="badge" className="text-[8px] font-bold text-blue-400 shrink-0">PRO</span>}
             </span>
           </button>
         );
@@ -109,7 +116,7 @@ function LooksGallery({
 // Small "PRO" tag for the arbitrary custom-color inputs — the one part of this
 // panel that stays Pro-only once presets/Looks/fonts are Free-usable.
 function ProTag() {
-  return <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-blue-600 text-white leading-none">PRO</span>;
+  return <span data-ds="badge" className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-blue-600 text-white leading-none">PRO</span>;
 }
 
 function Swatches({
@@ -133,11 +140,23 @@ function Swatches({
           type="button"
           onClick={() => onPick(p)}
           aria-label="Color preset"
-          className="w-7 h-7 rounded-lg transition-transform hover:scale-110"
-          style={{ background: p, border: value === p ? "2px solid #3b82f6" : "1px solid #374151" }}
+          aria-pressed={value === p}
+          // sc-tap-sq: 28px is a fine mouse target and a poor thumb one. On
+          // touch these become 44x44 and the row wraps to fewer per line —
+          // which is the right trade, because picking the wrong colour is the
+          // single easiest mis-tap in this panel.
+          className="sc-tap-sq w-7 h-7 rounded-lg transition-transform hover:scale-110"
+          // A selected swatch gets a RING with a gap, not a thicker border: on a
+          // dark preset a 2px blue border is nearly invisible against the panel,
+          // and on a blue preset it disappeared entirely.
+          style={{
+            background: p,
+            border: "1px solid #374151",
+            boxShadow: value === p ? "0 0 0 2px #0b0f16, 0 0 0 4px #3b82f6" : undefined,
+          }}
         />
       ))}
-      <label className="flex items-center gap-1 text-[10px] text-gray-500 ml-0.5 cursor-pointer">
+      <label className="flex items-center gap-1 text-[0.6875rem] text-gray-500 ml-0.5 cursor-pointer">
         {/* "any color", not "custom": beside six working swatches, a greyed
             "custom PRO" read as the whole colour field being Pro. The swatches
             are every plan; the free-hand picker is what Pro adds.
@@ -159,14 +178,20 @@ function Swatches({
           type="color"
           value={isHex(value) ? value : fallbackHex}
           onChange={(e) => onPick(e.target.value)}
-          className="w-7 h-7 rounded bg-transparent border border-gray-700 cursor-pointer"
+          className="sc-tap-sq w-7 h-7 rounded bg-transparent border border-gray-700 cursor-pointer"
         />
       </label>
       <button
         type="button"
         onClick={() => onPick(undefined)}
-        className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
-          value === undefined ? "border-blue-600 text-blue-300" : "border-gray-700 text-gray-500 hover:text-gray-300"
+        aria-pressed={value === undefined}
+        // Selected is FILLED here like everywhere else in the panel. This chip
+        // used to be the odd one out — blue text on a blue outline, no fill —
+        // so "Default" being the active choice read as merely available.
+        className={`sc-tap text-[0.6875rem] font-semibold px-3 py-1 rounded-lg border transition-colors ${
+          value === undefined
+            ? "bg-blue-600 border-blue-600 text-white"
+            : "border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600"
         }`}
       >
         Default
@@ -186,12 +211,13 @@ function FontPills({ value, onChange }: { value?: string; onChange: (v: string |
             key={o.label}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
-              active ? "border-blue-600 bg-blue-600/10" : "border-gray-700 hover:border-gray-600 bg-gray-800/40"
+            aria-pressed={active}
+            className={`sc-tap flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
+              active ? "border-blue-500 bg-blue-600 text-white" : "border-gray-700 hover:border-gray-600 bg-gray-800/40"
             }`}
           >
-            <span className={`text-xs ${active ? "text-blue-200" : "text-gray-300"}`}>{o.label}</span>
-            <span className="text-base leading-none text-white" style={{ fontFamily: o.value }}>Ag</span>
+            <span className={`text-[0.8125rem] font-semibold ${active ? "text-white" : "text-gray-300"}`}>{o.label}</span>
+            <span data-ds="specimen" className={`text-base leading-none ${active ? "text-white" : "text-gray-200"}`} style={{ fontFamily: o.value }}>Ag</span>
           </button>
         );
       })}
@@ -230,8 +256,8 @@ function FinishPicker({
         return (
           <div key={fam.id}>
             <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-[0.5625rem] font-bold uppercase tracking-[0.16em] text-gray-500 shrink-0">{fam.name}</span>
-              <span className="text-[0.5625rem] text-gray-600 truncate">{fam.blurb}</span>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-gray-500 shrink-0">{fam.name}</span>
+              <span className="text-[0.6875rem] text-gray-600 truncate min-w-0">{fam.blurb}</span>
               <span className="flex-1 h-px bg-gray-800" />
             </div>
             <div className="grid grid-cols-4 gap-1.5">
@@ -249,8 +275,13 @@ function FinishPicker({
                     title={f.blurb}
                     aria-pressed={active}
                     onClick={() => onChange({ finish: f.id === "flat" ? undefined : f.id })}
-                    className={`group rounded-lg border p-1 text-left transition-colors ${
-                      active ? "border-blue-500 bg-blue-600/10" : "border-gray-700 hover:border-gray-500"
+                    // A finish tile IS its own preview, so it takes the RING,
+                    // like the colour swatches and the Looks — filling it blue
+                    // would paint over the material being chosen. Controls
+                    // whose face is a LABEL (font pills, segments, Default)
+                    // take the fill. See components/ui/DesignControls.
+                    className={`group sc-tap rounded-lg border p-1 text-left transition-colors ${
+                      active ? "border-blue-500 ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-900" : "border-gray-700 hover:border-gray-500"
                     }`}
                   >
                     <span
@@ -259,8 +290,8 @@ function FinishPicker({
                       aria-hidden
                     />
                     <span className="mt-1 flex items-center gap-1 min-w-0">
-                      <span className={`text-[0.625rem] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-400"}`}>{f.name}</span>
-                      {proLocked && <span className="text-[0.5rem] font-bold text-blue-400 shrink-0">PRO</span>}
+                      <span className={`text-[0.6875rem] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-400"}`}>{f.name}</span>
+                      {proLocked && <span data-ds="badge" className="text-[0.5rem] font-bold text-blue-400 shrink-0">PRO</span>}
                     </span>
                   </button>
                 );
@@ -274,7 +305,7 @@ function FinishPicker({
       {/* Frosted lightens the panel, so a white name can vanish into it. Said
           plainly instead of silently rewriting a colour the owner chose. */}
       {current.lightens && (
-        <p className="text-[10px] text-amber-400/90 leading-snug">
+        <p className="text-[0.6875rem] text-amber-400/90 leading-snug">
           {current.name} lightens the panel — if your name is white, a darker name colour will read better.
         </p>
       )}
@@ -392,17 +423,17 @@ function PanelMediaControl({
               style={{ background: composePanelBackground(value.bgColor ?? "#111827", value.finish, { url: value.panelMedia, poster: value.panelMediaPoster, dim }) }}
               aria-hidden
             />
-            <p className="text-[11px] text-gray-400 min-w-0 flex-1 leading-snug">
+            <p className="text-[0.6875rem] text-gray-400 min-w-0 flex-1 leading-snug">
               {isVideo ? "Video — plays on your card page; the first frame shows everywhere else." : "Photo behind your panel."}
             </p>
-            <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 disabled:opacity-50 shrink-0">
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} className="text-[0.6875rem] font-semibold text-blue-400 hover:text-blue-300 disabled:opacity-50 shrink-0">
               {busy ? "Uploading…" : "Replace"}
             </button>
-            <button type="button" onClick={remove} disabled={busy} className="text-[11px] text-gray-500 hover:text-gray-300 disabled:opacity-50 shrink-0">Remove</button>
+            <button type="button" onClick={remove} disabled={busy} className="text-[0.6875rem] text-gray-500 hover:text-gray-300 disabled:opacity-50 shrink-0">Remove</button>
           </div>
 
           <div>
-            <label htmlFor="panel-dim" className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
+            <label htmlFor="panel-dim" className="flex items-center justify-between text-[0.6875rem] text-gray-500 mb-1">
               <span>Darken so your name reads</span>
               <span className="tabular-nums text-gray-400">{Math.round(dim * 100)}%</span>
             </label>
@@ -423,57 +454,13 @@ function PanelMediaControl({
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={busy}
-          className="w-full rounded-lg border border-dashed border-gray-700 hover:border-gray-500 py-3 text-[11px] font-semibold text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50"
+          className="sc-tap w-full rounded-lg border border-dashed border-gray-700 hover:border-gray-500 py-3 text-[0.8125rem] font-semibold text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-50"
         >
           {busy ? "Uploading…" : "Add a photo or video"}
         </button>
       )}
 
-      {error && <p role="alert" className="text-[10px] text-amber-400 mt-1.5 leading-snug">{error}</p>}
-    </div>
-  );
-}
-
-/**
- * A group signpost, one level above the field labels.
- *
- * The panel was a flat run of seven sections divided by hairlines, so "pick a
- * whole look", "what the card is made of" and "what colour the text is" all
- * read as the same weight of decision, and the eye had nowhere to rest. Owner,
- * 2026-09-10: "much cleaner and make everything more aligned."
- *
- * Deliberately quieter than a field label, and identical to the Swift Links
- * panel's heading, so the two design surfaces read as one system rather than
- * two screens that happen to live in the same product.
- */
-function GroupHeading({ children, hint }: { children: string; hint?: string }) {
-  return (
-    <div className="flex items-baseline gap-2 pt-1">
-      <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-gray-500 shrink-0">{children}</span>
-      {hint && <span className="text-[9px] text-gray-600 truncate">{hint}</span>}
-      <span className="flex-1 h-px bg-gray-800" />
-    </div>
-  );
-}
-
-/**
- * One labelled control.
- *
- * Every section used to repeat its own label/help/spacing markup, which is how
- * they drifted: different bottom margins, one section with a hairline above it
- * and the next without, and the background field carrying a hand-rolled copy of
- * the custom-colour + Default row that <Swatches> already draws. One component
- * means one alignment.
- */
-function Field({ label, help, pro, children }: { label: string; help: string; pro?: boolean; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className={`${rowLabel} mb-0.5`}>
-        {label}
-        {pro && <span className="ml-1.5 align-middle"><ProTag /></span>}
-      </p>
-      <p className="text-[10px] text-gray-500 mb-2 leading-snug">{help}</p>
-      {children}
+      {error && <p role="alert" className="text-[0.6875rem] text-amber-400 mt-1.5 leading-snug">{error}</p>}
     </div>
   );
 }
@@ -512,20 +499,29 @@ export default function TemplateStyleControls({
           style={{ background: composePanelBackground(value.bgColor ?? meta.bg.fallback, value.finish) }}
           aria-hidden
         >
-          <span className="text-[13px] font-bold leading-none" style={{ color: value.textColor ?? meta.text.fallback, fontFamily: value.fontFamily }}>Aa</span>
+          <span data-ds="specimen" className="text-[0.8125rem] font-bold leading-none" style={{ color: value.textColor ?? meta.text.fallback, fontFamily: value.fontFamily }}>Aa</span>
         </div>
         <div className="min-w-0">
-          <p className="text-white text-sm font-semibold leading-tight">{meta.name}</p>
-          <p className="text-gray-500 text-[11px] leading-snug mt-0.5">{meta.blurb}</p>
+          <p className="text-white text-[0.8125rem] font-semibold leading-tight">{meta.name}</p>
+          <p className="text-gray-500 text-[0.6875rem] leading-snug mt-0.5">{meta.blurb}</p>
         </div>
       </div>
 
-      {/* ── Looks: the whole card in one tap ─────────────────────────────── */}
-      <GroupHeading hint="The whole card, in one tap">Looks</GroupHeading>
+      {/* ── ORDERED BY HOW OFTEN IT IS TOUCHED ───────────────────────────────
+          Looks first (one tap, does everything), then the two decisions almost
+          every card makes — its colour and its typeface — then Finish, then the
+          three that most cards never touch, folded away.
+
+          The old order grouped by SUBJECT ("Surfaces", then "Text"), which put
+          Photo-or-video — a Pro feature with an uploader, a slider and an error
+          line, easily the tallest control in the panel — third, above the name
+          colour. Scrolling past an uploader you are not using to reach the
+          colour you came for is the clutter this reorganisation is about. */}
+
+      <SectionHeading hint="The whole card, in one tap">Looks</SectionHeading>
       <LooksGallery looks={meta.looks} value={value} onPick={applyLook} locked={locked} />
 
-      {/* ── Surfaces: what the card is made of ───────────────────────────── */}
-      <GroupHeading hint="What the card is made of">Surfaces</GroupHeading>
+      <SectionHeading hint="Background and text">Colour</SectionHeading>
       <Field label={meta.bg.label} help={meta.bg.help}>
         <Swatches presets={meta.bg.presets} value={value.bgColor} fallbackHex={meta.bg.fallback} onPick={(v) => onChange({ bgColor: v })} customLocked={locked} />
       </Field>
@@ -538,31 +534,41 @@ export default function TemplateStyleControls({
         </Field>
       )}
 
-      <Field label="Finish" help={`The material laid over your ${meta.bg.label.toLowerCase()}. Reads strongest on deeper colours.`}>
-        <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} locked={locked} />
-      </Field>
-
-      <Field label="Photo or video" help={`Sits behind your ${meta.bg.label.toLowerCase()}, under the finish.`} pro={locked}>
-        <PanelMediaControl value={value} onChange={onChange} />
-      </Field>
-
-      {/* ── Text: what it says, and how it reads ─────────────────────────── */}
-      <GroupHeading hint="Colour and typeface">Text</GroupHeading>
       <Field label={meta.text.label} help={meta.text.help}>
         <Swatches presets={meta.text.presets} value={value.textColor} fallbackHex={meta.text.fallback} onPick={(v) => onChange({ textColor: v })} customLocked={locked} />
       </Field>
 
-      <Field label={meta.info.label} help={meta.info.help}>
-        <Swatches presets={meta.info.presets} value={value.infoColor} fallbackHex={meta.info.fallback} onPick={(v) => onChange({ infoColor: v })} customLocked={locked} />
-      </Field>
-
-      <Field label={meta.accent.label} help={meta.accent.help}>
-        <Swatches presets={meta.accent.presets} value={value.accentColor} fallbackHex={meta.accent.fallback} onPick={(v) => onChange({ accentColor: v })} customLocked={locked} />
-      </Field>
-
+      <SectionHeading hint="Typeface and material">Style</SectionHeading>
       <Field label="Font" help="Sets the typeface for your name and details across the whole card.">
         <FontPills value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} />
       </Field>
+
+      <Field label="Finish" help={`The material laid over your ${meta.bg.label.toLowerCase()}. Reads strongest on deeper colours.`}>
+        <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} locked={locked} />
+      </Field>
+
+      {/* ── The long tail, one tap away ──────────────────────────────────────
+          Not hidden — a native <details>, so it is keyboard- and
+          screen-reader-reachable, works before hydration, and stays open once
+          opened. These three are real features; they are simply not what
+          someone opens the Design tab to do. */}
+      <MoreOptions label="More style options">
+        <Field label={meta.info.label} help={meta.info.help}>
+          <Swatches presets={meta.info.presets} value={value.infoColor} fallbackHex={meta.info.fallback} onPick={(v) => onChange({ infoColor: v })} customLocked={locked} />
+        </Field>
+
+        <Field label={meta.accent.label} help={meta.accent.help}>
+          <Swatches presets={meta.accent.presets} value={value.accentColor} fallbackHex={meta.accent.fallback} onPick={(v) => onChange({ accentColor: v })} customLocked={locked} />
+        </Field>
+
+        <Field
+          label="Photo or video"
+          help={`Sits behind your ${meta.bg.label.toLowerCase()}, under the finish.`}
+          trailing={locked ? <ProTag /> : undefined}
+        >
+          <PanelMediaControl value={value} onChange={onChange} />
+        </Field>
+      </MoreOptions>
     </div>
   );
 }

@@ -19,9 +19,24 @@ import { join } from "node:path";
 
 type Row = Record<string, unknown>;
 
+// ── Since 2026-09-15 the email also waits for the PLAN ──────────────────────
+//
+// "Your SwiftCard is live" is only true once the plan behind it is decided, so
+// sendWelcomeWhenCardLive refuses until profiles.customization carries the
+// settled marker (or the account is already on a paid plan). A guest now picks
+// their plan AFTER signing up, on /welcome, so there is a real window where the
+// card exists and the plan does not.
+//
+// Every fixture below therefore reads as settled. Without it these tests would
+// all pass through the gate and assert nothing about the email it guards —
+// which is exactly what happened when the gate landed: six of them started
+// reading .subject off an email that was never sent. The gate itself is pinned
+// separately, in "waits for the plan, not just the card".
+const settled = (p: Row): Row => ({ ...p, customization: { [PLAN_CHOSEN_KEY]: "free" } });
+
 let cardCount = 0;
 let cards: Row[] = [];
-let profile: Row | null = { name: "Dana Ellis", username: "dana-legacy" };
+let profile: Row | null = settled({ name: "Dana Ellis", username: "dana-legacy" });
 let alreadySent: Row | null = null;
 const inserted: Row[] = [];
 const sentEmails: Row[] = [];
@@ -73,14 +88,14 @@ vi.mock("resend", () => ({
   },
 }));
 
-import { sendWelcomeWhenCardLive } from "@/lib/welcome-email";
+import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 beforeEach(() => {
   cardCount = 0;
   cards = [];
-  profile = { name: "Dana Ellis", username: "dana-legacy" };
+  profile = settled({ name: "Dana Ellis", username: "dana-legacy" });
   alreadySent = null;
   authEmail = "signup@example.com";
   inserted.length = 0;
@@ -100,6 +115,42 @@ describe("an account with no card", () => {
   });
 });
 
+describe("waits for the plan, not just the card", () => {
+  // The window this closes is real: a guest signs up, the card is saved, and
+  // the plan is still unchosen until they answer on /welcome. Greeting them
+  // mid-decision would announce a plan nobody had picked — and the greeting is
+  // one-per-account, so it would be spent on the wrong moment forever.
+  beforeEach(() => {
+    cardCount = 1;
+    cards = [{ username: "dana-ellis-northbeam", name: "Dana Ellis" }];
+  });
+
+  it("holds the email while the plan is unsettled, even with a live card", async () => {
+    profile = { name: "Dana Ellis", username: "dana-legacy" }; // no settled marker
+    expect(await sendWelcomeWhenCardLive("u1", "signup@example.com")).toBe("skipped");
+    expect(sentEmails).toHaveLength(0);
+    // Nothing is claimed either — the one-per-account claim must still be
+    // available for the real send once the plan is decided.
+    expect(inserted).toHaveLength(0);
+  });
+
+  it("releases it the moment Free is confirmed", async () => {
+    profile = { name: "Dana Ellis", username: "dana-legacy" };
+    expect(await sendWelcomeWhenCardLive("u1", "signup@example.com")).toBe("skipped");
+    profile = settled({ name: "Dana Ellis", username: "dana-legacy" });
+    expect(await sendWelcomeWhenCardLive("u1", "signup@example.com")).toBe("sent");
+    expect(sentEmails).toHaveLength(1);
+  });
+
+  it("a paid plan settles it without any marker — Stripe never writes one", async () => {
+    // isPaidPlan(profile.plan) is the other half of the gate: a paid account is
+    // settled by definition, and the webhook has no reason to set a flag.
+    profile = { name: "Dana Ellis", username: "dana-legacy", plan: "pro" };
+    expect(await sendWelcomeWhenCardLive("u1", "signup@example.com")).toBe("sent");
+    expect(sentEmails).toHaveLength(1);
+  });
+});
+
 describe("the moment the first card exists", () => {
   beforeEach(() => {
     cardCount = 1;
@@ -116,21 +167,21 @@ describe("the moment the first card exists", () => {
     // profiles.name is blank for every account created through normal signup —
     // the name is typed into the card builder. Greeting from the profile made
     // this read "Your SwiftCard is live, there!" for exactly its recipients.
-    profile = { name: "", username: "dana-legacy" };
+    profile = settled({ name: "", username: "dana-legacy" });
     cards = [{ username: "dana-ellis-northbeam", name: "Dana Ellis" }];
     await sendWelcomeWhenCardLive("u1", "signup@example.com");
     expect(sentEmails[0].subject).toBe("Your SwiftCard is live, Dana!");
   });
 
   it("still falls back to the profile name, then to a neutral greeting", async () => {
-    profile = { name: "Priya Nair", username: "p" };
+    profile = settled({ name: "Priya Nair", username: "p" });
     cards = [{ username: "p-card", name: "" }];
     await sendWelcomeWhenCardLive("u1", "signup@example.com");
     expect(sentEmails[0].subject).toBe("Your SwiftCard is live, Priya!");
 
     sentEmails.length = 0;
     alreadySent = null;
-    profile = { name: "", username: "p" };
+    profile = settled({ name: "", username: "p" });
     cards = [{ username: "p-card", name: "" }];
     await sendWelcomeWhenCardLive("u1", "signup@example.com");
     expect(sentEmails[0].subject).toBe("Your SwiftCard is live, there!");
