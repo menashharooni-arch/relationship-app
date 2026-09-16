@@ -121,15 +121,22 @@ describe("the wizard decides before it converts", () => {
 
 describe("the plan step never offers two different things under one label", () => {
   it("the Free button does not wear the Pro trial's words", () => {
-    // The Pro card's button reads "Start free →" — it starts the free TRIAL,
-    // which takes a card and renews. The wizard passed the same string as the
-    // Free plan's label, so this one screen had two identical buttons: one
-    // genuinely free, one a paid subscription. Nothing on either told them
-    // apart.
+    // The Pro card's button used to read "Start free →" — it starts the free
+    // TRIAL, which takes a card and renews. The wizard passed the same string
+    // as the Free plan's label, so this one screen had two identical buttons:
+    // one genuinely free, one a paid subscription. Nothing told them apart, and
+    // a guest who had chosen Free tapped the Pro one and was put on a 14-day
+    // trial they had declined a minute earlier (owner report, 2026-09-15).
+    //
+    // The labels are now bound to what they do ("Try Pro free for N days",
+    // "Continue with Free"), which means the Pro label is a TEMPLATE LITERAL —
+    // it reads the trial length from config rather than typing it in. So this
+    // must accept a backtick label as well as a quoted one, or the fix for the
+    // bug reads as the label having gone missing.
     const wizard = read("src/app/cards/new/NewCardWizard.tsx");
     const label = /freeLabel="([^"]+)"/.exec(wizard)?.[1];
     expect(label, "the wizard stopped setting a free label").toBeTruthy();
-    const proLabel = /busy === "pro" \? "Loading…" : "([^"]+)"/.exec(read("src/components/PlanCards.tsx"))?.[1];
+    const proLabel = /busy === "pro" \? "Loading…" : [`"]([^`"]+)[`"]/.exec(read("src/components/PlanCards.tsx"))?.[1];
     expect(proLabel, "PlanCards' Pro button label moved").toBeTruthy();
     expect(label).not.toBe(proLabel);
   });

@@ -179,7 +179,12 @@ export default function PricingPage() {
                 {features.pro.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.84375rem] text-white"><Check pro />{f}</li>))}
               </ul>
               <button onClick={() => handleUpgrade("pro")} disabled={loading !== null} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
-                {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : `Start free →`}
+                {/* Not "Start free →": the Free plan's own button two columns
+                    left reads "Get started free →", and side by side the two
+                    were indistinguishable — one genuinely free, one a
+                    subscription that takes a card. See PlanCards for the
+                    incident this comes from. */}
+                {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : `Try Pro free for ${TRIAL_DAYS} days →`}
               </button>
               {/* Fine print keeps the ELIGIBILITY condition and the billing
                   terms; the callout above carries the offer. Checkout grants a
