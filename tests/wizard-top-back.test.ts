@@ -96,9 +96,13 @@ describe("step 1 and the success screen still offer the way OUT", () => {
     expect(topControl).toMatch(/<DashboardLink/);
   });
 
-  it("still abandons the draft on the way Home, which is the point of leaving", () => {
+  // Owner rule 2026-09-16: nobody loses a card by accident. Home used to wipe
+  // the whole draft; now it drops only the marketing sketch, and the builder
+  // asks "Continue your card / Start a new card" on the next entry.
+  it("goes Home WITHOUT deleting the unfinished card", () => {
     const homeBranch = topControl.slice(topControl.indexOf(") : guest ? ("));
-    expect(homeBranch).toMatch(/onClick=\{\(\) => resetGuestFlow\(\)\}/);
+    expect(homeBranch).toMatch(/onClick=\{\(\) => resetMarketingSketch\(\)\}/);
+    expect(homeBranch).not.toMatch(/resetGuestFlow|clearDraft/);
     expect(homeBranch).toMatch(/href="\/"/);
   });
 });

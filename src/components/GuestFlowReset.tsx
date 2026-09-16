@@ -2,12 +2,17 @@
 
 import { useEffect } from "react";
 import { isAuthenticated } from "@/lib/guest-draft";
-import { resetGuestFlow } from "@/lib/guest-reset";
+import { resetMarketingSketch } from "@/lib/guest-reset";
 
 // Mounted on the marketing homepage. Landing on Home as a signed-out visitor
-// means whatever card/preview they were building earlier was abandoned — so the
-// unfinished guest draft, the mini-builder sketch, and any stashed plan pick are
-// all dropped here.
+// drops the mini-builder sketch and any stashed plan pick, so the homepage
+// builders reopen blank.
+//
+// It does NOT drop an unfinished card any more (owner rule 2026-09-16). Wiping
+// it here made the header's "Get started free" open a blank card from the
+// homepage but resume an old one from every other page. The builder now asks
+// "Continue your card / Start a new card" instead, from every entry point —
+// which also answers the "We kept your work from last time" surprise below.
 //
 // Why on mount and not only on a Home *click*: a visitor leaves a half-built
 // card in far more ways than clicking our Home link — closing the tab, the
@@ -26,7 +31,7 @@ import { resetGuestFlow } from "@/lib/guest-reset";
 export default function GuestFlowReset() {
   useEffect(() => {
     if (isAuthenticated()) return;
-    resetGuestFlow();
+    resetMarketingSketch();
   }, []);
 
   return null;

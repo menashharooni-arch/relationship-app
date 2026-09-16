@@ -238,3 +238,23 @@ export function useGuestDraft(): {
 
   return { draft, save, clear, requireAuth };
 }
+
+// ── Is there real work in this draft? ────────────────────────────────────────
+// The wizard autosaves the moment it opens, so a visitor who merely looked at
+// the builder leaves a draft of empty strings behind. Only a draft with
+// something the visitor actually entered (or that got past step 1) is worth
+// the "Continue your card / Start a new card" question.
+export function draftHasWork(draft: GuestDraft | null): boolean {
+  if (!draft) return false;
+  if (typeof draft.step === "number" && draft.step > 1) return true;
+  if (draft.images && Object.values(draft.images).some(Boolean)) return true;
+  const p = draft.payload ?? {};
+  const c = (p.customization ?? {}) as Record<string, unknown>;
+  const filled = (v: unknown) => typeof v === "string" && v.trim() !== "";
+  if (["name", "company", "title", "phone", "email", "website", "linkedin", "instagram", "tiktok", "twitter"].some((k) => filled(p[k]))) return true;
+  if (["bio", "facebook", "snapchat", "youtube", "fax"].some((k) => filled(c[k]))) return true;
+  if (Array.isArray(c.links) && c.links.some((l) => filled((l as { url?: unknown })?.url) || filled((l as { label?: unknown })?.label))) return true;
+  if (Array.isArray(c.phones) && c.phones.some((ph) => filled((ph as { number?: unknown })?.number))) return true;
+  if (c.address && typeof c.address === "object" && Object.values(c.address as Record<string, unknown>).some(filled)) return true;
+  return false;
+}

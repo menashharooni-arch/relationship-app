@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { nudgeCopy } from "@/lib/referral";
-import { resetGuestFlow } from "@/lib/guest-reset";
 import { useIsNativeApp } from "@/lib/platform";
 import { getVisitorInfo } from "@/lib/visitor";
 
@@ -248,10 +247,10 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
 
           <a
             href={`/cards/new?src=${encodeURIComponent(source)}`}
-            // Start blank: a visitor who reaches this popup from a card/links
-            // page may still carry a leftover mini-builder sketch / guest draft
-            // from an earlier visit. Wipe it so the builder always opens fresh.
-            onClick={() => { trackNudge(cardUsername, "nudge_cta_click", source); resetGuestFlow(); }}
+            // No wipe on click: same as "Get started free" in the site header.
+            // The builder asks "Continue your card / Start a new card" itself
+            // when an unfinished card exists (owner rule 2026-09-16).
+            onClick={() => trackNudge(cardUsername, "nudge_cta_click", source)}
             className="relative overflow-hidden mt-4 flex items-center justify-center gap-1.5 w-full py-3.5 rounded-full text-[0.9375rem] font-bold text-white bg-gradient-to-r from-blue-700 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
             style={{ boxShadow: "0 10px 26px -6px rgba(37,99,235,0.55)" }}
           >

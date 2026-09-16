@@ -26,8 +26,8 @@ import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl, socialDestination } from "@/lib/social-url";
 import { cardSlug, prettyCardSlug } from "@/lib/slug";
-import { useGuestDraft, saveDraft, loadDraft } from "@/lib/guest-draft";
-import { resetGuestFlow } from "@/lib/guest-reset";
+import { useGuestDraft, saveDraft, loadDraft, clearDraft, draftHasWork, type GuestDraft } from "@/lib/guest-draft";
+import { resetMarketingSketch } from "@/lib/guest-reset";
 import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, PREFILL_LINK_STYLE_KEYS, type CardPrefill } from "@/lib/prefill";
 // Shared with the edit form + server so a social typed here connects to the
 // same URL everywhere (blur, save, guest-draft snapshot all normalize).
@@ -77,14 +77,35 @@ const inputCls =
 //
 // `w-fit` is load-bearing. A bare flex container is a BLOCK, so the "Home" link
 // stretched the full 896px of the column and every pixel of that invisible strip
-// was a live click target — and clicking it wipes the whole unfinished draft
-// (resetGuestFlow). A stray click well to the right of the word "Home" silently
-// destroyed the card. The target is now the text and its arrow, nothing more.
+// was a live click target — and clicking it used to wipe the whole unfinished
+// draft. A stray click well to the right of the word "Home" silently destroyed
+// the card. (Home no longer wipes anything but the marketing sketch — see
+// resumeChoice.) The target is now the text and its arrow, nothing more.
 //
 // `cursor-pointer` because the same slot renders as an <a> on step 1 and a
 // <button> on steps 2–4, and a button would otherwise show the plain arrow
 // cursor while the link shows a hand. Same control, same place — it has to feel
 // the same on every step.
+// Is this page load the SAME builder visit carrying on, rather than a fresh
+// entry from a button? Those resume an unfinished card without asking:
+//   • ?claim=1 — back from the account gate (login / sign-up) for this draft
+//   • ?li_photo= / ?integration= — back from the guest LinkedIn photo import
+//   • a reload or browser Back/Forward whose document IS /cards/new
+// Every "Get started free"-style link is a plain navigation, so it asks. The
+// pathname check matters: after reloading /pricing, a click into the builder is
+// a client-side route change and the navigation entry still says "reload".
+function resumesSilently(): boolean {
+  if (typeof window === "undefined") return false;
+  const sp = new URLSearchParams(window.location.search);
+  if (sp.get("claim") === "1" || sp.has("li_photo") || sp.has("integration")) return true;
+  try {
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    return !!nav && (nav.type === "reload" || nav.type === "back_forward") && new URL(nav.name).pathname === "/cards/new";
+  } catch {
+    return false;
+  }
+}
+
 const topControlCls =
   "text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5 mb-8 w-fit cursor-pointer";
 
@@ -179,6 +200,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   const [step, setStep] = useState(1);
   // Gates the autosave until the stored draft has been read back in.
   const hydratedRef = useRef(false);
+  // Set when a fresh entry finds an unfinished card — shows the "Continue your
+  // card / Start a new card" question instead of the form (see restoreDraft).
+  const [resumeChoice, setResumeChoice] = useState<GuestDraft | null>(null);
+  // A mini-builder sketch that arrived while that question was open.
+  const heldPrefillRef = useRef<CardPrefill | null>(null);
   // Synchronous in-flight guard for card creation. The `disabled` prop only
   // takes effect after React re-renders with status==="loading", so a fast
   // double-tap can fire two POSTs before that — creating two cards (even on
@@ -312,6 +338,18 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   useEffect(() => {
     const p = consumePrefill();
     if (!p || !hasSketchContent(p)) return;
+    // An unfinished card is waiting and the visitor hasn't said what to do with
+    // it yet: hold the sketch until they answer "Continue your card / Start a
+    // new card" (see resumeChoice below). Applying it now would mix two cards.
+    if (guest && !resumesSilently() && draftHasWork(loadDraft())) {
+      heldPrefillRef.current = p;
+      return;
+    }
+    applySketchEntry(p);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time read of the stashed sketch on mount
+  }, []);
+
+  function applySketchEntry(p: CardPrefill) {
     // A mini-builder "Make it live" stamps `step` on the prefill — an EXPLICIT
     // hand-off, so autofill immediately and start at the beginning (they still
     // walk through every step, socials and design included). An ambient sketch
@@ -320,13 +358,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     if (typeof p.step === "number") {
       // Explicit hand-off — autofill now and begin at step 1.
       applyPrefillData(p);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time handoff: always begin at step 1
       setStep(1);
     } else {
       // Ambient sketch — offer the opt-in "Autofill / start blank" prompt.
       setPendingPrefill(p);
     }
-  }, []);
+  }
 
   // Apply a stashed sketch into the form. Used by the explicit "Autofill"
   // button (with pendingPrefill) AND by the auto-apply hand-off path above.
@@ -694,61 +731,24 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     // the autosave effect below runs first and no-ops on !hydratedRef.
     (async () => {
       const draft = loadDraft();
-      const p = (draft?.payload ?? {}) as Record<string, unknown>;
-      const cust = (p.customization ?? {}) as Record<string, unknown>;
       if (!live) return;
 
-      if (draft && Object.keys(p).length > 0) {
-        const s = (v: unknown) => (typeof v === "string" ? v : "");
-        setName(heroName || s(p.name));
-        setCompany(s(p.company));
-        setTitle(s(p.title));
-        setEmail(s(p.email));
-        setWebsite(s(p.website));
-        // `label` is the nickname the user typed; `username` is derived from
-        // name+company, so it rebuilds itself and must not be restored.
-        setNickname(s(p.label) === s(p.name) ? "" : s(p.label));
-        setSocials({
-          linkedin: s(p.linkedin), instagram: s(p.instagram), tiktok: s(p.tiktok),
-          twitter: s(p.twitter), facebook: s(cust.facebook), snapchat: s(cust.snapchat),
-          youtube: s(cust.youtube),
-        });
-        // A ?template= from "Apply this design" is an explicit choice made
-        // seconds ago, so it beats whatever design a resumed draft happens to
-        // carry. Everything else in the draft is still restored.
-        if (typeof p.template === "string" && !validPresetTemplate) setTemplate(p.template);
-        setBio(s(cust.bio));
-        setFax(s(cust.fax));
-        if (Array.isArray(cust.links)) setLinks(cust.links as CardLink[]);
-        if (Array.isArray(cust.phones) && (cust.phones as CardPhone[]).length) {
-          setPhones(cust.phones as CardPhone[]);
+      if (draft && draftHasWork(draft)) {
+        // A reload, the browser Back button, the login return and the LinkedIn
+        // photo return are the SAME visit carrying on — resume without asking.
+        // Anything else is a fresh entry (every "Get started free"-style button
+        // on the site), and a fresh entry never lands mid-card by surprise:
+        // it asks first. Autosave stays off (hydratedRef false) until they
+        // answer, so the blank form behind the question can't overwrite it.
+        if (resumesSilently()) {
+          restoreDraft(draft);
+        } else {
+          setResumeChoice(draft);
+          return;
         }
-        if (cust.address && typeof cust.address === "object") {
-          setAddress({ ...EMPTY_ADDRESS, ...(cust.address as Partial<Required<CardAddress>>) });
-        }
-        if (cust.customLayout && typeof cust.customLayout === "object") {
-          setCustomLayout(cust.customLayout as CustomLayout);
-        }
-        // Style keys ride alongside the known customization fields. Reuse the
-        // plan module's list rather than a parallel one, so a new design key
-        // can't be added there and silently dropped here.
-        const style: Record<string, unknown> = {};
-        for (const k of PRO_CUSTOMIZATION_KEYS) if (cust[k] !== undefined) style[k] = cust[k];
-        if (Object.keys(style).length) setTemplateStyleState(style as TemplateStyle);
-        // Swift Links page design keys ride alongside the card's, on their own
-        // list — the Pro keys AND the every-plan structural ones (Look, header
-        // style/content, uploaded header photo), which this restore used to
-        // silently drop.
-        const ls: Record<string, unknown> = {};
-        for (const k of [...LINK_STYLE_KEYS, ...LINK_STRUCTURAL_KEYS]) if (cust[k] !== undefined) ls[k] = cust[k];
-        if (Object.keys(ls).length) setLinkStyleState(ls as SwiftLinkStyle);
-
-        // Images ride as base64 data URLs (a guest can't reach the upload route).
-        if (draft.images?.logo) setLogoUrl(draft.images.logo);
-        if (draft.images?.photo) setHeadshotUrl(draft.images.photo);
-
-        if (typeof draft.step === "number" && draft.step >= 1 && draft.step <= 4) setStep(draft.step);
-        setRestored(true);
+      } else if (draft) {
+        // Opened once, nothing entered — not worth a question later.
+        clearDraft();
       }
       hydratedRef.current = true;
       applyLiPhoto();
@@ -758,6 +758,89 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     // with; it can't change without a navigation that remounts the wizard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guest]);
+
+  // ── "Continue your card" / "Start a new card" ─────────────────────────────
+  // Owner rule 2026-09-16: every "Get started free"-style button on the site
+  // runs the same flow — New card → Card design → Socials → Social design →
+  // plan + account. Before this, the SAME header button opened a blank card on
+  // the homepage (which wiped the draft on load) but dropped a visitor into
+  // step 3 of an old card from /pricing or /blog. Now no entry point wipes and
+  // none resumes silently: the builder asks, once, whenever real work exists.
+  function restoreDraft(draft: GuestDraft) {
+    const p = (draft.payload ?? {}) as Record<string, unknown>;
+    const cust = (p.customization ?? {}) as Record<string, unknown>;
+      const s = (v: unknown) => (typeof v === "string" ? v : "");
+      setName(heroName || s(p.name));
+      setCompany(s(p.company));
+      setTitle(s(p.title));
+      setEmail(s(p.email));
+      setWebsite(s(p.website));
+      // `label` is the nickname the user typed; `username` is derived from
+      // name+company, so it rebuilds itself and must not be restored.
+      setNickname(s(p.label) === s(p.name) ? "" : s(p.label));
+      setSocials({
+        linkedin: s(p.linkedin), instagram: s(p.instagram), tiktok: s(p.tiktok),
+        twitter: s(p.twitter), facebook: s(cust.facebook), snapchat: s(cust.snapchat),
+        youtube: s(cust.youtube),
+      });
+      // A ?template= from "Apply this design" is an explicit choice made
+      // seconds ago, so it beats whatever design a resumed draft happens to
+      // carry. Everything else in the draft is still restored.
+      if (typeof p.template === "string" && !validPresetTemplate) setTemplate(p.template);
+      setBio(s(cust.bio));
+      setFax(s(cust.fax));
+      if (Array.isArray(cust.links)) setLinks(cust.links as CardLink[]);
+      if (Array.isArray(cust.phones) && (cust.phones as CardPhone[]).length) {
+        setPhones(cust.phones as CardPhone[]);
+      }
+      if (cust.address && typeof cust.address === "object") {
+        setAddress({ ...EMPTY_ADDRESS, ...(cust.address as Partial<Required<CardAddress>>) });
+      }
+      if (cust.customLayout && typeof cust.customLayout === "object") {
+        setCustomLayout(cust.customLayout as CustomLayout);
+      }
+      // Style keys ride alongside the known customization fields. Reuse the
+      // plan module's list rather than a parallel one, so a new design key
+      // can't be added there and silently dropped here.
+      const style: Record<string, unknown> = {};
+      for (const k of PRO_CUSTOMIZATION_KEYS) if (cust[k] !== undefined) style[k] = cust[k];
+      if (Object.keys(style).length) setTemplateStyleState(style as TemplateStyle);
+      // Swift Links page design keys ride alongside the card's, on their own
+      // list — the Pro keys AND the every-plan structural ones (Look, header
+      // style/content, uploaded header photo), which this restore used to
+      // silently drop.
+      const ls: Record<string, unknown> = {};
+      for (const k of [...LINK_STYLE_KEYS, ...LINK_STRUCTURAL_KEYS]) if (cust[k] !== undefined) ls[k] = cust[k];
+      if (Object.keys(ls).length) setLinkStyleState(ls as SwiftLinkStyle);
+
+      // Images ride as base64 data URLs (a guest can't reach the upload route).
+      if (draft.images?.logo) setLogoUrl(draft.images.logo);
+      if (draft.images?.photo) setHeadshotUrl(draft.images.photo);
+
+      if (typeof draft.step === "number" && draft.step >= 1 && draft.step <= 4) setStep(draft.step);
+      setRestored(true);
+  }
+
+  function continueDraft() {
+    if (!resumeChoice) return;
+    restoreDraft(resumeChoice);
+    // They chose the card they already had; a sketch from the homepage builders
+    // would overwrite it, so it is dropped rather than mixed in.
+    heldPrefillRef.current = null;
+    setResumeChoice(null);
+    hydratedRef.current = true;
+    applyLiPhoto();
+  }
+
+  function startNewCard() {
+    clearDraft();
+    setResumeChoice(null);
+    const held = heldPrefillRef.current;
+    heldPrefillRef.current = null;
+    if (held) applySketchEntry(held);
+    hydratedRef.current = true;
+    applyLiPhoto();
+  }
 
   // ── Guest LinkedIn photo return (?li_photo=) ──────────────────────────────
   // A guest's "Connect LinkedIn" in the headshot suggester runs a one-shot
@@ -1039,6 +1122,48 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     <div className="w-full max-w-[220px] mx-auto">{linkPagePreview}</div>
   );
 
+  if (resumeChoice) {
+    const draftName = typeof resumeChoice.payload?.name === "string" ? resumeChoice.payload.name.trim() : "";
+    const stepNames = ["Card information", "Card design", "Socials", "Social design"];
+    const stoppedAt = stepNames[Math.min(Math.max((resumeChoice.step || 1) - 1, 0), 3)];
+    return (
+      <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
+        <div className="max-w-md mx-auto">
+          <Link href="/" className={topControlCls}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            Home
+          </Link>
+          <section className="rounded-2xl border border-gray-800 bg-gray-900 p-6" aria-labelledby="resume-title">
+            <h1 id="resume-title" className="text-2xl font-bold text-white">You have an unfinished card</h1>
+            <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+              {draftName ? <><span className="text-white font-semibold">{draftName}</span> · </> : null}
+              You stopped at {stoppedAt}. Pick up where you left off, or start a new card from the beginning.
+            </p>
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={continueDraft}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm"
+              >
+                Continue your card
+              </button>
+              <button
+                type="button"
+                onClick={startNewCard}
+                className="w-full border border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white font-semibold py-3 rounded-full transition-colors text-sm"
+              >
+                Start a new card
+              </button>
+            </div>
+            <p className="text-gray-500 text-xs mt-4 text-center">Starting a new card deletes the unfinished one.</p>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <>
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
@@ -1049,7 +1174,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             • STEPS 2–4 → "Back", to the step they just came from. This said
               "Home" on every step, which made it the only top-of-page control
               on Card design, Socials and Social design — and for a guest that
-              link deliberately WIPES the draft (see resetGuestFlow below).
+              link used to WIPE the draft (it no longer does — see resumeChoice).
               People look UP to go back, not down, so reaching for it by reflex
               threw away the whole half-built card. The "← Back" buttons at the
               bottom of those steps stay; this one catches everyone who never
@@ -1074,13 +1199,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         ) : guest ? (
           <Link
             href="/"
-            // Leaving for Home abandons this card: wipe the whole unfinished
-            // guest draft (text, photos, logo, links, colors, plan pick, and any
-            // marketing-sketch prefill) so /cards/new — and every mini builder —
-            // reopens blank instead of restoring it. Only touches this browser's
-            // localStorage; a signed-in user's saved cards live in the DB and
-            // are unaffected (and this link is guest-only anyway).
-            onClick={() => resetGuestFlow()}
+            // Leaving for Home KEEPS the unfinished card (owner rule
+            // 2026-09-16: nobody loses a card by accident). It only drops the
+            // marketing sketch and plan pick; coming back through any "Get
+            // started free"-style button asks "Continue your card / Start a new
+            // card" — the one place a card is ever discarded.
+            onClick={() => resetMarketingSketch()}
             className={topControlCls}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
