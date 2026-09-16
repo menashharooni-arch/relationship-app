@@ -44,6 +44,31 @@ describe("always-on production guards", () => {
     expect(p).toMatch(/finally \{[\s\S]*\/rest\/v1\/notifications[\s\S]*\/rest\/v1\/card_views[\s\S]*auth\/v1\/admin\/users/);
   });
 
+  it("the production probe checks the contract that applies where it is RUNNING", () => {
+    // From 2026-09-14 to 2026-09-16 this probe failed every night — "exactly ONE
+    // notification for the visit (got 0)" — while production was healthy. Cloud
+    // egress stopped being counted that day (by design, so view counts stay
+    // honest) and GitHub Actions is a datacenter, so the probe's own traffic was
+    // correctly refused. It was asserting a contract that cannot hold where it
+    // runs.
+    //
+    // Both branches are pinned here because each protects something different:
+    // the residential branch is the only end-to-end check that a real visit
+    // still notifies, and the datacenter branch is a live regression test for
+    // the hosting exclusion. Deleting either one buys a green CI run by no
+    // longer looking.
+    const p = read("scripts/qa-prod-probe.mjs");
+    expect(p, "the probe no longer asks where it is running").toMatch(/analytics_ingest_log[\s\S]*reason === "hosting"/);
+    expect(p, "the datacenter branch is gone").toContain("a datacenter's view is refused");
+    expect(p, "the datacenter branch no longer checks that nobody was notified").toContain("raises NO notification");
+    expect(p, "the residential branch is gone").toContain("exactly ONE notification for the visit");
+
+    // A bypass header would make CI green by exempting the probe from the very
+    // gate that keeps view counts honest. That is not a fix, and the owner's
+    // standing rule is that view counts cannot carry misinformation.
+    expect(p, "the probe appears to exempt itself from the bot/hosting gate").not.toMatch(/x-(qa|probe|test|bypass)/i);
+  });
+
   it("every QA script can take its secrets from the environment, so CI can run it", () => {
     for (const s of ["qa-flows", "qa-sweep", "qa-office-shell", "qa-office-links-brand", "qa-a11y", "qa-mac", "qa-prod-probe"]) {
       const src = read(`scripts/${s}.mjs`);

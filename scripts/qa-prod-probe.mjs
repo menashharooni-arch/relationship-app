@@ -78,12 +78,42 @@ try {
   // printed every night so a trend is visible in the run log.
   pass(v1ms < 6000, `view endpoint answers within budget (${v1ms}ms, budget 6000)`);
   await wait(1500);
+
+  // ── WHERE IS THIS RUNNING? (2026-09-16) ──────────────────────────────────
+  // Since 2026-09-14 cloud/hosting egress is never counted — record-view.ts:
+  // `if (geo.isHosting) return { outcome: "hosting" }` — and GitHub Actions IS
+  // a datacenter. So from CI the honest answer to "did that view count?" is NO,
+  // and asserting the happy path there can only ever fail. It did, every night
+  // from 2026-09-14 on, while production was perfectly healthy. A guard that
+  // cries wolf nightly is a guard nobody reads.
+  //
+  // So the probe asks the ingest log where it stands and checks the contract
+  // that actually applies. Neither mode is the lesser one: from a datacenter
+  // this becomes a live regression test for the exclusion itself, which is the
+  // thing that keeps view counts honest. Do not "fix" this by giving the probe
+  // a bypass header — that is the hole the exclusion exists to close.
+  const ingestRows = await (await adm(`/rest/v1/analytics_ingest_log?entity_key=eq.${uname}&select=reason,counted&order=created_at.desc&limit=5`)).json();
+  const hosting = Array.isArray(ingestRows) && ingestRows.some((r) => r.reason === "hosting");
+  const expectViews = hosting ? 0 : 1;
+  console.log(hosting
+    ? "MODE datacenter — hosting egress, so the refusal contract is what gets checked"
+    : "MODE residential — the full pipeline gets checked");
+
   const views = await (await adm(`/rest/v1/card_views?username=eq.${uname}&select=id,visitor_id,source`)).json();
-  pass(Array.isArray(views) && views.length === 1, `exactly ONE card_views row after view + reload (got ${Array.isArray(views) ? views.length : JSON.stringify(views).slice(0, 80)})`);
+  pass(Array.isArray(views) && views.length === expectViews,
+    hosting
+      ? `a datacenter's view is refused, so NO card_views row (got ${Array.isArray(views) ? views.length : JSON.stringify(views).slice(0, 80)})`
+      : `exactly ONE card_views row after view + reload (got ${Array.isArray(views) ? views.length : JSON.stringify(views).slice(0, 80)})`);
+  if (hosting) {
+    // Assert the exclusion actively, rather than inferring it from an absence:
+    // a silently broken endpoint also records nothing.
+    pass(ingestRows.every((r) => r.reason === "hosting" && r.counted === false),
+      `every ingest decision reads hosting/not-counted (${JSON.stringify(ingestRows.map((r) => r.reason))})`);
+  }
   const bot = await post(`/api/views/${uname}`, { visitorId: `bot-${stamp}`, source: "direct" }, UA_BOT);
   await wait(800);
   const viewsAfterBot = await (await adm(`/rest/v1/card_views?username=eq.${uname}&select=id`)).json();
-  pass(viewsAfterBot.length === 1, `a crawler's view is refused (${bot.status}, rows still ${viewsAfterBot.length})`);
+  pass(viewsAfterBot.length === expectViews, `a crawler's view is refused (${bot.status}, rows still ${viewsAfterBot.length})`);
 
   // ── 2. notifications: one per visitor per visit, never two ───────────────
   // A fresh visitor: the analytics visitor above already opened a visit, so an
@@ -96,8 +126,13 @@ try {
   await wait(2500);
   const notes = await (await adm(`/rest/v1/notifications?user_id=eq.${userIdN}&select=id,type,visit_key`)).json();
   const n = Array.isArray(notes) ? notes.length : -1;
-  pass(n === 1, `exactly ONE notification for the visit (got ${n}: ${JSON.stringify(notes).slice(0, 120)})`);
-  pass(n === 1 && !!notes[0].visit_key, `the notification carries a visit_key (dedupe index in force)`);
+  if (hosting) {
+    // A view that was never counted must never have rung anybody's phone.
+    pass(n === 0, `a datacenter's visit raises NO notification (got ${n})`);
+  } else {
+    pass(n === 1, `exactly ONE notification for the visit (got ${n}: ${JSON.stringify(notes).slice(0, 120)})`);
+    pass(n === 1 && !!notes[0].visit_key, `the notification carries a visit_key (dedupe index in force)`);
+  }
 
   // ── 3. the pipeline's own health endpoint ────────────────────────────────
   const [h, hms] = await timed(() => fetch(`${BASE}/api/health`, { signal: AbortSignal.timeout(20000) }));
