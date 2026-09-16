@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { Resend } from "resend";
 import { getStripe, subscriptionPeriodEndIso } from "@/lib/stripe";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { receiptEmail, trialStartedEmail, paymentFailedEmail, trialConvertsSoonEmail } from "@/lib/email-templates";
+import { receiptEmail, trialStartedEmail, paymentFailedEmail } from "@/lib/email-templates";
 import { markReferralConversion } from "@/lib/referral-server";
 import { getAccountEmail } from "@/lib/account-email";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/lib/office-brand";
@@ -757,58 +757,6 @@ export async function POST(req: NextRequest) {
             }
             await releaseOfficeMember(admin, m.id as string, m.user_id as string | null);
           }
-        }
-      }
-    }
-  }
-
-  // ── Trial converts to paid in ~3 days ────────────────────────────────────────
-  // Stripe sends this 3 days before trial_end. Tell the person when they will
-  // be charged and how much, in-app and by email, so the first charge is never
-  // a surprise. Deduplicated like every event (stripe_events); a trial already
-  // cancelled (cancel_at_period_end) is not warned about a charge that won't come.
-  if (event.type === "customer.subscription.trial_will_end") {
-    const sub = event.data.object as Stripe.Subscription;
-    const trialEndIso = stripeTrialEndIso(sub);
-    if (trialEndIso && !sub.cancel_at_period_end) {
-      const admin = getAdminSupabase();
-      const { data: profile } = await admin
-        .from("profiles")
-        .select("id, name, email")
-        .eq("stripe_subscription_id", sub.id)
-        .maybeSingle();
-      if (profile?.id) {
-        const price = sub.items.data[0]?.price;
-        const cents = price?.unit_amount ?? 0;
-        const interval = planFromPriceId(price?.id)?.interval === "annual" ? "Annual" : "Monthly";
-        const chargeDate = new Date(trialEndIso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-        await insertNotification({
-          user_id: profile.id as string,
-          type: "trial_ending",
-          title: "Your Pro trial ends in 3 days",
-          body: `Pro continues on ${chargeDate} when your first payment goes through. You can cancel from Plan and billing before then.`,
-        }).catch(() => {});
-        try {
-          const { data: prefs } = await admin.from("email_preferences").select("receipt_emails").eq("user_id", profile.id).maybeSingle();
-          const to = await getAccountEmail(profile.id as string, (profile.email as string) ?? null);
-          if (to && prefs?.receipt_emails !== false) {
-            const tpl = trialConvertsSoonEmail({
-              firstName: (profile.name as string)?.split(" ")[0] || "there",
-              planName: "Pro",
-              amount: `$${(cents / 100).toFixed(2)}`,
-              interval,
-              firstChargeDate: chargeDate,
-              manageUrl: `${APP_URL}/settings/flows?billing=1`,
-            });
-            const { data: sent, error: sendError } = await new Resend(process.env.RESEND_API_KEY).emails.send({ ...tpl, to });
-            if (sendError || !sent?.id) {
-              await reportError("billing.email.trial_will_end", sendError?.message ?? "no id returned", { userId: profile.id });
-            } else {
-              await admin.from("email_logs").insert({ user_id: profile.id, email: to, type: "trial_will_end", subject: tpl.subject, resend_id: sent.id });
-            }
-          }
-        } catch (e) {
-          await reportError("billing.email.trial_will_end", e, { userId: profile.id });
         }
       }
     }

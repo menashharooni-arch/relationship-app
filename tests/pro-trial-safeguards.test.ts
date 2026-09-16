@@ -195,11 +195,6 @@ describe("trial state is visible before the card is charged", () => {
     expect(billing.stripeTrialEndIso({ status: "active", trial_end: 1_800_000_000 })).toBeNull();
   });
 
-  it("the webhook warns before conversion, unless the trial is already cancelled", () => {
-    const c = read("src/app/api/stripe/webhook/route.ts");
-    expect(c).toContain('event.type === "customer.subscription.trial_will_end"');
-    expect(c).toContain("trialEndIso && !sub.cancel_at_period_end");
-  });
 });
 
 describe("the delete flow after a trial gives the rest of 30 days, once", () => {
