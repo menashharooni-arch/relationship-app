@@ -78,3 +78,24 @@ One line per review, newest last.
   shape of the schedule rather than the minute a message leaves — both still
   true, and both now match what the screen shows. No page, button, label, plan
   line or step count moved.
+
+- **2026-09-16 · up to `d82b2f7`** — Three commits since the last knowledge
+  touch. `adff301` was a performance audit: Sentry moved to a dynamic import,
+  `AccountIsolationGuard` now tests for the session cookie before loading the
+  Supabase SDK, and `/links/[username]` reads the same cached loader the card
+  page already used. `6664b26` and `d82b2f7` changed `scripts/qa-prod-probe.mjs`
+  and `tests/monitoring-wiring.test.ts`. **No doc change needed for those
+  three:** the performance work states in its own message that no behaviour was
+  traded, and nothing about it is visible to a person using the product — no
+  page, tab, button, step or plan moved. The probe and its test are internal
+  tooling the assistants never describe.
+
+  **A doc change WAS needed for `05e6e16`,** made in this pass: the plan step's
+  Pro button used to read "Start free →" beside the Free plan's own "free"
+  button, and a guest who had chosen Free tapped it and landed on a trial
+  they had declined (owner report, 2026-09-15). Both labels are now bound to
+  what they do. `marketing-site.ts` had been telling the assistants that picking
+  Free means clicking "Start free →" — which was the *Pro* button's old label,
+  so the one doc sentence a confused customer would have been answered with
+  pointed at the exact button that charged them. It now names
+  "Continue with Free →" and says plainly what the Pro button beside it does.
