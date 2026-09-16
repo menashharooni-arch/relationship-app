@@ -73,6 +73,21 @@ const ENTRIES: Record<string, string> = {
     }
     createRoot(document.getElementById("root")!).render(createElement(App));
   `,
+  dockjump: `
+    import { createRoot } from "react-dom/client";
+    import { createElement } from "react";
+    import DockedCardPreview from "@/components/DockedCardPreview";
+    import ClassicPro from "@/components/card-templates/ClassicPro";
+    const card = createElement(ClassicPro, { data: ${DATA} });
+    createRoot(document.getElementById("root")!).render(
+      createElement("div", null,
+        createElement("div", { style: { height: 1500 } }),
+        createElement("div", { id: "design-inline-preview", style: { height: 220 } }, "inline preview"),
+        createElement("div", { style: { height: 3000 } }),
+        createElement(DockedCardPreview, { anchorId: "design-inline-preview" }, card),
+      )
+    );
+  `,
   dock: `
     import { createRoot } from "react-dom/client";
     import { createElement } from "react";
@@ -231,10 +246,38 @@ describe("style panel: Look → Fine-tune → More", () => {
     await page.context().close();
   });
 
-  it("flags a Pro colour hidden behind a closed segment on a Free account", async () => {
-    const v = encodeURIComponent(JSON.stringify({ bgColor: "#123456" }));
+  it("shows no PRO label anywhere, even on a Free account using Pro choices (owner, 2026-09-16)", async () => {
+    // A custom colour, a Pro finish and a Pro-finish Look all in play: the
+    // Save dialog names these; the panel itself says nothing about plans.
+    const v = encodeURIComponent(JSON.stringify({ bgColor: "#123456", finish: "carbon" }));
     const page = await mount("style", `v=${v}&locked=1`);
-    expect(await page.$("[role='group'][aria-label='Fine-tune'] [aria-label='uses a Pro option']")).not.toBeNull();
+    for (const seg of ["Colours", "Font", "Finish"]) {
+      await page.click(`[role='group'][aria-label='Fine-tune'] button:has-text('${seg}')`);
+      await page.waitForTimeout(60);
+      const proText = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>("body *")].filter((el) => el.children.length === 0 && /\bPRO\b/i.test(el.textContent || "")).map((el) => el.textContent),
+      );
+      expect(proText, `${seg}: ${JSON.stringify(proText)}`).toEqual([]);
+    }
+    await page.context().close();
+  });
+
+  it("Photo or video is a main background control: in Colours, right under the background", async () => {
+    const page = await mount("style", "v={}");
+    const order = await page.evaluate(() => {
+      const labels = [...document.querySelectorAll<HTMLElement>("p")]
+        .filter((p) => p.getBoundingClientRect().width > 0)
+        .map((p) => p.textContent);
+      return labels;
+    });
+    const bg = order.indexOf("Branding panel");
+    const media = order.indexOf("Photo or video");
+    expect(bg, "background field not visible").toBeGreaterThan(-1);
+    expect(media, "Photo or video is not visible in Colours").toBe(bg + 2); // label, its hint, then Photo or video
+    // And it is not inside More any more.
+    const inMore = await page.evaluate(() => !!document.querySelector("details")?.textContent?.includes("Photo or video"));
+    expect(inMore).toBe(false);
+    expect(await page.isVisible("button:has-text('Add a photo or video')")).toBe(true);
     await page.context().close();
   });
 });
@@ -271,6 +314,18 @@ describe("docked preview on a phone", () => {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(250);
     expect(await docked()).toBe(false);
+    await page.context().close();
+  });
+
+  it("appears even when a fling jumps from below the preview straight past it", async () => {
+    // The IntersectionObserver version missed exactly this in the real editor:
+    // not-visible → not-visible is no change, so it never fired.
+    const page = await mount("dockjump");
+    const docked = () => page.evaluate(() => !!document.querySelector(".fixed [data-preview-locked='true']"));
+    expect(await docked()).toBe(false);
+    await page.evaluate(() => window.scrollTo(0, 3000));
+    await page.waitForTimeout(250);
+    expect(await docked()).toBe(true);
     await page.context().close();
   });
 

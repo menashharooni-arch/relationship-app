@@ -7,10 +7,12 @@
 // Ordered by how often a control is actually touched, not by subject:
 //   1. "Look"      — Original plus the curated one-tap themes. Where most
 //                    people should live.
-//   2. "Fine-tune" — Colours (background, second surface, name, accent) ·
-//                    Font · Finish, one group at a time behind a Segmented.
-//   3. "More style options" — details colour and photo/video, behind a native
-//      <details>. Real features, just not why anyone opens this tab.
+//   2. "Fine-tune" — Colours (background, its photo or video, second surface,
+//                    name, accent) · Font · Finish, one group at a time behind
+//                    a Segmented.
+//   3. "More style options" — the details colour, behind a native <details>.
+// No PRO labels anywhere in the panel (owner, 2026-09-16): every control works
+// and previews on every plan; the Save dialog names what needs Pro.
 // The template's name and blurb are NOT repeated here: the editors' template
 // gallery (TemplatePicker) already shows them beside a live thumbnail.
 // The control vocabulary (headings, fields, tap targets, what "selected" looks
@@ -23,11 +25,11 @@
 
 import { CARD_FONT_OPTIONS, isDarkBg } from "./shared";
 import type { TemplateStyle } from "./shared";
-import { META, FALLBACK_META, freeSafeValues, type Look, type StyleField } from "@/lib/template-style-presets";
+import { META, FALLBACK_META, type Look, type StyleField } from "@/lib/template-style-presets";
 import { useRef, useState } from "react";
 import { Field, MoreOptions, SectionHeading, Segmented } from "@/components/ui/DesignControls";
 import {
-  CARD_FINISHES, FINISH_FAMILIES, getFinish, isFreeFinish,
+  CARD_FINISHES, FINISH_FAMILIES, getFinish,
   composePanelBackground, PANEL_DIM_DEFAULT,
 } from "@/lib/card-finishes";
 import { isAllowedMedia, uploadMedia, uploadErrorMessage, WRONG_TYPE_MESSAGE, IMAGE_TYPES, VIDEO_TYPES } from "@/lib/upload-media";
@@ -72,7 +74,6 @@ function LooksGallery({
   onPick,
   original,
   onOriginal,
-  locked = false,
 }: {
   looks: Look[];
   value: TemplateStyle;
@@ -80,7 +81,6 @@ function LooksGallery({
   /** The template's own baked-in scheme, painted on the "Original" tile. */
   original: { bg: string; text: string };
   onOriginal: () => void;
-  locked?: boolean;
 }) {
   const originalActive = isOriginal(value);
   return (
@@ -113,12 +113,10 @@ function LooksGallery({
       </button>
       {looks.map((look) => {
         const active = looksActive(value, look);
-        // A Look built on a Pro finish still SHOWS its finish here and still
-        // applies on tap — the card previews exactly as it would. The save path
-        // drops the finish for a Free account (lib/plan.ts), so the tag says so
-        // in advance rather than letting the card quietly come back flatter
-        // than the swatch promised.
-        const needsPro = locked && !!look.finish && !isFreeFinish(look.finish);
+        // A Look built on a Pro finish SHOWS its finish here and applies on tap,
+        // so the card previews exactly as it would. No PRO label on the tile
+        // (owner, 2026-09-16): what needs Pro is named once, at Save Changes,
+        // by the Pro-required dialog (lib/plan.ts proFeaturesInUse).
         return (
           <button
             key={look.name}
@@ -149,7 +147,6 @@ function LooksGallery({
             </div>
             <span className="mt-1 flex items-center gap-1 min-w-0">
               <span className={`text-[0.6875rem] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-400"}`}>{look.name}</span>
-              {needsPro && <span data-ds="badge" className="text-[8px] font-bold text-blue-400 shrink-0">PRO</span>}
             </span>
           </button>
         );
@@ -158,24 +155,16 @@ function LooksGallery({
   );
 }
 
-// Small "PRO" tag for the arbitrary custom-color inputs — the one part of this
-// panel that stays Pro-only once presets/Looks/fonts are Free-usable.
-function ProTag() {
-  return <span data-ds="badge" className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-blue-600 text-white leading-none">PRO</span>;
-}
-
 function Swatches({
   presets,
   value,
   fallbackHex,
   onPick,
-  customLocked = false,
 }: {
   presets: string[];
   value?: string;
   fallbackHex: string;
   onPick: (v: string | undefined) => void;
-  customLocked?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -216,9 +205,11 @@ function Swatches({
             save the Free-safe version instead (ProRequiredDialog). Nothing can
             leak past that: the save path detects it (proFeaturesInUse) and the
             server snaps colours to Free presets on write regardless
-            (sanitizeCustomizationForPlan). The PRO tag stays, so nobody gets
-            attached to a colour without being told what it costs. */}
-        any color{customLocked && <ProTag />}
+            (sanitizeCustomizationForPlan).
+
+            No PRO label here any more (owner, 2026-09-16): the Card Design
+            tab carries no Pro badges; the Save dialog is where Pro is named. */}
+        any color
         <input
           type="color"
           value={isHex(value) ? value : fallbackHex}
@@ -281,12 +272,10 @@ function FinishPicker({
   value,
   bgFallback,
   onChange,
-  locked,
 }: {
   value: TemplateStyle;
   bgFallback: string;
   onChange: (patch: Partial<TemplateStyle>) => void;
-  locked: boolean;
 }) {
   const base = value.bgColor ?? bgFallback;
   const current = getFinish(value.finish);
@@ -301,11 +290,9 @@ function FinishPicker({
       <div className="grid grid-cols-3 min-[360px]:grid-cols-4 gap-1.5">
               {CARD_FINISHES.map((f) => {
                 const active = current.id === f.id;
-                // A Pro finish stays TAPPABLE on a locked account so the card
-                // can be previewed with it — the same contract the colour
-                // presets use. The save path strips it (lib/plan.ts), and the
-                // PRO tag says so before they get attached to it.
-                const proLocked = locked && !f.free;
+                // Every finish is tappable on every plan so the card can be previewed
+                // with it. The save path strips a Pro finish on Free (lib/plan.ts)
+                // and the Save dialog names it — no PRO label on the tile.
                 return (
                   <button
                     key={f.id}
@@ -329,7 +316,6 @@ function FinishPicker({
                     />
                     <span className="mt-1 flex items-center gap-1 min-w-0">
                       <span className={`text-[0.6875rem] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-400"}`}>{f.name}</span>
-                      {proLocked && <span data-ds="badge" className="text-[0.5rem] font-bold text-blue-400 shrink-0">PRO</span>}
                     </span>
                   </button>
                 );
@@ -501,21 +487,21 @@ function PanelMediaControl({
 
 export type FineTuneSection = "colours" | "font" | "finish";
 
-/** Is this colour one a Free account keeps as-is? Undefined (template default) always is. */
-function freeKeeps(v: string | undefined, allowed: string[]): boolean {
-  return v === undefined || allowed.includes(v);
-}
-
 export default function TemplateStyleControls({
   value,
   onChange,
   template,
-  locked = false,
   initialSection = "colours",
 }: {
   value: TemplateStyle;
   onChange: (patch: Partial<TemplateStyle>) => void;
   template?: string;
+  /**
+   * The account can't keep Pro choices (Free). Still accepted from every caller
+   * but no longer drawn: the Card Design tab carries no PRO labels (owner,
+   * 2026-09-16). Every control stays usable and previews; the Pro-required
+   * dialog at Save names what needs Pro, and the server enforces it.
+   */
   locked?: boolean;
   /** Which Fine-tune group opens first. Tests render each; the editors use the default. */
   initialSection?: FineTuneSection;
@@ -538,24 +524,9 @@ export default function TemplateStyleControls({
   const applyOriginal = () =>
     onChange({ bgColor: undefined, textColor: undefined, fontFamily: undefined, finish: undefined, surfaceColor: undefined });
 
-  // A Pro value that is ON the card but inside a Fine-tune group that isn't
-  // open would otherwise be invisible until the Save dialog names it. A dot on
-  // the segment says "something in here is Pro" without opening it. Same rules
-  // the Free snap uses (lib/plan.ts), so the dot and the dialog agree.
-  const colourIsPro =
-    locked &&
-    !(
-      freeKeeps(value.bgColor, freeSafeValues(meta, "bg")) &&
-      freeKeeps(value.textColor, freeSafeValues(meta, "text")) &&
-      (!meta.surface || freeKeeps(value.surfaceColor, freeSafeValues(meta, "surface"))) &&
-      freeKeeps(value.accentColor, meta.accent.presets)
-    );
-  const finishIsPro = locked && value.finish !== undefined && !isFreeFinish(value.finish);
-  const proDot = <span aria-label="uses a Pro option" className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />;
-
-  // Something set inside "More" is flagged on its summary, so a details colour
-  // or a background photo is never hiding where nobody would think to look.
-  const moreInUse = value.infoColor !== undefined || !!value.panelMedia;
+  // A details colour set inside "More" is flagged on its summary, so it is
+  // never hiding where nobody would think to look.
+  const moreInUse = value.infoColor !== undefined;
 
   /** The short line under a colour field. The long `help` stays as its tooltip. */
   const colourField = (
@@ -565,7 +536,7 @@ export default function TemplateStyleControls({
   ) => (
     <div title={f.help}>
       <Field label={f.label} help={f.hint}>
-        <Swatches presets={f.presets} value={current} fallbackHex={f.fallback} onPick={(v) => onChange({ [key]: v })} customLocked={locked} />
+        <Swatches presets={f.presets} value={current} fallbackHex={f.fallback} onPick={(v) => onChange({ [key]: v })} />
       </Field>
     </div>
   );
@@ -574,14 +545,15 @@ export default function TemplateStyleControls({
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4">
       {/* ── LOOK → FINE-TUNE → MORE ──────────────────────────────────────────
           A Look is one tap and does everything, so it leads. Fine-tune holds
-          the three things people adjust after a Look — colours, font, finish —
-          one group at a time, so the panel is a single decision tall instead
-          of all three stacked open. The long tail sits in More.
+          the three things people adjust after a Look — colours (with the photo
+          or video behind the background), font, finish — one group at a time,
+          so the panel is a single decision tall instead of all three stacked
+          open. The long tail sits in More.
 
-          Every group stays MOUNTED; the inactive ones are `hidden`. Nothing
-          here owns state that must survive a switch, but it keeps the markup
-          identical before and after hydration and lets the render tests find
-          every control. */}
+          Every group stays MOUNTED; the inactive ones are `hidden`. That keeps
+          an in-flight photo/video upload alive across a segment switch, keeps
+          the markup identical before and after hydration, and lets the render
+          tests find every control. */}
 
       <SectionHeading hint="The whole card, in one tap">Look</SectionHeading>
       <LooksGallery
@@ -590,7 +562,6 @@ export default function TemplateStyleControls({
         onPick={applyLook}
         original={{ bg: meta.bg.fallback, text: meta.text.fallback }}
         onOriginal={applyOriginal}
-        locked={locked}
       />
 
       <SectionHeading hint="Adjust one thing at a time">Fine-tune</SectionHeading>
@@ -599,14 +570,26 @@ export default function TemplateStyleControls({
         value={section}
         onChange={setSection}
         options={[
-          { value: "colours", label: "Colours", badge: colourIsPro ? proDot : undefined },
+          { value: "colours", label: "Colours" },
           { value: "font", label: "Font" },
-          { value: "finish", label: "Finish", badge: finishIsPro ? proDot : undefined },
+          { value: "finish", label: "Finish" },
         ]}
       />
 
       <div hidden={section !== "colours"} className="space-y-4">
         {colourField(meta.bg, value.bgColor, "bgColor")}
+
+        {/* PHOTO OR VIDEO sits WITH the background it goes behind — a primary
+            background choice, not a "more options" one (owner, 2026-09-16:
+            it was folded under More, where nobody looking to change their
+            card's background would find it). Same control, same keys. */}
+        <Field
+          label="Photo or video"
+          help={`Behind your ${meta.bg.label.toLowerCase()}, under the finish.`}
+        >
+          <PanelMediaControl value={value} onChange={onChange} />
+        </Field>
+
         {/* Only three of the six templates have a second surface. On the rest,
             bgColor already paints the whole card and this would do nothing. */}
         {meta.surface && colourField(meta.surface, value.surfaceColor, "surfaceColor")}
@@ -626,32 +609,23 @@ export default function TemplateStyleControls({
 
       <div hidden={section !== "finish"}>
         <Field label="Finish" help={`The material over your ${meta.bg.label.toLowerCase()}. Strongest on deeper colours.`}>
-          <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} locked={locked} />
+          <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} />
         </Field>
       </div>
 
       {/* ── The long tail, one tap away ──────────────────────────────────────
           A native <details>, so it is keyboard- and screen-reader-reachable and
-          works before hydration. Real features, just not why anyone opens the
-          Design tab. */}
-      <MoreOptions label="More style options" hint="Details colour · photo or video" badge={moreInUse ? proDotNeutral : undefined}>
+          works before hydration. */}
+      <MoreOptions label="More style options" hint={meta.info.label} badge={moreInUse ? setDot : undefined}>
         <div title={meta.info.help}>
           <Field label={meta.info.label} help={meta.info.hint}>
-            <Swatches presets={meta.info.presets} value={value.infoColor} fallbackHex={meta.info.fallback} onPick={(v) => onChange({ infoColor: v })} customLocked={locked} />
+            <Swatches presets={meta.info.presets} value={value.infoColor} fallbackHex={meta.info.fallback} onPick={(v) => onChange({ infoColor: v })} />
           </Field>
         </div>
-
-        <Field
-          label="Photo or video"
-          help={`Sits behind your ${meta.bg.label.toLowerCase()}, under the finish.`}
-          trailing={locked ? <ProTag /> : undefined}
-        >
-          <PanelMediaControl value={value} onChange={onChange} />
-        </Field>
       </MoreOptions>
     </div>
   );
 }
 
-/** "Something in here is set" — neutral grey, not the Pro blue. */
-const proDotNeutral = <span aria-label="has a setting" className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />;
+/** "Something in here is set" — a neutral grey dot. */
+const setDot = <span aria-label="has a setting" className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />;

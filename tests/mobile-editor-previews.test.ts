@@ -189,8 +189,10 @@ describe("Card design — the docked preview", () => {
 
   it("appears only after the inline preview scrolls out of view", () => {
     const d = code(DOCK);
-    expect(d).toMatch(/IntersectionObserver/);
-    expect(d).toMatch(/boundingClientRect\.top < 0/);
+    // A position check on scroll — an IntersectionObserver missed a jump from
+    // below the fold straight past the preview (found in the real editor).
+    expect(d).toMatch(/addEventListener\("scroll"/);
+    expect(d).toMatch(/getBoundingClientRect\(\)\.bottom < 0/);
     expect(d, "the dock must mount conditionally, not hide with CSS").toMatch(/return null;/);
     expect(d).toMatch(/InertPreview/);
   });

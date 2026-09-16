@@ -42,10 +42,12 @@ describe("the design panel on a Free account", () => {
     expect(free).not.toContain('aria-disabled="true"');
   });
 
-  it("still says PRO, so nobody gets attached to a colour without being told", () => {
-    // The tag is the disclosure that replaces the disabled state. A Pro account
-    // has nothing to disclose.
-    expect(free).toContain(">PRO<");
+  it("carries no PRO labels on either plan — Pro is named at Save", () => {
+    // Owner, 2026-09-16: the Card Design tab shows no Pro badges. The
+    // disclosure moved entirely to Save Changes, where ProRequiredDialog names
+    // exactly what was used (pinned in pro-required-on-save.test.ts) — so a
+    // Free account still cannot keep a Pro choice without being told.
+    expect(free).not.toContain(">PRO<");
     expect(pro).not.toContain(">PRO<");
   });
 

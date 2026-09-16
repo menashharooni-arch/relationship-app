@@ -421,11 +421,13 @@ describe("curated Looks are free-safe", () => {
     expect(freeSafeValues(META["classic-pro"], "bg")).toContain(out.bgColor as string);
   });
 
-  it("a Look built on a Pro finish is tagged before it is tapped", () => {
-    // Free still gets the Look's colours; the finish is dropped on save. Saying
-    // so up front beats a card coming back flatter than the swatch promised.
+  it("a Look built on a Pro finish carries no PRO tag — Save names it", () => {
+    // Owner, 2026-09-16: no PRO labels on the Card Design tab. Free still gets
+    // the Look's colours and sees the finish in the preview; the Save dialog
+    // (proFeaturesInUse) names the Pro finish before anything is dropped.
     const src = read("src/components/card-templates/TemplateStyleControls.tsx");
-    expect(src).toMatch(/const needsPro = locked && !!look\.finish && !isFreeFinish\(look\.finish\)/);
+    expect(src).not.toMatch(/needsPro/);
+    expect(src).not.toMatch(/>PRO</);
   });
 
   it("the Looks swatch paints its finish, not just its colour", () => {

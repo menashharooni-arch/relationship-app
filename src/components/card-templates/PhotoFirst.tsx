@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn, nameClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const ACCENT_DEFAULT = "#6d28d9";
@@ -108,7 +108,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         {/* Name + title over photo */}
         <div className="relative px-3.5 pb-3">
           <h2
-            className="font-extrabold text-white leading-tight"
+            className={`font-extrabold leading-tight ${nameClass(style)}`}
             style={{ fontSize: fitName(18 * heroGrow(f), data.name, 16), overflowWrap: "anywhere", minWidth: 0, textShadow: "0 1px 4px rgba(0,0,0,0.4)", color: style.textColor }}
           >
             {data.name}
