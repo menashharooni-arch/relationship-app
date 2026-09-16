@@ -54,13 +54,13 @@ try {
   const u = await (await adm("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email, password: `Qa!aA1${stamp}x`, email_confirm: true }) })).json();
   if (!u.id) throw new Error("seed user failed: " + JSON.stringify(u).slice(0, 160));
   userId = u.id;
-  await adm("/rest/v1/profiles", { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ id: userId, username: uname, name: "Probe Owner", email, plan: "free", customization: { _aiConsent: "accepted" } }) });
+  await adm("/rest/v1/profiles", { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ id: userId, username: uname, name: "Probe Owner", email, plan: "free", customization: { _aiConsent: "accepted", _planChosen: "qa-seeded" } }) });
   await adm("/rest/v1/cards", { method: "POST", body: JSON.stringify({ user_id: userId, username: uname, name: "Probe Owner", title: "QA", company: "Probe Co", email, template: "classic-pro" }) });
   const emailN = `qa-probe-${stamp}-n@swiftcard-test.invalid`;
   const uN = await (await adm("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email: emailN, password: `Qa!aA1${stamp}n`, email_confirm: true }) })).json();
   if (!uN.id) throw new Error("seed notify user failed: " + JSON.stringify(uN).slice(0, 160));
   userIdN = uN.id;
-  await adm("/rest/v1/profiles", { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ id: userIdN, username: unameN, name: "Probe Notify", email: emailN, plan: "free", customization: { _aiConsent: "accepted" } }) });
+  await adm("/rest/v1/profiles", { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify({ id: userIdN, username: unameN, name: "Probe Notify", email: emailN, plan: "free", customization: { _aiConsent: "accepted", _planChosen: "qa-seeded" } }) });
   await adm("/rest/v1/cards", { method: "POST", body: JSON.stringify({ user_id: userIdN, username: unameN, name: "Probe Notify", title: "QA", company: "Probe Co", email: emailN, template: "classic-pro" }) });
   // The public page must exist before anything can be recorded against it.
   const page = await fetch(`${BASE}/${uname}`, { headers: { "User-Agent": UA_HUMAN }, signal: AbortSignal.timeout(20000) });

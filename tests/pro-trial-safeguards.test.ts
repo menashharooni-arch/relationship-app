@@ -252,3 +252,15 @@ describe("the Pro-ended panel follows the App Store rules", () => {
     expect(panel).toContain('sublabel=""');
   });
 });
+
+describe("QA seed accounts are never sent to the plan step", () => {
+  // The dashboard sends a NEW account with a card and no recorded plan to
+  // /welcome (PLAN_STEP_REQUIRED_SINCE). Every harness that seeds a throwaway
+  // account with a card must record a plan, or from that date on every nightly
+  // run lands on /welcome and reports the whole product as broken.
+  for (const f of ["qa-sweep", "qa-flows", "qa-office-shell", "qa-office-links-brand", "qa-a11y", "qa-mac", "qa-prod-probe", "native-flows"]) {
+    it(`${f} seeds a plan choice`, () => {
+      expect(read(`scripts/${f}.mjs`)).toContain('_planChosen: "qa-seeded"');
+    });
+  }
+});

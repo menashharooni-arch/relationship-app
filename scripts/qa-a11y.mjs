@@ -64,7 +64,7 @@ async function seedPro() {
   users.push({ id: u.id, uname });
   await adm("/rest/v1/profiles", {
     method: "POST", headers: { Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ id: u.id, username: uname, name: "Ada Lovelace", email, plan: "pro", customization: { _aiConsent: "accepted" } }),
+    body: JSON.stringify({ id: u.id, username: uname, name: "Ada Lovelace", email, plan: "pro", customization: { _aiConsent: "accepted", _planChosen: "qa-seeded" } }),
   });
   await adm("/rest/v1/cards", {
     method: "POST",

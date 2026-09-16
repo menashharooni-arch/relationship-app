@@ -47,7 +47,7 @@ async function seed() {
   userId = u.id;
   await adm("/rest/v1/profiles", {
     method: "POST", headers: { Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ id: u.id, username: uname, name: "Dana Ellis", email, plan: "pro", customization: { _aiConsent: "accepted" } }),
+    body: JSON.stringify({ id: u.id, username: uname, name: "Dana Ellis", email, plan: "pro", customization: { _aiConsent: "accepted", _planChosen: "qa-seeded" } }),
   });
   const c = await (await adm("/rest/v1/cards", {
     method: "POST", headers: { Prefer: "return=representation" },
@@ -432,7 +432,7 @@ FLOWS["empty-account"] = async () => {
   extraUsers.push({ id: created.id, uname: u2 });
   await adm("/rest/v1/profiles", {
     method: "POST", headers: { Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ id: created.id, username: u2, name: "New Person", email: e2, plan: "free", customization: { _aiConsent: "accepted" } }),
+    body: JSON.stringify({ id: created.id, username: u2, name: "New Person", email: e2, plan: "free", customization: { _aiConsent: "accepted", _planChosen: "qa-seeded" } }),
   });
   // No card, no contacts, no views — deliberately.
   const ctx = await markInternal(await browser.newContext({ viewport: { width: 1280, height: 900 } }));

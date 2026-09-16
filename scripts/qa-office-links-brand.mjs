@@ -69,7 +69,7 @@ async function seed() {
       method: "POST", headers: { Prefer: "resolution=merge-duplicates" },
       body: JSON.stringify({
         id: u.id, username: who.uname, email: who.email, plan: "enterprise",
-        name: who === admin ? "Ada Rowe" : "Ben Iyer", customization: { _aiConsent: "accepted" },
+        name: who === admin ? "Ada Rowe" : "Ben Iyer", customization: { _aiConsent: "accepted", _planChosen: "qa-seeded" },
       }),
     });
   }

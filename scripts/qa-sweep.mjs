@@ -49,7 +49,7 @@ async function makeUser(email, name, uname, plan, withCard) {
   users.push(u.id);
   await adm("/rest/v1/profiles", {
     method: "POST", headers: { Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ id: u.id, username: uname, name, email, plan, customization: { _aiConsent: "accepted" } }),
+    body: JSON.stringify({ id: u.id, username: uname, name, email, plan, customization: { _aiConsent: "accepted", _planChosen: "qa-seeded" } }),
   });
   if (withCard) {
     await adm("/rest/v1/cards", {

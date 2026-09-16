@@ -60,7 +60,7 @@ async function seed() {
   userId = u.id;
   await adm("/rest/v1/profiles", {
     method: "POST", headers: { Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ id: u.id, username: uname, name: "Mac Tester", email, plan: "pro", customization: { _aiConsent: "accepted" } }),
+    body: JSON.stringify({ id: u.id, username: uname, name: "Mac Tester", email, plan: "pro", customization: { _aiConsent: "accepted", _planChosen: "qa-seeded" } }),
   });
   await adm("/rest/v1/cards", {
     method: "POST",
