@@ -151,24 +151,51 @@ describe("resetGuestFlow — abandoning a guest flow for Home", () => {
 describe("resetGuestFlow wiring", () => {
   const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
-  it("the homepage mounts GuestFlowReset — covers leaving by ANY means (tab close, Back, direct URL)", () => {
+  // Owner rule 2026-09-16: the homepage clears the marketing sketch only. It
+  // used to wipe the unfinished card too, which made the header's "Get started
+  // free" open blank from Home but resume an old card from every other page.
+  it("the homepage mounts GuestFlowReset — clears the sketch, KEEPS the unfinished card", () => {
     const page = read("src/app/page.tsx");
     expect(page).toContain("GuestFlowReset");
     const cmp = read("src/components/GuestFlowReset.tsx");
-    expect(cmp).toContain("resetGuestFlow()");
+    expect(cmp).toContain("resetMarketingSketch()");
+    expect(cmp).not.toMatch(/resetGuestFlow\(\)|clearDraft\(\)/);
     // Must bail out for signed-in users so a pending claim is never destroyed.
     expect(cmp).toContain("isAuthenticated()");
   });
 
-  it("the card wizard's guest Home link resets", () => {
+  it("the card wizard's guest Home link clears the sketch, not the card", () => {
     const src = read("src/app/cards/new/NewCardWizard.tsx");
-    expect(src).toContain("resetGuestFlow()");
+    expect(src).toContain("resetMarketingSketch()");
+    expect(src).not.toContain("resetGuestFlow()");
   });
 
-  it("the marketing nav's Home links reset", () => {
+  it("the marketing nav's Home links clear the sketch, not the card", () => {
     const src = read("src/components/site/SiteNav.tsx");
     // Desktop + mobile Home links.
-    expect(src.match(/resetGuestFlow\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(src.match(/resetMarketingSketch\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(src).not.toContain("resetGuestFlow()");
+  });
+
+  it("no 'Get started free'-style invite wipes the card on click", () => {
+    for (const f of [
+      "src/components/SignupNudgeHost.tsx",
+      "src/components/SwiftLinksPromoBadge.tsx",
+      "src/components/SaveContactButton.tsx",
+      "src/components/site/SiteNav.tsx",
+      "src/components/site/SiteFooter.tsx",
+    ]) {
+      expect(read(f), f).not.toMatch(/resetGuestFlow\(\)|clearDraft\(\)/);
+    }
+  });
+
+  it("the builder asks before resuming or discarding an unfinished card", () => {
+    const src = read("src/app/cards/new/NewCardWizard.tsx");
+    expect(src).toContain("Continue your card");
+    expect(src).toContain("Start a new card");
+    // Discarding happens only in the "Start a new card" handler.
+    expect(src.match(/clearDraft\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(1);
+    expect(src).toMatch(/function startNewCard\(\)\s*\{\s*clearDraft\(\);/);
   });
 
   // Closing a builder must NOT wipe the draft: the three builders share one
@@ -199,7 +226,10 @@ describe("resetGuestFlow wiring", () => {
       expect(src, f).toContain("onStartOver={startOver}");
       expect(src, f).toMatch(/function startOver\(\)[\s\S]*?reset\(\)/);
     }
-    // The builders share one reset, which is what wipes the stored keys.
-    expect(read("src/components/site/useProductSketch.ts")).toContain("resetGuestFlow()");
+    // The builders share one reset, which wipes the sketch keys — but never an
+    // unfinished card in the real builder, and neither does "Make it live".
+    const sketch = read("src/components/site/useProductSketch.ts");
+    expect(sketch).toContain("resetMarketingSketch()");
+    expect(sketch).not.toMatch(/resetGuestFlow\(\)|clearDraft\(\)/);
   });
 });

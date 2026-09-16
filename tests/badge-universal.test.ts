@@ -47,7 +47,9 @@ describe("the SwiftCard badge is universal", () => {
     // to the home page instead would quietly lengthen its own funnel.
     const savedBlock = save.slice(save.indexOf("{saved && ("), save.indexOf("Conversion bottom sheet"));
     expect(savedBlock).toMatch(/href="\/cards\/new\?src=save_contact_cta"/);
-    expect(savedBlock).toMatch(/resetGuestFlow\(\)/);
+    // Same as the header's "Get started free": no wipe on click — the builder
+    // asks "Continue your card / Start a new card" itself (owner rule 2026-09-16).
+    expect(savedBlock).not.toMatch(/resetGuestFlow\(\)/);
   });
 
   it("the old bottom-of-page copy is gone — one blurb per card, not two", () => {

@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith, hasSavedContact, markSavedContact } from "@/lib/visitor";
 import { triggerSignupNudge, triggerSignupNudgeWhenVisible } from "@/lib/nudge";
-import { resetGuestFlow } from "@/lib/guest-reset";
 import { buildVCard, type VCardPhoto } from "@/lib/vcard";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
 import { MiniQR } from "@/components/card-templates/MiniQR";
@@ -370,9 +369,9 @@ export default function SaveContactButton({
             // Straight into the builder, exactly where the button it replaced
             // went — this slot is a conversion moment, not a footer.
             href="/cards/new?src=save_contact_cta"
-            // Start blank: wipe any leftover mini-builder sketch / guest draft /
-            // plan pick from an earlier visit so signup always opens fresh.
-            onClick={() => resetGuestFlow()}
+            // No wipe on click: same as "Get started free" in the site header.
+            // The builder asks "Continue your card / Start a new card" itself
+            // when an unfinished card exists (owner rule 2026-09-16).
           />
         </div>
       )}

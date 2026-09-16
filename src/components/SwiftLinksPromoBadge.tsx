@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { resetGuestFlow } from "@/lib/guest-reset";
 import { useIsNativeApp } from "@/lib/platform";
 
 // Linktree-style corner badge for Swift Links pages: a small light chip with
@@ -139,9 +138,10 @@ export default function SwiftLinksPromoBadge({ username, appUrl }: { username: s
 
               <Link
                 href="/cards/new?src=links_promo_badge"
-                // Start blank: wipe any leftover guest draft so the builder
-                // always opens fresh (same as the signup nudge CTA).
-                onClick={() => { track(username, "links_badge_cta_click"); resetGuestFlow(); }}
+                // No wipe on click: same as "Get started free" in the site
+                // header. The builder asks "Continue your card / Start a new
+                // card" itself when an unfinished card exists.
+                onClick={() => track(username, "links_badge_cta_click")}
                 className="relative overflow-hidden mt-5 flex items-center justify-center gap-2 w-full py-3.5 rounded-full text-[1rem] font-bold text-white bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500 transition-all active:scale-[0.98] hover:brightness-110"
                 style={{ boxShadow: "0 12px 28px -6px rgba(37,99,235,0.55)" }}
               >

@@ -4,8 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import { stashSketch, consumePrefill, writePrefill, type CardPrefill } from "@/lib/prefill";
-import { resetGuestFlow } from "@/lib/guest-reset";
-import { clearDraft } from "@/lib/guest-draft";
+import { resetMarketingSketch } from "@/lib/guest-reset";
 
 // ── One sketch, three products ──────────────────────────────────────────────
 // The homepage builders ("see how your card / SwiftLink / signature would
@@ -20,8 +19,9 @@ import { clearDraft } from "@/lib/guest-draft";
 //     and fonts included (see CardPrefill / PREFILL_STYLE_KEYS).
 //
 // Abandoning still wipes everything — closing a builder calls reset(), which
-// clears the shared localStorage sketch via resetGuestFlow, so reopening any
-// builder starts blank.
+// clears the shared localStorage sketch via resetMarketingSketch, so reopening
+// any builder starts blank. An unfinished card in the real builder is never
+// touched from here.
 
 export type SketchSocials = {
   linkedin: string;
@@ -173,25 +173,23 @@ export function useProductSketch(product: CardPrefill["product"], open: boolean)
     if (open) stashSketch(toPrefill(sketch, product));
   }, [open, sketch, product]);
 
-  // Hand off to the real wizard, landing on its FIRST step with everything set.
+  // Hand off to the real wizard (/cards/new), landing on its FIRST step with
+  // everything set.
   //
-  // clearDraft() first: the wizard reads its step from a leftover guest draft,
-  // so a draft from an earlier /cards/new visit (where they'd reached step 3)
-  // would drop them on "Photos & design" and skip the beginning — even though
-  // this is a fresh "Make it live". Dropping the stale draft lets the wizard
-  // start at step 1; the `step: 1` marker below tells it to auto-apply this
-  // sketch and begin there, so they still walk through every step (socials
-  // included) to create the real card.
+  // The `step: 1` marker tells it to auto-apply this sketch and begin there, so
+  // they still walk through every step (socials included). An unfinished card
+  // from an earlier visit is NOT deleted here any more: the wizard asks
+  // "Continue your card / Start a new card", and "Start a new card" applies
+  // this sketch (owner rule 2026-09-16 — nobody loses a card by accident).
   const handOff = useCallback(() => {
-    clearDraft();
     writePrefill({ ...toPrefill(sketch, product), step: 1 });
   }, [sketch, product]);
 
   // Abandoned → drop the shared sketch AND this builder's fields, so every
-  // builder reopens genuinely blank (see resetGuestFlow).
+  // builder reopens genuinely blank (see resetMarketingSketch).
   const reset = useCallback(() => {
     setSketch(EMPTY_SKETCH);
-    resetGuestFlow();
+    resetMarketingSketch();
   }, []);
 
   return { sketch, patch, patchStyle, patchLinkStyle, patchSocial, handOff, reset };

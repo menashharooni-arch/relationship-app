@@ -27,3 +27,17 @@ export function resetGuestFlow(): void {
   clearPrefill();
   clearPlanIntent();
 }
+
+// Clear the marketing leftovers only — the mini-builder sketch and a stashed
+// plan pick — and leave an unfinished card alone.
+//
+// Owner rule 2026-09-16: every "Get started free"-style button must behave the
+// same, and nobody loses a half-built card by accident. The builder itself now
+// asks "Continue your card / Start a new card" whenever unfinished work exists
+// (see NewCardWizard), so the only thing that discards a card is choosing
+// "Start a new card". Heading Home, loading the homepage, a mini-builder's
+// "Start over" and the card-page invites all call THIS, not resetGuestFlow.
+export function resetMarketingSketch(): void {
+  clearPrefill();
+  clearPlanIntent();
+}
