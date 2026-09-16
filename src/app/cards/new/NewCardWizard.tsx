@@ -1127,7 +1127,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     const stepNames = ["Card information", "Card design", "Socials", "Social design"];
     const stoppedAt = stepNames[Math.min(Math.max((resumeChoice.step || 1) - 1, 0), 3)];
     return (
-      <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
+      <main className="sc-app sc-canvas-white min-h-screen bg-gray-950 px-5 py-10">
         <div className="max-w-md mx-auto">
           <Link href="/" className={topControlCls}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1166,7 +1166,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 
   return (
     <>
-    <main className="sc-app min-h-screen bg-gray-950 px-5 py-10">
+    <main className="sc-app sc-canvas-white min-h-screen bg-gray-950 px-5 py-10">
       <div className={step === 5 ? "max-w-md mx-auto" : "max-w-4xl mx-auto"}>
         {/* The one control at the TOP of the page. It has to match what is
             actually behind the user, because that is what people assume it

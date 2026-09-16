@@ -31,12 +31,17 @@ export default function PortalSkeleton({
   // 2-column grid; "form" is the single-column stack of labelled fields the card
   // wizard and editor actually render, at their narrower max-w-4xl.
   variant = "cards",
+  // The card builder's canvas is white (see .sc-canvas-white in globals.css);
+  // its skeleton must match or the page flashes cream first. Opt-in, so the
+  // dashboard, contacts, grow, office and card editor skeletons keep the cream.
+  whiteCanvas = false,
 }: {
   bubble?: "blue" | "purple" | false;
   variant?: "cards" | "form";
+  whiteCanvas?: boolean;
 }) {
   return (
-    <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10" aria-busy="true" aria-label="Loading">
+    <main className={`sc-app ${whiteCanvas ? "sc-canvas-white " : ""}min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10`} aria-busy="true" aria-label="Loading">
       {/* Top accent stripe — identical to the real pages */}
       <div className="sc-top-stripe fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 

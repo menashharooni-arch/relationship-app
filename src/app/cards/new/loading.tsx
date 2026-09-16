@@ -16,5 +16,5 @@ import PortalSkeleton from "@/components/PortalSkeleton";
 // not the dashboard's 2-column card grid. A skeleton of the wrong shape just
 // trades a frozen screen for a reflow when the real content lands.
 export default function Loading() {
-  return <PortalSkeleton variant="form" />;
+  return <PortalSkeleton variant="form" whiteCanvas />;
 }
