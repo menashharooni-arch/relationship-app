@@ -88,7 +88,8 @@ async function dismissOverlays(page, { keepTour = false } = {}) {
 }
 
 // The audit. Runs in the page; returns findings for the CURRENT scroll state.
-const AUDIT = ({ TOP, BOTTOM }) => {
+const AUDIT = async ({ TOP, BOTTOM }) => {
+  const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   const W = innerWidth, H = innerHeight;
   const out = [];
   const vis = (el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== "hidden" && cs.display !== "none" && cs.opacity !== "0"; };
@@ -119,8 +120,30 @@ const AUDIT = ({ TOP, BOTTOM }) => {
     if (r.top < TOP - 1 && r.height > 8 && (atTop || fx)) out.push(["under-status-bar", `${desc(el)} top=${Math.round(r.top)}`]);
     // Inside a fixed bottom bar but drawn into the home-indicator strip.
     if (fx) { const fr = fx.getBoundingClientRect(); if (fr.bottom >= H - 1 && r.bottom > H - BOTTOM + 2) out.push(["under-home-indicator", `${desc(el)} bottom=${Math.round(r.bottom)}`]); }
+    // A collapsed <details> keeps a layout box in Chrome while showing nothing,
+    // so its contents measured as real controls sitting wherever they WOULD be —
+    // underneath whatever the next section paints there. That is how five colour
+    // swatches inside a closed "More options" came back covered every night
+    // (2026-09-16: control 71,805 44x44, hit = the Section 3 card at 41,746).
+    // The <summary> is the part a person can actually see and tap, so it stays
+    // audited; everything behind it does not exist until they open it.
+    if (el.closest("details:not([open])") && !el.closest("summary")) continue;
     // Covered: the element at its centre is neither it nor its descendant/ancestor.
-    const cx = Math.min(W - 1, Math.max(0, r.left + r.width / 2)), cy = Math.min(H - 1, Math.max(0, r.top + r.height / 2));
+    //
+    // SCROLL TO IT FIRST (2026-09-16). Those coordinates are CLAMPED to the
+    // viewport, so a control straddling the bottom edge had its centre pinned
+    // to the last visible pixel row — and the hit-test then reported whatever
+    // happened to be sitting there. That is how five colour swatches in the
+    // Design panel came back "covered by" the Section 3 card every night, when
+    // the two are ordinary siblings in normal flow and cannot overlap at all.
+    //
+    // Scrolling it to centre uses the control's real middle, which is the point
+    // a thumb aims at. A control genuinely under a bar or an overlay is still
+    // covered afterwards.
+    el.scrollIntoView({ block: "center", inline: "nearest" });
+    await settle();
+    const r2 = el.getBoundingClientRect();
+    const cx = Math.min(W - 1, Math.max(0, r2.left + r2.width / 2)), cy = Math.min(H - 1, Math.max(0, r2.top + r2.height / 2));
     if (cy < TOP || cy > H - BOTTOM) continue;
     const hit = document.elementFromPoint(cx, cy);
     if (!hit || hit === el || el.contains(hit) || hit.contains(el)) continue;
@@ -134,7 +157,7 @@ const AUDIT = ({ TOP, BOTTOM }) => {
     // lands on the neighbour and reported "Links covered by Settings" every
     // night, on a bar the screenshots show rendering perfectly (2026-09-11).
     if (el.closest(".sc-tabbar") && hit.closest(".sc-tabbar") === el.closest(".sc-tabbar")) continue;
-    covered++; if (covered <= 6) out.push(["covered-control", `${desc(el)} covered by ${desc(hit)}`]);
+    covered++; if (covered <= 6) out.push(["covered-control", `${desc(el)} covered by ${desc(hit)} — control ${Math.round(r2.left)},${Math.round(r2.top)} ${Math.round(r2.width)}x${Math.round(r2.height)} · point ${Math.round(cx)},${Math.round(cy)} · hit ${Math.round(hit.getBoundingClientRect().left)},${Math.round(hit.getBoundingClientRect().top)} ${Math.round(hit.getBoundingClientRect().width)}x${Math.round(hit.getBoundingClientRect().height)} · openAncestor=${!!el.closest("details[open]")} inDetails=${!!el.closest("details")}`]);
   }
   // At the end of the scroll, nothing should be hidden beneath the tab bar.
   const atBottom = Math.ceil(scrollY + H) >= document.documentElement.scrollHeight - 2;

@@ -64,7 +64,7 @@ async function makeUser(email, name, uname, plan, withCard) {
 }
 
 // ── the audit, run inside the page ───────────────────────────────────────────
-const AUDIT = () => {
+const AUDIT = async () => {
   const W = innerWidth, H = innerHeight;
   const out = [];
   const vis = (el) => {
@@ -138,9 +138,39 @@ const AUDIT = () => {
   }
 
   // Interactive controls physically covered by something else.
+  //
+  // SCROLL TO IT FIRST, then ask. Until 2026-09-16 this measured wherever the
+  // page happened to be sitting, and auditPage runs the whole audit at the top
+  // AND at the bottom — so any control that shares the viewport with a sticky
+  // action bar at one of those two positions was reported as covered. That is
+  // not what a person experiences: they scroll the thing into view and tap it.
+  //
+  // It produced 15 of the 19 findings in the 2026-09-16 nightly, every one of
+  // them a colour swatch in the Design panel "covered by" the Save changes bar.
+  // Measured in a real browser with touch emulation, all 20 on-screen swatches
+  // were reachable once scrolled to.
+  //
+  // This does NOT stop it catching the real thing. A control under a full-page
+  // overlay, clipped out of its container, or sitting beneath a bar that covers
+  // the middle of the screen is still covered after being scrolled to centre —
+  // which is the case worth waking somebody for.
   let covered = 0;
+  const settle = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   const inter = all.filter((el) => el.matches("button, a[href], [role='button'], input, select, textarea, [role='switch'], [role='tab']"));
   for (const el of inter) {
+    // A collapsed <details> keeps a layout box in Chrome while showing nothing,
+    // so its contents measured as real controls sitting wherever they WOULD be —
+    // underneath whatever the next section paints there. That is how five colour
+    // swatches inside a closed "More options" came back covered every night
+    // (2026-09-16: control 71,805 44x44, hit = the Section 3 card at 41,746).
+    // The <summary> is the part a person can actually see and tap, so it stays
+    // audited; everything behind it does not exist until they open it.
+    if (el.closest("details:not([open])") && !el.closest("summary")) continue;
+    const r0 = el.getBoundingClientRect();
+    if (offscreenClone(r0)) continue;
+    // Put it where a thumb would, then re-measure: scrolling moves it.
+    el.scrollIntoView({ block: "center", inline: "nearest" });
+    await settle();
     const r = el.getBoundingClientRect();
     if (r.bottom <= 0 || r.top >= H || offscreenClone(r)) continue;
     const cx = Math.min(W - 1, Math.max(0, r.left + r.width / 2));
@@ -159,6 +189,23 @@ const AUDIT = () => {
     // visitor scrolls the phone, not the page. Only the page-level nav counts.
     if (hit.closest("nav") && (() => { for (let n = el.parentElement, i = 0; n && i < 8; n = n.parentElement, i++) { if (/auto|scroll/.test(getComputedStyle(n).overflowY)) return true; } return false; })()) continue;
     if (hit.tagName === "NEXTJS-PORTAL" || hit.closest("nextjs-portal")) continue; // dev overlay
+    // A deliberate whole-block target, not an accident. The homepage hero lays
+    // one "Open Alex Morgan's SwiftCard" button across a rendered demo card, so
+    // the phone/email/website rows inside it are a PICTURE of a card — not links
+    // a visitor is meant to tap individually. Three of them reported covered on
+    // m-home and d-home every night.
+    //
+    // Kept deliberately narrow, because "covered by something interactive" is
+    // otherwise exactly the real bug this check exists for: the coverer must be
+    // interactive, absolutely positioned, AND fully contain the control. A bar
+    // that merely overlaps part of a control still reports.
+    const hitRect = hit.getBoundingClientRect();
+    if (
+      hit.matches("a[href], button, [role='button']") &&
+      getComputedStyle(hit).position === "absolute" &&
+      hitRect.left <= r.left + 1 && hitRect.right >= r.right - 1 &&
+      hitRect.top <= r.top + 1 && hitRect.bottom >= r.bottom - 1
+    ) continue;
     if (++covered <= 6) out.push(["covered-control", `${desc(el)} covered by ${desc(hit)}`]);
   }
   return out;
