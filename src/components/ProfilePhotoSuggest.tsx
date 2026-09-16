@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { detectNativeApp } from "@/lib/platform";
+import {
+  isLinkedInPopup,
+  popupConnectUrl,
+  LINKEDIN_MESSAGE,
+  type LinkedInRelayMessage,
+} from "@/lib/linkedin-popup";
 
 /**
  * Start the LinkedIn connect, correctly for wherever we are.
@@ -18,22 +24,42 @@ import { detectNativeApp } from "@/lib/platform";
  * Safari's cookies — so an already-signed-in LinkedIn user just taps Allow.
  * This is the same shape the Google/Apple sign-in flows use.
  */
-async function openLinkedInConnect(href: string): Promise<void> {
-  if (!detectNativeApp()) {
-    window.location.href = href;
+async function openLinkedInConnect(href: string, opts: { guest: boolean; returnTo: string }): Promise<void> {
+  if (detectNativeApp()) {
+    const sep = href.includes("?") ? "&" : "?";
+    const url = new URL(`${href}${sep}native=1`, window.location.origin).toString();
+    try {
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url, presentationStyle: "fullscreen" });
+    } catch {
+      // Plugin missing (older shell build) — the webview navigation still beats
+      // doing nothing; it degrades to the old Safari hand-off rather than a
+      // dead button.
+      window.location.href = url;
+    }
     return;
   }
-  const sep = href.includes("?") ? "&" : "?";
-  const url = new URL(`${href}${sep}native=1`, window.location.origin).toString();
-  try {
-    const { Browser } = await import("@capacitor/browser");
-    await Browser.open({ url, presentationStyle: "fullscreen" });
-  } catch {
-    // Plugin missing (older shell build) — the webview navigation still beats
-    // doing nothing; it degrades to the old Safari hand-off rather than a
-    // dead button.
-    window.location.href = url;
+
+  // Web. A guest keeps the old full-page hop: their photo comes back as
+  // ?li_photo= for the mini-builder to apply to its own draft, and that draft
+  // lives in localStorage, so navigating costs them nothing. A signed-in user
+  // is the one with unsaved editor state to protect.
+  if (!opts.guest) {
+    try {
+      const popup = window.open(
+        popupConnectUrl(href, opts.returnTo),
+        "swiftcard-linkedin",
+        "width=620,height=760,noopener=no,noreferrer=no",
+      );
+      if (popup) {
+        popup.focus?.();
+        return;
+      }
+    } catch {
+      // Blocked or unavailable — fall through to the navigation below.
+    }
   }
+  window.location.href = href;
 }
 
 // "Suggest my profile picture" — drops in next to the headshot uploader in the
@@ -93,39 +119,66 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
   // status=connected we import and apply it immediately — no second click on
   // "Suggest" required (the owner-reported bug: connect finished, nothing
   // happened). Guests return via ?li_photo=, handled by the builder itself.
+  // The return leg, shared by both ways the result can arrive: a postMessage
+  // from the consent popup (web, the normal path now) and a plain page load
+  // carrying ?integration=linkedin (the iOS sheet, and the web fallback when a
+  // popup is blocked).
+  async function finishLinkedInReturn(status: string | null) {
+    if (status === "error") {
+      setState({ kind: "error", message: "LinkedIn connection didn't finish — try again." });
+      return;
+    }
+    if (status !== "connected") return;
+    setState({ kind: "applying", source: "linkedin" });
+    try {
+      const res = await fetch("/api/integrations/linkedin", { method: "POST" });
+      const data = await res.json().catch(() => ({} as { url?: string }));
+      if (res.ok && data.url) {
+        onConfirm(data.url);
+        setApplied(true);
+        setState({ kind: "idle" });
+        return;
+      }
+    } catch { /* fall through to the picker */ }
+    // Photo missing/revoked or import failed — fall back to the normal
+    // suggestion flow so the user sees exactly what's wrong (reconnect /
+    // no-photo states) instead of silence.
+    void suggest();
+  }
+
   useEffect(() => {
     if (guest) return;
+    // Inside the consent popup nothing should run: the relay page owns that
+    // document and is about to close it.
+    if (isLinkedInPopup()) return;
     const sp = new URLSearchParams(window.location.search);
     if (sp.get("integration") !== "linkedin") return;
     const status = sp.get("status");
     // Strip the params first so a refresh (or a second mount) can't re-run this.
     sp.delete("integration"); sp.delete("status");
     window.history.replaceState(null, "", `${window.location.pathname}${sp.size ? `?${sp}` : ""}${window.location.hash}`);
-    void (async () => {
-      if (status === "error") {
-        setState({ kind: "error", message: "LinkedIn connection didn't finish — try again." });
-        return;
-      }
-      if (status === "connected") {
-        setState({ kind: "applying", source: "linkedin" });
-        try {
-          const res = await fetch("/api/integrations/linkedin", { method: "POST" });
-          const data = await res.json().catch(() => ({} as { url?: string }));
-          if (res.ok && data.url) {
-            onConfirm(data.url);
-            setApplied(true);
-            setState({ kind: "idle" });
-            return;
-          }
-        } catch { /* fall through to the picker */ }
-        // Photo missing/revoked or import failed — fall back to the normal
-        // suggestion flow so the user sees exactly what's wrong (reconnect /
-        // no-photo states) instead of silence.
-        void suggest();
-      }
-    })();
+    // Off the effect body: the import's first setState would otherwise land
+    // synchronously in this commit and cascade a render. Cancelled if the page
+    // unmounts before it fires.
+    const t = setTimeout(() => { void finishLinkedInReturn(status); }, 0);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount for the OAuth return leg
   }, []);
+
+  // The popup's result. Origin-checked and tagged, so a message from anything
+  // else on the page can't drive an import.
+  useEffect(() => {
+    if (guest) return;
+    function onMessage(e: MessageEvent) {
+      if (e.origin !== window.location.origin) return;
+      const data = e.data as LinkedInRelayMessage | null;
+      if (!data || data.source !== LINKEDIN_MESSAGE) return;
+      void finishLinkedInReturn(data.status);
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listener only needs the stable handler
+  }, [guest]);
 
   const connectUrl = `/api/integrations/linkedin/connect?next=${encodeURIComponent(returnTo)}`;
   // A guest has no session to attach a LinkedIn token to, so their Connect
@@ -302,7 +355,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
               </p>
               <a
                 href={guest ? guestConnectHref : connectUrl}
-                onClick={(e) => { e.preventDefault(); void openLinkedInConnect(guest ? guestConnectHref : connectUrl); }}
+                onClick={(e) => { e.preventDefault(); void openLinkedInConnect(guest ? guestConnectHref : connectUrl, { guest, returnTo }); }}
                 className="text-xs bg-[#0A66C2] hover:bg-[#0956a5] text-white font-semibold px-3 py-1.5 rounded-full transition-colors"
               >
                 Connect LinkedIn
@@ -314,7 +367,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
               <p className="text-[0.6875rem] text-amber-300/90">Your LinkedIn permission expired.</p>
               <a
                 href={connectUrl}
-                onClick={(e) => { e.preventDefault(); void openLinkedInConnect(connectUrl); }}
+                onClick={(e) => { e.preventDefault(); void openLinkedInConnect(connectUrl, { guest: false, returnTo }); }}
                 className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-full transition-colors"
               >
                 Reconnect LinkedIn

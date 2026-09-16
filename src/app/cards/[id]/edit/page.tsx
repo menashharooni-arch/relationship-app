@@ -19,10 +19,13 @@ export default async function CardEditPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ claim?: string }>;
+  searchParams: Promise<{ claim?: string; integration?: string }>;
 }) {
   const { id } = await params;
-  const { claim } = await searchParams;
+  const { claim, integration } = await searchParams;
+  // Coming back from the LinkedIn consent hop: open the tab that owns the
+  // headshot, so the photo importer is actually mounted to receive it.
+  const initialTab = integration === "linkedin" ? ("design" as const) : undefined;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -134,6 +137,7 @@ export default async function CardEditPage({
         </div>
 
         <CardEditForm
+          initialTab={initialTab}
           card={card}
           photoUrl={cardPhoto}
           logoUrl={card.logo_url ?? null}
