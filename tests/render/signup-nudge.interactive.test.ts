@@ -471,7 +471,11 @@ describe("the blurb under Saved to Contacts", () => {
     }
   });
 
-  it("goes straight into the builder and clears any stale guest draft", async () => {
+  // Owner rule 2026-09-16: every "Get started free"-style button behaves like the
+  // site header's, and nobody loses a card by accident. The click no longer
+  // wipes an unfinished card; the builder asks "Continue your card / Start a new
+  // card" itself (see NewCardWizard resumeChoice).
+  it("goes straight into the builder and KEEPS an unfinished card for the builder to ask about", async () => {
     const page = await mount({ seed: { swiftcard_guest_draft: '{"name":"stale"}' } });
     await saveContact(page);
     await page.locator('button:has-text("No thanks")').click();
@@ -480,14 +484,14 @@ describe("the blurb under Saved to Contacts", () => {
     const href = await page.locator(blurb).getAttribute("href");
     expect(href).toBe("/cards/new?src=save_contact_cta");
 
-    // The click handler wipes the draft before navigating.
+    // Clicking does not touch the draft.
     await page.evaluate((sel) => {
       const a = document.querySelector(sel) as HTMLElement;
       a.addEventListener("click", (e) => e.preventDefault(), { capture: true });
       a.click();
     }, blurb);
     await page.waitForTimeout(200);
-    expect(await page.evaluate(() => localStorage.getItem("swiftcard_guest_draft"))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem("swiftcard_guest_draft"))).toBe('{"name":"stale"}');
     await page.close();
   });
 });

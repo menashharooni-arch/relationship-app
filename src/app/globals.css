@@ -378,6 +378,15 @@ body {
    Dark stays exactly as designed; public cards/links pages are untouched. */
 [data-sc-theme="light"] .sc-app.bg-gray-950,
 [data-sc-theme="light"] .sc-app .bg-gray-950 { background-color: #FAF7F2 !important; }
+/* ── The card builder's canvas is WHITE, not the app cream ─────────────────
+   /cards/new is where "Get started free", "Start for free", "Create your free
+   card" and every similar button land, and where "Add card" and the
+   mini-builders' "Make it live" open. The site is white; arriving on cream read
+   as landing somewhere else. Scoped with .sc-canvas-white so the dashboard,
+   settings and other app screens keep the cream. Same rule at every width, and
+   the iPhone shell's own canvas (behind the status bar and the bounce-scroll)
+   follows it below. Dark theme is untouched. */
+[data-sc-theme="light"] .sc-app.sc-canvas-white { background-color: #FFFFFF !important; }
 /* The mobile tab bar is a top-level sibling of .sc-app (not inside it), so the
    rules above never reach it — without this it stays dark charcoal under a
    cream dashboard on the web. (Native has its own rules further down.) */
@@ -1129,6 +1138,9 @@ html.native-app[data-sc-theme="light"] { background: #FAF7F2; }
    full-bleed shell paints html's canvas behind the status bar, and a DARK
    strip over a cream page reads as a glitch band. Match the page instead. */
 html.native-app:has(main.bg-cream) { background: var(--color-cream); }
+/* The white card builder, same reasoning: a cream strip behind the status bar
+   over a white page is the glitch band again. */
+html.native-app[data-sc-theme="light"]:has(main.sc-canvas-white) { background: #FFFFFF; }
 
 
 /* ── Marketing chrome never appears in the app ──────────────────────────────
