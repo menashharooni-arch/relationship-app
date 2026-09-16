@@ -405,6 +405,46 @@ export function fitPx(base: number, text: string | null | undefined, comfy: numb
 }
 
 /**
+ * The class for a template's NAME element: `text-white` only while the owner
+ * has not chosen a Name color.
+ *
+ * The name always carried `text-white` AND an inline `color: style.textColor`.
+ * Normally the inline colour wins. But the app's light theme restores card
+ * whites with `.sc-card .text-white { color: #fff !important }` (globals.css),
+ * and !important beats an inline style — so on the cream theme every Name color
+ * pick was ignored in the editor preview, and in the share image captured from
+ * that page. With a colour chosen the class is simply absent and the inline
+ * colour applies everywhere; without one the markup is exactly what it was.
+ */
+export function nameClass(style: { textColor?: string }): string {
+  return style.textColor ? "" : "text-white";
+}
+
+/**
+ * fitPx for a row that GROWS on a sparse card (contactScale), without letting
+ * the growth widen the line past what the un-grown fit was calibrated to hold.
+ *
+ * fitPx's `comfy` is a character budget measured at the BASE size: "22
+ * characters fit at 13px". Passing it a grown base (13 × 1.4 on a card with no
+ * phone or address) kept the same 22-character budget at ~18px, so an email
+ * that sits on one line on a normal card — "aaron@malvecapital.com" — was
+ * broken mid-domain on a sparse one (".c / om"). Measured across all six
+ * templates: dense cards 0 wraps in 30 cases, sparse cards 8.
+ *
+ * So the grown size is capped at the size that spends exactly the base width
+ * budget (base × comfy / len), and never goes below what the same text gets on
+ * a normal card. Short values still grow exactly as before; a value long enough
+ * to hit the budget stays at the width the dense card has always proven fits.
+ * grow ≤ 1 (a packed card) is the untouched original call.
+ */
+export function fitGrownPx(base: number, grow: number, text: string | null | undefined, comfy: number): number {
+  const grown = fitPx(base * grow, text, comfy);
+  const len = (text ?? "").trim().length;
+  if (grow <= 1 || !len) return grown;
+  return Math.max(fitPx(base, text, comfy), Math.min(grown, (base * comfy) / len));
+}
+
+/**
  * Longest length this curve can still hold on one line at the given comfy.
  * Exported so tests can assert the boundary rather than rediscovering it.
  */
@@ -489,8 +529,8 @@ export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; p
   // tighter budget — sized for the narrowest contact panel (ModernBold) so a
   // grown email can never poke past the card edge.
   const rowGrow = Math.min(s, 1.1 * scale);
-  const emailSize = fitPx(13 * rowGrow, data.email, 22);
-  const webSize = fitPx(11.5 * rowGrow, data.website, 24);
+  const emailSize = fitGrownPx(13, rowGrow, data.email, 22);
+  const webSize = fitGrownPx(11.5, rowGrow, data.website, 24);
 
   // Every row is a flex child, so it needs min-w-0 to be allowed to shrink below
   // its content width. Without it a flex item's automatic minimum size is its

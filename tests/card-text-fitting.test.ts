@@ -121,8 +121,11 @@ describe("every text field on a card goes through a fitter", () => {
   it("ContactRows fits the phone, email and website", () => {
     const src = read("src/components/card-templates/shared.tsx");
     expect(src, "phone not fitted — an extension used to run off the card").toMatch(/fitPx\([^)]*formatPhone/);
-    expect(src, "email not fitted").toMatch(/fitPx\([^)]*data\.email/);
-    expect(src, "website not fitted").toMatch(/fitPx\([^)]*data\.website/);
+    // fitGrownPx is fitPx for rows that grow on a sparse card, capped so the
+    // growth can never widen the line past the calibrated budget.
+    expect(src, "email not fitted").toMatch(/fit(Grown)?Px\([^)]*data\.email/);
+    expect(src, "website not fitted").toMatch(/fit(Grown)?Px\([^)]*data\.website/);
+    expect(src, "fitGrownPx must still be built on fitPx").toMatch(/export function fitGrownPx[\s\S]*?fitPx\(base \* grow/);
   });
 
   it("the email and website rows can wrap, because fitting alone cannot save them", () => {

@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const BG           = "#070d1c";
@@ -101,7 +101,7 @@ export default function ModernBold({ data }: { data: CardData }) {
         <div>
           <div className="w-5 h-[2px] mb-2" style={{ background: BLUE }} />
           <h2
-            className="font-black text-white leading-tight"
+            className={`font-black leading-tight ${nameClass(style)}`}
             style={{ fontSize: fitName(28 * heroGrow(f), data.name, 15), overflowWrap: "anywhere", minWidth: 0, lineHeight: 1.08, letterSpacing: "-0.01em", color: style.textColor }}
           >
             {data.name}

@@ -30,7 +30,9 @@ export function CustomDesignTileFace({ selected, unlocked }: { selected: boolean
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
       </svg>
       <span className="flex-1 min-w-0 text-[0.8125rem] font-semibold text-gray-200 truncate">Custom design</span>
-      <span data-ds="badge" className="text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white leading-none shrink-0">PRO</span>
+      {/* No PRO badge (owner, 2026-09-16): the Card Design tab carries no Pro
+          labels. Whether the designer can be opened is unchanged — the row
+          says "Locked" and the line under the gallery explains why. */}
       <span className={`text-[0.6875rem] font-semibold shrink-0 ${selected ? "text-blue-300" : "text-gray-400"}`}>
         {selected ? "Selected" : unlocked ? "Design →" : "Locked"}
       </span>

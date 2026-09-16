@@ -37,21 +37,28 @@ export default function DockedCardPreview({
     if (!enabled) return;
     // Phones and tablets only: lg and up already pin the preview in its column.
     const narrow = window.matchMedia("(max-width: 1023.98px)");
-    const el = document.getElementById(anchorId);
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    let offscreen = false;
-    const update = () => setShow(narrow.matches && offscreen);
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        // Out of view AND above the viewport — scrolled past, not yet reached.
-        offscreen = !entry.isIntersecting && entry.boundingClientRect.top < 0;
-        update();
-      },
-      { threshold: 0 },
-    );
-    io.observe(el);
-    narrow.addEventListener("change", update);
-    return () => { io.disconnect(); narrow.removeEventListener("change", update); };
+    // A position check on scroll, not an IntersectionObserver. An observer only
+    // reports a CHANGE in visibility, so a jump from "below the fold" straight
+    // to "scrolled past" — a fast fling, or opening the tab with the preview
+    // already off-screen — never flips it, and the dock never appeared. Found
+    // driving the real editor at 390px. One rAF-throttled read per frame.
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      const el = document.getElementById(anchorId);
+      setShow(!!el && narrow.matches && el.getBoundingClientRect().bottom < 0);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(check); };
+    check();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    narrow.addEventListener("change", schedule);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      narrow.removeEventListener("change", schedule);
+    };
   }, [anchorId, enabled]);
 
   if (!enabled || !show) return null;
