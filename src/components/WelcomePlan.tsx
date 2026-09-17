@@ -29,8 +29,11 @@ export default function WelcomePlan({
   // React state, which is a tick behind). Empty for a card that uses nothing
   // Pro — and an empty list is the whole reason `chooseFree` has a fast path.
   proDesignChanges = [],
+  presetIntent = null,
 }: {
   cardSlug: string | null;
+  /** A paid plan picked on /pricing, carried in the URL through signup. */
+  presetIntent?: PlanIntent | null;
   designConverted?: boolean;
   proDesignChanges?: string[];
 }) {
@@ -48,8 +51,8 @@ export default function WelcomePlan({
     // a selling surface. Native always falls through to the plan step, where
     // PlanCards renders only the free continue action. Web unchanged.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time consume of stored intent on mount (reads+clears storage; must not run during render)
-    setIntent(detectNativeApp() ? null : consumePlanIntent());
-  }, []);
+    setIntent(detectNativeApp() ? null : (presetIntent ?? consumePlanIntent()));
+  }, [presetIntent]);
 
   // Straight to the dashboard, settling nothing. Used ONLY after a purchase has
   // already happened (onIapPurchased) — they are on a paid plan, so the free

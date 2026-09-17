@@ -113,7 +113,7 @@ const GUARDS: Guard[] = [
   { file: "src/app/checkout/CheckoutClient.tsx", patterns: [/detectNativeApp\(\)\) router\.replace\("\/dashboard"\)/] },
   // /welcome: a stored paid-plan intent must never resume its checkout panel
   // inside the shell.
-  { file: "src/components/WelcomePlan.tsx", patterns: [/detectNativeApp\(\) \? null : consumePlanIntent\(\)/] },
+  { file: "src/components/WelcomePlan.tsx", patterns: [/detectNativeApp\(\) \? null : \(presetIntent \?\? consumePlanIntent\(\)\)/] },
   // Office team invite: the one-tap prorated seat PURCHASE (price, charge-today,
   // Stripe seats API) never renders on native; fallback copy is neutral.
   {

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { isPaidPlan, describeFreeDesignChanges, proLinkFeaturesInUse } from "@/lib/plan";
+import { isPaidPlan, describeFreeDesignChanges, proLinkFeaturesInUse, PLAN_LIMITS } from "@/lib/plan";
+import type { PlanIntent } from "@/lib/plan-intent";
 import type { CardLink } from "@/components/card-templates/types";
 import WelcomePlan from "@/components/WelcomePlan";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function WelcomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ card?: string; designConverted?: string }>;
+  searchParams: Promise<{ card?: string; designConverted?: string; plan?: string; interval?: string; seats?: string; promo?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -64,9 +65,20 @@ export default async function WelcomePage({
     : [];
 
   const cardSlug = typeof sp.card === "string" && sp.card ? sp.card : null;
+  // A paid plan picked on /pricing before signing up (carried by the claim).
+  const presetIntent: PlanIntent | null =
+    sp.plan === "pro" || sp.plan === "office"
+      ? {
+          plan: sp.plan,
+          annual: sp.interval === "annual",
+          ...(sp.plan === "office" ? { seats: Math.max(PLAN_LIMITS.OFFICE_MIN_SEATS, Math.floor(Number(sp.seats)) || PLAN_LIMITS.OFFICE_MIN_SEATS) } : {}),
+          ...(typeof sp.promo === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(sp.promo) ? { promo: sp.promo } : {}),
+        }
+      : null;
   return (
     <WelcomePlan
       cardSlug={cardSlug}
+      presetIntent={presetIntent}
       designConverted={sp.designConverted === "1"}
       proDesignChanges={proDesignChanges}
     />

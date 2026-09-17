@@ -109,6 +109,19 @@ export default function GuestDraftClaim() {
           const qs = new URLSearchParams();
           if (slug) qs.set("card", slug);
           if (designConverted) qs.set("designConverted", "1");
+          // The plan they picked on /pricing ("Get Office", "Get Pro") rides
+          // the builder URL through signup (/cards/new?plan=office&seats=…&claim=1).
+          // Hand it to /welcome so they go straight to paying for THAT plan
+          // instead of being asked to choose again (owner, 2026-09-16).
+          const here = new URLSearchParams(window.location.search);
+          const picked = here.get("plan");
+          if (picked === "pro" || picked === "office") {
+            qs.set("plan", picked);
+            for (const k of ["interval", "seats", "promo"]) {
+              const v = here.get(k);
+              if (v) qs.set(k, v);
+            }
+          }
           const query = qs.toString();
           router.replace(`/welcome${query ? `?${query}` : ""}`);
         } else {
