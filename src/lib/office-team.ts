@@ -241,7 +241,7 @@ export async function getTeamOverview(
       .select("id, user_id, invite_email, invite_name, invite_token, status, invited_at, expires_at")
       .eq("office_id", officeId),
     admin.from("profiles").select("id, title, email, photo_url").in("id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
-    admin.from("cards").select("user_id, is_offline").in("user_id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
+    admin.from("cards").select("user_id, is_offline, title, is_office_card, created_at").in("user_id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]).order("created_at", { ascending: true }),
     getOfficeSeatUsage(officeId, purchasedSeats),
   ]);
 
@@ -251,6 +251,16 @@ export async function getTeamOverview(
 
   // is_offline may be missing pre-migration → treat an unreadable flag as live
   // rather than telling an owner their whole team is deactivated.
+  // The title people actually show the world is on their CARD; profiles.title
+  // is empty for every modern signup, so the list said "No job title yet" for
+  // everyone. The company card wins, else their oldest card.
+  const cardTitle = new Map<string, string>();
+  for (const c of cardRows ?? []) {
+    const uid = c.user_id as string;
+    const t = ((c.title as string | null) ?? "").trim();
+    if (!t) continue;
+    if (!cardTitle.has(uid) || c.is_office_card === true) cardTitle.set(uid, t);
+  }
   const cardCounts = new Map<string, { total: number; live: number }>();
   for (const c of cardRows ?? []) {
     const uid = c.user_id as string;
@@ -299,7 +309,7 @@ export async function getTeamOverview(
       name: displayName,
       kind: "member" as const,
       memberRowId: memberRow?.id ?? null,
-      title: (prof?.title as string | null) || null,
+      title: cardTitle.get(e.userId) || (prof?.title as string | null) || null,
       // A member's identity is their AUTH signup email — profiles.email drifts
       // to the card's public contact email and is only the fallback.
       // profiles.email drifts to the card's public contact address, so it is

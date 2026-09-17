@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import CheckoutClient from "./CheckoutClient";
 import { createClient } from "@/lib/supabase-server";
+import { redirect } from "next/navigation";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
 import { trialHistoryFor } from "@/lib/trial-ledger";
@@ -20,6 +22,12 @@ import { trialHistoryFor } from "@/lib/trial-ledger";
 export const dynamic = "force-dynamic";
 
 export default async function CheckoutPage() {
+  // A team member has nothing to buy here — their plan is the office's.
+  {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && (await getOfficeSubUserContext(user.id))) redirect("/dashboard");
+  }
   let trialEligible = true;
   try {
     const supabase = await createClient();

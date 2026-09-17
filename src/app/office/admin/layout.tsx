@@ -15,7 +15,7 @@ import { listOfficeNotifications } from "@/lib/office-notify";
 // this is the team's own admin, gated on Office membership. /admin is
 // ADMIN_EMAILS-only and office users must never reach it — nothing here links there.
 export default async function OfficeAdminLayout({ children }: { children: React.ReactNode }) {
-  const { office, officeId } = await requireOfficeAdmin();
+  const { office, officeId, caps, role } = await requireOfficeAdmin();
   const officeName = (office?.name as string) ?? "Your team";
 
   // Team-inbox notifications for the header bell — office-scoped, separate table
@@ -55,7 +55,7 @@ export default async function OfficeAdminLayout({ children }: { children: React.
               {officeId && <OfficeNotificationBell initialNotifications={teamNotifications} />}
             </div>
           </div>
-          <OfficeAdminNav />
+          <OfficeAdminNav canBrand={caps.canBrand} canBill={!!officeId && (role === "owner" || role === "billing_admin")} />
         </div>
       </header>
 

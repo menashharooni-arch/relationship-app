@@ -27,7 +27,7 @@ export default async function GrowPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("customization")
+    .select("customization, plan")
     .eq("id", user.id)
     .single();
   if (!profile) redirect("/onboarding");
@@ -129,11 +129,11 @@ export default async function GrowPage() {
             </div>
           )}
 
-          {/* Invite & earn */}
-          <div>
+          {/* Invite & earn — not on Office (see Settings). */}
+          {profile.plan !== "enterprise" && <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Invite friends &amp; earn</p>
             <ReferAFriend progress={referral} />
-          </div>
+          </div>}
 
           {/* Spread the word */}
           <div>

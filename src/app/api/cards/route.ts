@@ -31,6 +31,16 @@ export async function POST(req: NextRequest) {
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id);
 
+  // An office TEAM MEMBER has one card: their company card, which is their seat.
+  // The office pays per seat, so a second branded card would be free. Their
+  // first card (right after joining) is still allowed.
+  if ((count ?? 0) >= 1 && (await getOfficeSubUserContext(user.id))) {
+    return NextResponse.json(
+      { error: "team_card_limit", message: "Your company card is managed by your team. Ask your Office admin if you need another." },
+      { status: 403 },
+    );
+  }
+
   // Free is capped at FREE_CARD_LIMIT cards. Existing cards are never deleted —
   // we only block creating new ones beyond the cap.
   if (!paid && (count ?? 0) >= PLAN_LIMITS.FREE_CARD_LIMIT) {

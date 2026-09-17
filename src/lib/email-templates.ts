@@ -153,6 +153,9 @@ function row(label: string, value: string) {
 export function welcomeEmail(opts: {
   firstName: string;
   cardUrl: string;
+  /** An Office team member: contacts go to the team (and its CRM, if the
+   *  admin connected one), so the "connect your CRM" step is left out. */
+  officeMember?: boolean;
   unsubscribeUrl?: string;
   /** Preference centre link for the footer — marketing/lifecycle mail only. */
   prefsUrl?: string;
@@ -180,8 +183,8 @@ export function welcomeEmail(opts: {
       ${step(1, "Put your Swift Links in your bio", `Your link-in-bio page is live at ${a(safeLinksUrl, linksText)}. Paste it into your Instagram, TikTok and LinkedIn bios \u2014 your photo, socials, links and a Connect button, on one page.`)}
       ${step(2, "Add your Swift Signature", `Copy it from your ${a(shareUrl, "Share page")} and paste it into your email signature settings, so every email you send ends with your card.`)}
       ${step(3, "Add your card to Apple Wallet", `On your ${a(`${APP_URL}/dashboard`, "dashboard")}, tap \u201cOther ways to share\u201d \u2192 \u201cAdd to Apple Wallet\u201d. Your card and QR code are then one double-click away on your iPhone, even with no signal.`)}
-      ${step(4, "Send new contacts to your CRM", `When someone shares their details back, they can go straight into your CRM. Connect it in ${a(`${APP_URL}/settings/flows`, "Settings \u2192 Notifications and preferences")} under \u201cSend contacts to your CRM\u201d (Pro and Office).`)}
-      ${step(5, "Share it everywhere else", `Text or email the link, and download your QR code from \u201cOther ways to share\u201d for a slide, a flyer or your lock screen. Nobody has to install anything to open it.`, true)}
+      ${opts.officeMember ? "" : step(4, "Send new contacts to your CRM", `When someone shares their details back, they can go straight into your CRM. Connect it in ${a(`${APP_URL}/settings/flows`, "Settings \u2192 Notifications and preferences")} under \u201cSend contacts to your CRM\u201d (Pro and Office).`)}
+      ${step(opts.officeMember ? 4 : 5, "Share it everywhere else", `Text or email the link, and download your QR code from \u201cOther ways to share\u201d for a slide, a flyer or your lock screen. Nobody has to install anything to open it.`, true)}
     `)}
     ${appStoreEmailBlock("SwiftCard for iPhone — your card, QR code and new contacts, right in your pocket.")}
   `;

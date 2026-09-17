@@ -14,11 +14,17 @@ const LINKS = [
   { href: "/office/admin/branding", label: "Branding", tour: "admin-nav-branding" },
 ];
 
-export default function OfficeAdminNav() {
+export default function OfficeAdminNav({ canBrand = true, canBill = false }: { canBrand?: boolean; canBill?: boolean }) {
   const pathname = usePathname();
+  // Branding only for roles that can open it (the page redirects the others),
+  // and a Billing tab for whoever pays — seats and invoices live in Settings.
+  const links = [
+    ...LINKS.filter((l) => canBrand || l.href !== "/office/admin/branding"),
+    ...(canBill ? [{ href: "/settings/flows?billing=1#billing", label: "Billing", tour: undefined }] : []),
+  ];
   return (
     <nav className="flex gap-1 -mb-px overflow-x-auto rd-scrollbar-none">
-      {LINKS.map((l) => {
+      {links.map((l) => {
         // Team owns the root plus the person/card detail subtrees, so drilling
         // into a teammate keeps the Team tab lit.
         const active =

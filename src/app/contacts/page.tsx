@@ -12,7 +12,7 @@ import SettingsLinkButton from "@/components/SettingsLinkButton";
 import { isPaidPlan, LOCKED_LEAD_TAG, PLAN_LIMITS } from "@/lib/plan";
 import { redactPlaceLabel } from "@/lib/location-privacy";
 import UpgradeButton from "@/components/UpgradeButton";
-import { canViewOfficeAdmin } from "@/lib/office-roles";
+import { canViewOfficeAdmin, getOfficeSubUserContext } from "@/lib/office-roles";
 import Link from "next/link";
 import DownloadLink from "@/components/DownloadLink";
 import { PlanGate, PlanNotice } from "@/components/PlanGate";
@@ -96,7 +96,7 @@ export default async function ContactsPage({
   const LEAD_COLS = "id, name, email, phone, company, company_description, location, notes, status, tags, follow_up_date, source, visitor_id, card_owner, where_met, convo_details, message, follow_up_sequence, created_at";
   const loadLeads = async (cols: string) =>
     admin.from("leads").select(cols).in("card_owner", allUsernames).order("name", { ascending: true });
-  const [leadsRes, showOfficeAdmin] = await Promise.all([
+  const [leadsRes, showOfficeAdmin, officeSubUser] = await Promise.all([
     (async () => {
       const withGeo = await loadLeads(`${LEAD_COLS}, geo_accuracy`);
       if (withGeo.error && (withGeo.error.code === "42703" || withGeo.error.code === "PGRST204")) {
@@ -105,6 +105,7 @@ export default async function ContactsPage({
       return withGeo;
     })(),
     canViewOfficeAdmin(authedUserId, profile.plan),
+    getOfficeSubUserContext(authedUserId),
   ]);
   const rawLeads = leadsRes.data as unknown as (Record<string, unknown> & { tags?: unknown })[] | null;
 
@@ -195,7 +196,7 @@ export default async function ContactsPage({
           <div className="flex items-center gap-2 shrink-0">
             {/* Mobile has Settings in the bottom tab bar — hide the top-bar gear below md, same as the dashboard. */}
             <span className="hidden md:flex items-center"><SettingsLinkButton /></span>
-            <GrowLinkButton />
+            {!officeSubUser && <GrowLinkButton />}
             <Link href={dashHref} className="text-sm text-gray-400 hover:text-white transition-colors">
               ← Dashboard
             </Link>

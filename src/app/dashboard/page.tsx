@@ -847,7 +847,7 @@ export default async function DashboardPage({
                 redundant clutter on small screens; keep it for desktop, which
                 has no bottom tab bar. */}
             <span data-tour="nav-settings" className="hidden md:flex items-center"><SettingsLinkButton /></span>
-            <span data-tour="nav-grow" className="flex items-center"><GrowLinkButton /></span>
+            {!isOfficeMember && <span data-tour="nav-grow" className="flex items-center"><GrowLinkButton /></span>}
             <span data-tour="theme" className="flex items-center"><ThemeToggle /></span>
             <span data-tour="notif-bell" className="flex items-center"><NotificationBell initialNotifications={bellNotifications ?? []} cardLabels={cardLabels} activeCard={activeUsername} /></span>
           </div>
@@ -944,11 +944,14 @@ export default async function DashboardPage({
                     the limit gets the SAME button, and pressing it opens the
                     offer — instead of the button being absent and a permanent
                     dashed upsell box sitting under My Cards on every visit. */}
-                <AddCardButton
+                {/* A team member's card IS their seat: one company card,
+                    paid for by the office. A second, unbilled branded card
+                    makes no sense for them (owner, 2026-09-17). */}
+                {!isOfficeMember && <AddCardButton
                   locked={!canAddCard}
                   trialEligible={trialEligible}
                   className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-gray-700 text-blue-400 text-[0.6875rem] sm:text-xs font-semibold hover:border-blue-600/60 hover:text-blue-300 hover:bg-blue-600/5 transition-colors"
-                />
+                />}
               </div>
             </div>
             {/* The rows moved into a client component so mobile can collapse to

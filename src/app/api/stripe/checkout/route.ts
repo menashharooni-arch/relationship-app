@@ -45,10 +45,11 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Office sub-users have no personal subscription to manage — billing is
-    // the organization's. A delegated billing_admin passes through.
+    // Office sub-users have no personal subscription to buy — billing is the
+    // organization's. This includes a delegated billing_admin: their
+    // manage_billing is for the TEAM's seats (Settings → Plan and billing),
+    // and this route would have started a personal plan on their own profile.
     const subBlocked = await officeSubUserBlockMessage(user.id, {
-      unless: "manage_billing",
       message: "Billing for your account is managed by your organization.",
     });
     if (subBlocked) return NextResponse.json({ error: subBlocked }, { status: 403 });

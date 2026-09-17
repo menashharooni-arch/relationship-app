@@ -20,7 +20,7 @@ export const officeDocs = defineDocs([
       "where is admin", "open admin",
     ],
     answer:
-      "The purple \"Admin\" link in the dashboard top bar (or the Admin tab in the mobile bottom bar) opens /office/admin. It has four tabs: Team, Analytics (/office/admin/analytics), Leads (/office/admin/leads) and Branding (/office/admin/branding). \"← My dashboard\" in the header takes you back to your own side.",
+      "The purple \"Admin\" link in the dashboard top bar (or the Admin tab in the mobile bottom bar) opens /office/admin. Its tabs are Team, Analytics (/office/admin/analytics), Leads (/office/admin/leads) and Branding (/office/admin/branding), plus a \"Billing\" tab for the owner that opens Settings → Plan and billing (seats, payment method, invoices). Branding only appears for people allowed to change it. \"← My dashboard\" in the header takes you back to your own side.",
     detail:
       "The link only appears for people who can actually open the console — the office owner, or a teammate with a role that grants it. A brand-new Office subscriber is first asked to \"Name your team\" and is then sent to their own dashboard, not into the console, which surprises people; they get in via the Admin link afterwards. Old bookmarks to /office, /office/admin/team, /office/admin/cards and /office/admin/invite all now land on the Team tab, because Overview, Cards and Invite were folded into it.",
   },
@@ -137,7 +137,7 @@ export const officeDocs = defineDocs([
     answer:
       "A teammate gets their own dashboard, contacts, Swift Links and card editor — but not the admin console. The company-managed fields on their card (logo, company name, website, office contact details) show as \"Managed by your organization\" and can't be edited by them.",
     detail:
-      "They also lose a few things a normal account has: no referral programme, no account deletion, and no card deletion. Their contacts stay private to them — the office sees lead counts and the combined Leads tab, not their personal contact notes.",
+      "They also lose a few things a normal account has, because the office pays for them: no plan, billing or checkout, no referral programme or \"Help us grow\" heart, no account deletion, and exactly one card — their company card, which is their seat — so there is no \"+ Add card\" and no card deletion (ask the Office admin). Their \"Your SwiftCard is live\" email leaves out connecting a CRM, since their contacts belong to the team. Their contacts stay private to them — the office sees lead counts and the combined Leads tab, not their personal contact notes.",
   },
   {
     id: "admin-tour-and-notifications",

@@ -18,6 +18,10 @@ export async function POST() {
   const blocked = await officeSubUserBlockMessage(user.id, { message: SUB_USER_MSG });
   if (blocked) return NextResponse.json({ error: blocked }, { status: 403 });
 
+  // Office owners too: a referral month is a Pro reward, not a team one.
+  const { data: acct } = await supabase.from("profiles").select("plan").eq("id", user.id).maybeSingle();
+  if (acct?.plan === "enterprise") return NextResponse.json({ error: SUB_USER_MSG }, { status: 403 });
+
   const result = await claimReferralReward(user.id);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 409 });
   return NextResponse.json(result);
