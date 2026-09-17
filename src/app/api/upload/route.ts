@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase-server";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { clientIpFromHeaders } from "@/lib/client-ip";
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 
 // sharp (image resizing) needs the Node runtime.
@@ -41,11 +43,20 @@ export async function DELETE(req: Request) {
 export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // Per-user throttle on the EXPENSIVE path: sharp decode/resize/re-encode +
-  // public-bucket write. Previously uncapped (cost/abuse guard).
-  if (await isRateLimited(`upload:${user.id}`, 30, 10 * 60 * 1000)) {
-    return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
+  // GUESTS may upload too (owner, 2026-09-17): someone building their first
+  // card in "Get Started" or a homepage builder has no account yet, and a photo
+  // or video behind the card was the one design step they could not try. A
+  // guest upload is ALWAYS deferred (it writes no row — there is no row to
+  // write), lands in its own random folder under guest/, and is throttled per
+  // connection far tighter than a signed-in user.
+  if (user) {
+    // Per-user throttle on the EXPENSIVE path: sharp decode/resize/re-encode +
+    // public-bucket write. Previously uncapped (cost/abuse guard).
+    if (await isRateLimited(`upload:${user.id}`, 30, 10 * 60 * 1000)) {
+      return NextResponse.json({ error: "Too many requests — please wait a moment and try again." }, { status: 429 });
+    }
+  } else if (await isRateLimited(`upload-guest:${clientIpFromHeaders(req.headers)}`, 15, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many uploads — please wait a moment and try again." }, { status: 429 });
   }
 
   let formData: FormData;
@@ -129,7 +140,9 @@ export async function POST(req: Request) {
     }
   }
 
-  const path = `${user.id}/${field}-${Date.now()}.${ext}`;
+  const path = user
+    ? `${user.id}/${field}-${Date.now()}.${ext}`
+    : `guest/${randomUUID()}/${field}-${Date.now()}.${ext}`;
 
   // Admin client (service role, bypasses RLS) — ownership is already enforced
   // here in application code: `path` is built from the SERVER-VERIFIED
@@ -152,7 +165,7 @@ export async function POST(req: Request) {
 
   // Deferred upload (e.g. while creating a card that doesn't exist yet): just return
   // the URL so the caller can persist it when the row is created.
-  if (defer === "true") {
+  if (defer === "true" || !user) {
     return NextResponse.json({ url: publicUrl });
   }
 

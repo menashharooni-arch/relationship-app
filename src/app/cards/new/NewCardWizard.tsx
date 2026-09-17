@@ -30,7 +30,7 @@ import { SOCIAL_INPUTS, socialHint } from "@/lib/social-input";
 import { cardSlug, prettyCardSlug } from "@/lib/slug";
 import { useGuestDraft, saveDraft, loadDraft, clearDraft, draftHasWork, type GuestDraft } from "@/lib/guest-draft";
 import { resetMarketingSketch } from "@/lib/guest-reset";
-import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, PREFILL_LINK_STYLE_KEYS, type CardPrefill } from "@/lib/prefill";
+import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, PREFILL_LINK_STYLE_KEYS, PREFILL_CARD_MEDIA_KEYS, PREFILL_LINK_MEDIA_KEYS, type CardPrefill } from "@/lib/prefill";
 // Shared with the edit form + server so a social typed here connects to the
 // same URL everywhere (blur, save, guest-draft snapshot all normalize).
 import { normalizeSocial } from "@/lib/social-url";
@@ -393,6 +393,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         const v = p[k];
         if (typeof v === "string" && v) next[k] = v;
       }
+      // A photo or video the visitor uploaded behind the card in the sketch.
+      for (const k of PREFILL_CARD_MEDIA_KEYS) {
+        const v = p[k];
+        if (v !== undefined && v !== "") (next as Record<string, unknown>)[k] = v;
+      }
       return next;
     });
     // Swift Links page design ("Social design") rides its own keys.
@@ -401,6 +406,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       for (const k of PREFILL_LINK_STYLE_KEYS) {
         const v = p[k];
         if (typeof v === "string" && v) next[k] = v;
+      }
+      for (const k of PREFILL_LINK_MEDIA_KEYS) {
+        const v = p[k];
+        if (v !== undefined && v !== "") (next as Record<string, unknown>)[k] = v;
       }
       return next;
     });
@@ -1880,13 +1889,6 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 data={withoutSocials(previewData)}
                 customUnlocked={customDesignAvailable}
                 hideCustom={guest}
-                notice={!isPro && designUnlocked ? (
-                  <p className="text-[0.6875rem] text-blue-300 bg-blue-950/40 border border-blue-800/40 rounded-lg px-3 py-2 leading-relaxed">
-                    {guest
-                      ? <>Free preview — try any color, font or finish. You&apos;ll choose Free or Pro right before your card goes live.</>
-                      : <>Free preview — try any color, font, or the custom designer. You&apos;ll choose Free or Pro right before your card goes live.</>}
-                  </p>
-                ) : undefined}
               />
 
               {/* The designer comes AFTER the picker that selects it, and is
@@ -1907,7 +1909,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   the panel (same as the editor — the two must never disagree). */}
               {!customSelected && (
                 <div>
-                  <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!designUnlocked} canUpload={!guest} />
+                  <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!designUnlocked} canUpload />
                   {!isPro && !designUnlocked && (
                     <PlanGate
                       feature="colors-fonts"
@@ -1976,7 +1978,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   <div className="mt-4 pt-4 border-t border-purple-500/15">
                     <p className="text-gray-200 text-[0.8125rem] font-semibold">Your link buttons</p>
                     <p className="text-gray-500 text-[0.6875rem] leading-snug mb-2">Choose how each of your own links appears: Featured, Grid or Compact.</p>
-                    <LinkButtonsControls links={links} onChange={setLinks} pageRowStyle={linkStyleState.linkButtonStyle} isLocked={isOfficeRow} canUpload={!guest} />
+                    <LinkButtonsControls links={links} onChange={setLinks} pageRowStyle={linkStyleState.linkButtonStyle} isLocked={isOfficeRow} canUpload />
                   </div>
                 )}
               </div>
@@ -1990,7 +1992,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 isLinkLocked={isOfficeRow}
                 // A guest has no account to upload against yet (every upload
                 // route answers 401) — same rule as the homepage builder.
-                canUpload={!guest}
+                canUpload
               />
             )}
             {!isPro && !designUnlocked && (

@@ -143,7 +143,7 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
               shared numbered design steps. Custom design is left out, as it is
               for a website guest in the real builder. */}
           <TemplatePicker template={sketch.template} onSelect={(id) => patch({ template: id })} data={data} customUnlocked={false} hideCustom />
-          <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} canUpload={false} />
+          <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} />
         </div>
       ),
     },

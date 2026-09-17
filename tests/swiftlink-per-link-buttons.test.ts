@@ -90,7 +90,8 @@ describe("where the controls live", () => {
   it("video uploads never ride through the function body — signed URL, allow-listed type, capped size", () => {
     const src = read("src/app/api/upload/link-video/route.ts");
     expect(src).toMatch(/createSignedUploadUrl\(path\)/);
-    expect(src).toMatch(/const path = `\$\{user\.id\}\/link-video-/);
+    expect(src).toContain("? `${user.id}/link-video-");
+    expect(src).toContain(": `guest/${randomUUID()}/link-video-");
     expect(src).toMatch(/MAX_VIDEO_BYTES = 25 \* 1024 \* 1024/);
     expect(read("src/app/api/upload/route.ts")).toMatch(/field !== "photo" && field !== "logo" && field !== "hero" && field !== "link"/);
   });

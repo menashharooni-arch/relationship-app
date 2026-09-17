@@ -135,8 +135,8 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
       previewFirst: true,
       // links + onLinksChange turn on the real "Link buttons" section — the
       // same per-link Featured / Grid / Compact picker and Standard / Solid /
-      // Outline row styles the Social design tab has. canUpload={false} keeps
-      // the per-tile media picker honest for a visitor with no account.
+      // Outline row styles the Social design tab has. Uploads work for a
+      // visitor with no account too (guest uploads, api/upload).
       // EXACTLY Social design (owner, 2026-09-16): the same "View SwiftCard"
       // switch first, then the same shared panel.
       content: (
@@ -152,7 +152,6 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
             onChange={patchLinkStyle}
             links={sketch.links}
             onLinksChange={(links) => patch({ links })}
-            canUpload={false}
           />
         </div>
       ),

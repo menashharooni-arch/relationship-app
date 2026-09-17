@@ -154,14 +154,14 @@ describe("the builders show the product as it is now", () => {
     }
   });
 
-  it("runs the REAL per-link picker, with uploads off for a visitor", () => {
+  it("runs the REAL per-link picker, with uploads ON for a visitor (guest uploads)", () => {
     // links + onLinksChange are what turn on SwiftLinkStyleControls' own
     // "Link buttons" section (Featured / Grid / Compact + row styles);
     // canUpload={false} keeps the per-tile media picker from offering an
     // upload that would 401 with no account behind it.
     expect(swiftlink).toMatch(/links=\{sketch\.links\}/);
     expect(swiftlink).toMatch(/onLinksChange=/);
-    expect(swiftlink).toMatch(/canUpload=\{false\}/);
+    expect(swiftlink).not.toContain("canUpload={false}");
   });
 
   it("hands the WHOLE link over, not a flattened label + url", () => {
