@@ -23,7 +23,12 @@ const EDITOR = "src/app/cards/[id]/edit/CardEditForm.tsx";
 // adjacent (owner, 2026-09-10), and the accent still lands between the social
 // icons and the link buttons.
 describe("Social design reads top to bottom", () => {
-  const src = read(DESIGN);
+  const raw = read(DESIGN);
+  // Numbered steps name themselves as `label: "…"`; the two colours inside
+  // step 3 are still rendered labels (`}>Page background`). Either form
+  // marks where a section sits in the source.
+  const at = (label: string) => Math.max(raw.indexOf("}>" + label), raw.indexOf(`label: "${label}"`));
+  const src = { indexOf: (needle: string) => at(needle.replace(/^}>/, "")) };
 
   // The rendered section labels, in source order.
   const ORDER = [
@@ -40,7 +45,7 @@ describe("Social design reads top to bottom", () => {
   it("puts every section in the agreed order", () => {
     const positions = ORDER.map((label) => ({
       label,
-      at: src.indexOf("}>" + label),
+      at: at(label),
     }));
     for (const p of positions) {
       expect(p.at, `section "${p.label}" is missing from the panel`).toBeGreaterThan(-1);

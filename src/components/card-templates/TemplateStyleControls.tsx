@@ -29,7 +29,7 @@ import { CARD_FONT_OPTIONS, isDarkBg } from "./shared";
 import type { TemplateStyle } from "./shared";
 import { META, FALLBACK_META, type Look, type StyleField } from "@/lib/template-style-presets";
 import { useRef, useState } from "react";
-import { Field } from "@/components/ui/DesignControls";
+import { DesignSteps, type DesignStep } from "@/components/ui/DesignControls";
 import {
   CARD_FINISHES, FINISH_FAMILIES, getFinish,
   composePanelBackground, PANEL_DIM_DEFAULT,
@@ -535,7 +535,7 @@ export default function TemplateStyleControls({
   // The path, in build order. Base first — the whole look, the main surface and
   // what goes behind it, the second surface — then the type and colour details,
   // then the material over all of it.
-  const steps: { key: string; label: string; help?: string; title?: string; body: React.ReactNode }[] = [
+  const steps: DesignStep[] = [
     {
       key: "look",
       label: "Look",
@@ -581,24 +581,5 @@ export default function TemplateStyleControls({
     },
   ];
 
-  return (
-    <ol className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800" aria-label="Design your card, step by step">
-      {steps.map((st, i) => (
-        <li key={st.key} className="flex gap-3 p-4" title={st.title}>
-          {/* The number is the "where do I go next" — one column, read down. */}
-          <span
-            aria-hidden
-            className="mt-px w-6 h-6 shrink-0 rounded-full bg-blue-600 text-white text-[0.6875rem] font-bold flex items-center justify-center tabular-nums"
-          >
-            {i + 1}
-          </span>
-          <div className="min-w-0 flex-1">
-            <Field label={st.label} help={st.help}>
-              {st.body}
-            </Field>
-          </div>
-        </li>
-      ))}
-    </ol>
-  );
+  return <DesignSteps steps={steps} label="Design your card, step by step" />;
 }

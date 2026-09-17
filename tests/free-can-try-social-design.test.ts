@@ -46,9 +46,13 @@ describe("the panel: nothing is dead on a Free account", () => {
   it("keeps every PRO tag exactly where it was", () => {
     // The tags are the disclosure that replaces the disabled state, so they
     // have to survive the unlock — one per gated section, plus the Look family.
-    for (const label of ["Page background", "Social icons", "Connect button", "Link buttons"]) {
+    // Page background is a label inside step 3; the rest are numbered steps
+    // that carry the tag as their `trailing` (owner, 2026-09-16 numbering).
+    expect(design, "the Page background section lost its PRO tag")
+      .toMatch(/Page background\{locked && <span[^>]*><ProTag/);
+    for (const label of ["Social icons", "Connect button", "Link buttons"]) {
       expect(design, `the ${label} section lost its PRO tag`)
-        .toMatch(new RegExp(`${label}\\{locked && <span[^>]*><ProTag`));
+        .toMatch(new RegExp(`label: "${label}",[\\s\\S]{0,400}?trailing: locked \\? <ProTag />`));
     }
     expect(design).toMatch(/famLocked && <ProTag \/>/);
     expect(design).toMatch(/customLocked && <ProTag \/>/);

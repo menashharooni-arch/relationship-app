@@ -18,7 +18,7 @@
 
 import { useRef, useState } from "react";
 import { CARD_FONT_OPTIONS } from "@/components/card-templates/shared";
-import { Switch } from "@/components/ui/DesignControls";
+import { Switch, DesignSteps, type DesignStep } from "@/components/ui/DesignControls";
 import {
   DEFAULT_SWIFTLINK_LOOK, isFreeLook, getLook,
   LOOK_FAMILIES, looksInFamily, washGradient, hexAlpha,
@@ -90,30 +90,6 @@ function isHex(v?: string): v is string {
 }
 
 const rowLabel = "text-[0.6875rem] font-semibold text-gray-300 uppercase tracking-wide";
-
-/**
- * A group heading, one level above the section labels.
- *
- * The panel used to be a flat run of eight sections with nothing to say which
- * were whole-page decisions and which were parts, so it read as a list to get
- * through rather than a sequence to follow (owner, 2026-09-10: "things in
- * general just aren't aligned... I get to the end and I see something that
- * should have been at the top"). Two headings turn the same controls into a
- * route: set the page, then walk down it.
- *
- * Deliberately quieter than `rowLabel`, not louder — it is a signpost, and a
- * signpost that outshouts the thing it points at makes the panel busier, which
- * is the problem it exists to solve.
- */
-function GroupHeading({ children, hint }: { children: string; hint?: string }) {
-  return (
-    <div className="flex items-baseline gap-2 pt-1">
-      <span className="text-[0.5625rem] font-bold uppercase tracking-[0.18em] text-gray-500 shrink-0">{children}</span>
-      {hint && <span className="text-[0.5625rem] text-gray-600 truncate">{hint}</span>}
-      <span className="flex-1 h-px bg-gray-800" />
-    </div>
-  );
-}
 
 function ProTag() {
   return <span className="text-[0.5rem] font-bold px-1 py-0.5 rounded-full bg-blue-600 text-white leading-none">PRO</span>;
@@ -731,8 +707,8 @@ export function SwiftLinkStyleControls({
 
   // ── SECTION ORDER IS DELIBERATE: the panel is a route, not a list ─────────
   //
-  //   THE PAGE       Page header → Look → Page background → Text color → Font
-  //   ON THE PAGE    Social icons → Connect button → Link buttons
+  //   1 Page header → 2 Look → 3 Background & text → 4 Font
+  //   5 Social icons → 6 Connect button → 7 Link buttons
   //
   // Shape first, then the whole surface, then the page's own PARTS in the order
   // a visitor scrolls past them.
@@ -759,14 +735,18 @@ export function SwiftLinkStyleControls({
   // The background section keeps its inline "switch to the compact circle"
   // button. It is now a shortcut back rather than the only way to resolve the
   // dependency, which costs nothing and saves a scroll.
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-5">
-      <GroupHeading hint="the shape first, then the whole surface">The page</GroupHeading>
-
-      <div>
-        {/* Every plan — structural, like the Look picker, so never disabled. */}
-        <p className={`${rowLabel} mb-0.5`}>Page header</p>
-        <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">How your photo sits at the top — a full cover, or a compact circle that leaves more room for your links.</p>
+  // One numbered path, the same as Card design (owner, 2026-09-16: "they
+  // first choose a page header and then they choose the look and then it
+  // groups the rest of those things into steps. Don't make it a million
+  // steps"). The order above is kept; the two group headings became numbers,
+  // and the page's own colours (background + text) share one step.
+  const steps: DesignStep[] = [
+    {
+      key: "header",
+      label: "Page header",
+      help: "How your photo sits at the top — a full cover, a short banner, a compact circle, or no header at all.",
+      body: (
+        <>
         <div className="grid grid-cols-2 gap-1.5">
           {HERO_STYLES.map((o) => {
             const active = normalizeHeroStyle(value.linkHeroStyle) === o.id;
@@ -830,11 +810,15 @@ export function SwiftLinkStyleControls({
             )}
           </div>
         )}
-      </div>
-
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>Look</p>
-        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">One tap sets the whole page — background, text, and button color, composed to read well together. Open a style below to see its designs.</p>
+        </>
+      ),
+    },
+    {
+      key: "look",
+      label: "Look",
+      help: "One tap sets the whole page — background, text, and button color, composed to read well together. Open a style below to see its designs.",
+      body: (
+        <>
         {/* Picking a Look also clears the fine-tune background/text overrides:
             they'd win over the Look at render time, so a stale custom color
             would make every Look "not work" until the user found and reset it. */}
@@ -842,9 +826,14 @@ export function SwiftLinkStyleControls({
         {locked && (
           <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">Paper and Onyx are included free — the rest of the library comes with Pro.</p>
         )}
-      </div>
-
-      <div className="border-t border-gray-800 pt-4">
+        </>
+      ),
+    },
+    {
+      key: "colors",
+      label: "Background & text",
+      body: (
+        <>
         <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
         <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">
           {mediaHeader
@@ -890,9 +879,7 @@ export function SwiftLinkStyleControls({
             </button>
           </p>
         )}
-      </div>
-
-      <div className="border-t border-gray-800 pt-4">
+        <div className="mt-4">
         <p className={`${rowLabel} mb-0.5`}>Text color</p>
         <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Your name, bio and link labels.</p>
         <SwatchRow
@@ -902,11 +889,15 @@ export function SwiftLinkStyleControls({
           onPick={(v) => onChange({ linkTextColor: v })}
           customLocked={locked}
         />
-      </div>
-
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>Font</p>
-        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Sets the typeface across your Swift Links page.</p>
+        </div>
+        </>
+      ),
+    },
+    {
+      key: "font",
+      label: "Font",
+      help: "Sets the typeface across your Swift Links page.",
+      body: (
         <div className="grid grid-cols-2 gap-1.5">
           {[{ label: "Default", value: undefined as string | undefined }, ...CARD_FONT_OPTIONS].map((o) => {
             const active = value.linkFontFamily === o.value || (value.linkFontFamily == null && o.value == null);
@@ -925,31 +916,31 @@ export function SwiftLinkStyleControls({
             );
           })}
         </div>
-      </div>
-
-      <GroupHeading hint="in the order visitors see them">On the page</GroupHeading>
-
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>Social icons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-        <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">The shape and color of your social chips.</p>
+      ),
+    },
+    {
+      key: "icons",
+      label: "Social icons",
+      help: "The shape and color of your social chips.",
+      trailing: locked ? <ProTag /> : undefined,
+      body: (
         <IconStyleControls
           look={getLook(value.linkLook)}
           shape={normalizeIconShape(value.linkIconShape)}
           fill={normalizeIconFill(value.linkIconFill)}
           onChange={onChange}
         />
-      </div>
-
-      {/* The accent. It sits between the social icons and the link buttons
-          because that is where the Connect button sits on the page, and
-          because it is the colour BOTH of its neighbours fall back to —
-          reaching it after the icons and before the rows means you never set
-          a row colour and then discover the master control underneath it. */}
-      <div className="border-t border-gray-800 pt-4">
-        <p className={`${rowLabel} mb-0.5`}>Connect button{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-        <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">
-          Your page&apos;s action color — the Connect button, and your social icons when they&apos;re set to Accent. Default uses your Look&apos;s own.
-        </p>
+      ),
+    },
+    // The accent sits between the social icons and the link buttons: that is
+    // where the Connect button sits on the page, and it is the colour BOTH of
+    // its neighbours fall back to.
+    {
+      key: "connect",
+      label: "Connect button",
+      help: "Your page's action color — the Connect button, and your social icons when they're set to Accent. Default uses your Look's own.",
+      trailing: locked ? <ProTag /> : undefined,
+      body: (
         <SwatchRow
           presets={ACCENT_PRESETS}
           value={value.linkAccentColor}
@@ -957,16 +948,17 @@ export function SwiftLinkStyleControls({
           onPick={(v) => onChange({ linkAccentColor: v })}
           customLocked={locked}
         />
-      </div>
-
-      {/* Per-link looks — shown wherever the caller owns the links. The
-          marketing mini-builder passes them too (its "Additional links" step
-          collects real ones); it sets canUpload={false}, so the per-tile media
-          picker explains itself instead of offering an upload that would 401. */}
-      {links && onLinksChange && (
-        <div className="border-t border-gray-800 pt-4">
-          <p className={`${rowLabel} mb-0.5`}>Link buttons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
-          <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">Choose how each additional link appears. Featured and Grid show a big preview you can swap for your own photo or video; Compact is a slim row you can style.</p>
+      ),
+    },
+    // Per-link looks — wherever the caller owns the links.
+    ...(links && onLinksChange
+      ? [{
+          key: "links",
+          label: "Link buttons",
+          help: "Choose how each additional link appears. Featured and Grid show a big preview you can swap for your own photo or video; Compact is a slim row you can style.",
+          trailing: locked ? <ProTag /> : undefined,
+          body: (
+            <>
           <LinkButtonsControls links={links} onChange={onLinksChange} pageRowStyle={value.linkButtonStyle} canUpload={canUpload} />
           {links.some((l) => l.kind !== "header" && (l.size ?? "grid") === "compact" && resolveRowStyle(l, value.linkButtonStyle) !== "tile") && (
             <div className="mt-2.5">
@@ -983,10 +975,12 @@ export function SwiftLinkStyleControls({
               />
             </div>
           )}
-        </div>
-      )}
+            </>
+          ),
+        }]
+      : []),
+  ];
 
-    </div>
-  );
+  return <DesignSteps steps={steps} label="Design your Swift Links page, step by step" />;
 }
 

@@ -275,3 +275,43 @@ export function MoreOptions({
     </details>
   );
 }
+
+export type DesignStep = {
+  key: string;
+  label: string;
+  help?: string;
+  /** The long explanation, as a tooltip over the whole step. */
+  title?: string;
+  /** A PRO tag or similar beside the label. */
+  trailing?: React.ReactNode;
+  body: React.ReactNode;
+};
+
+/**
+ * One numbered path through a design panel — Card design and Social design
+ * both read as 1, 2, 3… down the page (owner, 2026-09-16: "you labeled all the
+ * rest of the steps and you made the UI very clean"). The number is the "where
+ * do I go next"; one column, read down, nothing behind a tab or a fold.
+ * Shared so the two panels can never number, space or label differently.
+ */
+export function DesignSteps({ steps, label }: { steps: DesignStep[]; label: string }) {
+  return (
+    <ol className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800" aria-label={label}>
+      {steps.map((st, i) => (
+        <li key={st.key} className="flex gap-3 p-4" title={st.title}>
+          <span
+            aria-hidden
+            className="mt-px w-6 h-6 shrink-0 rounded-full bg-blue-600 text-white text-[0.6875rem] font-bold flex items-center justify-center tabular-nums"
+          >
+            {i + 1}
+          </span>
+          <div className="min-w-0 flex-1">
+            <Field label={st.label} help={st.help} trailing={st.trailing}>
+              {st.body}
+            </Field>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
