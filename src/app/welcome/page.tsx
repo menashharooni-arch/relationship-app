@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function WelcomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ card?: string; designConverted?: string; plan?: string; interval?: string; seats?: string; promo?: string }>;
+  searchParams: Promise<{ card?: string; designConverted?: string; plan?: string; interval?: string; seats?: string; promo?: string; step?: string; for?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -28,8 +28,10 @@ export default async function WelcomePage({
     .eq("id", user.id)
     .single();
 
-  // Someone who already picked a paid plan doesn't need the plan step.
-  if (isPaidPlan(profile?.plan)) redirect("/dashboard?welcome=1&tour=1");
+  // Back from paying: the "card is live" setup step (notifications, the app),
+  // then on to their plan's home. Anyone else already paid skips this page.
+  const setupFor = sp.step === "setup" && isPaidPlan(profile?.plan) ? (sp.for === "office" ? "office" : "pro") : null;
+  if (isPaidPlan(profile?.plan) && !setupFor) redirect("/dashboard?welcome=1&tour=1");
 
   // WHAT FREE WOULD COST THEM, worked out server-side so the choice can be
   // honest at the moment it is made.
@@ -49,7 +51,7 @@ export default async function WelcomePage({
   // test can see it, because the code looks right.
   const { data: card } = await getAdminSupabase()
     .from("cards")
-    .select("template, customization")
+    .select("template, customization, username")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -64,7 +66,7 @@ export default async function WelcomePage({
       ]
     : [];
 
-  const cardSlug = typeof sp.card === "string" && sp.card ? sp.card : null;
+  const cardSlug = typeof sp.card === "string" && sp.card ? sp.card : ((card?.username as string | undefined) ?? null);
   // A paid plan picked on /pricing before signing up (carried by the claim).
   const presetIntent: PlanIntent | null =
     sp.plan === "pro" || sp.plan === "office"
@@ -79,6 +81,7 @@ export default async function WelcomePage({
     <WelcomePlan
       cardSlug={cardSlug}
       presetIntent={presetIntent}
+      setupFor={setupFor}
       designConverted={sp.designConverted === "1"}
       proDesignChanges={proDesignChanges}
     />

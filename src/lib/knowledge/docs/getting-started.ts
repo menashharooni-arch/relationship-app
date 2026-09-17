@@ -12,7 +12,7 @@ export const gettingStartedDocs = defineDocs([
       "locked out", "google sign in", "apple sign in", "magic link", "login link",
     ],
     answer:
-      "/login has two tabs, \"Sign in\" and \"Create account\", plus Google and Apple buttons. If a password isn't working, use \"Forgot password?\" on the Sign in tab — type your email in the box first, then tap the link.",
+      "/login has two tabs, \"Sign in\" and \"Get Started\" (which opens the card builder: you build the card first and create the account when you save it), plus Google and Apple buttons. If a password isn't working, use \"Forgot password?\" on the Sign in tab — type your email in the box first, then tap the link.",
     detail:
       "Some traps worth knowing. There is no passwordless \"email me a login link\" on the normal login page — that exists only for team invitations, so if someone asks for a login link, the honest answer is that everyone else signs in with a password or with Google/Apple. Tapping Google while the \"Sign in\" tab is selected, with no account on that address, bounces back with \"You don't have an account yet\" and switches to Create account — it does not silently create one. And the sign-in error message is deliberately vague about whether an email exists at all, so \"it says wrong password\" doesn't prove the account exists.",
   },
@@ -25,12 +25,12 @@ export const gettingStartedDocs = defineDocs([
       "make an account",
     ],
     answer:
-      "Either build a card first at /cards/new and create the account when you save it, or go straight to /login → \"Create account\". Passwords need at least 6 characters; there are no other rules. Google and Apple sign-up work from the same screen.",
+      "Either build a card first at /cards/new and create the account when you save it, or tap \"Get Started\" on the sign-in screen, which opens the same builder. Passwords need at least 6 characters; there are no other rules. Google and Apple sign-up work from the same screen.",
     detail:
       "New accounts start on Free — there is no automatic trial for signing up. After the first card is saved there is a plan step, shown once: \"Continue with Free →\", or Pro, which starts a {trial.days}-day free trial with a card taken at checkout (billing starts when the trial ends unless it is cancelled). Someone who closes that step without choosing is shown it again the next time they open the dashboard. A new account has zero cards and shows \"Let's create your first card\".",
     commerce: true,
     nativeAnswer:
-      "Either build a card first and create the account when you save it, or use \"Create account\" on the sign-in screen. Passwords need at least 6 characters. Google and Apple sign-up work from the same screen.",
+      "Either build a card first and create the account when you save it, or tap \"Get Started\" on the sign-in screen, which opens the same builder. Passwords need at least 6 characters. Google and Apple sign-up work from the same screen.",
   },
   {
     id: "guest-draft",
@@ -52,7 +52,7 @@ export const gettingStartedDocs = defineDocs([
     audience: ["user"],
     triggers: ["welcome", "first card", "just signed up", "card is live", "what now", "next steps"],
     answer:
-      "You land on a \"Your account is ready\" screen (/welcome) with your card URL — your card is not live yet; choosing a plan there (Pro, Office or Free) is what puts it live — an offer to turn on notifications, a \"Get SwiftCard on iPhone\" box with a Download on the App Store button, and — if you picked a paid plan while building — a link on to /checkout to finish it. After that the dashboard opens with a short guided tour. Creating a further card later ends on the same screen inside the builder, with the same notifications switch and app download.",
+      "You land on a \"Your account is ready\" screen (/welcome) with your card URL. Your card is not live yet: choose a plan there (Pro, Office or Free — or, if you already picked Pro or Office on the pricing page, \"Complete your subscription\"). Choosing is what puts the card live and sends the \"Your SwiftCard is live\" email. Then a \"Your card is live!\" step offers to turn on notifications (and, on the website, a \"Get SwiftCard on iPhone\" box), with a button on to your dashboard — or, for Office, to the Office dashboard. After paying on Stripe you come back to that same step; a \"Setting up your plan…\" screen can show for a few seconds first. If you leave Stripe without paying, you return to /checkout with the same plan picked, ready to try again. After that the dashboard opens with a short guided tour. Creating a further card later ends on the same screen inside the builder, with the same notifications switch and app download.",
     detail:
       "If the card was designed with Pro-only colours but Free was chosen, a note explains the content is saved and the design falls back to a Free-safe version; nothing is lost.",
   },

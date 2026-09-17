@@ -2114,6 +2114,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 changes={freeDesignChanges()}
                 onKeepWithTrial={keepDesignWithTrial}
                 onContinueFree={confirmFreeDesignAndCreate}
+                onIapPurchased={() => { setShowPlan(false); setPendingFreeConfirm(false); handleCreate(); }}
                 busy={status === "loading"}
               />
             ) : (

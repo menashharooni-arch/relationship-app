@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { startTour, tourCompleted } from "@/lib/tour";
 import { appStoreReady } from "@/lib/app-store";
+import { detectNativeApp } from "@/lib/platform";
 
 // Auto-starts the guided tour on the first dashboard load of a new account.
 //
@@ -42,7 +43,10 @@ export default function TourAutoStart() {
     // forever for every new account. Same helper the popup itself gates on.
     let popupPending = false;
     try {
-      popupPending = appStoreReady() && params.get("welcome") === "1" && localStorage.getItem("sc_appstore_seen") !== "1";
+      // Never inside the iPhone app: the popup does not render there (an app is
+      // not told to download itself), so waiting for its dismissal meant the
+      // tour NEVER started for a new app account (2026-09-16 app audit).
+      popupPending = !detectNativeApp() && appStoreReady() && params.get("welcome") === "1" && localStorage.getItem("sc_appstore_seen") !== "1";
     } catch { /* storage blocked — treat as no popup */ }
 
     if (!popupPending) {

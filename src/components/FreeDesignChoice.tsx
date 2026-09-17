@@ -2,6 +2,7 @@
 
 import { TRIAL_DAYS } from "@/lib/plan";
 import { useIsNativeApp } from "@/lib/platform";
+import IapSubscribeButton from "@/components/NativePaywall";
 
 /**
  * The moment someone picks Free after building with Pro design.
@@ -24,16 +25,21 @@ import { useIsNativeApp } from "@/lib/platform";
  *     converter, so tapping a Free Look never triggers this.
  *  2. Free is a real exit, not a dark pattern. The secondary button is plainly
  *     labelled, says what is kept, and is one tap.
- *  3. NATIVE (the iOS shell) may not sell. On native the trial offer is not
- *     rendered at all — no price, no "upgrade", no trial CTA — leaving the
- *     honest description and the Continue button. Same posture as PlanGate.
+ *  3. NATIVE (the iOS shell) offers the SAME choice through Apple: the trial
+ *     button is the In-App Purchase sheet (IapSubscribeButton — StoreKit price,
+ *     Restore, renewal terms), never Stripe, and its fine print names Apple.
+ *     (It used to hide the offer entirely, from before in-app purchase existed;
+ *     owner, 2026-09-16: "the same exact way that it does on the web app".)
  */
 export default function FreeDesignChoice({
   changes,
   onKeepWithTrial,
   onContinueFree,
+  onIapPurchased,
   busy = false,
 }: {
+  /** NATIVE: after Pro was bought through Apple (entitlement already synced). */
+  onIapPurchased?: () => void;
   /** Plain-English lines from describeFreeDesignChanges(). Never empty. */
   changes: string[];
   /** Start the Pro trial so the card is kept exactly as built. */
@@ -90,10 +96,24 @@ export default function FreeDesignChoice({
         </>
       )}
 
+      {native && onIapPurchased && (
+        <>
+          <IapSubscribeButton
+            className="!mt-4 !w-full !py-3.5 !text-sm !font-bold"
+            label={`Keep my card exactly like this — ${TRIAL_DAYS} days free`}
+            sublabel="then billed by Apple"
+            onPurchased={onIapPurchased}
+          />
+          <p className="text-gray-400 text-[0.625rem] text-center mt-2 leading-snug">
+            {TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account
+          </p>
+        </>
+      )}
+
       <button
         onClick={onContinueFree}
         disabled={busy}
-        className={`w-full py-3 rounded-full text-sm font-semibold border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 disabled:opacity-50 transition-colors ${native ? "mt-4" : "mt-3"}`}
+        className={`w-full py-3 rounded-full text-sm font-semibold border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 disabled:opacity-50 transition-colors ${native && !onIapPurchased ? "mt-4" : "mt-3"}`}
       >
         {busy ? "Saving…" : "Continue with Free"}
       </button>
