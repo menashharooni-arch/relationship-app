@@ -27,7 +27,7 @@ import CustomCard from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import TemplatePicker, { PRESET_TEMPLATES } from "@/components/card-templates/TemplatePicker";
-import PinnedCardPreview from "@/components/PinnedCardPreview";
+import PinnedCardPreview, { PinnedLinkPreview } from "@/components/PinnedCardPreview";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import { MoreOptions, Segmented, Switch } from "@/components/ui/DesignControls";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
@@ -1216,11 +1216,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             tabs never fight over the same values. ── */}
         {tab === "linkdesign" && (
           <div className="space-y-4">
-            {/* Mobile: stays at the TOP of this step — it is the thing being
-                styled, so it belongs above the controls — but capped to a
-                mini-phone width. At full column width it scaled to ~0.9 and
-                filled the screen before you could reach a single colour. */}
-            {mobileLinkPreview("It updates live as you pick colors and fonts.")}
+            {/* Phone: the Swift Links page sits at the top of the tab and stays
+                pinned while every control below scrolls under it; tap it to see
+                the whole page. */}
+            <PinnedLinkPreview>{linkPreviewInner}</PinnedLinkPreview>
             {/* The "View SwiftCard →" link at the bottom of the page — theirs to
                 keep or hide. A genuine on/off, so it is the shared Switch: the
                 whole row is the target rather than a 44x24 track, and it is the

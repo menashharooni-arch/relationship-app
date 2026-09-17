@@ -313,6 +313,22 @@ describe("pinned preview on a phone", () => {
     await page.context().close();
   });
 
+  it("opens full size on a tap, and closes again", async () => {
+    const page = await mount("pinned");
+    const small = await box(page);
+    await page.click("button[aria-label='See your card full size']");
+    await page.waitForTimeout(250);
+    const dialog = await page.evaluate(() => {
+      const d = document.querySelector("[role='dialog'] [data-preview-locked='true']") as HTMLElement | null;
+      return d ? d.getBoundingClientRect().width : 0;
+    });
+    expect(dialog, "the full-size card is not bigger than the pinned one").toBeGreaterThan(small!.width + 20);
+    await page.click("[role='dialog'] button:has-text('Close')");
+    await page.waitForTimeout(150);
+    expect(await page.evaluate(() => !!document.querySelector("[role='dialog']"))).toBe(false);
+    await page.context().close();
+  });
+
   it("is not shown on desktop, where the preview column is already pinned", async () => {
     const page = await mount("pinned", "", 1280, 900);
     const now = await box(page);

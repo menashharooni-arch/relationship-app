@@ -19,7 +19,7 @@ import { PlanGate, PlanNotice } from "@/components/PlanGate";
 import { isNativeApp } from "@/lib/platform";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import TemplatePicker, { PRESET_TEMPLATES } from "@/components/card-templates/TemplatePicker";
-import PinnedCardPreview from "@/components/PinnedCardPreview";
+import PinnedCardPreview, { PinnedLinkPreview } from "@/components/PinnedCardPreview";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
@@ -1074,31 +1074,38 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // Swift Links page, so the page preview REPLACES the card's Live Preview in
   // the pinned top-right slot (and inline on mobile) instead of sitting next
   // to it.
+  // The Swift Links page itself, built ONCE: the inline preview (step 3, the
+  // desktop sidebar) and the phone's pinned preview on step 4 render this exact
+  // element, so they can never disagree.
+  const linkPageEl = (
+    <SwiftLinkLivePreview
+      style={linkStyleState}
+      name={name}
+      handle={username || "yourname"}
+      company={company}
+      title={title}
+      bio={bio}
+      photoUrl={headshotUrl}
+      // Same value saved as the card's logo_url below, so the hero's
+      // headshot → logo → initials fallback previews exactly as it renders.
+      logoUrl={logoUrl}
+      socials={{
+        instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
+        twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,
+        youtube: socials.youtube, website,
+      }}
+      links={links}
+      paid={designUnlocked}
+      showCardLink={showCardLinkBtn}
+    />
+  );
+
   const linkPagePreview = (
     <>
       <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-2">
         Your Swift Links page — this is how it will look
       </p>
-      <SwiftLinkLivePreview
-        style={linkStyleState}
-        name={name}
-        handle={username || "yourname"}
-        company={company}
-        title={title}
-        bio={bio}
-        photoUrl={headshotUrl}
-        // Same value saved as the card's logo_url below, so the hero's
-        // headshot → logo → initials fallback previews exactly as it renders.
-        logoUrl={logoUrl}
-        socials={{
-          instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
-          twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,
-          youtube: socials.youtube, website,
-        }}
-        links={links}
-        paid={designUnlocked}
-        showCardLink={showCardLinkBtn}
-      />
+      {linkPageEl}
       {/* Both Swift Links steps share this preview, so the caption names what
           the step you are on actually changes. */}
       <p className="text-gray-600 text-[0.6875rem] mt-2 leading-snug">
@@ -1917,6 +1924,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             the two steps never fight over the same values. */}
         {step === 4 && (
           <div className="space-y-5">
+            {/* Phone: the Swift Links page sits at the top of the step and stays
+                pinned while every control below scrolls under it; tap it to
+                see the whole page. */}
+            <PinnedLinkPreview>{linkPageEl}</PinnedLinkPreview>
             <div className="mb-1">
               <h1 className="text-2xl font-bold text-white">Social design</h1>
               <p className="text-gray-400 text-sm mt-1">
@@ -1933,15 +1944,6 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               label={"Show the “View SwiftCard” button"}
               help="The small link at the bottom of your Swift Links page that opens your card."
             />
-
-            {/* Mobile-only inline copy — on desktop the SAME preview replaces
-                the card's Live Preview in the pinned sidebar (see below), so
-                rendering it here too would show it twice.
-                ABOVE the controls, matching the card editor's Social design
-                tab: the page is the thing being styled, so it reads first.
-                Capped to a mini-phone — at full column width it scaled to ~0.9
-                and filled the screen before you could reach a single colour. */}
-            <div className="lg:hidden">{mobileLinkPagePreview}</div>
 
             {linkDesignLocked ? (
               // Mirrors the editor: the office holds this page's look, so the

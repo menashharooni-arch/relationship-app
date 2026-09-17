@@ -213,8 +213,13 @@ describe("Swift Links page background", () => {
     expect(noMedia.rowBackdrop).toBe("none");
   }, 60_000);
 
-  it("is ignored by every header except the compact circle", async () => {
-    for (const heroStyle of ["cover", "banner", "none", undefined]) {
+  it("renders under no header too (owner, 2026-09-16)", async () => {
+    const r = await probe({ heroStyle: "none", bgMedia: "https://media.test/photo", bgMediaType: "image" });
+    expect(r.hasLayer).toBe(true);
+  }, 60_000);
+
+  it("is ignored by the cover and banner headers", async () => {
+    for (const heroStyle of ["cover", "banner", undefined]) {
       const r = await probe({
         heroStyle,
         bgMedia: "https://media.test/photo",

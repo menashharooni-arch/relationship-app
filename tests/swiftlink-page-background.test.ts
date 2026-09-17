@@ -13,6 +13,7 @@ import {
   MAX_PAGE_DIM,
   PAGE_MEDIA_BASE,
   normalizeHeroStyle,
+  headerAllowsPageMedia,
 } from "@/lib/swiftlink-looks";
 
 // ── Swift Links PAGE BACKGROUND — a photo or video behind the whole page ────
@@ -32,15 +33,23 @@ const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
 
 describe("the header pairing", () => {
-  it("is offered ONLY with the compact circle, in the editor and at render", () => {
+  it("is offered ONLY with the compact circle or no header, in the editor and at render", () => {
     // Both sides, because either alone is a bug: controls with no render is a
     // dead switch, and render with no controls is a page nobody can turn off.
     const design = read("src/components/SwiftLinkDesign.tsx");
-    expect(design).toMatch(/const isAvatarHeader = normalizeHeroStyle\(value\.linkHeroStyle\) === "avatar"/);
-    expect(design).toMatch(/\{isAvatarHeader && canUpload && <PageBackgroundMedia/);
+    expect(design).toMatch(/const mediaHeader = headerAllowsPageMedia\(value\.linkHeroStyle\)/);
+    expect(design).toMatch(/\{mediaHeader && canUpload && <PageBackgroundMedia/);
 
     const profile = read("src/components/SwiftLinkProfile.tsx");
-    expect(profile).toMatch(/const bgMedia = heroAvatar \? pageMediaUrl\(pageStyle\?\.bgMedia\) : null/);
+    expect(profile).toMatch(/const bgMedia = headerAllowsPageMedia\(heroStyle\) \? pageMediaUrl\(pageStyle\?\.bgMedia\) : null/);
+  });
+
+  it("the shared rule: compact circle and no header yes, cover and banner no (owner, 2026-09-16)", () => {
+    expect(headerAllowsPageMedia("avatar")).toBe(true);
+    expect(headerAllowsPageMedia("none")).toBe(true);
+    expect(headerAllowsPageMedia("cover")).toBe(false);
+    expect(headerAllowsPageMedia("banner")).toBe(false);
+    expect(headerAllowsPageMedia(undefined)).toBe(false);
   });
 
   it('"avatar" is what the compact circle is called in stored data', () => {
@@ -56,7 +65,7 @@ describe("the header pairing", () => {
     // Switching header styles must not destroy an upload. The editor says so
     // in words, and nothing in the switch path clears the key.
     const design = read("src/components/SwiftLinkDesign.tsx");
-    expect(design).toMatch(/saved and shows with the compact-circle header/);
+    expect(design).toMatch(/saved and shows with the compact-circle or no-header layout/);
     // The header buttons write ONLY linkHeroStyle.
     expect(design).toMatch(/onChange\(\{ linkHeroStyle: o\.id === "cover" \? undefined : o\.id \}\)/);
   });
@@ -446,7 +455,7 @@ describe("uploads", () => {
     // sign in after choosing a file. Both are behind canUpload now.
     const design = read("src/components/SwiftLinkDesign.tsx");
     expect(design).toMatch(/=== "custom" && canUpload && \(\s*<HeroImageUpload/);
-    expect(design).toMatch(/isAvatarHeader && canUpload && <PageBackgroundMedia/);
+    expect(design).toMatch(/mediaHeader && canUpload && <PageBackgroundMedia/);
     // …and nothing else in the panel calls the uploader directly.
     const calls = design.match(/uploadMedia\(/g) ?? [];
     expect(calls.length).toBe(1);
