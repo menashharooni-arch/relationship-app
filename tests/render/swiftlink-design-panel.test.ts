@@ -71,7 +71,7 @@ describe("panel order", () => {
             cls: el.className,
           }))
           .filter((i) => i.text.length > 0);
-        const wanted = ["The page", "On the page", "Look", "Page background", "Text color", "Font",
+        const wanted = ["Look", "Background & text", "Page background", "Text color", "Font",
           "Page header", "Social icons", "Connect button", "Link buttons"];
         const found: string[] = [];
         for (const i of items.sort((a, b) => a.y - b.y)) {
@@ -87,12 +87,18 @@ describe("panel order", () => {
 
   it("puts the whole surface first, then the page's parts in visitor order", async () => {
     expect(await sections()).toEqual([
-      // THE PAGE — the SHAPE first (owner, 2026-09-15), then the preset and the
-      // three things that repaint all of it.
-      "The page", "Page header", "Look", "Page background", "Text color", "Font",
-      // ON THE PAGE — exactly the order a visitor scrolls past them.
-      "On the page", "Social icons", "Connect button", "Link buttons",
+      // The SHAPE first (owner, 2026-09-15), then the preset and the things
+      // that repaint all of it — one numbered path (owner, 2026-09-16)…
+      "Page header", "Look", "Background & text", "Page background", "Text color", "Font",
+      // …then the page's parts, exactly the order a visitor scrolls past them.
+      "Social icons", "Connect button", "Link buttons",
     ]);
+    // And they are numbered, like Card design.
+    const html = renderToStaticMarkup(createElement(SwiftLinkStyleControls, {
+      value: {}, onChange: () => {}, links: LINKS, onLinksChange: () => {},
+    } as PickerProps));
+    expect(html).toContain('aria-label="Design your Swift Links page, step by step"');
+    expect((html.match(/<li /g) ?? []).length).toBe(7);
   }, 60_000);
 
   it("keeps that order for a Free account, where every section still renders", async () => {

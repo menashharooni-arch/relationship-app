@@ -1989,8 +1989,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               </div>
             )}
 
-            <div className="flex gap-3 mt-1">
-              <button onClick={() => setStep(3)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
+            {/* The final row. Back is sized to its word and the save button takes
+                the rest on ONE line: at 390px the old 1:2 split squeezed "Save and
+                create your account →" into two cramped lines inside its pill
+                (owner, 2026-09-16: "looks very unprofessional"). */}
+            <div className="flex items-center gap-3 mt-1">
+              <button onClick={() => setStep(3)} className="shrink-0 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold px-5 py-3.5 rounded-full transition-colors text-sm">
                 ← Back
               </button>
               {/* ── A GUEST NEVER PICKS A PLAN HERE (2026-09-15) ──────────────
@@ -2019,12 +2023,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   requireAuth("save", handleCreate, { forceGate: true });
                 }}
                 disabled={status === "loading"}
-                className="flex-[2] bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition-colors text-sm"
+                className="flex-1 min-w-0 whitespace-nowrap bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-4 py-3.5 rounded-full shadow-[0_8px_20px_-8px_rgba(37,99,235,0.6)] transition-colors text-[0.9375rem]"
               >
                 {status === "loading" ? "Creating…"
                   : showAuthedFirstCardGate ? "Continue to plans →"
                   : !guest ? "Create card →"
-                  : "Save and create your account →"}
+                  : "Save & create account →"}
               </button>
             </div>
           </div>
