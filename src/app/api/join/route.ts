@@ -328,9 +328,14 @@ export async function POST(req: Request) {
     }).catch(() => {});
   }
 
+  // Whether they already have a card: join has just branded every card they
+  // own, so sending them to build ANOTHER one made a second company card.
+  const { data: existingCard } = await admin.from("cards").select("id").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
+
   return NextResponse.json({
     ok: true,
     officeName: (member.offices as { name: string } | null)?.name,
     hasPersonalSubscription,
+    firstCardId: (existingCard?.id as string | undefined) ?? null,
   });
 }

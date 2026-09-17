@@ -56,7 +56,12 @@ export default function JoinButton({ token }: { token: string }) {
       // long enough to actually read the money note below — 900ms reads as a
       // flash. The same message also lands in their notification bell (see
       // /api/join), so missing it here isn't losing it.
-      setTimeout(() => { window.location.href = "/cards/new?add=1"; }, personalSub ? 6000 : 900);
+      // Already have a card (built it before accepting)? It is now the company
+      // card — open it to finish, rather than building a second one.
+      const next = typeof json.firstCardId === "string" && json.firstCardId
+        ? `/cards/${json.firstCardId}/edit?joined=1`
+        : "/cards/new?add=1";
+      setTimeout(() => { window.location.href = next; }, personalSub ? 6000 : 900);
     } catch {
       setError("Network error — please try again.");
       setStatus("error");

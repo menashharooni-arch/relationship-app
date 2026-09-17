@@ -94,18 +94,25 @@ describe("office invite email", () => {
 // ── App Store badge: added to the invite on 2026-09-02, removed again on
 // 2026-09-06 — the invite has exactly one door. ──────────────────────────────
 describe("office invite App Store badge", () => {
-  // Removed on purpose (owner decision, 2026-09-06): the invite is claimed
-  // only by tapping its link, and a second door ("get the app") led people to
-  // install first, sign in with Google, and land in a personal Free account
-  // with the invite still pending. The app is offered on the "Your card is
-  // live!" screen instead. The welcome email keeps its badge (below).
-  it("never appears in the invite, even with the listing live", () => {
-    const html = invite().html;
-    expect(html).not.toMatch(/App.Store/);
-    expect(html).not.toMatch(/apps\.apple\.com/);
-    expect(html).not.toMatch(/SwiftCard iPhone app/);
-    const route = readFileSync(join(process.cwd(), "src/app/api/office/invite/route.ts"), "utf8");
-    expect(route).not.toMatch(/appStoreUrl/);
+  // 2026-09-06 the app was kept OUT of the invite: installing first and
+  // signing in with Google stranded people in a personal Free account with the
+  // invite still pending. Owner, 2026-09-16: "when the subuser gets the email
+  // ... they just download the app and then they log in with the same email".
+  // That path now works (onboarding, the dashboard and /welcome all route a
+  // pending invite to Join), so the invite names the app and the address to use.
+  it("tells the invitee they can use the app with their invited address", () => {
+    const html = buildInviteEmail({ ownerFirst: "Ada", officeName: "Acme", inviteUrl: "https://swiftcard.me/join/tok123", inviteEmail: "sam@acme.com" }).html;
+    expect(html).toContain("Get the <strong>SwiftCard</strong> app from the App Store and create your account with <strong>sam@acme.com</strong>");
+    // Still one button: the claim link. No store badge competing with it.
+    expect(html).not.toContain("apps.apple.com");
+  });
+
+  it("the paths that make the app door safe are in place", () => {
+    const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
+    expect(read("src/app/onboarding/page.tsx")).toContain('intent === "signin" && !(await findPendingInviteForEmail(user.email))');
+    expect(read("src/app/welcome/page.tsx")).toContain("if (invite) redirect(`/join/${encodeURIComponent(invite.token)}`)");
+    expect(read("src/components/JoinSignIn.tsx")).toContain("if (native) {");
+    expect(read("src/components/JoinButton.tsx")).toContain("/cards/${json.firstCardId}/edit?joined=1");
   });
 
   it("the welcome email rides the same switch (appStoreEmailBlock)", () => {

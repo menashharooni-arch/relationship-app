@@ -270,6 +270,7 @@ export async function POST(req: Request) {
     inviteUrl,
     brandLogoUrl,
     unsubscribeUrl: inviteUnsubUrl,
+    inviteEmail: email,
   });
 
   // Through the shared layer rather than a second resend.emails.send() call.

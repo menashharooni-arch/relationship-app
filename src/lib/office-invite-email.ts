@@ -22,6 +22,8 @@ export function buildInviteEmail(opts: {
   brandLogoUrl?: string | null;
   /** contactUnsubUrl(recipient), or null when the signing secret is unavailable. */
   unsubscribeUrl?: string | null;
+  /** The invited address, so the "get the app" line can say which email to use. */
+  inviteEmail?: string | null;
 }): InviteEmail {
   const owner = escapeHtml(opts.ownerFirst);
   const office = escapeHtml(opts.officeName);
@@ -49,11 +51,13 @@ export function buildInviteEmail(opts: {
         </p>
         <a href="${opts.inviteUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:100px;font-size:15px;">Create my card →</a>
         <p style="color:#999;font-size:12px;margin-top:14px;">This link goes to ${escapeHtml(host)}. The invite expires in 14 days.</p>
-        ${/* No App Store badge here, on purpose: the invite is claimed only by
-            tapping the link above, and a second door ("get the app") led people
-            to install first, sign in with Google, and land in a personal Free
-            account with the invite still pending. The app is offered on the
-            "Your card is live!" screen, after the seat is theirs. */ ""}
+        ${/* The app is a real second door now (2026-09-16): signing in there
+            with this address (email, Google or Apple) finds the invite and goes
+            straight to Join, because onboarding, the dashboard and /welcome all
+            route a pending invite there, so it no longer strands anyone. */ ""}
+        <p style="color:#444;font-size:14px;line-height:1.5;margin:20px 0 0;">
+          Prefer your phone? Get the <strong>SwiftCard</strong> app from the App Store and create your account with <strong>${opts.inviteEmail ? escapeHtml(opts.inviteEmail) : "this email address"}</strong>. Your invite will be waiting.
+        </p>
         <p style="color:#999;font-size:12px;margin-top:24px;">You received this because ${owner} entered your email address when adding you to ${office}. If you didn't expect it, you can ignore this email${opts.unsubscribeUrl ? " or unsubscribe below" : ""}.</p>
         <p style="color:#b6bcc6;font-size:11px;margin:0;line-height:1.6;">
           Sent by SwiftCard on behalf of ${office} · New York, NY${

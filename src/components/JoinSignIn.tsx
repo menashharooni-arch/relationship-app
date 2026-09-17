@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import Link from "next/link";
+import { useIsNativeApp } from "@/lib/platform";
 
 // Sign-in shown INLINE on the /join/[token] invite page for a signed-out
 // invitee (owner request): no detour to the login page, no password.
@@ -18,6 +20,7 @@ export default function JoinSignIn({ token, inviteEmail }: { token: string; invi
   const [error, setError] = useState("");
 
   const nextPath = `/join/${token}`;
+  const native = useIsNativeApp();
 
   async function sendLink() {
     setStatus("sending");
@@ -68,6 +71,30 @@ export default function JoinSignIn({ token, inviteEmail }: { token: string; invi
         <button type="button" onClick={sendLink} className="text-blue-400 hover:text-blue-300 text-xs mt-3 transition-colors">
           Didn&apos;t get it? Send again
         </button>
+      </div>
+    );
+  }
+
+  // IN THE APP an emailed sign-in link opens Safari, not the app, and the
+  // app never gets the session — the invitee was stuck (2026-09-16 audit).
+  // The app's own sign-in works there (email + password, Google, Apple), and
+  // both routes come straight back to this page to accept.
+  if (native) {
+    const back = encodeURIComponent(nextPath);
+    return (
+      <div className="space-y-3">
+        <p className="text-center text-gray-500 text-xs">
+          Use <span className="text-gray-300 font-medium">{inviteEmail}</span> — the address your team invited.
+        </p>
+        <Link href={`/login?mode=signup&next=${back}`} className="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm">
+          Create my account
+        </Link>
+        <Link href={`/login?next=${back}`} className="block w-full text-center bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-full transition-colors text-sm">
+          I already have an account
+        </Link>
+        <p className="text-center text-gray-600 text-[0.6875rem]">
+          Signing in with Apple? Choose &quot;Share My Email&quot; so your team can find you.
+        </p>
       </div>
     );
   }
