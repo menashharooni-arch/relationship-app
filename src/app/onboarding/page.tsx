@@ -40,7 +40,12 @@ export default async function OnboardingPage({
     // one — sign them out and bounce to Create-account with a clear message. Any
     // other path (create-account, a claimed guest draft, an office-team invite,
     // an email-confirmation link) has no signin intent and provisions normally.
-    if (intent === "signin") {
+    // …unless a TEAM INVITE is waiting for this address: the invitee who
+    // installs the app and taps "Continue with Google/Apple" on the Sign-in tab
+    // has no account yet by design (their admin only invited them). Turning
+    // them away sent them in a loop; provision and take them to Join instead
+    // (inviteLanding below). (2026-09-16 journey audit.)
+    if (intent === "signin" && !(await findPendingInviteForEmail(user.email))) {
       try { await supabase.auth.signOut(); } catch { /* best-effort */ }
       // Preserve a same-origin continuation (e.g. a guest's card-draft claim) so
       // it survives the bounce and resumes once they create the account.

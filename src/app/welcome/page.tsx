@@ -5,6 +5,7 @@ import { isPaidPlan, describeFreeDesignChanges, proLinkFeaturesInUse, PLAN_LIMIT
 import type { PlanIntent } from "@/lib/plan-intent";
 import type { CardLink } from "@/components/card-templates/types";
 import WelcomePlan from "@/components/WelcomePlan";
+import { findPendingInviteForEmail } from "@/lib/pending-invite";
 
 // Post-signup onboarding step. A brand-new account lands here right after its
 // first card is claimed (GuestDraftClaim → /welcome?card=slug): turn on
@@ -27,6 +28,14 @@ export default async function WelcomePage({
     .select("plan")
     .eq("id", user.id)
     .single();
+
+  // A team member never chooses a plan — their seat IS the plan. Someone with
+  // an open invite for this address who built a card first (the app's "Get
+  // Started") goes to Join, not to "choose your plan". (2026-09-16 audit.)
+  if (!isPaidPlan(profile?.plan)) {
+    const invite = await findPendingInviteForEmail(user.email);
+    if (invite) redirect(`/join/${encodeURIComponent(invite.token)}`);
+  }
 
   // Back from paying: the "card is live" setup step (notifications, the app),
   // then on to their plan's home. Anyone else already paid skips this page.
