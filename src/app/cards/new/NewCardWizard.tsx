@@ -145,8 +145,10 @@ function ManagedTag() {
 // server wrapper (cards/new/page.tsx) passes guest={!user}. Every change is
 // snapshotted to a localStorage draft; the "Create card" action is gated behind
 // auth (requireAuth) and the draft is claimed → real card after they sign in.
-export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, tourOnDone = false, org = null, linkedinEnabled = false }: {
+export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, trialEligible = true, tourOnDone = false, org = null, linkedinEnabled = false }: {
   isPro: boolean;
+  /** Whether this account can still get the Pro trial (server-resolved). */
+  trialEligible?: boolean;
   guest?: boolean;
   /** The account's FIRST card (count === 0) being built while signed in and on
    *  Free — unlocks the Pro design controls as a preview, same as a guest, then
@@ -2124,6 +2126,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 changes={freeDesignChanges()}
                 onKeepWithTrial={keepDesignWithTrial}
                 onContinueFree={confirmFreeDesignAndCreate}
+                trialEligible={trialEligible}
                 onIapPurchased={() => { setShowPlan(false); setPendingFreeConfirm(false); handleCreate(); }}
                 busy={status === "loading"}
               />
@@ -2132,6 +2135,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 onFree={handleAuthedFirstCardFree}
                 onPaid={handleAuthedFirstCardPaid}
                 busy={null}
+                trialEligible={trialEligible}
                 // NOT "Start free →": that is the PRO card's button label too
                 // (it starts the free trial), so this screen had two buttons
                 // reading exactly the same words — one genuinely free, one a

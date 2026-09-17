@@ -9,6 +9,8 @@ import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { getOfficeBrandForUser } from "@/lib/office-brand";
 import { isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
 import { cookies } from "next/headers";
+import { isProTrialEligible } from "@/lib/trial-eligibility";
+import { trialHistoryFor } from "@/lib/trial-ledger";
 import { SRC_COOKIE, COOKIE_MAX_AGE, isSignupSource } from "@/lib/referral";
 
 // NewCardWizard gains a `guest?: boolean` prop (owned by the card-editor agent).
@@ -18,6 +20,7 @@ const Wizard = NewCardWizard as ComponentType<{
   isPro: boolean;
   guest?: boolean;
   isFirstCard?: boolean;
+  trialEligible?: boolean;
   tourOnDone?: boolean;
   appUrl?: string;
   walletEnabled?: boolean;
@@ -195,6 +198,17 @@ export default async function NewCardPage({
   // for a different account) must never silently merge in.
   const claimHere = !!user && sp.claim === "1";
 
+  // The first-card plan gate offers the Pro trial by name — only to an account
+  // that can still get it (one free Pro period per person: the 14-day trial or
+  // a friend's referral month). Guests have no history: eligible.
+  let trialEligible = true;
+  if (user && isFirstCard) {
+    try {
+      const { data: billing } = await getAdminSupabase().from("profiles").select("stripe_customer_id").eq("id", user.id).maybeSingle();
+      trialEligible = await isProTrialEligible((billing?.stripe_customer_id as string | null) ?? null, undefined, await trialHistoryFor(user.id, user.email));
+    } catch { /* fail open, like /checkout */ }
+  }
+
   return (
     <>
       {claimHere && <GuestDraftClaim />}
@@ -202,6 +216,7 @@ export default async function NewCardPage({
         isPro={isPro}
         guest={!authedAdd}
         isFirstCard={isFirstCard}
+        trialEligible={trialEligible}
         tourOnDone={tourOnDone}
         appUrl={process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}
         walletEnabled={hasWalletConfig()}

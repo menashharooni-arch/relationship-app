@@ -1,0 +1,30 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
+import { isProTrialEligible } from "@/lib/trial-eligibility";
+import { trialHistoryFor } from "@/lib/trial-ledger";
+
+// Whether this SwiftCard ACCOUNT may still get a free Pro trial, for the iOS
+// paywall (lib/iap). Apple decides intro-offer eligibility per Apple ID; this
+// is the per-account half of the rule: one free Pro period per person — the
+// 14-day trial OR a friend's referral month, never both, never twice
+// (owner, 2026-09-17). The same helper the Stripe checkout enforces with.
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  // No account yet → nothing on record.
+  if (!user) return NextResponse.json({ eligible: true });
+  const { data: profile } = await getAdminSupabase()
+    .from("profiles")
+    .select("stripe_customer_id")
+    .eq("id", user.id)
+    .maybeSingle();
+  const eligible = await isProTrialEligible(
+    (profile?.stripe_customer_id as string | null) ?? null,
+    undefined,
+    await trialHistoryFor(user.id, user.email),
+  );
+  return NextResponse.json({ eligible }, { headers: { "Cache-Control": "no-store" } });
+}

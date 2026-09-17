@@ -55,7 +55,7 @@ describe("referral free month requires a real, clean referral", () => {
     const c = code("src/lib/referral-server.ts");
     const signup = c.slice(c.indexOf("export async function applyReferralOnSignup"), c.indexOf("export async function referralGiftPending"));
     expect(signup).not.toMatch(/grantAppFreeMonths\(/);
-    expect(code("src/app/api/account/choose-plan/route.ts")).toMatch(/if \(!\(await referralGiftPending\(user\.id\)\)\)/);
+    expect(code("src/app/api/account/choose-plan/route.ts")).toContain("if (!(await referralGiftPending(user.id, user.email)))");
     expect(code("src/components/WelcomePlan.tsx")).toContain("Start my free month of Pro");
   });
 

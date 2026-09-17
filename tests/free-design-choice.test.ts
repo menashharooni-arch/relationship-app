@@ -245,9 +245,12 @@ describe("no plan chooser offers two different things under one label", () => {
   });
 
   it("the /pricing Pro button never reads as the free plan", () => {
-    const label = labelAfter(read("src/app/pricing/page.tsx"), /promo\.status === "valid" \? `[^`]+` :/);
+    const label = labelAfter(read("src/app/pricing/page.tsx"), /promo\.status === "valid" \? `[^`]+` : trialOk \?/);
     expect(label, "the /pricing Pro button moved — re-point this test").toBeTruthy();
     expect(readsAsFreePlan(label!), `Pro button reads as free: "${label}"`).toBe(false);
+    // The no-trial label (an account that already had its free Pro period).
+    const noTrial = labelAfter(read("src/app/pricing/page.tsx"), /: trialOk \? `[^`]+` :/);
+    expect(noTrial).toBe("Get Pro →");
   });
 
   it("the Free label differs from the Pro label wherever both are shown", () => {

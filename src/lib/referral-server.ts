@@ -290,7 +290,7 @@ export async function applyReferralOnSignup(
  * a clean fraud status, the referral source), plus: still on Free and no plan
  * chosen yet — so it can be started once, only at the plan step.
  */
-export async function referralGiftPending(userId: string): Promise<boolean> {
+export async function referralGiftPending(userId: string, accountEmail: string | null | undefined): Promise<boolean> {
   const admin = getAdminSupabase();
   const { data: p } = await admin
     .from("profiles")
@@ -306,12 +306,27 @@ export async function referralGiftPending(userId: string): Promise<boolean> {
     .select("status")
     .eq("referred_id", userId)
     .maybeSingle();
-  return row?.status === "signed_up";
+  if (row?.status !== "signed_up") return false;
+  // ONE FREE PRO PERIOD PER PERSON (owner, 2026-09-17): the friend's month and
+  // the 14-day trial are both first-time-only, and each rules out the other.
+  // Someone who already had a trial — on this account, or on this email before
+  // an account deletion (the purge-proof ledger) — gets no referral month.
+  const { isProTrialEligible } = await import("./trial-eligibility");
+  const { trialHistoryFor } = await import("./trial-ledger");
+  return isProTrialEligible(null, undefined, await trialHistoryFor(userId, accountEmail));
 }
 
-/** Start the friend's free month. Callers check referralGiftPending first. */
-export async function startReferralGift(userId: string): Promise<void> {
+/**
+ * Start the friend's free month. Callers check referralGiftPending first.
+ *
+ * Recorded exactly like a trial (profiles.pro_trial_started_at + the email
+ * ledger), so lib/trial-eligibility refuses the 14-day trial afterwards: an
+ * account that had the referral month pays from day one when it upgrades.
+ */
+export async function startReferralGift(userId: string, accountEmail: string | null | undefined): Promise<void> {
   await grantAppFreeMonths(userId, REFERRAL.NEW_USER_FREE_MONTHS, true);
+  const { recordProTrialStarted } = await import("./trial-ledger");
+  await recordProTrialStarted(userId, accountEmail);
 }
 
 // ── Signup-count referral rewards ────────────────────────────────────────────

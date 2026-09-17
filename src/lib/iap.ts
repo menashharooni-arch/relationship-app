@@ -111,6 +111,9 @@ export async function ensureIapConfigured(userId: string): Promise<boolean> {
       });
     } else if (configuredFor !== userId) {
       await w.P.logIn({ appUserID: userId });
+      // A different account: its trial history and offering are its own.
+      accountTrialPromise = null;
+      offeringsPromise = null;
     }
     configuredFor = userId;
     return true;
@@ -141,13 +144,41 @@ type RawPackage = Awaited<ReturnType<PurchasesPlugin["getOfferings"]>>["current"
 // sheet opens the prices are already here — no "Loading plans…" beat. A
 // failed or empty fetch is NOT cached, so the next open retries.
 let offeringsPromise: Promise<RawPackage[]> | null = null;
+
+/** The RevenueCat offering sold to an account that already had its free Pro
+ *  period (a 14-day trial or a friend's referral month): the same Pro products
+ *  WITHOUT an introductory offer. Apple decides intro eligibility per Apple ID,
+ *  not per SwiftCard account, so without this an account that had its free
+ *  month could still get Apple's trial on an unused Apple ID. */
+export const NO_TRIAL_OFFERING = "no_trial";
+
+// Whether THIS SwiftCard account may still get a free trial — the same rule
+// the website's checkout enforces (lib/trial-eligibility). Fails open (true),
+// like the server helper, so an outage never blocks a purchase.
+let accountTrialPromise: Promise<boolean> | null = null;
+function accountTrialEligible(): Promise<boolean> {
+  if (!accountTrialPromise) {
+    accountTrialPromise = fetch("/api/iap/trial-eligible", { method: "GET", cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { eligible: true }))
+      .then((d: { eligible?: unknown }) => d.eligible !== false)
+      .catch(() => true);
+  }
+  return accountTrialPromise;
+}
+
 async function rawPackages(): Promise<RawPackage[]> {
   if (offeringsPromise) return offeringsPromise;
   const w = await plugin();
   if (!w) return [];
   const p = (async () => {
     try {
-      const { current } = await w.P.getOfferings();
+      const offerings = await w.P.getOfferings();
+      const { current } = offerings;
+      if (!(await accountTrialEligible())) {
+        const all = (offerings as { all?: Record<string, { availablePackages?: unknown[] }> }).all ?? {};
+        const noTrial = all[NO_TRIAL_OFFERING]?.availablePackages;
+        if (noTrial?.length) return noTrial as RawPackage[];
+      }
       return (current?.availablePackages ?? []) as RawPackage[];
     } catch (e) {
       reportIapFailure("offerings", e);
@@ -190,6 +221,9 @@ export async function getIapPackages(): Promise<IapPackage[]> {
     // saw "14 days free" and then was charged (2026-09-16 audit). Anything but
     // a definite ELIGIBLE (2) — including UNKNOWN, per RevenueCat's own advice —
     // shows the regular price instead.
+    // The ACCOUNT rule first: an account that already had its free Pro period
+    // is never promised a trial, whatever the Apple ID could get.
+    if (!(await accountTrialEligible())) for (const p of out) p.introPriceString = null;
     try {
       const ids = out.filter((p) => p.introPriceString).map((p) => p.productId);
       if (ids.length) {
