@@ -41,6 +41,7 @@ import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import PlanCards from "@/components/PlanCards";
 import FreeDesignChoice from "@/components/FreeDesignChoice";
 import GuestGateModal from "@/components/GuestGateModal";
+import ForceLightTheme from "@/components/ForceLightTheme";
 
 type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
 
@@ -1128,6 +1129,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     const stoppedAt = stepNames[Math.min(Math.max((resumeChoice.step || 1) - 1, 0), 3)];
     return (
       <main className="sc-app sc-canvas-white min-h-screen bg-gray-950 px-5 py-10">
+        <ForceLightTheme />
         <div className="max-w-md mx-auto">
           <Link href="/" className={topControlCls}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1167,6 +1169,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   return (
     <>
     <main className="sc-app sc-canvas-white min-h-screen bg-gray-950 px-5 py-10">
+      <ForceLightTheme />
       <div className={step === 5 ? "max-w-md mx-auto" : "max-w-4xl mx-auto"}>
         {/* The one control at the TOP of the page. It has to match what is
             actually behind the user, because that is what people assume it

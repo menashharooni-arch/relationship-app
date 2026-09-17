@@ -46,6 +46,22 @@ describe("card builder white canvas", () => {
     expect(opens === 0 || depth === 0, "the white canvas rule must not sit inside a media query").toBe(true);
   });
 
+  // Owner, 2026-09-16: "on the computer it's white and on the phone it's black."
+  // The phone had dark mode saved (sc_theme=dark) and the white rule hangs off
+  // the light theme, so the builder must be light regardless of that choice.
+  it("is white even when the device has dark mode saved", () => {
+    const layout = read("src/app/layout.tsx");
+    // Before paint, on a direct load of the builder.
+    expect(layout).toMatch(/localStorage\.getItem\('sc_theme'\)!=='dark'\|\|location\.pathname\.indexOf\('\/cards\/new'\)===0/);
+    // Across client-side navigation: every builder <main> and its skeleton hold light.
+    const mains = wizard.split("<main ").slice(1);
+    expect(mains.length).toBeGreaterThanOrEqual(2);
+    for (const m of mains) expect(m.slice(0, 200)).toContain("<ForceLightTheme />");
+    expect(read("src/components/PortalSkeleton.tsx")).toMatch(/\{whiteCanvas && <ForceLightTheme \/>\}/);
+    // …and hands the saved theme back on the way out.
+    expect(read("src/components/ForceLightTheme.tsx")).toMatch(/sc_theme/);
+  });
+
   it("the iPhone shell's canvas follows the white builder", () => {
     expect(css).toMatch(/html\.native-app\[data-sc-theme="light"\]:has\(main\.sc-canvas-white\) \{ background: #FFFFFF; \}/);
   });

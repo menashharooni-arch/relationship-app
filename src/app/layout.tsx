@@ -140,7 +140,11 @@ export default function RootLayout({
               // Anyone who already chose a side keeps it — only visitors with
               // no stored preference move. Still applied before paint, so a
               // light-default user never sees a frame of dark.
-              "if(localStorage.getItem('sc_theme')!=='dark')document.documentElement.setAttribute('data-sc-theme','light');" +
+              // …except the card builder, which is ALWAYS light (white canvas),
+              // even for someone who saved dark (owner, 2026-09-16). Must be
+              // decided here, before paint, or a dark-mode phone flashes black.
+              // ForceLightTheme keeps it light across client-side navigation.
+              "if(localStorage.getItem('sc_theme')!=='dark'||location.pathname.indexOf('/cards/new')===0)document.documentElement.setAttribute('data-sc-theme','light');" +
               // Detect the shell from window.webkit.messageHandlers.bridge, the
               // NATIVE message handler WKWebView installs before any page script
               // runs. window.Capacitor alone is not reliable here: it is created

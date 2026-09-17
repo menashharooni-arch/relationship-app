@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import MobileNav from "@/components/MobileNav";
+import ForceLightTheme from "@/components/ForceLightTheme";
 
 // Instant loading skeleton for the signed-in portal (dashboard, contacts, links,
 // settings, grow, admin). Rendered by each route's loading.tsx the MOMENT a link
@@ -42,6 +43,7 @@ export default function PortalSkeleton({
 }) {
   return (
     <main className={`sc-app ${whiteCanvas ? "sc-canvas-white " : ""}min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10`} aria-busy="true" aria-label="Loading">
+      {whiteCanvas && <ForceLightTheme />}
       {/* Top accent stripe — identical to the real pages */}
       <div className="sc-top-stripe fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 
