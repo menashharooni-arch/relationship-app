@@ -31,6 +31,7 @@ export default function MiniBuilderModal({
   setStep,
   steps,
   preview,
+  pinnedPreview,
   previewCaption,
   onLaunch,
   onStartOver,
@@ -45,6 +46,9 @@ export default function MiniBuilderModal({
   setStep: (n: number) => void;
   steps: MiniStep[];
   preview: React.ReactNode;
+  /** What the PHONE pins at the top on preview-first steps, when `preview` is
+   *  too tall to pin whole (the Swift Links page). Defaults to `preview`. */
+  pinnedPreview?: React.ReactNode;
   previewCaption?: string;
   onLaunch: () => void;
   /** Explicitly throw the whole draft away and start from a blank builder.
@@ -97,7 +101,11 @@ export default function MiniBuilderModal({
     >
       <div className="min-h-full flex items-start sm:items-center justify-center py-6 px-4">
         <div
-          className="relative w-full min-w-0 max-w-3xl rounded-[var(--rd-r-2xl)] overflow-hidden shadow-[var(--rd-sh-lg)]"
+          // overflow-CLIP, not overflow-hidden: hidden makes this box a scroll
+          // container, and a sticky child then sticks to IT (which never
+          // scrolls) instead of the overlay — the pinned preview would scroll
+          // away like any other block. clip rounds the corners the same way.
+          className="relative w-full min-w-0 max-w-3xl rounded-[var(--rd-r-2xl)] overflow-clip shadow-[var(--rd-sh-lg)]"
           style={{ background: "#0E1017", border: "1px solid rgba(255,255,255,0.10)" }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -105,21 +113,23 @@ export default function MiniBuilderModal({
           <button
             onClick={onClose}
             aria-label="Close"
-            className="absolute top-3.5 right-3.5 z-10 w-9 h-9 flex items-center justify-center rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            className="absolute top-3.5 right-3.5 z-30 w-9 h-9 flex items-center justify-center rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /></svg>
           </button>
 
-          {/* Mobile-only preview pinned ABOVE the form on preview-first steps
-              (the design step). Desktop keeps the side preview below. Extra top
-              padding clears the absolute close button. */}
+          {/* Mobile-only preview ABOVE the form on preview-first steps (the
+              design step), pinned to the top of the screen while the controls
+              scroll under it (owner, 2026-09-16: "hover at the top and while
+              you scroll it'll still be there"). Desktop pins the side preview
+              below instead. */}
           {current.previewFirst && (
             <div
-              className="md:hidden flex flex-col items-center px-6 pt-12 pb-5 border-b border-white/10"
+              className="md:hidden sticky top-0 z-20 flex flex-col items-center px-14 pt-3 pb-4 border-b border-white/10"
               style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(37,99,235,0.14), transparent 60%), #0A0B10" }}
             >
-              <span className="text-white/70 text-[0.6875rem] font-semibold uppercase tracking-widest mb-3">Live preview</span>
-              <div className="w-full flex items-center justify-center">{preview}</div>
+              <span className="text-white/70 text-[0.6875rem] font-semibold uppercase tracking-widest mb-2">Live preview</span>
+              <div className="w-full flex items-center justify-center">{pinnedPreview ?? preview}</div>
             </div>
           )}
 
@@ -184,10 +194,15 @@ export default function MiniBuilderModal({
             </div>
 
             {/* ── Right: live preview ────────────────────── */}
-            <div className={`${hidePreviewOnMobile || current.previewFirst ? "hidden md:flex" : "flex"} relative min-w-0 flex-col items-center justify-center p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10`} style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(37,99,235,0.14), transparent 60%), #0A0B10" }}>
-              <span className="absolute top-4 left-1/2 -translate-x-1/2 text-white/35 text-[0.6875rem] font-semibold uppercase tracking-widest">Live preview</span>
-              <div className="w-full flex items-center justify-center mt-4">{preview}</div>
-              {previewCaption && <p className="text-white/40 text-[0.75rem] mt-4 text-center">{previewCaption}</p>}
+            <div className={`${hidePreviewOnMobile || current.previewFirst ? "hidden md:flex" : "flex"} relative min-w-0 flex-col items-center justify-center md:justify-start p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10`} style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(37,99,235,0.14), transparent 60%), #0A0B10" }}>
+              {/* Desktop: at the TOP of its column and pinned there while the
+                  form scrolls (owner, 2026-09-16), not floating in the middle
+                  of a tall column where the design controls push it off-screen. */}
+              <div className="w-full flex flex-col items-center md:sticky md:top-6">
+                <span className="text-white/35 text-[0.6875rem] font-semibold uppercase tracking-widest">Live preview</span>
+                <div className="w-full flex items-center justify-center mt-4">{preview}</div>
+                {previewCaption && <p className="text-white/40 text-[0.75rem] mt-4 text-center">{previewCaption}</p>}
+              </div>
             </div>
           </div>
         </div>

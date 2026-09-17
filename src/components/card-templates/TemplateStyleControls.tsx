@@ -491,6 +491,7 @@ export default function TemplateStyleControls({
   value,
   onChange,
   template,
+  canUpload = true,
 }: {
   value: TemplateStyle;
   onChange: (patch: Partial<TemplateStyle>) => void;
@@ -502,6 +503,10 @@ export default function TemplateStyleControls({
    * dialog at Save names what needs Pro, and the server enforces it.
    */
   locked?: boolean;
+  /** False where there is no account to upload against (a website guest, the
+   *  homepage builders): every upload route answers 401 there. The step stays
+   *  in its place in the numbered path, saying when it becomes available. */
+  canUpload?: boolean;
 }) {
   const meta = (template && META[template]) || FALLBACK_META;
 
@@ -550,7 +555,9 @@ export default function TemplateStyleControls({
       key: "media",
       label: "Photo or video",
       help: `Optional — goes behind your ${meta.bg.label.toLowerCase()}.`,
-      body: <PanelMediaControl value={value} onChange={onChange} />,
+      body: canUpload
+        ? <PanelMediaControl value={value} onChange={onChange} />
+        : <p className="text-[0.6875rem] text-gray-500 leading-snug">You can add a photo or video here once your account is created.</p>,
     },
     // Only some templates have a second surface; on the rest the background
     // already paints the whole card and this step would do nothing.

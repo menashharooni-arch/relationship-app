@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { SketchSocials, SketchLink } from "./useProductSketch";
 import { socialInput, socialHint } from "@/lib/social-input";
+import { PLAN_LIMITS } from "@/lib/plan";
 
 // Small form primitives shared by the three homepage product builders, styled
 // to match the dark builder shell. Kept in one place so the card, SwiftLink and
@@ -72,7 +73,10 @@ export function SocialFields({
   );
 }
 
-// Add/remove the custom action buttons that sit under the contact details.
+// "Additional links" — the same list, the same add flow, the same section
+// headers and the same Free limit as the real builder's Socials step
+// (/cards/new), so what a visitor does here is exactly what they will do there
+// (owner, 2026-09-16: "it should be the exact same as how it is in the main one").
 export function LinkButtons({
   links,
   onChange,
@@ -85,14 +89,21 @@ export function LinkButtons({
   hint?: string;
 }) {
   const [draft, setDraft] = useState<SketchLink>({ label: "", url: "" });
+  // A visitor builds as a guest, and a guest's card is Free until they choose
+  // a plan — the same cap the wizard applies to them.
+  const atLinkCap = links.length >= PLAN_LIMITS.FREE_MAX_LINKS;
 
   function add() {
+    if (atLinkCap) return;
     const l = draft.label.trim();
-    const u = draft.url.trim();
+    let u = draft.url.trim();
     if (!l || !u) return;
+    if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
     onChange([...links, { label: l, url: u }]);
     setDraft({ label: "", url: "" });
   }
+
+  const remove = (i: number) => onChange(links.filter((_, j) => j !== i));
 
   return (
     <div>
@@ -101,61 +112,89 @@ export function LinkButtons({
 
       {links.length > 0 && (
         <div className="space-y-1.5 mb-2.5">
-          {links.map((l, i) => (
-            <div key={`${l.label}-${i}`} className="flex items-center gap-2 rounded-xl bg-[#15171F] border border-white/10 px-3 py-2">
-              <span className="min-w-0 flex-1">
-                <span className="block text-white text-sm truncate">{l.label}</span>
-                <span className="block text-white/40 text-[0.6875rem] truncate">{l.url}</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => onChange(links.filter((_, j) => j !== i))}
-                aria-label={`Remove ${l.label}`}
-                className="shrink-0 text-white/40 hover:text-red-400 transition-colors"
-              >
-                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /></svg>
-              </button>
-            </div>
-          ))}
+          {links.map((l, i) =>
+            l.kind === "header" ? (
+              <div key={i} className="flex items-center gap-2 rounded-xl bg-[#15171F] border border-dashed border-white/15 px-3 py-2">
+                <span className="text-[0.5625rem] font-bold uppercase tracking-wide text-white/40 shrink-0">Section</span>
+                <input
+                  type="text"
+                  value={l.label}
+                  onChange={(e) => onChange(links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                  placeholder="Section title (e.g. Watch)"
+                  className="flex-1 min-w-0 bg-transparent text-white text-xs font-bold uppercase tracking-wide focus:outline-none placeholder:text-white/30"
+                />
+                <button type="button" onClick={() => remove(i)} aria-label="Remove section" className="shrink-0 text-white/40 hover:text-red-400 transition-colors">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /></svg>
+                </button>
+              </div>
+            ) : (
+              <div key={i} className="flex items-center gap-2 rounded-xl bg-[#15171F] border border-white/10 px-3 py-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-white text-sm truncate">{l.label}</span>
+                  <span className="block text-white/40 text-[0.6875rem] truncate">{l.url}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => remove(i)}
+                  aria-label={`Remove ${l.label}`}
+                  className="shrink-0 text-white/40 hover:text-red-400 transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}><path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /></svg>
+                </button>
+              </div>
+            ),
+          )}
         </div>
       )}
 
-      {/* Same add flow as the real builder (/cards/new "Additional links"):
-          name field, then URL, then a full-width "+ Add link" that lights up
-          once both are filled — so what visitors learn here is exactly what
-          they'll do in the wizard. */}
-      <div className="space-y-2">
-        <input
-          className={inputCls}
-          placeholder="Link name (e.g. Leave a review)"
-          value={draft.label}
-          onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
-        />
-        <input
-          className={inputCls}
-          placeholder="https://…"
-          value={draft.url}
-          onChange={(e) => setDraft((d) => ({ ...d, url: e.target.value }))}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-        />
-        {(() => {
-          const readyToAdd = !!draft.label.trim() && !!draft.url.trim();
-          return (
-            <button
-              type="button"
-              onClick={add}
-              disabled={!readyToAdd}
-              className={`w-full text-xs font-semibold py-2.5 rounded-xl transition-colors ${
-                readyToAdd
-                  ? "bg-blue-600 hover:bg-blue-500 text-white border border-blue-500"
-                  : "border border-dashed border-white/15 text-white/40 disabled:opacity-60"
-              }`}
-            >
-              + Add link
-            </button>
-          );
-        })()}
-      </div>
+      {/* Section headers — chapters for a long page, outside the list so one
+          can open the page's first section before any link exists. */}
+      <button
+        type="button"
+        onClick={() => onChange([...links, { label: "", url: "", kind: "header" }])}
+        className="block mb-2 text-[0.6875rem] font-semibold text-white/55 hover:text-white transition-colors"
+      >
+        + Add a section header
+      </button>
+
+      {atLinkCap ? (
+        <p className="text-[0.6875rem] text-white/50 bg-[#15171F] border border-white/10 rounded-xl px-3 py-2.5 leading-relaxed">
+          Free includes {PLAN_LIMITS.FREE_MAX_LINKS} additional links. Pro unlocks unlimited additional links — you&apos;ll choose your plan before your page goes live.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <input
+            className={inputCls}
+            placeholder="Link name (e.g. Leave a review)"
+            value={draft.label}
+            onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
+          />
+          <input
+            className={inputCls}
+            placeholder="https://…"
+            value={draft.url}
+            onChange={(e) => setDraft((d) => ({ ...d, url: e.target.value }))}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          />
+          {(() => {
+            const readyToAdd = !!draft.label.trim() && !!draft.url.trim();
+            return (
+              <button
+                type="button"
+                onClick={add}
+                disabled={!readyToAdd}
+                className={`w-full text-xs font-semibold py-2.5 rounded-xl transition-colors ${
+                  readyToAdd
+                    ? "bg-blue-600 hover:bg-blue-500 text-white border border-blue-500"
+                    : "border border-dashed border-white/15 text-white/40 disabled:opacity-60"
+                }`}
+              >
+                + Add link
+              </button>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 }

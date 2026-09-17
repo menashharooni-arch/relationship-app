@@ -15,6 +15,7 @@ import type { CardData } from "@/components/card-templates/types";
 import LogoSuggest from "@/components/LogoSuggest";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
+import TemplatePicker from "@/components/card-templates/TemplatePicker";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
 import { Field, LogoShapeToggle } from "./BuilderFields";
@@ -133,31 +134,16 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
     // collected in the real wizard's Socials step after "Make it live".
     {
       title: "Design your signature",
-      subtitle: "Pick a layout, then fine-tune the colours and font — it updates live.",
+      subtitle: "Pick a template, then work down the numbered steps — it updates live.",
       previewFirst: true,
       content: (
         <div className="space-y-4">
-          <div>
-            <span className="block text-white/55 text-[0.75rem] font-medium mb-2">Layout</span>
-            {/* cols-3, not cols-5 — six layouts, so two even rows instead of a
-                five-wide row with one orphan. */}
-            <div className="grid grid-cols-3 gap-1.5">
-              {TEMPLATES.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => patch({ template: t.id })}
-                  className="rounded-lg px-1 py-2 text-[0.6875rem] font-medium transition-colors"
-                  style={{
-                    background: sketch.template === t.id ? "var(--rd-aurora)" : "rgba(255,255,255,0.05)",
-                    color: sketch.template === t.id ? "#fff" : "rgba(255,255,255,0.6)",
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} />
+          {/* EXACTLY the Card design tab (owner, 2026-09-16: "the same order,
+              the same everything"): the shared template gallery, then the
+              shared numbered design steps. Custom design is left out, as it is
+              for a website guest in the real builder. */}
+          <TemplatePicker template={sketch.template} onSelect={(id) => patch({ template: id })} data={data} customUnlocked={false} hideCustom />
+          <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} canUpload={false} />
         </div>
       ),
     },

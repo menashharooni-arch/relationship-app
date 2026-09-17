@@ -861,6 +861,11 @@ export function SwiftLinkStyleControls({
         {/* Only with the compact circle or no header. The cover and banner
             headers already lead with a big photo — see lib/swiftlink-looks. */}
         {mediaHeader && canUpload && <PageBackgroundMedia value={value} onChange={onChange} />}
+        {/* No account to upload against yet (a website guest): say where the
+            option went instead of leaving the header choice unexplained. */}
+        {mediaHeader && !canUpload && (
+          <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">You can add a photo or video filling the whole page once your account is created.</p>
+        )}
         {/* …and under any other header, the switch is offered RIGHT HERE.
             This pairing used to dictate the whole panel's order: Page header
             had to come first, because the only way to reach the photo option

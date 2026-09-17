@@ -6,6 +6,7 @@ import ImageUpload from "@/components/ImageUpload";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import { SwiftLinkStyleControls } from "@/components/SwiftLinkDesign";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
+import { Switch } from "@/components/ui/DesignControls";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
 import { Field, TextArea, SocialFields, LinkButtons } from "./BuilderFields";
@@ -54,6 +55,31 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
     setLaunching(false);
     reset();
   }
+
+  const livePreview = (
+    <SwiftLinkLivePreview
+      style={sketch.linkStyle}
+      name={sketch.name}
+      handle={handle}
+      company={sketch.company}
+      title={sketch.title}
+      bio={sketch.bio}
+      photoUrl={sketch.headshot}
+      // The sketch is shared with the card mini-builder, where a guest can
+      // upload a logo — without this, setting one there and coming back
+      // here showed initials for a page that would render the logo.
+      logoUrl={sketch.logo}
+      socials={{
+        instagram: sketch.socials.instagram, tiktok: sketch.socials.tiktok,
+        linkedin: sketch.socials.linkedin, twitter: sketch.socials.twitter,
+        facebook: sketch.socials.facebook, youtube: sketch.socials.youtube,
+        website: sketch.website,
+      }}
+      links={sketch.links}
+      paid
+      showCardLink={sketch.showCardLink}
+    />
+  );
 
   const steps: MiniStep[] = [
     // 1 — name, business & profile photo
@@ -111,14 +137,24 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
       // same per-link Featured / Grid / Compact picker and Standard / Solid /
       // Outline row styles the Social design tab has. canUpload={false} keeps
       // the per-tile media picker honest for a visitor with no account.
+      // EXACTLY Social design (owner, 2026-09-16): the same "View SwiftCard"
+      // switch first, then the same shared panel.
       content: (
-        <SwiftLinkStyleControls
-          value={sketch.linkStyle}
-          onChange={patchLinkStyle}
-          links={sketch.links}
-          onLinksChange={(links) => patch({ links })}
-          canUpload={false}
-        />
+        <div className="space-y-4">
+          <Switch
+            checked={sketch.showCardLink}
+            onChange={(v) => patch({ showCardLink: v })}
+            label={"Show the “View SwiftCard” button"}
+            help="The small link at the bottom of your Swift Links page that opens your card."
+          />
+          <SwiftLinkStyleControls
+            value={sketch.linkStyle}
+            onChange={patchLinkStyle}
+            links={sketch.links}
+            onLinksChange={(links) => patch({ links })}
+            canUpload={false}
+          />
+        </div>
       ),
     },
   ];
@@ -151,28 +187,17 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
         // real brand social icons and real featured-link cards the published
         // page shows. Zero drift: long bios aren't clamped, every social shows,
         // links look identical to the live page.
-        preview={
-          <SwiftLinkLivePreview
-            style={sketch.linkStyle}
-            name={sketch.name}
-            handle={handle}
-            company={sketch.company}
-            title={sketch.title}
-            bio={sketch.bio}
-            photoUrl={sketch.headshot}
-            // The sketch is shared with the card mini-builder, where a guest can
-            // upload a logo — without this, setting one there and coming back
-            // here showed initials for a page that would render the logo.
-            logoUrl={sketch.logo}
-            socials={{
-              instagram: sketch.socials.instagram, tiktok: sketch.socials.tiktok,
-              linkedin: sketch.socials.linkedin, twitter: sketch.socials.twitter,
-              facebook: sketch.socials.facebook, youtube: sketch.socials.youtube,
-              website: sketch.website,
-            }}
-            links={sketch.links}
-            paid
-          />
+        preview={livePreview}
+        // Pinned on a phone it shows the TOP of the page — header, name and
+        // socials — at the same compact size as Social design, fading out
+        // below, so the controls keep most of the screen.
+        pinnedPreview={
+          <div
+            className="w-[190px] max-h-[min(270px,34vh)] overflow-hidden rounded-[22px]"
+            style={{ maskImage: "linear-gradient(180deg, #000 78%, transparent)", WebkitMaskImage: "linear-gradient(180deg, #000 78%, transparent)" }}
+          >
+            {livePreview}
+          </div>
         }
       />
     </>

@@ -403,6 +403,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       }
       return next;
     });
+    if (p.hideCardLink) setShowCardLinkBtn(false);
     if (p.logoUrl) setLogoUrl(p.logoUrl);
     if (p.headshotUrl) setHeadshotUrl(p.headshotUrl);
     setPendingPrefill(null);
@@ -1892,7 +1893,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   the panel (same as the editor — the two must never disagree). */}
               {!customSelected && (
                 <div>
-                  <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!designUnlocked} />
+                  <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!designUnlocked} canUpload={!guest} />
                   {!isPro && !designUnlocked && (
                     <PlanGate
                       feature="colors-fonts"
@@ -1962,6 +1963,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 locked={!designUnlocked}
                 links={links}
                 onLinksChange={setLinks}
+                // A guest has no account to upload against yet (every upload
+                // route answers 401) — same rule as the homepage builder.
+                canUpload={!guest}
               />
             )}
             {!isPro && !designUnlocked && (
