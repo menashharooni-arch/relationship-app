@@ -444,7 +444,9 @@ export async function POST(req: NextRequest) {
       try {
         await sendReceiptForUser({
           userId,
-          planName: plan.charAt(0).toUpperCase() + plan.slice(1),
+          // "Office", never the internal "enterprise" id (2026-09-16 audit:
+          // receipts said "Enterprise", a name the product never uses).
+          planName: plan === "enterprise" ? "Office" : "Pro",
           // On a trial the session total is $0.00, and showing that as the
           // price tells the customer nothing about what they'll pay. The
           // trial email needs the RECURRING amount ("then $X monthly").
@@ -522,7 +524,7 @@ export async function POST(req: NextRequest) {
           const renewalInterval = planFromPriceId(renewalPriceId)?.interval === "annual" ? "Annual renewal" : "Monthly renewal";
           await sendReceiptForUser({
             userId: profile.id,
-            planName: (profile.plan as string ?? "Pro").charAt(0).toUpperCase() + (profile.plan as string ?? "pro").slice(1),
+            planName: profile.plan === "enterprise" ? "Office" : "Pro",
             amountCents: invoice.amount_paid,
             interval: renewalInterval,
             // The renewal handler already HAS the invoice object, so the

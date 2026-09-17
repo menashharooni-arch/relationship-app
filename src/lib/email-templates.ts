@@ -172,7 +172,7 @@ export function welcomeEmail(opts: {
     ${card(`
       <p style="margin:0 0 14px;font-weight:700;color:#0f172a;font-size:14px;">Three ways to share it</p>
       ${step(1, "Send the link", "Paste it into a text, an email, or your social bio. It opens straight away \u2014 the person you send it to never has to install anything.")}
-      ${step(2, "Show your QR code", `Download it from your <a href="${shareUrl}" style="color:#1D4ED8;text-decoration:underline;">Share page</a> and put it on a slide, a flyer, or your phone\u2019s lock screen for people to scan.`)}
+      ${step(2, "Show your QR code", `Open your <a href="${APP_URL}/dashboard" style="color:#1D4ED8;text-decoration:underline;">dashboard</a> and tap \u201cOther ways to share\u201d to download it, then put it on a slide, a flyer, or your phone\u2019s lock screen for people to scan.`)}
       ${step(3, "Add your Swift Signature", `Copy it from your <a href="${shareUrl}" style="color:#1D4ED8;text-decoration:underline;">Share page</a> and paste it into your email signature settings, so every message you send ends with your card.`, true)}
     `)}
     ${appStoreEmailBlock("SwiftCard for iPhone — your card, QR code and new contacts, right in your pocket.")}

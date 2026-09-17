@@ -52,7 +52,7 @@ export default function CreateOfficeForm() {
       </div>
       <h2 className="text-xl font-bold text-white mb-2">Name your team</h2>
       <p className="text-gray-500 text-sm mb-7">
-        Usually your company name. You&apos;ll invite people right after this.
+        Usually your company name. You can invite your team from the Admin tab next.
       </p>
 
       <form onSubmit={handleSubmit} className="text-left space-y-4">
