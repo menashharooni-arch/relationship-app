@@ -17,7 +17,7 @@ import { ACTIVE_CARD_COOKIE } from "@/lib/active-card";
 import { buildCardData } from "@/lib/card-data";
 import { isPaidPlan } from "@/lib/plan";
 import { pickFreeLiveCardIds } from "@/lib/card-active";
-import { canViewOfficeAdmin } from "@/lib/office-roles";
+import { canViewOfficeAdmin, getOfficeSubUserContext } from "@/lib/office-roles";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -95,7 +95,10 @@ export default async function SharePage({
   const activeSource = activeCard;
   const activeUsername = activeCard.username as string;
   // Keep the "Admin" nav item present across the app shell (same gate as the page).
-  const showOfficeAdmin = await canViewOfficeAdmin(user.id, profile.plan);
+  const [showOfficeAdmin, officeSubUser] = await Promise.all([
+    canViewOfficeAdmin(user.id, profile.plan),
+    getOfficeSubUserContext(user.id),
+  ]);
 
   const cardUrl = `${APP_URL}/${activeUsername}?source=email_signature`;
   const swiftUrl = `${APP_URL}/links/${activeUsername}`;
@@ -150,7 +153,7 @@ export default async function SharePage({
           <div className="flex items-center gap-2 shrink-0">
             {/* Mobile has Settings in the bottom tab bar — hide the top-bar gear below md, same as the dashboard. */}
             <span className="hidden md:flex items-center"><SettingsLinkButton /></span>
-            <GrowLinkButton />
+            {!officeSubUser && <GrowLinkButton />}
             <DashboardLink className="text-sm text-gray-500 hover:text-white transition-colors">← Dashboard</DashboardLink>
           </div>
         </div>

@@ -430,7 +430,10 @@ export default async function FlowSettingsPage({
               </div>
             </NativeHidden>
           )}
-          {!isOfficeSubUser && (
+          {!isOfficeSubUser && profile.plan !== "enterprise" && (
+            // Office accounts: no referral rewards — "a free month of Pro"
+            // means nothing on a team plan, and a Stripe credit would cover
+            // one seat. Matches the tour, which already hides this for Office.
             // Shown in the app again (owner order 2026-08-26, IAP era): the
             // referral box grants free months — a reward, not a sale — and its
             // copy carries no price and no web-checkout steering. The tour's

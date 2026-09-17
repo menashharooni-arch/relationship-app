@@ -144,6 +144,9 @@ export default async function NewCardPage({
   // very first card (dashboard "Add Card" on an empty account) gets the same
   // Pro-design-then-choose-plan treatment a guest gets. A plan-specific CTA
   // (?plan=pro|office) already has a fixed target plan, so it's excluded.
+  // A team member already holding their company card has no second card to make.
+  if (user && cardCount >= 1 && (await getOfficeSubUserContext(user.id))) redirect("/dashboard");
+
   const isFirstCard = !!user && authedAdd && !authedPlan && !isPro && cardCount === 0;
   // The guided tour belongs to EVERY first card, whatever the plan. isFirstCard
   // above is the Free-plan design-preview gate and is deliberately false for a

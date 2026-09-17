@@ -417,6 +417,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // A team member's card is their seat and the company's — only the Office
+  // admin removes it (Remove member). The Settings UI already hides Delete.
+  if (await getOfficeSubUserContext(user.id)) {
+    return NextResponse.json({ error: "Your company card is managed by your Office admin." }, { status: 403 });
+  }
+
   const admin = getAdminSupabase();
 
   // Look the card up first: everything keyed to it (leads, views, events,

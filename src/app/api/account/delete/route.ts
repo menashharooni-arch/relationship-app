@@ -5,6 +5,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { stopSubscription } from "@/lib/account-purge";
 import { reportError } from "@/lib/report-error";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
+import { tearDownOfficeForOwner } from "@/lib/office-billing-sync";
 import { revokeAppleTokensOnDelete } from "@/lib/apple-revoke";
 
 export async function POST(req: NextRequest) {
@@ -73,6 +74,17 @@ export async function POST(req: NextRequest) {
       },
     })
     .eq("id", user.id);
+
+  // AN OFFICE OWNER: release the team NOW. The Stripe webhook that normally
+  // does this finds the office by stripe_subscription_id, which was cleared
+  // just above — so the cascade never ran, members kept Office (and admins the
+  // whole team's leads) for free until the 30-day purge, and the warning on
+  // the delete screen ("this ends the team's plan") was not true.
+  try {
+    await tearDownOfficeForOwner(admin, user.id);
+  } catch (e) {
+    await reportError("office.teardown-on-owner-delete-failed", e instanceof Error ? e : new Error(String(e)));
+  }
 
   // Tell the owner while the person is still reachable. Best-effort and never
   // awaited into the failure path: App Review 5.1.1(v) requires deletion to

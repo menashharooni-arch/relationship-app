@@ -48,7 +48,7 @@ export async function sendWelcomeEmail(userId: string, accountEmail: string | nu
 
     const { data: profile } = await admin
       .from("profiles")
-      .select("name, username")
+      .select("name, username, office_id")
       .eq("id", userId)
       .maybeSingle();
     if (!profile) return "skipped";
@@ -93,7 +93,15 @@ export async function sendWelcomeEmail(userId: string, accountEmail: string | nu
       ((firstCard?.name as string | null) || (profile.name as string | null) || "").trim().split(" ")[0] || "there";
 
     const unsub = unsubUrl(prefsRow?.unsubscribe_token as string | undefined ?? "");
+    // A team member (on an office they do not own) gets no "connect your CRM"
+    // step — their contacts belong to the team.
+    let officeMember = false;
+    if (profile.office_id) {
+      const { data: owned } = await admin.from("offices").select("id").eq("owner_id", userId).maybeSingle();
+      officeMember = !owned;
+    }
     const template = welcomeEmail({
+      officeMember,
       firstName,
       cardUrl: `${APP_URL}/${slug}`,
       unsubscribeUrl: unsub,
