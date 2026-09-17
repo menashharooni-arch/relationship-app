@@ -27,13 +27,30 @@ function PinnedPreview({
   label,
   pinned,
   full,
+  stickBelow,
 }: {
+  /** CSS selector of a sticky header this strip must pin BELOW (the Office
+   *  admin's header + tabs). Its live height is measured; without it the strip
+   *  pins under the status bar. */
+  stickBelow?: string;
   /** What a tap does, for screen readers: "See your card full size". */
   label: string;
   pinned: React.ReactNode;
   full: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [below, setBelow] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!stickBelow) return;
+    const el = document.querySelector(stickBelow) as HTMLElement | null;
+    if (!el) return;
+    const measure = () => setBelow(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [stickBelow]);
 
   useEffect(() => {
     if (!open) return;
@@ -50,8 +67,10 @@ function PinnedPreview({
   return (
     <>
       <div
-        className="sc-pinned-preview lg:hidden sticky z-30 -mx-5 px-5 pt-2 pb-3"
-        style={{ top: "env(safe-area-inset-top, 0px)" }}
+        // Full-bleed (-mx-5) inside the editors' page gutter; inside the Office
+        // console's column the strip stays within the column it pins in.
+        className={`sc-pinned-preview lg:hidden sticky z-30 pt-2 pb-3 ${stickBelow ? "" : "-mx-5 px-5"}`}
+        style={{ top: below !== null ? `${below}px` : "env(safe-area-inset-top, 0px)" }}
       >
         <button
           type="button"
@@ -109,7 +128,7 @@ function PinnedPreview({
 }
 
 /** Card design: the card itself (the template element, exactly as the editor builds it). */
-export default function PinnedCardPreview({ children }: { children: React.ReactNode }) {
+export default function PinnedCardPreview({ children, stickBelow }: { children: React.ReactNode; stickBelow?: string }) {
   const card = (
     <InertPreview className="rounded-xl overflow-hidden border border-gray-800 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
       <CardScaler>{children}</CardScaler>
@@ -118,6 +137,7 @@ export default function PinnedCardPreview({ children }: { children: React.ReactN
   return (
     <PinnedPreview
       label="See your card full size"
+      stickBelow={stickBelow}
       pinned={<div className="w-[min(320px,calc(100vw-40px))]">{card}</div>}
       full={<div className="w-full max-w-[460px] my-auto">{card}</div>}
     />
@@ -129,10 +149,11 @@ export default function PinnedCardPreview({ children }: { children: React.ReactN
  * header, name and socials — at a readable size, fading out below; the whole
  * page is one tap away. `children` is the SwiftLinkLivePreview element.
  */
-export function PinnedLinkPreview({ children }: { children: React.ReactNode }) {
+export function PinnedLinkPreview({ children, stickBelow }: { children: React.ReactNode; stickBelow?: string }) {
   return (
     <PinnedPreview
       label="See your Swift Links page full size"
+      stickBelow={stickBelow}
       pinned={
         <div
           className="w-[190px] max-h-[min(270px,34vh)] overflow-hidden rounded-[22px]"

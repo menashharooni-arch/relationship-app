@@ -56,7 +56,7 @@ export type OfficeBrand = {
    * its booking link on every page — not to stop a salesperson linking their
    * own calendar.
    */
-  links: { label: string; url: string; kind?: "header" }[] | null;
+  links: ({ label: string; url: string; kind?: "header" } & OfficeLinkStyle)[] | null;
   /** "Keep every Swift Links page matching." Default FALSE — see the loader. */
   lockLinkDesign: boolean;
 };
@@ -143,6 +143,23 @@ export function pinOfficeLinks(
   return [...office.map((l) => ({ ...l, office: true })), ...theirs];
 }
 
+/** How a company link LOOKS — Featured / Grid / Compact, its row style, and an
+ *  uploaded photo or video — validated so a crafted request cannot store
+ *  anything else on every member's page. Admins set these in Branding → Links
+ *  (Link buttons); before 2026-09-16 they were dropped on save and on read. */
+export type OfficeLinkStyle = { size?: "featured" | "grid" | "compact"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" } };
+export function cleanOfficeLinkStyle(l: unknown): OfficeLinkStyle {
+  const r = (l && typeof l === "object" ? l : {}) as { size?: unknown; rowStyle?: unknown; media?: unknown };
+  const out: OfficeLinkStyle = {};
+  if (r.size === "featured" || r.size === "grid" || r.size === "compact") out.size = r.size;
+  if (r.rowStyle === "tile" || r.rowStyle === "solid" || r.rowStyle === "outline") out.rowStyle = r.rowStyle;
+  const m = r.media as { url?: unknown; type?: unknown } | null | undefined;
+  if (m && typeof m.url === "string" && m.url.startsWith("https://") && (m.type === "image" || m.type === "video")) {
+    out.media = { url: m.url.slice(0, 500), type: m.type };
+  }
+  return out;
+}
+
 /** A section header row: a chapter title on the page, with no URL of its own. */
 export function isHeaderEntry(l: unknown): boolean {
   return !!l && typeof l === "object" && (l as { kind?: unknown }).kind === "header";
@@ -225,7 +242,7 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
           const label = String(l.label ?? "").slice(0, 120);
           return l.kind === "header"
             ? { label, url: "", kind: "header" as const }
-            : { label, url: String(l.url ?? "").slice(0, 500) };
+            : { label, url: String(l.url ?? "").slice(0, 500), ...cleanOfficeLinkStyle(l) };
         })
         .filter((l) => (l.kind === "header" ? !!l.label : !!l.label && !!l.url))
     : null;
@@ -271,6 +288,11 @@ export function overlayOfficeDesign(
   brand: Pick<OfficeBrand, "design" | "lockTemplate">,
 ): Record<string, unknown> {
   const cust: Record<string, unknown> = { ...(customization ?? {}) };
+  // The logo is company territory whether or not the design is locked ("They
+  // can never change: Company logo"), so its plate shape — Original or Circle,
+  // the same control Card design has — follows the office always.
+  const shape = brand.design?.logoShape;
+  if (shape === "circle" || shape === "auto") cust.logoShape = shape;
   if (!brand.lockTemplate || !brand.design) return cust;
   for (const key of OFFICE_DESIGN_KEYS) {
     // Whatever the office set wins; a key the office does NOT define is cleared

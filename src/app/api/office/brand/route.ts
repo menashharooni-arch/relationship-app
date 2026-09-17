@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
-import { overlayOfficeContact, stripOfficeContact, propagateBrandToOfficeCards, OFFICE_DESIGN_KEYS, OFFICE_LINK_DESIGN_KEYS } from "@/lib/office-brand";
+import { overlayOfficeContact, stripOfficeContact, propagateBrandToOfficeCards, OFFICE_DESIGN_KEYS, OFFICE_LINK_DESIGN_KEYS, cleanOfficeLinkStyle } from "@/lib/office-brand";
 import { writeAudit } from "@/lib/audit";
 import { requireOfficeCapability } from "@/lib/office-roles";
 
@@ -98,6 +98,10 @@ export async function PATCH(req: NextRequest) {
           clean[key] = Math.min(0.85, Math.max(0, v));
         }
       }
+      // The company logo's plate shape (Original / Circle). Not a Pro design
+      // key — it is structural and free — so it rides beside them explicitly.
+      const shape = (d as Record<string, unknown>).logoShape;
+      if (shape === "circle" || shape === "auto") clean.logoShape = shape;
       design = Object.keys(clean).length ? clean : null;
     } else {
       design = null; // explicit clear
@@ -138,12 +142,13 @@ export async function PATCH(req: NextRequest) {
         // these two kinds exist; anything else is coerced to a plain link so a
         // crafted payload cannot invent a third.
         kind: l.kind === "header" ? ("header" as const) : undefined,
+        // How the link LOOKS (Branding → Links → Link buttons), validated.
+        style: cleanOfficeLinkStyle(l),
       }))
-      .map((l) => (l.kind === "header" ? { label: l.label, url: "", kind: "header" as const } : l))
       // A LINK needs both halves — one with no destination is a dead button on
       // fifteen people's pages. A HEADER needs only its title.
       .filter((l) => (l.kind === "header" ? !!l.label : !!l.label && /^https?:\/\//i.test(l.url)))
-      .map((l) => (l.kind === "header" ? l : { label: l.label, url: l.url }))
+      .map((l) => (l.kind === "header" ? { label: l.label, url: "", kind: "header" as const } : { label: l.label, url: l.url, ...l.style }))
       .slice(0, 20);
     linkFields.brand_links = clean.length ? clean : null;
   }
