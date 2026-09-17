@@ -40,3 +40,17 @@ describe("members style their own links even when the page look is locked", () =
     });
   }
 });
+
+describe("every path that writes a member card applies the whole brand", () => {
+  it("a draft claimed after joining gets design, links and Instagram, and loses the company half it typed", () => {
+    const src = read("src/app/api/drafts/claim/route.ts");
+    expect(src).toMatch(/replaceInto\(overlayOfficeDesign\(/);
+    expect(src).toMatch(/replaceInto\(overlayOfficeLinks\(/);
+    expect(src).toMatch(/overlayOfficeInstagram\(/);
+    expect(src).toMatch(/if \(subCtx\) \{\s*insert\.company = "";\s*insert\.website = "";\s*insert\.logo_url = null;/);
+  });
+
+  it("an admin editing a member's card keeps the company links", () => {
+    expect(read("src/app/api/office/cards/[id]/route.ts")).toMatch(/beforeCard\.user_id !== ctx\.ownerId\) merged = overlayOfficeLinks\(merged, brand\)/);
+  });
+});

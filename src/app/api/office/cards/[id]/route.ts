@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireOfficeCapability } from "@/lib/office-roles";
 import { officeOwnsCard, isOwnersCard } from "@/lib/office-cards";
-import { getOfficeBrand, overlayOfficeContact, overlayOfficeDesign } from "@/lib/office-brand";
+import { getOfficeBrand, overlayOfficeContact, overlayOfficeDesign, overlayOfficeLinks } from "@/lib/office-brand";
 import { normalizeSocial } from "@/lib/social-url";
 import { writeAudit } from "@/lib/audit";
 import { cardContentChanged, signatureContentChanged } from "@/lib/card-changed";
@@ -92,6 +92,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (brand) {
         if (brand.phone || brand.fax || brand.address) merged = overlayOfficeContact(merged, brand);
         merged = overlayOfficeDesign(merged, brand);
+        // The company's pinned links lead a MEMBER's page whoever saves it — an
+        // admin editing the card included (office audit 2026-09-16: this path
+        // skipped them). The owner's own cards are theirs, as everywhere else.
+        if (beforeCard?.user_id && beforeCard.user_id !== ctx.ownerId) merged = overlayOfficeLinks(merged, brand);
       }
     }
     updates.customization = merged;

@@ -68,7 +68,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error: "opted_out",
-        message: "This person has unsubscribed from SwiftCard emails, so we can't email them. You can still add them and share the invite link directly.",
+        message: "This person has unsubscribed from SwiftCard emails, so we can't send them an invite. Invite them at a different email address.",
       },
       { status: 409 },
     );

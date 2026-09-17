@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase-server";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
-import { getMemberBrandForUser, overlayOfficeContact } from "@/lib/office-brand";
+import { getMemberBrandForUser, overlayOfficeContact, overlayOfficeDesign, overlayOfficeLinks, overlayOfficeInstagram } from "@/lib/office-brand";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
+import { normalizeSocial } from "@/lib/social-url";
 import { seedDemoContact } from "@/lib/demo-contact";
 import {
   buildClaimInsert,
@@ -219,6 +221,16 @@ export async function POST(req: NextRequest) {
   // re-branded going forward while a later personal card never does.
   if (count === 0) {
     const brand = await getMemberBrandForUser(user.id);
+    // A SUB-USER never supplies the company half of the card (mirror
+    // api/cards): discard it first, then the brand's own values apply below.
+    const subCtx = await getOfficeSubUserContext(user.id);
+    if (subCtx) {
+      insert.company = "";
+      insert.website = "";
+      insert.logo_url = null;
+      delete cust.fax;
+      delete cust.address;
+    }
     if (brand) {
       insert.is_office_card = true;
       if (brand.logoUrl) insert.logo_url = brand.logoUrl;
@@ -229,6 +241,21 @@ export async function POST(req: NextRequest) {
       // Company phone/fax/address (spec §8).
       if (brand.phone || brand.fax || brand.address) {
         Object.assign(cust, overlayOfficeContact(cust as Record<string, unknown>, brand));
+      }
+      // The rest of the brand, exactly as api/cards applies it (office audit
+      // 2026-09-16: a card claimed after joining kept off-brand colours and
+      // missed the company links until its next edit). The overlays return a
+      // new object, so the result is written back into `cust` in place.
+      const replaceInto = (next: Record<string, unknown>) => {
+        for (const k of Object.keys(cust)) if (!(k in next)) delete cust[k];
+        Object.assign(cust, next);
+      };
+      replaceInto(overlayOfficeDesign(cust as Record<string, unknown>, brand) as Record<string, unknown>);
+      if (subCtx) {
+        replaceInto(overlayOfficeLinks(cust as Record<string, unknown>, brand) as Record<string, unknown>);
+        const ig = overlayOfficeInstagram(cust as Record<string, unknown>, normalizeSocial(String(insert.instagram || ""), "instagram"), brand);
+        replaceInto(ig.customization as Record<string, unknown>);
+        if (ig.instagram !== null) insert.instagram = ig.instagram;
       }
     }
   }
