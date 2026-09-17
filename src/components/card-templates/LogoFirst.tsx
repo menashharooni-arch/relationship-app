@@ -174,7 +174,10 @@ export default function LogoFirst({ data }: { data: CardData }) {
     <div
       className="sc-card relative w-full flex rounded-2xl overflow-hidden"
       style={{
-        aspectRatio: cardAspect(data),
+        // Name, title and company stack ABOVE the contacts in the same column,
+        // so this layout runs out of height sooner than the side-panel ones —
+        // the same reason LocalBusiness passes a lower threshold.
+        aspectRatio: cardAspect(data, 6.5),
         background: bg,
           // Isolate so PanelVideo's z-index:-1 sits above this background
           // and below the panel's own content, instead of escaping upward.
