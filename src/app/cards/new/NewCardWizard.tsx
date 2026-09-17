@@ -839,7 +839,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     setResumeChoice(null);
     const held = heldPrefillRef.current;
     heldPrefillRef.current = null;
-    if (held) applySketchEntry(held);
+    // "Start a new card" means BLANK (owner, 2026-09-16: offering the details
+    // they had already typed right after they chose a new card "doesn't need to
+    // be there"). The one exception is an explicit "Make it live" hand-off from
+    // a homepage builder (it carries a step) — that IS the new card they chose.
+    // An ambient sketch is thrown away, not offered.
+    if (held && typeof held.step === "number") applySketchEntry(held);
     hydratedRef.current = true;
     applyLiPhoto();
   }
