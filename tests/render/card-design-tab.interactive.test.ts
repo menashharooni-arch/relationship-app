@@ -8,10 +8,10 @@ import { appCss, launchBrowser } from "./harness";
 // ─────────────────────────────────────────────────────────────────────────────
 // THE CARD DESIGN TAB, MOUNTED AND USED.
 //
-// The 2026-09-16 restructure (Template gallery → Look → Fine-tune → More, a
-// docked preview on phones, and the old-designer card left alone) is all
+// The 2026-09-16 restructure (Template gallery → one numbered design path, a
+// pinned preview on phones, and the old-designer card left alone) is all
 // behaviour: a thumbnail that only exists after CardScaler measures, a patch a
-// tap produces, a dock that appears on scroll, an onChange that must NOT fire on
+// tap produces, a preview that stays pinned on scroll, an onChange that must NOT fire on
 // mount. None of that is visible to a source scan or to static markup, so each
 // piece is bundled and mounted for real in a touch-emulated phone viewport.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ const ENTRIES: Record<string, string> = {
       return createElement(TemplateStyleControls, {
         value: v,
         onChange: (p: any) => { (window as any).__patches = [...((window as any).__patches || []), p]; setV((prev: any) => ({ ...prev, ...p })); },
-        template: "classic-pro",
+        template: params.get("t") || "classic-pro",
         locked: params.get("locked") === "1",
       });
     }
@@ -73,33 +73,16 @@ const ENTRIES: Record<string, string> = {
     }
     createRoot(document.getElementById("root")!).render(createElement(App));
   `,
-  dockjump: `
+  pinned: `
     import { createRoot } from "react-dom/client";
     import { createElement } from "react";
-    import DockedCardPreview from "@/components/DockedCardPreview";
+    import PinnedCardPreview from "@/components/PinnedCardPreview";
     import ClassicPro from "@/components/card-templates/ClassicPro";
     const card = createElement(ClassicPro, { data: ${DATA} });
     createRoot(document.getElementById("root")!).render(
-      createElement("div", null,
-        createElement("div", { style: { height: 1500 } }),
-        createElement("div", { id: "design-inline-preview", style: { height: 220 } }, "inline preview"),
-        createElement("div", { style: { height: 3000 } }),
-        createElement(DockedCardPreview, { anchorId: "design-inline-preview" }, card),
-      )
-    );
-  `,
-  dock: `
-    import { createRoot } from "react-dom/client";
-    import { createElement } from "react";
-    import DockedCardPreview from "@/components/DockedCardPreview";
-    import ClassicPro from "@/components/card-templates/ClassicPro";
-    const card = createElement(ClassicPro, { data: ${DATA} });
-    createRoot(document.getElementById("root")!).render(
-      createElement("div", null,
-        createElement("div", { style: { height: 200 } }),
-        createElement("div", { id: "design-inline-preview", style: { height: 220 } }, "inline preview"),
-        createElement("div", { style: { height: 3000 } }),
-        createElement(DockedCardPreview, { anchorId: "design-inline-preview" }, card),
+      createElement("div", { style: { padding: "0 20px" } },
+        createElement(PinnedCardPreview, null, card),
+        createElement("div", { id: "below", style: { height: 4000 } }, "controls"),
       )
     );
   `,
@@ -190,7 +173,7 @@ describe("template gallery", () => {
   });
 });
 
-describe("style panel: Look → Fine-tune → More", () => {
+describe("style panel: one numbered path, in build order", () => {
   it("an untouched card shows Original selected", async () => {
     const page = await mount("style", "v={}");
     const pressed = await page.evaluate(() =>
@@ -217,32 +200,49 @@ describe("style panel: Look → Fine-tune → More", () => {
     await page.context().close();
   });
 
-  it("Fine-tune shows one group at a time, and every control in each clears 44px", async () => {
+  it("runs Look → Branding panel → Photo or video → Info panel → Name → Accent → Details → Font → Finish (owner, 2026-09-16)", async () => {
     const page = await mount("style", "v={}");
-    for (const seg of ["Colours", "Font", "Finish"]) {
-      await page.click(`[role='group'][aria-label='Fine-tune'] button:has-text('${seg}')`);
-      await page.waitForTimeout(80);
-      const small = await page.evaluate((min) =>
-        [...document.querySelectorAll<HTMLElement>("button, summary, input[type='color']")]
-          .map((el) => ({ t: (el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 24), h: Math.round(el.getBoundingClientRect().height), w: el.getBoundingClientRect().width }))
-          .filter((r) => r.w > 0 && r.h > 0 && r.h < min), MIN_TAP);
-      expect(small, `${seg}: ${JSON.stringify(small)}`).toEqual([]);
-    }
+    const steps = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("ol[aria-label] > li")].map((li) => ({
+        n: (li.querySelector("span[aria-hidden]")?.textContent || "").trim(),
+        label: (li.querySelector("p")?.textContent || "").trim(),
+        visible: li.getBoundingClientRect().height > 0,
+      })),
+    );
+    expect(steps.map((s) => s.label)).toEqual([
+      "Look", "Branding panel", "Photo or video", "Info panel", "Name color", "Accent / icons", "Details color", "Font", "Finish",
+    ]);
+    expect(steps.map((s) => s.n)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+    expect(steps.every((s) => s.visible), "a step is hidden").toBe(true);
+    // Nothing folded behind a tab or a More row any more.
+    expect(await page.evaluate(() => document.querySelectorAll("details, [role='group'][aria-label='Fine-tune']").length)).toBe(0);
+    await page.context().close();
+  });
+
+  it("every control on the path clears 44px, and finishes and fonts are all on screen", async () => {
+    const page = await mount("style", "v={}");
+    const small = await page.evaluate((min) =>
+      [...document.querySelectorAll<HTMLElement>("button, summary, input[type='color']")]
+        .map((el) => ({ t: (el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 24), h: Math.round(el.getBoundingClientRect().height), w: el.getBoundingClientRect().width }))
+        .filter((r) => r.w > 0 && r.h > 0 && r.h < min), MIN_TAP);
+    expect(small, JSON.stringify(small)).toEqual([]);
     const visible = await page.evaluate(() => ({
       finishTiles: [...document.querySelectorAll<HTMLElement>("button[title*='·']")].filter((b) => b.getBoundingClientRect().width > 0).length,
       fontPills: [...document.querySelectorAll<HTMLElement>("button")].filter((b) => (b.textContent || "").includes("Ag") && b.getBoundingClientRect().width > 0).length,
     }));
     expect(visible.finishTiles).toBe(8);
-    expect(visible.fontPills, "font pills leak into the Finish group").toBe(0);
+    expect(visible.fontPills).toBeGreaterThan(1);
     await page.context().close();
   });
 
-  it("accent is a Colours control now, not buried under More", async () => {
-    const page = await mount("style", "v={}");
-    const accentVisible = await page.evaluate(() =>
-      [...document.querySelectorAll("p")].some((p) => p.textContent === "Accent / icons" && p.getBoundingClientRect().width > 0),
+  it("a template with no second surface just has one step fewer", async () => {
+    const page = await mount("style", "v={}&t=modern-bold");
+    const labels = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("ol[aria-label] > li p:first-child")].map((p) => (p.textContent || "").trim()),
     );
-    expect(accentVisible).toBe(true);
+    expect(labels[0]).toBe("Look");
+    expect(labels.at(-1)).toBe("Finish");
+    expect(labels).toHaveLength(8);
     await page.context().close();
   });
 
@@ -251,32 +251,19 @@ describe("style panel: Look → Fine-tune → More", () => {
     // Save dialog names these; the panel itself says nothing about plans.
     const v = encodeURIComponent(JSON.stringify({ bgColor: "#123456", finish: "carbon" }));
     const page = await mount("style", `v=${v}&locked=1`);
-    for (const seg of ["Colours", "Font", "Finish"]) {
-      await page.click(`[role='group'][aria-label='Fine-tune'] button:has-text('${seg}')`);
-      await page.waitForTimeout(60);
-      const proText = await page.evaluate(() =>
-        [...document.querySelectorAll<HTMLElement>("body *")].filter((el) => el.children.length === 0 && /\bPRO\b/i.test(el.textContent || "")).map((el) => el.textContent),
-      );
-      expect(proText, `${seg}: ${JSON.stringify(proText)}`).toEqual([]);
-    }
+    const proText = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("body *")].filter((el) => el.children.length === 0 && /\bPRO\b/i.test(el.textContent || "")).map((el) => el.textContent),
+    );
+    expect(proText, JSON.stringify(proText)).toEqual([]);
     await page.context().close();
   });
 
-  it("Photo or video is a main background control: in Colours, right under the background", async () => {
+  it("Photo or video comes straight after the background it goes behind", async () => {
     const page = await mount("style", "v={}");
-    const order = await page.evaluate(() => {
-      const labels = [...document.querySelectorAll<HTMLElement>("p")]
-        .filter((p) => p.getBoundingClientRect().width > 0)
-        .map((p) => p.textContent);
-      return labels;
-    });
-    const bg = order.indexOf("Branding panel");
-    const media = order.indexOf("Photo or video");
-    expect(bg, "background field not visible").toBeGreaterThan(-1);
-    expect(media, "Photo or video is not visible in Colours").toBe(bg + 2); // label, its hint, then Photo or video
-    // And it is not inside More any more.
-    const inMore = await page.evaluate(() => !!document.querySelector("details")?.textContent?.includes("Photo or video"));
-    expect(inMore).toBe(false);
+    const labels = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("ol[aria-label] > li p:first-child")].map((p) => (p.textContent || "").trim()),
+    );
+    expect(labels.indexOf("Photo or video")).toBe(labels.indexOf("Branding panel") + 1);
     expect(await page.isVisible("button:has-text('Add a photo or video')")).toBe(true);
     await page.context().close();
   });
@@ -303,37 +290,33 @@ describe("a card from the previous custom designer", () => {
   });
 });
 
-describe("docked preview on a phone", () => {
-  it("is absent at rest, appears once the inline preview scrolls away, and goes when it returns", async () => {
-    const page = await mount("dock");
-    const docked = () => page.evaluate(() => !!document.querySelector(".fixed [data-preview-locked='true']"));
-    expect(await docked()).toBe(false);
-    await page.evaluate(() => window.scrollTo(0, 1200));
-    await page.waitForTimeout(250);
-    expect(await docked()).toBe(true);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.waitForTimeout(250);
-    expect(await docked()).toBe(false);
+describe("pinned preview on a phone", () => {
+  const box = (page: Page) => page.evaluate(() => {
+    const el = document.querySelector("[data-preview-locked='true']") as HTMLElement | null;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { top: r.top, height: r.height, width: r.width };
+  });
+
+  it("stays at the top of the screen however far the step scrolls", async () => {
+    const page = await mount("pinned");
+    const rest = await box(page);
+    expect(rest?.height, "the card rendered with no height").toBeGreaterThan(50);
+    for (const y of [600, 3000]) {
+      await page.evaluate((to) => window.scrollTo(0, to), y);
+      await page.waitForTimeout(150);
+      const now = await box(page);
+      expect(now, `preview gone after scrolling to ${y}`).not.toBeNull();
+      expect(now!.top, `preview left the top after scrolling to ${y}`).toBeGreaterThanOrEqual(0);
+      expect(now!.top).toBeLessThan(40);
+    }
     await page.context().close();
   });
 
-  it("appears even when a fling jumps from below the preview straight past it", async () => {
-    // The IntersectionObserver version missed exactly this in the real editor:
-    // not-visible → not-visible is no change, so it never fired.
-    const page = await mount("dockjump");
-    const docked = () => page.evaluate(() => !!document.querySelector(".fixed [data-preview-locked='true']"));
-    expect(await docked()).toBe(false);
-    await page.evaluate(() => window.scrollTo(0, 3000));
-    await page.waitForTimeout(250);
-    expect(await docked()).toBe(true);
-    await page.context().close();
-  });
-
-  it("never appears on desktop, where the preview column is already pinned", async () => {
-    const page = await mount("dock", "", 1280, 900);
-    await page.evaluate(() => window.scrollTo(0, 1200));
-    await page.waitForTimeout(250);
-    expect(await page.evaluate(() => !!document.querySelector(".fixed [data-preview-locked='true']"))).toBe(false);
+  it("is not shown on desktop, where the preview column is already pinned", async () => {
+    const page = await mount("pinned", "", 1280, 900);
+    const now = await box(page);
+    expect(now === null || now.height === 0).toBe(true);
     await page.context().close();
   });
 });

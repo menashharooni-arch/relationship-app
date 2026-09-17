@@ -27,7 +27,7 @@ import CustomCard from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import TemplatePicker, { PRESET_TEMPLATES } from "@/components/card-templates/TemplatePicker";
-import DockedCardPreview from "@/components/DockedCardPreview";
+import PinnedCardPreview from "@/components/PinnedCardPreview";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import { MoreOptions, Segmented, Switch } from "@/components/ui/DesignControls";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
@@ -821,12 +821,18 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           </div>
         )}
 
-        {/* ── CARD DESIGN — Photos · Template · Look · Fine-tune · More (matches
+        {/* ── CARD DESIGN — Photos · Template · numbered design steps (matches
             the wizard's step 2). Photos stay editable even under an office
             design lock: the lock covers template/colors, never someone's own
             headshot. ── */}
         {tab === "design" && (
           <div className="space-y-5">
+            {/* Phone: the card sits at the top of the tab and stays pinned to
+                the top of the screen while every control below scrolls under
+                it. Not while the custom designer is open — that IS the card. */}
+            {!(customSelected && isPro && !designLocked) && (
+              <PinnedCardPreview>{cardTemplateEl}</PinnedCardPreview>
+            )}
             {/* Photos — open while something is missing, folded to a one-row
                 summary once both are set, so a returning owner lands on the
                 design rather than on two upload blocks. `photosStartOpen` is
@@ -941,14 +947,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   sitting beside a second one. */}
               {customSelected && isPro ? (
                 <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} />
-              ) : (
-                /* Mobile: the preview sits BETWEEN the template gallery and the
-                   style panel — both change what it shows. Once it scrolls away,
-                   DockedCardPreview keeps a small copy on screen. */
-                <div id="design-inline-preview">{mobileCardPreview("Tap a template above, then choose a look below.")}</div>
-              )}
+              ) : null}
 
-              {/* Restyle the chosen preset: Look → Fine-tune → More. Looks,
+              {/* Restyle the chosen preset, one numbered step at a time. Looks,
                   swatches, fonts and three finishes are EVERY plan; only "any
                   colour", the material finishes and a panel photo/video are Pro
                   — and each of those carries its own PRO tag inside the panel.
@@ -958,9 +959,6 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               )}
             </div>
             )}
-            <DockedCardPreview anchorId="design-inline-preview" enabled={!designLocked && !customSelected}>
-              {cardTemplateEl}
-            </DockedCardPreview>
           </div>
         )}
 

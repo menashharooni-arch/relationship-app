@@ -32,13 +32,13 @@ describe("card editor — one preview per tab, of the right kind", () => {
     expect(preview, "the preview is above the fax field").toBeGreaterThan(fax);
   });
 
-  it("Card design: the CARD preview sits between templates and colours", () => {
+  it("Card design: the CARD preview is pinned at the top of the tab", () => {
     const s = src();
-    const templates = at(s, "<TemplatePicker", "template gallery");
-    const preview = at(s, 'mobileCardPreview("Tap a template above', "card-design preview");
-    const colours = at(s, "<TemplateStyleControls", "colour controls");
-    expect(preview).toBeGreaterThan(templates);
-    expect(preview, "the preview is below the colour controls").toBeLessThan(colours);
+    const tab = at(s, 'tab === "design" &&', "design tab");
+    const preview = at(s, "<PinnedCardPreview>{cardTemplateEl}</PinnedCardPreview>", "card-design preview");
+    const photos = s.indexOf('label="Logo & headshot"', tab);
+    expect(preview).toBeGreaterThan(tab);
+    expect(preview, "the pinned preview dropped below Logo & headshot").toBeLessThan(photos);
   });
 
   it("Socials: the SWIFT LINKS preview comes after the additional links", () => {
@@ -84,17 +84,13 @@ describe("add-card wizard — the same four placements", () => {
     expect(preview).toBeLessThan(next);
   });
 
-  it("step 2: the CARD preview sits between templates and colours", () => {
+  it("step 2: the CARD preview is pinned at the top of the step", () => {
     const s = src();
-    const templates = at(s, "<TemplatePicker", "template gallery");
-    const preview = at(s, '<div id="design-inline-preview" className="lg:hidden">{livePreview}</div>', "step 2 preview");
-    const colours = at(s, "<TemplateStyleControls", "colour controls");
-    expect(preview).toBeGreaterThan(templates);
-    expect(preview).toBeLessThan(colours);
-  });
-
-  it("step 2 no longer pins a sticky preview over the top of the step", () => {
-    expect(src(), "the sticky top preview is back").not.toMatch(/lg:hidden sticky top-2/);
+    const step2 = at(s, "{step === 2 && (", "step 2");
+    const preview = at(s, "<PinnedCardPreview>{cardTemplateEl}</PinnedCardPreview>", "step 2 preview");
+    const title = s.indexOf(">Card design</h1>", step2);
+    expect(preview).toBeGreaterThan(step2);
+    expect(preview, "the pinned preview dropped below the step title").toBeLessThan(title);
   });
 
   it("step 3: the SWIFT LINKS preview comes after the additional links", () => {
@@ -178,38 +174,31 @@ describe("desktop is untouched", () => {
   });
 });
 
-// The docked preview: a small copy of the card on a phone, shown ONLY once the
-// Card design tab's inline preview has scrolled away. The always-on sticky
-// preview it replaces took a quarter of the screen at rest (see "step 2 no
-// longer pins a sticky preview" above) — so the dock must stay gated on the
-// inline preview leaving view, and must never be CSS-hidden (CardScaler reports
-// a zero-width slot as a production error).
-describe("Card design — the docked preview", () => {
-  const DOCK = "src/components/DockedCardPreview.tsx";
+// The pinned preview (owner, 2026-09-16): on a phone the Card design card sits
+// at the top of the step and STAYS on screen while everything below scrolls —
+// "I don't want it to just stay on the top and then disappear when they
+// scroll". It replaced an inline preview plus a dock that appeared only after
+// the inline one left view.
+describe("Card design — the pinned preview", () => {
+  const PIN = "src/components/PinnedCardPreview.tsx";
 
-  it("appears only after the inline preview scrolls out of view", () => {
-    const d = code(DOCK);
-    // A position check on scroll — an IntersectionObserver missed a jump from
-    // below the fold straight past the preview (found in the real editor).
-    expect(d).toMatch(/addEventListener\("scroll"/);
-    expect(d).toMatch(/getBoundingClientRect\(\)\.bottom < 0/);
-    expect(d, "the dock must mount conditionally, not hide with CSS").toMatch(/return null;/);
+  it("is CSS-sticky to the top of the screen on phones only", () => {
+    const d = code(PIN);
+    expect(d).toMatch(/lg:hidden sticky/);
+    expect(d).toMatch(/safe-area-inset-top/);
+    expect(d, "it must paint the page canvas so controls never show through").toMatch(/sc-pinned-preview/);
     expect(d).toMatch(/InertPreview/);
   });
 
-  it("both editors anchor it on the Card design inline preview", () => {
+  it("the old scroll-triggered dock is gone from both editors", () => {
     for (const f of [EDITOR, WIZARD]) {
-      const s = code(f);
-      expect(s, f).toMatch(/id="design-inline-preview"/);
-      expect(s, f).toMatch(/<DockedCardPreview anchorId="design-inline-preview"/);
+      expect(code(f), f).not.toMatch(/DockedCardPreview|design-inline-preview/);
     }
   });
 
-  it("renders the same card element as the inline preview", () => {
+  it("both editors render the same card element in it", () => {
     for (const f of [EDITOR, WIZARD]) {
-      const s = code(f);
-      const dock = s.slice(at(s, "<DockedCardPreview", "dock"), s.indexOf("</DockedCardPreview>"));
-      expect(dock, f).toMatch(/\{cardTemplateEl\}/);
+      expect(code(f), f).toContain("<PinnedCardPreview>{cardTemplateEl}</PinnedCardPreview>");
     }
   });
 });
