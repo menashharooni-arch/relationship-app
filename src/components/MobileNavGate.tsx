@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { canViewOfficeAdmin } from "@/lib/office-roles";
+import { isAdminEmail } from "@/lib/admin";
 import MobileNav from "@/components/MobileNav";
 
 // Server wrapper for the mobile tab bar: decides ONCE per request whether this
@@ -35,7 +36,24 @@ const resolveShowAdmin = cache(async (): Promise<boolean> => {
 // share, settings all compute it for their desktop nav) hand it over, skipping a
 // duplicate auth.getUser() round trip plus a profiles read on every render.
 // Omitted → resolves it itself, so callers that don't have it still work.
-export default async function MobileNavGate({ showAdmin }: { showAdmin?: boolean }) {
-  const resolved = showAdmin ?? (await resolveShowAdmin());
-  return <MobileNav showAdmin={resolved} />;
+// Same idea for the SITE console (/admin, ADMIN_EMAILS): its only link lived in
+// the dashboard's `hidden md:flex` header, so on a phone the site owner could
+// not reach it at all (owner report, 2026-09-17). Cheap — the email is already
+// on the session, so this adds no database read.
+const resolveShowSite = cache(async (): Promise<boolean> => {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    return isAdminEmail(user?.email);
+  } catch {
+    return false;
+  }
+});
+
+export default async function MobileNavGate({ showAdmin, showSite }: { showAdmin?: boolean; showSite?: boolean }) {
+  const [resolvedAdmin, resolvedSite] = await Promise.all([
+    showAdmin ?? resolveShowAdmin(),
+    showSite ?? resolveShowSite(),
+  ]);
+  return <MobileNav showAdmin={resolvedAdmin} showSite={resolvedSite} />;
 }

@@ -2,6 +2,9 @@
 
 import WalletPassFace, { type WalletPassCard } from "@/components/WalletPassFace";
 import PhoneFrame, { StatusBar, phoneScreenWidth } from "@/components/PhoneFrame";
+import CardScaler from "@/components/CardScaler";
+import ClassicPro from "@/components/card-templates/ClassicPro";
+import { SAMPLE_DATA, withoutSocials } from "@/components/card-templates/types";
 
 // Two white-screen iPhones showing the ways to share a SwiftCard:
 //   1) Apple Wallet — the real PASS, credit cards tucked below
@@ -31,6 +34,10 @@ const PASS_CARD: WalletPassCard = {
   cardUrl: CARD_URL,
 };
 
+// The card page sitting behind the share sheet, and the thumbnail inside it —
+// the real template with the site's demo identity.
+const PAGE_CARD = withoutSocials(SAMPLE_DATA);
+
 const TUCKED = [
   { grad: "linear-gradient(120deg,#1a1a2e,#3a3a5c)", tail: "2084", network: "VISA" },
   { grad: "linear-gradient(120deg,#0f766e,#0e7490)", tail: "7731", network: "amex" },
@@ -53,7 +60,7 @@ function Phone({ label, labelClass, children }: { label: string; labelClass: str
 }
 
 // 1 — Apple Wallet
-function WalletPhone() {
+export function WalletScreen() {
   return (
     <>
       <StatusBar width={phoneScreenWidth(240)} />
@@ -135,32 +142,55 @@ function ContactBubble({ initials, name, color }: { initials: string; name: stri
     </div>
   );
 }
-function SharePhone() {
-  const actions = ["Copy Link", "Add to Home Screen", "Save to Files"];
+// The action rows iOS shows under the apps, each with its own glyph on the
+// right the way the real sheet draws them.
+const SHEET_ACTIONS: Array<[string, React.ReactNode]> = [
+  ["Copy Link", <svg key="c" viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.9}><rect x="9" y="9" width="11" height="11" rx="2.5" /><path d="M5 15V6a2 2 0 012-2h9" strokeLinecap="round" /></svg>],
+  ["Add to Home Screen", <svg key="h" viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.9}><rect x="4" y="4" width="16" height="16" rx="4" /><path d="M12 9v6M9 12h6" strokeLinecap="round" /></svg>],
+  ["Save to Files", <svg key="f" viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.9}><path d="M3.5 7.5A2 2 0 015.5 5.5h3.2l1.6 2h8.2a2 2 0 012 2v7a2 2 0 01-2 2H5.5a2 2 0 01-2-2v-9z" strokeLinejoin="round" /></svg>],
+  ["Print", <svg key="p" viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.9}><path d="M7 9V4h10v5M7 18H5.5A1.5 1.5 0 014 16.5v-4A1.5 1.5 0 015.5 11h13a1.5 1.5 0 011.5 1.5v4a1.5 1.5 0 01-1.5 1.5H17M7 14h10v6H7z" strokeLinejoin="round" /></svg>],
+];
+
+export function ShareSheetScreen() {
   return (
     <>
       <StatusBar width={phoneScreenWidth(240)} />
-      {/* the trigger button */}
-      <div className="px-4 pt-3">
-        <div className="rounded-full py-2.5 flex items-center justify-center gap-2 text-white text-[0.75rem] font-bold shadow-md" style={{ background: "linear-gradient(to right,#2563eb,#7c3aed)" }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path d="M12 3v13M8 7l4-4 4 4M5 13v6a2 2 0 002 2h10a2 2 0 002-2v-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          Share this card
+      {/* What is BEHIND the sheet: the card page you were looking at when you
+          hit Share, dimmed the way iOS dims it. Before this the sheet floated
+          over a bare white screen with a gradient button, which is the one
+          thing a real screenshot never looks like. */}
+      <div className="relative flex-1 overflow-hidden">
+        <div className="px-3 pt-2">
+          <div className="rounded-xl overflow-hidden shadow-sm">
+            <CardScaler><ClassicPro data={PAGE_CARD} /></CardScaler>
+          </div>
+          <div className="mt-2.5 rounded-xl bg-white p-2.5" style={{ border: "1px solid #E4DDD4" }}>
+            <p className="text-slate-900 font-bold text-[0.5625rem]">Save Alex&apos;s contact</p>
+            <div className="mt-1.5 rounded-full py-1.5 text-center text-white text-[0.53125rem] font-bold" style={{ background: "#2563EB" }}>Save Contact</div>
+          </div>
         </div>
+        {/* the dim */}
+        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.28)" }} />
       </div>
 
-      <div className="flex-1" />
-
       {/* the share sheet, slid up from the bottom */}
-      <div className="rounded-t-[22px] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] pt-2 pb-3" style={{ background: "#F2F2F7" }}>
+      <div className="rounded-t-[22px] shadow-[0_-10px_40px_rgba(0,0,0,0.25)] pt-2 pb-3" style={{ background: "#F2F2F7" }}>
         <div className="w-9 h-1 rounded-full bg-slate-300 mx-auto mb-2.5" />
-        {/* preview row */}
+        {/* preview row — the real sheet leads with a thumbnail of the thing
+            being shared (here the card itself, not a letter tile) and closes
+            with the X that iOS 16+ puts in this row. */}
         <div className="mx-2.5 mb-3 flex items-center gap-2.5 rounded-2xl bg-white p-2.5 shadow-sm">
-          <span className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[0.6875rem] font-bold shrink-0" style={{ background: "var(--rd-aurora)" }}>AM</span>
+          <span className="w-9 h-[22px] rounded-[4px] overflow-hidden shrink-0 ring-1 ring-slate-200">
+            <CardScaler natural={360}><ClassicPro data={PAGE_CARD} /></CardScaler>
+          </span>
           <span className="min-w-0 flex-1">
             <span className="block text-slate-900 text-[0.6875rem] font-bold leading-tight truncate">Alex Morgan&apos;s SwiftCard</span>
             <span className="block text-slate-400 text-[0.5625rem] truncate">swiftcard.me/alexmorgan</span>
+            <span className="block text-[#007AFF] text-[0.5625rem] font-medium mt-0.5">Options ›</span>
           </span>
-          <span className="text-slate-400 text-[0.625rem] font-medium shrink-0">Options ›</span>
+          <span className="w-[18px] h-[18px] rounded-full bg-slate-200/90 grid place-items-center text-slate-500 shrink-0" aria-hidden="true">
+            <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={3}><path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /></svg>
+          </span>
         </div>
         {/* AirDrop / contacts row */}
         <div className="flex gap-2 px-2.5 mb-2.5 overflow-x-auto rd-scrollbar-none">
@@ -181,14 +211,14 @@ function SharePhone() {
           <AppIcon bg="radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%)" label="Instagram"><svg viewBox="0 0 24 24" className="w-[20px] h-[20px]" fill="none" stroke="currentColor" strokeWidth={2}><rect x="4" y="4" width="16" height="16" rx="5" /><circle cx="12" cy="12" r="3.6" /><circle cx="17" cy="7" r="1.1" fill="currentColor" stroke="none" /></svg></AppIcon>
           <AppIcon bg="linear-gradient(180deg,#9aa0aa,#6b7280)" label="Copy"><svg viewBox="0 0 24 24" className="w-[19px] h-[19px]" fill="none" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 012-2h10" /></svg></AppIcon>
         </div>
-        {/* action list */}
+        {/* action list — label left, its own glyph right, hairline between
+            rows and an inset separator, the way the real grouped list draws. */}
         <div className="mx-2.5 mt-3 rounded-2xl bg-white overflow-hidden">
-          {actions.map((label, i) => (
-            <div key={label} className={`flex items-center justify-between px-3.5 py-2.5 ${i < actions.length - 1 ? "border-b border-slate-100" : ""}`}>
-              <span className="text-slate-800 text-[0.71875rem] font-medium">{label}</span>
-              <span className="w-5 h-5 rounded-md bg-slate-100 flex items-center justify-center text-slate-500">
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M8 7h9v9M17 7L7 17" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </span>
+          {SHEET_ACTIONS.map(([label, glyph], i) => (
+            <div key={label} className="relative flex items-center justify-between px-3.5 py-[7px]">
+              <span className="text-slate-900 text-[0.6875rem]">{label}</span>
+              <span className="text-slate-500">{glyph}</span>
+              {i < SHEET_ACTIONS.length - 1 && <span className="absolute left-3.5 right-0 bottom-0 h-px bg-slate-200/80" />}
             </div>
           ))}
         </div>
@@ -199,21 +229,28 @@ function SharePhone() {
 
 export default function ShareWaysPhones({ light = false }: { light?: boolean }) {
   const labelClass = light ? "text-slate-500" : "text-white/60";
+  // snap-x: on a phone only ~1.4 of the two phones fit, so a free scroll stops
+  // mid-phone and looks cut off. Snap centers one phone per swipe like a
+  // deliberate carousel. Desktop fits both, so snapping never engages.
+  // tabIndex + a name because it scrolls: a region you can only reach by
+  // swiping is unreachable with a keyboard, which is the only way some people
+  // drive this app on a Mac (axe: scrollable-region-focusable).
   return (
-    // snap-x: on a phone only ~1.4 of the two phones fit, so a free scroll
-    // stops mid-phone and looks cut off. Snap centers one phone per swipe like
-    // a deliberate carousel. Desktop fits both, so snapping never engages.
-    // tabIndex + a name because it scrolls: a region you can only reach by
-    // swiping is unreachable with a keyboard, which is the only way some people
-    // drive this app on a Mac (axe: scrollable-region-focusable).
+    <>
     <div
       tabIndex={0}
       role="group"
       aria-label="Ways to share your card — scroll sideways for more"
       className="max-w-full flex gap-6 justify-start sm:justify-center overflow-x-auto snap-x snap-mandatory sm:snap-none rd-scrollbar-none pb-2 px-2"
     >
-      <Phone label="Apple Wallet" labelClass={labelClass}><WalletPhone /></Phone>
-      <Phone label="Share sheet" labelClass={labelClass}><SharePhone /></Phone>
+      <Phone label="Apple Wallet" labelClass={labelClass}><WalletScreen /></Phone>
+      <Phone label="Share sheet" labelClass={labelClass}><ShareSheetScreen /></Phone>
     </div>
+    {/* Only ~1.4 phones fit on a 390px screen, so the second one is cut. Say
+        it swipes rather than leaving it looking clipped (owner mobile pass). */}
+    <p className={`sm:hidden mt-3 text-center text-[0.8125rem] font-medium ${light ? "text-slate-500" : "text-white/60"}`}>
+      Swipe for more ways <span aria-hidden="true">→</span>
+    </p>
+    </>
   );
 }

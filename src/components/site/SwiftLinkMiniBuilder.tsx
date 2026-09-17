@@ -94,12 +94,12 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
         <>
           <Field label="Your name" placeholder="Alex Morgan" value={sketch.name} onChange={(e) => patch({ name: e.target.value })} autoFocus />
           <Field label="Business name" placeholder="Morgan & Co." value={sketch.company} onChange={(e) => patch({ company: e.target.value })} />
-          <div className="flex items-center gap-2 min-w-0 rounded-xl bg-[#15171F] border border-white/10 px-3.5 py-2.5">
-            <span className="text-white/40 text-[0.75rem] shrink-0">Your link</span>
-            <span className="min-w-0 text-white font-semibold text-sm truncate">swiftcard.me/links/{handle}</span>
+          <div className="flex items-center gap-2 min-w-0 rounded-xl bg-white border border-slate-200 px-3.5 py-2.5">
+            <span className="text-slate-400 text-[0.75rem] shrink-0">Your link</span>
+            <span className="min-w-0 text-slate-900 font-semibold text-sm truncate">swiftcard.me/links/{handle}</span>
           </div>
           <div className="pt-1">
-            <span className="block text-white/55 text-[0.75rem] font-medium mb-1.5">Profile photo</span>
+            <span className="block text-slate-500 text-[0.75rem] font-medium mb-1.5">Profile photo</span>
             <ImageUpload guest field="photo" shape="circle" currentUrl={sketch.headshot} label="" onUploaded={(u) => patch({ headshot: u || null })} />
             <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={linkedinEnabled} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
             {/* Only used to look your headshot up — never shown on the page. */}

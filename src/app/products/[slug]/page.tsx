@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@/app/home.css";
 import Eyebrow from "@/components/site/Eyebrow";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -6,6 +7,8 @@ import SiteNav from "@/components/site/SiteNav";
 import SiteFooter from "@/components/site/SiteFooter";
 import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import MarketingCta from "@/components/site/MarketingCta";
 import LeadCapturePhone from "@/components/site/LeadCapturePhone";
 import SignatureDemo from "@/components/site/SignatureDemo";
 import DashboardDemo from "@/components/site/DashboardDemo";
@@ -33,7 +36,42 @@ type Product = {
 };
 
 function A({ children }: { children: React.ReactNode }) {
-  return <span className="rd-aurora-text">{children}</span>;
+  return <span className="hp-fill">{children}</span>;
+}
+
+// One gradient definition every icon on the page strokes with (same pattern as
+// the homepage; page-unique id so it can't clash with another page's).
+function IconGradient() {
+  return (
+    <svg width="0" height="0" className="absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="pp-ico" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#1D3FB8" />
+          <stop offset="50%" stopColor="#2563EB" />
+          <stop offset="100%" stopColor="#4DA8F5" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function Ico({ d }: { d: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="url(#pp-ico)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
+  );
+}
+
+const CHECK_D = "M5 12.5l4.5 4.5L19 7.5";
+
+// Homepage checklist bullet: white check in a brand-gradient circle.
+function CheckDot() {
+  return (
+    <span className="w-5 h-5 rounded-full grid place-items-center text-white shrink-0" style={{ background: "var(--rd-aurora)" }}>
+      <svg viewBox="0 0 20 20" className="w-3 h-3" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+    </span>
+  );
 }
 
 const PRODUCTS: Record<string, Product> = {
@@ -43,7 +81,7 @@ const PRODUCTS: Record<string, Product> = {
     titlePlain: "Digital Cards",
     subtitle: "Designer templates, your colors, your photo, your logo — a scannable QR and a Save Contact button built in. Share it with a tap, a QR, or a link, and land straight in their phone.",
     demo: (
-      <div className="w-full rounded-[28px] bg-[#FBF8F0] p-5 sm:p-7 shadow-2xl">
+      <div className="w-full rounded-[28px] hp-soft border border-[rgba(11,16,34,0.08)] p-5 sm:p-7 shadow-[0_40px_80px_-50px_rgba(29,63,184,0.35)]">
         <TemplateGallery />
       </div>
     ),
@@ -61,7 +99,14 @@ const PRODUCTS: Record<string, Product> = {
     title: <>Everything to do. <A>One SwiftLink.</A></>,
     titlePlain: "SwiftLinks",
     subtitle: "Your bio, your socials, your booking link, your latest drop — one beautiful page that lives in your Instagram, TikTok, or email. Separate from your card, powered by the same profile.",
-    demo: <SwiftLinksPhone />,
+    // Light like the rest of the site (owner, 2026-09-17: only the header and
+    // footer stay dark — SwiftLinksPhone's caption is slate now). No side
+    // padding below sm: the phone caps itself at calc(100vw - 40px).
+    demo: (
+      <div className="rounded-[28px] bg-white border border-slate-200 px-0 py-6 sm:p-10">
+        <SwiftLinksPhone />
+      </div>
+    ),
     features: [
       { t: "Looks — themes in one tap", d: "Clean lights, deep darks, rich gradients, or Aura — your own photo as the page's atmosphere." },
       { t: "Links, video tiles & headers", d: "Buttons, rich video tiles, and section headers that organize a long page into chapters. Reorder anytime." },
@@ -81,7 +126,7 @@ const PRODUCTS: Record<string, Product> = {
     subtitle: "Drop your live SwiftCard into your email signature once with Swift Signature. Now every message ends with a clickable card — recipients open it, save your contact, and reach out in a single tap.",
     ctaLabel: "Create your free Swift Signature",
     demo: (
-      <div className="w-full rounded-[28px] bg-[#F5F0E3] p-5 sm:p-8 shadow-2xl">
+      <div className="w-full rounded-[28px] hp-soft border border-[rgba(11,16,34,0.08)] p-5 sm:p-8 shadow-[0_40px_80px_-50px_rgba(29,63,184,0.35)]">
         <SignatureDemo />
       </div>
     ),
@@ -99,7 +144,11 @@ const PRODUCTS: Record<string, Product> = {
     title: <>Turn every scan into a <A>relationship.</A></>,
     titlePlain: "Lead Capture",
     subtitle: "When someone opens your card, they can share their info right back — straight into your contacts, with where and when you met. Then you follow up by email or text, and they can text you back. No more lost napkins or half-typed numbers.",
-    demo: <LeadCapturePhone />,
+    demo: (
+      <div className="rounded-[28px] bg-white border border-slate-200 px-4 py-6 sm:p-10">
+        <LeadCapturePhone />
+      </div>
+    ),
     // Every claim below is enforced in code — the texting ones especially, since
     // they are new. Registered sender: A2P 10DLC campaign COJQ2MB, approved
     // 2026-08-13. Consent gate: the sms-ok tag, set only by the checkbox on the
@@ -181,7 +230,7 @@ const PRODUCTS: Record<string, Product> = {
     // didn't. Copy now matches: Wallet (QR included) and the share sheet, in
     // that order. Downloading the QR is still real and still mentioned.
     subtitle: "However you meet someone, there's a way to hand them your card in a second — your Apple Wallet pass, with the QR right on it, or the share sheet. No app, no signal, no fumbling. You can also download your card's QR code to display at events, add it as a home-screen widget, or use it in any other sharing format that fits the moment.",
-    demo: <ShareWaysPhones />,
+    demo: <ShareWaysPhones light />,
     wide: true,
     ctaLabel: "Get Started",
     features: [
@@ -220,23 +269,23 @@ const PRODUCTS: Record<string, Product> = {
     demo: (
       <div className="w-[340px] max-w-full flex flex-col items-center">
         {/* the lead that just came in */}
-        <div className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3.5 flex items-center gap-3 shadow-[0_18px_44px_-24px_rgba(0,0,0,0.7)]">
+        <div className="w-full rounded-2xl border border-[rgba(11,16,34,0.08)] bg-white px-4 py-3.5 flex items-center gap-3 shadow-[0_18px_44px_-24px_rgba(29,63,184,0.35)]">
           <span className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[0.8125rem] font-bold shrink-0" style={{ background: "var(--rd-aurora)" }}>SC</span>
           <span className="min-w-0">
-            <span className="block text-white text-[0.875rem] font-semibold leading-tight">Sarah Chen</span>
-            <span className="block text-white/45 text-[0.75rem] leading-tight">just shared her info · via QR</span>
+            <span className="block text-slate-900 text-[0.875rem] font-semibold leading-tight">Sarah Chen</span>
+            <span className="block text-slate-500 text-[0.75rem] leading-tight">just shared her info · via QR</span>
           </span>
-          <span className="ml-auto text-[0.625rem] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-200 border border-blue-400/25 shrink-0">New lead</span>
+          <span className="ml-auto text-[0.625rem] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 shrink-0">New lead</span>
         </div>
         {/* flows automatically to… */}
         <div className="flex flex-col items-center py-2.5">
-          <svg viewBox="0 0 24 24" className="w-5 h-5 text-white/30" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
-          <span className="text-white/40 text-[0.6875rem] font-medium tracking-wide">synced automatically</span>
+          <svg viewBox="0 0 24 24" className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
+          <span className="text-slate-400 text-[0.6875rem] font-medium tracking-wide">synced automatically</span>
         </div>
         {/* …into your tools. Same canonical list as the homepage band. */}
         <div className="grid grid-cols-2 gap-3 w-full">
           {INTEGRATIONS.map((it) => (
-            <div key={it.name} className="rounded-xl bg-white px-3 py-2.5 flex items-center gap-2.5 shadow-[0_14px_34px_-20px_rgba(0,0,0,0.6)]">
+            <div key={it.name} className="rounded-xl bg-white border border-[rgba(11,16,34,0.08)] px-3 py-2.5 flex items-center gap-2.5 shadow-[0_14px_34px_-20px_rgba(29,63,184,0.3)]">
               <span className="w-7 h-7 flex items-center justify-center shrink-0">{it.logo}</span>
               <span className="min-w-0">
                 <span className="block text-slate-800 text-[0.78125rem] font-bold leading-tight truncate">{it.name}</span>
@@ -289,27 +338,28 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     ) : null;
 
   return (
-    <div className="rd-dark2">
+    <div className="bg-white">
       <ScrollProgress />
       <ScrollReveal />
+      <HomeHeadingReveal />
       <SiteNav />
+      <IconGradient />
 
-      <main className="overflow-clip">
+      <main className="hp overflow-clip">
         {/* Hero */}
-        <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-24">
-          <div className="rd-glow rd-glow-violet rd-drift-a" style={{ width: 520, height: 520, left: "-8%", top: "-14%" }} />
-          <div className="rd-glow rd-glow-cyan rd-drift-b" style={{ width: 380, height: 380, right: "-6%", top: "6%", opacity: 0.3 }} />
-
+        <section className="hp-page-hero pt-32 pb-20 sm:pt-40 sm:pb-24">
           {p.wide ? (
             <div className="relative max-w-6xl mx-auto px-5 sm:px-6">
               <div className="max-w-3xl">
-                <div data-reveal="fade"><span className="rd-pill rd-pill-d"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--rd-aurora)" }} />{p.eyebrow}</span></div>
-                <h1 className="rd-display text-white text-[clamp(2.3rem,5vw,3.8rem)] mt-6" data-reveal>{p.title}</h1>
-                <p className="text-white/60 text-[1.12rem] mt-5 leading-relaxed max-w-[620px]" data-reveal>{p.subtitle}</p>
+                <div data-hp-head>
+                  <span className="hp-kicker">{p.eyebrow}</span>
+                  <h1 className="rd-display text-slate-900 text-[clamp(2.3rem,5vw,3.8rem)] mt-5">{p.title}</h1>
+                  <p className="text-slate-600 text-[1.12rem] mt-5 leading-relaxed max-w-[620px]">{p.subtitle}</p>
+                </div>
                 {nativeNote}
                 <div className="mt-8 flex flex-wrap gap-3" data-reveal>
-                  <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">{p.ctaLabel ?? "Create your free card"}</Link>
-                  {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">Preview</Link>}
+                  <Link href="/cards/new" className="rd-btn rd-btn-primary rd-btn-lg">{p.ctaLabel ?? "Create your free card"}</Link>
+                  {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-l rd-btn-lg">Preview</Link>}
                 </div>
               </div>
               <div className="mt-14 flex justify-center" data-reveal="fade">{p.demo}</div>
@@ -317,13 +367,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           ) : (
             <div className="relative max-w-6xl mx-auto px-5 sm:px-6 grid lg:grid-cols-2 gap-14 items-center">
               <div>
-                <div data-reveal="fade"><span className="rd-pill rd-pill-d"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--rd-aurora)" }} />{p.eyebrow}</span></div>
-                <h1 className="rd-display text-white text-[clamp(2.3rem,5vw,3.8rem)] mt-6" data-reveal>{p.title}</h1>
-                <p className="text-white/60 text-[1.12rem] mt-5 leading-relaxed max-w-[560px]" data-reveal>{p.subtitle}</p>
+                <div data-hp-head>
+                  <span className="hp-kicker">{p.eyebrow}</span>
+                  <h1 className="rd-display text-slate-900 text-[clamp(2.3rem,5vw,3.8rem)] mt-5">{p.title}</h1>
+                  <p className="text-slate-600 text-[1.12rem] mt-5 leading-relaxed max-w-[560px]">{p.subtitle}</p>
+                </div>
                 {nativeNote}
                 <div className="mt-8 flex flex-wrap gap-3" data-reveal>
-                  <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">{p.ctaLabel ?? "Create your free card"}</Link>
-                  {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-d rd-btn-lg">Preview</Link>}
+                  <Link href="/cards/new" className="rd-btn rd-btn-primary rd-btn-lg">{p.ctaLabel ?? "Create your free card"}</Link>
+                  {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-l rd-btn-lg">Preview</Link>}
                 </div>
               </div>
               <div className="flex justify-center" data-reveal="scale">{p.demo}</div>
@@ -332,15 +384,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </section>
 
         {/* Features */}
-        <section className="rd-light relative py-24">
+        <section className="hp-soft relative py-20 sm:py-24">
           <div className="max-w-6xl mx-auto px-5 sm:px-6">
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {p.features.map((f, i) => (
-                <div key={f.t} className="rd-card-l p-6" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-4" style={{ background: "var(--rd-aurora)" }}>
-                    <svg viewBox="0 0 20 20" className="w-5 h-5 text-white" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
-                  </div>
-                  <p className="text-slate-900 font-semibold text-[1rem]">{f.t}</p>
+                <div key={f.t} className="hp-card" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
+                  <span className="hp-feat-ico"><Ico d={CHECK_D} /></span>
+                  <p className="text-slate-900 font-semibold text-[1rem] mt-4">{f.t}</p>
                   <p className="text-slate-500 text-[0.875rem] mt-1.5 leading-relaxed">{f.d}</p>
                 </div>
               ))}
@@ -350,13 +400,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
         {/* Deep dive — teams & offices only */}
         {slug === "teams" && (
-          <section className="relative py-24 overflow-hidden border-t border-white/10" style={{ background: "var(--rd-ink-1000)" }}>
-            <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(70% 90% at 15% 0%, rgba(93,107,255,0.18), transparent 60%)" }} />
+          <section className="relative py-20 sm:py-24 bg-white">
             <div className="relative max-w-5xl mx-auto px-5 sm:px-6">
-              <div className="max-w-2xl" data-reveal>
-                <div><Eyebrow>What you get</Eyebrow></div>
-                <h2 className="rd-h2 text-white text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">One office account. Total control, zero busywork.</h2>
-                <p className="text-white/60 text-[1.05rem] mt-4 leading-relaxed">You set the brand once — every card your team creates inherits it automatically. From there, it&rsquo;s a single dashboard to see how the whole team is doing, not a spreadsheet of who has what.</p>
+              <div className="max-w-2xl" data-hp-head>
+                <div><Eyebrow dark={false}>What you get</Eyebrow></div>
+                <h2 className="rd-h2 text-slate-900 text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">One office account. Total control, zero busywork.</h2>
+                <p className="text-slate-600 text-[1.05rem] mt-4 leading-relaxed">You set the brand once — every card your team creates inherits it automatically. From there, it&rsquo;s a single dashboard to see how the whole team is doing, not a spreadsheet of who has what.</p>
               </div>
 
               <div className="mt-12 grid md:grid-cols-3 gap-4">
@@ -368,19 +417,17 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   { t: "Unlimited seats, always", d: "There's no cap on team size and no separate contract to add someone. Add or remove seats anytime from inside the account as your team grows or changes." },
                   { t: "Team leads, not just admins", d: "Promote someone to manage their own group — new hires, a regional office, a department — without handing them the keys to the whole account." },
                 ].map((s, i) => (
-                  <div key={s.t} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--rd-aurora)" }}>
-                      <svg viewBox="0 0 20 20" className="w-4.5 h-4.5 text-white" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
-                    </div>
-                    <p className="text-white font-semibold text-[1rem]">{s.t}</p>
-                    <p className="text-white/55 text-[0.875rem] mt-1.5 leading-relaxed">{s.d}</p>
+                  <div key={s.t} className="hp-card" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
+                    <span className="hp-feat-ico"><Ico d={CHECK_D} /></span>
+                    <p className="text-slate-900 font-semibold text-[1rem] mt-4">{s.t}</p>
+                    <p className="text-slate-500 text-[0.875rem] mt-1.5 leading-relaxed">{s.d}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-16 max-w-2xl" data-reveal>
-                <div><Eyebrow>Built for</Eyebrow></div>
-                <h2 className="rd-h2 text-white text-[clamp(1.6rem,3vw,2.1rem)] mt-3">Any team that shows up as one brand.</h2>
+              <div className="mt-16 max-w-2xl" data-hp-head>
+                <div><Eyebrow dark={false}>Built for</Eyebrow></div>
+                <h2 className="rd-h2 text-slate-900 text-[clamp(1.6rem,3vw,2.1rem)] mt-3">Any team that shows up as one brand.</h2>
               </div>
               <div className="mt-8 grid sm:grid-cols-2 gap-4">
                 {[
@@ -389,17 +436,17 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   { t: "Agencies & studios", d: "New hires and freelancers get a card the moment they join — same polish as everyone else — and it's revoked the moment they leave." },
                   { t: "Multi-location businesses", d: "One brand across every office. Each location's staff gets their own card and contacts, while you keep a single view across all of them." },
                 ].map((s, i) => (
-                  <div key={s.t} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
-                    <p className="text-white font-semibold text-[0.9375rem]">{s.t}</p>
-                    <p className="text-white/55 text-[0.84375rem] mt-1.5 leading-relaxed">{s.d}</p>
+                  <div key={s.t} className="hp-card" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
+                    <p className="text-slate-900 font-semibold text-[0.9375rem]">{s.t}</p>
+                    <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{s.d}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-white/45 text-[0.8125rem]" data-reveal>
-                <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />No cap on seats</span>
-                <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />One bill for the whole team</span>
-                <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Add or remove people anytime</span>
+              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-slate-600 text-[0.875rem]" data-reveal>
+                <span className="inline-flex items-center gap-2"><CheckDot />No cap on seats</span>
+                <span className="inline-flex items-center gap-2"><CheckDot />One bill for the whole team</span>
+                <span className="inline-flex items-center gap-2"><CheckDot />Add or remove people anytime</span>
               </div>
             </div>
           </section>
@@ -407,13 +454,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
         {/* How it works — integrations only */}
         {slug === "integrations" && (
-          <section className="relative py-24 overflow-hidden border-t border-white/10" style={{ background: "var(--rd-ink-1000)" }}>
-            <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(70% 90% at 15% 0%, rgba(93,107,255,0.18), transparent 60%)" }} />
+          <section className="relative py-20 sm:py-24 bg-white">
             <div className="relative max-w-5xl mx-auto px-5 sm:px-6">
-              <div className="max-w-2xl" data-reveal>
-                <div><Eyebrow>How it works</Eyebrow></div>
-                <h2 className="rd-h2 text-white text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">From a handshake to your CRM — hands-off.</h2>
-                <p className="text-white/60 text-[1.05rem] mt-4 leading-relaxed">You never touch a spreadsheet. The second a lead comes in, SwiftCard captures the full context and routes it everywhere it needs to go — while you&rsquo;re still shaking hands.</p>
+              <div className="max-w-2xl" data-hp-head>
+                <div><Eyebrow dark={false}>How it works</Eyebrow></div>
+                <h2 className="rd-h2 text-slate-900 text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">From a handshake to your CRM — hands-off.</h2>
+                <p className="text-slate-600 text-[1.05rem] mt-4 leading-relaxed">You never touch a spreadsheet. The second a lead comes in, SwiftCard captures the full context and routes it everywhere it needs to go — while you&rsquo;re still shaking hands.</p>
               </div>
               <div className="mt-12 grid md:grid-cols-3 gap-4">
                 {[
@@ -421,34 +467,31 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   { n: "2", t: "SwiftCard captures the context", d: "Name, email, phone, plus which card they scanned, when, and where you met — all attached to the lead automatically." },
                   { n: "3", t: "It lands in your stack", d: "Synced to GoHighLevel, Pipedrive, HubSpot or Google Contacts, piped to 6,000+ apps through Zapier, or exported as CSV — in real time, no manual step." },
                 ].map((s, i) => (
-                  <div key={s.n} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6" data-reveal style={{ transitionDelay: `${i * 80}ms` }}>
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-[0.9375rem] font-bold mb-4" style={{ background: "var(--rd-aurora)" }}>{s.n}</div>
-                    <p className="text-white font-semibold text-[1rem]">{s.t}</p>
-                    <p className="text-white/55 text-[0.875rem] mt-1.5 leading-relaxed">{s.d}</p>
+                  <div key={s.n} className="hp-card" data-reveal style={{ transitionDelay: `${i * 80}ms` }}>
+                    <span className="hp-step-num">{s.n}</span>
+                    <p className="text-slate-900 font-semibold text-[1rem] mt-4">{s.t}</p>
+                    <p className="text-slate-500 text-[0.875rem] mt-1.5 leading-relaxed">{s.d}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-white/45 text-[0.8125rem]" data-reveal>
-                <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Real-time — no nightly sync</span>
-                <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />No code required</span>
-                <span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />Your data stays yours</span>
+              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-slate-600 text-[0.875rem]" data-reveal>
+                <span className="inline-flex items-center gap-2"><CheckDot />Real-time — no nightly sync</span>
+                <span className="inline-flex items-center gap-2"><CheckDot />No code required</span>
+                <span className="inline-flex items-center gap-2"><CheckDot />Your data stays yours</span>
               </div>
             </div>
           </section>
         )}
 
         {/* CTA */}
-        <section className="relative py-24 overflow-hidden" style={{ background: "var(--rd-ink-1000)" }}>
-          <div className="absolute inset-0 opacity-90" style={{ background: "radial-gradient(80% 120% at 50% 120%, rgba(93,107,255,0.32), transparent 60%)" }} />
-          <div className="relative max-w-2xl mx-auto px-5 sm:px-6 text-center">
-            <h2 className="rd-h2 text-white text-[clamp(2rem,4.4vw,3.2rem)]" data-reveal>Ready to be unforgettable?</h2>
-            <p className="text-white/60 text-[1.08rem] mt-4" data-reveal>Your free SwiftCard is 60 seconds away.</p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3" data-reveal>
-              <Link href="/cards/new" className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-              <NativeHidden><Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link></NativeHidden>
-            </div>
+        <MarketingCta>
+          <h2 className="rd-display text-white text-[clamp(2.2rem,5vw,4rem)]">Ready to be unforgettable?</h2>
+          <p className="text-white/85 text-[1.08rem] mt-4">Your free SwiftCard is 60 seconds away.</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/cards/new" className="hp-btn-white">Create your free card</Link>
+            <NativeHidden><Link href="/pricing" className="rd-btn border border-white/40 bg-white/10 text-white">See pricing</Link></NativeHidden>
           </div>
-        </section>
+        </MarketingCta>
       </main>
 
       <SiteFooter />

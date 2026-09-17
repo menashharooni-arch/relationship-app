@@ -12,6 +12,8 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
 import { SAMPLE_DATA_WITH_PHOTO, withoutSocials } from "@/components/card-templates/types";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import "@/app/home.css";
 
 const TEMPLATES = [
   {
@@ -92,21 +94,28 @@ export default function TemplatesPage() {
   const selectedTemplate = TEMPLATES.find((t) => t.id === selected);
 
   return (
-    <main className="min-h-screen bg-gray-950 pb-28">
+    // Light page (owner, 2026-09-17: "take away the dark backgrounds"). The
+    // card previews keep their own look; only the page around them is light.
+    // hp-soft on main so the pb-28 that clears the sticky bar matches the footer.
+    <main className="hp hp-soft min-h-screen pb-28">
       {/* The standard site header, so this page can be navigated away from
           anywhere — it replaced a lone history-back button, which was a dead
           end for anyone arriving from a link or the footer. */}
       <SiteNav />
+      <HomeHeadingReveal />
 
-      <div className="px-5 pt-28 pb-8 max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-2">Your card, your way.</h1>
-        <p className="text-gray-400">
-          Choose the design that fits your business. You can change it anytime.
-        </p>
-      </div>
+      <section className="hp-page-hero">
+        <div className="relative px-5 pt-28 sm:pt-36 pb-10 sm:pb-14 max-w-2xl mx-auto" data-hp-head>
+          <h1 className="rd-display text-slate-900 text-[clamp(2.2rem,5vw,3.4rem)]">Your card, <span className="hp-fill">your way.</span></h1>
+          <p className="hp-lede mt-4">
+            Choose the design that fits your business. You can change it anytime.
+          </p>
+        </div>
+      </section>
 
       {/* Template list */}
-      <div className="max-w-2xl mx-auto px-5 space-y-10">
+      <section className="hp-soft pt-12 sm:pt-16 pb-16">
+      <div className="max-w-2xl mx-auto px-5 space-y-12">
         {TEMPLATES.map((tmpl, i) => {
           const { Component } = tmpl;
           const isSelected = selected === tmpl.id;
@@ -116,17 +125,18 @@ export default function TemplatesPage() {
               {/* Template label */}
               <div className="flex items-center gap-3 mb-3">
                 <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0"
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                   style={{
-                    background: isSelected ? "#2563eb" : "#1f2937",
-                    color: isSelected ? "#fff" : "#6b7280",
+                    background: isSelected ? "var(--rd-aurora)" : "#fff",
+                    color: isSelected ? "#fff" : "#64748b",
+                    boxShadow: isSelected ? undefined : "inset 0 0 0 1px rgba(11,16,34,0.12)",
                   }}
                 >
                   {i + 1}
                 </div>
                 <div>
-                  <span className="text-white font-semibold text-sm">{tmpl.name}</span>
-                  <span className="text-gray-400 text-sm ml-2">— {tmpl.tagline}</span>
+                  <span className="text-slate-900 font-semibold text-[0.9375rem]">{tmpl.name}</span>
+                  <span className="text-slate-500 text-sm ml-2">— {tmpl.tagline}</span>
                 </div>
               </div>
 
@@ -174,8 +184,7 @@ export default function TemplatesPage() {
                   {tmpl.bestFor.map((tag) => (
                     <span
                       key={tag}
-                      className="text-[0.625rem] font-medium px-2 py-0.5 rounded-full"
-                      style={{ background: "#111827", color: "#9ca3af" }}
+                      className="text-[0.6875rem] font-medium px-2.5 py-0.5 rounded-full bg-white text-slate-600 border border-slate-200"
                     >
                       {tag}
                     </span>
@@ -185,8 +194,9 @@ export default function TemplatesPage() {
                   onClick={() => handleSelect(tmpl.id)}
                   className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full transition-colors"
                   style={{
-                    background: isSelected ? "#1d4ed8" : "#1f2937",
-                    color: isSelected ? "#ffffff" : "#9ca3af",
+                    background: isSelected ? "#1d4ed8" : "#ffffff",
+                    color: isSelected ? "#ffffff" : "#334155",
+                    boxShadow: isSelected ? undefined : "inset 0 0 0 1px #cbd5e1",
                   }}
                 >
                   {isSelected ? "✓ Selected" : "Select"}
@@ -196,6 +206,7 @@ export default function TemplatesPage() {
           );
         })}
       </div>
+      </section>
 
       {/* Sticky bottom bar — appears when a template is selected */}
       {/* paddingBottom clears the iPhone home indicator — a flat py-4 left the
@@ -205,16 +216,17 @@ export default function TemplatesPage() {
         <div
           className="fixed bottom-0 left-0 right-0 px-5 pt-4"
           style={{
-            background: "rgba(3,7,18,0.95)",
+            background: "rgba(255,255,255,0.94)",
             backdropFilter: "blur(12px)",
-            borderTop: "1px solid #1f2937",
+            borderTop: "1px solid rgba(11,16,34,0.08)",
+            boxShadow: "0 -12px 30px -18px rgba(11,16,34,0.25)",
             paddingBottom: "max(16px, env(safe-area-inset-bottom))",
           }}
         >
           <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-white font-semibold text-sm truncate">{selectedTemplate?.name}</p>
-              <p className="text-gray-500 text-xs">{selectedTemplate?.tagline}</p>
+              <p className="text-slate-900 font-semibold text-sm truncate">{selectedTemplate?.name}</p>
+              <p className="text-slate-500 text-xs">{selectedTemplate?.tagline}</p>
             </div>
             <button
               onClick={handleApply}

@@ -11,10 +11,12 @@ import ScrollProgress from "@/components/ScrollProgress";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import ProTrialPrice from "@/components/ProTrialPrice";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
-import { promoLabel } from "@/lib/promo";
+import { promoLabel, promoFitsPurchase, scopeLabel, type PromoRow } from "@/lib/promo";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import MobilePlanTabs, { type PlanTier } from "@/components/MobilePlanTabs";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import "@/app/home.css";
 
 
 // Display prices (USD) — sourced from PLAN_PRICES (src/lib/plan.ts), the same
@@ -27,10 +29,12 @@ const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
 // Pricing page and the in-product plan chooser never drift apart.
 const features = { free: PLAN_FEATURES.free, pro: PLAN_FEATURES.pro, enterprise: PLAN_FEATURES.office };
 
+// Homepage checklist style: a white tick in a brand-gradient dot. On the Pro
+// card (itself the gradient) the dot is translucent white instead.
 function Check({ pro }: { pro?: boolean }) {
   return (
-    <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: pro ? "rgba(255,255,255,0.22)" : "rgba(37,99,235,0.10)" }}>
-      <svg viewBox="0 0 20 20" className="w-3 h-3" fill="none" stroke={pro ? "#ffffff" : "#2563EB"} strokeWidth={2.6}>
+    <span className="w-[18px] h-[18px] rounded-full flex items-center justify-center shrink-0 mt-px" style={{ background: pro ? "rgba(255,255,255,0.24)" : "var(--rd-aurora)" }}>
+      <svg viewBox="0 0 20 20" className="w-3 h-3" fill="none" stroke="#ffffff" strokeWidth={2.6}>
         <path d="M4 10.5l4 4 8-9" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
@@ -41,7 +45,12 @@ function Check({ pro }: { pro?: boolean }) {
 // client, put in the URL, and passed to checkout unvalidated — so lifting one
 // from a shared link applied it to anyone's purchase. The CODE travels instead;
 // the server re-resolves it.
-type PromoState = { code: string; status: "idle" | "checking" | "valid" | "invalid"; message: string; appliedCode?: string; discountLabel?: string };
+type PromoState = {
+  code: string; status: "idle" | "checking" | "valid" | "invalid"; message: string;
+  appliedCode?: string; discountLabel?: string;
+  /** The offer itself, so each plan button can say whether it applies here. */
+  row?: PromoRow;
+};
 
 export default function PricingPage() {
   const router = useRouter();
@@ -94,7 +103,7 @@ export default function PricingPage() {
         const d = data.promo;
         // Shared with the admin list so a code is described identically in both.
         const discountLabel = promoLabel(d);
-        setPromo((p) => ({ ...p, status: "valid", message: d.description || discountLabel, appliedCode: d.code, discountLabel }));
+        setPromo((p) => ({ ...p, status: "valid", message: d.description || discountLabel, appliedCode: d.code, discountLabel, row: d }));
       } else {
         setPromo((p) => ({ ...p, status: "invalid", message: data.error || "Invalid code" }));
       }
@@ -102,6 +111,13 @@ export default function PricingPage() {
       setPromo((p) => ({ ...p, status: "invalid", message: "Something went wrong" }));
     }
   }
+
+  // A code carries the plan and billing period it was made for (lib/promo), so
+  // an Office-only code must not decorate the Pro button and then quietly not
+  // apply at checkout (owner, 2026-09-17).
+  const promoRow = promo.status === "valid" ? promo.row ?? {} : null;
+  const promoOnPro = !!promoRow && promoFitsPurchase(promoRow, { plan: "pro", interval: annual ? "annual" : "monthly" });
+  const promoOnOffice = !!promoRow && promoFitsPurchase(promoRow, { plan: "office", interval: annual ? "annual" : "monthly" });
 
   function handleUpgrade(plan: "pro" | "enterprise") {
     setLoading(plan);
@@ -125,18 +141,21 @@ export default function PricingPage() {
     <div className="bg-white text-slate-900 min-h-screen">
       <ScrollProgress />
       <ScrollReveal />
+      <HomeHeadingReveal />
       <SiteNav />
 
-      <main className="overflow-clip">
+      <main className="hp overflow-clip">
         {/* Hero */}
-        <section className="relative pt-28 pb-14 sm:pt-40 sm:pb-16 text-center">
+        <section className="hp-page-hero pt-28 pb-14 sm:pt-40 sm:pb-16 text-center">
           <div className="relative max-w-3xl mx-auto px-5 sm:px-6">
-            <h1 className="rd-display text-slate-900 text-[clamp(2.4rem,5.5vw,4rem)]" data-reveal>
-              Simple, honest <span className="rd-aurora-text rd-aurora-anim">pricing.</span>
-            </h1>
-            <p className="text-slate-500 text-[1.15rem] mt-5 max-w-lg mx-auto" data-reveal>
-              Free forever to start. Upgrade when your network grows — no contracts, cancel anytime.
-            </p>
+            <div data-hp-head>
+              <h1 className="rd-display text-slate-900 text-[clamp(2.4rem,5.5vw,4rem)]">
+                Simple, honest <span className="hp-fill">pricing.</span>
+              </h1>
+              <p className="hp-lede mt-5 max-w-lg mx-auto">
+                Free forever to start. Upgrade when your network grows — no contracts, cancel anytime.
+              </p>
+            </div>
 
             {/* Monthly / Annual toggle */}
             <div className="mt-8 inline-flex items-center gap-4 rounded-full px-5 py-2.5 border border-slate-200 bg-slate-50" data-reveal="fade">
@@ -154,6 +173,7 @@ export default function PricingPage() {
         {/* Plans — Pro is deliberately not a peer of the other two: it sits
             taller, on top, and is the only card with the aurora fill, so the
             eye lands on it first and the free plan reads as the trial it is. */}
+        <div className="hp-soft pt-10 sm:pt-14">
         <div className="max-w-6xl mx-auto w-full px-5 sm:px-6">
           <MobilePlanTabs active={mobileTier} onChangeAction={setMobileTier} />
         </div>
@@ -196,7 +216,7 @@ export default function PricingPage() {
                     were indistinguishable — one genuinely free, one a
                     subscription that takes a card. See PlanCards for the
                     incident this comes from. */}
-                {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : trialOk ? `Try Pro free for ${TRIAL_DAYS} days →` : "Get Pro →"}
+                {loading === "pro" ? "Loading…" : promoOnPro ? `Get Pro Plan · ${promo.discountLabel} →` : trialOk ? `Try Pro free for ${TRIAL_DAYS} days →` : "Get Pro →"}
               </button>
               {/* Fine print keeps the ELIGIBILITY condition and the billing
                   terms; the callout above carries the offer. Checkout grants a
@@ -210,7 +230,6 @@ export default function PricingPage() {
                 <p className="text-center text-[0.75rem] font-semibold mt-2 rounded-lg py-2 px-3" style={{ background: "rgba(254,226,226,0.95)", color: "#b91c1c" }}>{checkoutErr}</p>
               )}
             </div>
-            <span className="rd-glisten-sweep" aria-hidden="true" />
           </div>
 
           {/* Office */}
@@ -247,7 +266,7 @@ export default function PricingPage() {
               {features.enterprise.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.84375rem] text-slate-600"><Check />{f}</li>))}
             </ul>
             <button onClick={() => handleUpgrade("enterprise")} disabled={loading !== null} className="w-full font-bold py-3.5 px-3 rounded-full text-sm leading-tight bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors break-words">
-              {loading === "enterprise" ? "Loading…" : `Get Office · ${annual
+              {loading === "enterprise" ? "Loading…" : promoOnOffice ? `Get Office · ${promo.discountLabel} →` : `Get Office · ${annual
                 ? `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS, seats))}/yr`
                 : `${formatUsd(seatSubtotalCents(PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, seats))}/mo`} →`}
             </button>
@@ -262,6 +281,15 @@ export default function PricingPage() {
               <div className="flex-1">
                 <p className="text-emerald-700 text-sm font-semibold">{promo.discountLabel} applied</p>
                 <p className="text-emerald-600/80 text-xs">{promo.message}</p>
+                {/* Where it applies, in the same words the admin picked. */}
+                {promoRow && (promoRow.applies_to !== "any" || promoRow.interval_target !== "any") && (
+                  <p className="text-emerald-700/90 text-xs mt-0.5 font-medium">{scopeLabel(promoRow)}</p>
+                )}
+                {promoRow && !promoOnPro && !promoOnOffice && (
+                  <p className="text-amber-700 text-xs mt-0.5 font-medium">
+                    Switch to {promoRow.interval_target === "annual" ? "annual" : "monthly"} billing above to use it.
+                  </p>
+                )}
               </div>
               <button onClick={() => setPromo({ code: "", status: "idle", message: "" })} className="text-emerald-600/70 hover:text-emerald-700 text-xs">Remove</button>
             </div>
@@ -301,6 +329,7 @@ export default function PricingPage() {
             </details>
           )}
         </section>
+        </div>
       </main>
 
       <SiteFooter />

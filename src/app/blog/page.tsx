@@ -4,6 +4,8 @@ import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooterMini from "@/components/site/SiteFooterMini";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import "@/app/home.css";
 
 // ── The SwiftCard blog ───────────────────────────────────────────────────────
 // Posts are written by the Blog Writer agent, reviewed in the Agent Flow tab,
@@ -33,25 +35,33 @@ export default async function BlogIndexPage() {
   } catch { /* table not created yet — render the empty state */ }
 
   return (
-    <main className="min-h-screen bg-cream flex flex-col">
+    // bg-cream stays only for the native shell's status-bar canvas rule in
+    // globals.css (html.native-app:has(main.bg-cream)); .hp paints the page
+    // itself white (owner, 2026-09-17: light pages, no cream).
+    <main className="hp sc-canvas-white min-h-screen bg-cream flex flex-col">
       <SiteNav />
-      <section className="text-center px-6 pt-28 pb-10">
-        <div className="mb-4"><Eyebrow dark={false}>Blog</Eyebrow></div>
-        <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">The SwiftCard blog</h1>
-        <p className="text-ink-muted text-lg max-w-xl mx-auto">Digital business cards, lead capture, and following up — written plainly, compared honestly.</p>
+      <HomeHeadingReveal />
+      <section className="hp-page-hero text-center px-5 sm:px-6 pt-28 sm:pt-36 pb-14">
+        <div className="relative" data-hp-head>
+          <div className="mb-4"><Eyebrow dark={false}>Blog</Eyebrow></div>
+          <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">The SwiftCard blog</h1>
+          <p className="hp-lede max-w-xl mx-auto">Digital business cards, lead capture, and following up — written plainly, compared honestly.</p>
+        </div>
       </section>
-      <section className="max-w-2xl mx-auto w-full px-6 pb-16 flex-1">
-        {posts.length === 0 && <p className="text-ink-muted text-center">First posts are on the way.</p>}
+      <div className="hp-soft flex-1">
+      <section className="max-w-2xl mx-auto w-full px-5 sm:px-6 pt-14 pb-20">
+        {posts.length === 0 && <p className="text-slate-500 text-center">First posts are on the way.</p>}
         <div className="flex flex-col gap-3">
           {posts.map((p) => (
-            <Link key={p.slug} href={`/blog/${p.slug}`} className="rd-card-l p-6">
+            <Link key={p.slug} href={`/blog/${p.slug}`} className="hp-card block">
               <p className="text-slate-900 font-semibold text-[1.0625rem]">{p.title}</p>
-              <p className="text-ink-muted text-sm mt-1.5 leading-relaxed">{p.description}</p>
-              {p.published_at && <p className="text-ink-muted text-xs mt-2">{new Date(p.published_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>}
+              <p className="text-slate-500 text-sm mt-1.5 leading-relaxed">{p.description}</p>
+              {p.published_at && <p className="text-slate-500 text-xs mt-2">{new Date(p.published_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>}
             </Link>
           ))}
         </div>
       </section>
+      </div>
       <SiteFooterMini />
     </main>
   );

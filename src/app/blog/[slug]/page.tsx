@@ -6,6 +6,8 @@ import SiteFooterMini from "@/components/site/SiteFooterMini";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { renderBlogMarkdown } from "@/lib/blog-md";
 import { jsonLdScript } from "@/lib/brand";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import "@/app/home.css";
 
 export const revalidate = 300;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -47,15 +49,21 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     publisher: { "@id": `${APP_URL}/#organization` },
   };
   return (
-    <main className="min-h-screen bg-cream flex flex-col">
+    // bg-cream stays only for the native shell's status-bar canvas rule in
+    // globals.css (html.native-app:has(main.bg-cream)); .hp paints the page
+    // itself white (owner, 2026-09-17: light pages, no cream).
+    <main className="hp sc-canvas-white min-h-screen bg-cream flex flex-col">
       {/* jsonLdScript, not raw stringify: the title/description are LLM-authored — "</script>" inside either must stay inert. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }} />
       <SiteNav />
-      <article className="max-w-2xl mx-auto w-full px-6 pt-28 pb-16 flex-1">
-        <Link href="/blog" className="text-xs text-ink-muted hover:text-slate-900 transition-colors">← All posts</Link>
-        <h1 className="rd-display text-[clamp(1.9rem,4vw,2.6rem)] text-slate-900 mt-3 mb-2 [text-wrap:balance]">{post.title}</h1>
-        {post.published_at && <p className="text-ink-muted text-sm mb-8">{new Date(post.published_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>}
-        <div className="sc-blog-body text-slate-700 text-[0.96875rem] leading-relaxed [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-slate-900 [&_h2]:mt-9 [&_h2]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-slate-900 [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_li]:mb-1 [&_a]:text-brand [&_a]:underline [&_table]:w-full [&_table]:text-sm [&_table]:my-5 [&_th]:text-left [&_th]:font-semibold [&_th]:border-b [&_th]:border-warm-border [&_th]:py-2 [&_td]:py-2 [&_td]:border-b [&_td]:border-warm-border [&_blockquote]:border-l-2 [&_blockquote]:border-warm-border [&_blockquote]:pl-4 [&_blockquote]:text-ink-muted"
+      <HomeHeadingReveal />
+      <article className="max-w-2xl mx-auto w-full px-5 sm:px-6 pt-28 sm:pt-36 pb-20 flex-1">
+        <div data-hp-head>
+          <Link href="/blog" className="text-[0.8125rem] font-medium text-slate-500 hover:text-slate-900 transition-colors">← All posts</Link>
+          <h1 className="rd-display text-[clamp(2rem,4.4vw,2.9rem)] text-slate-900 mt-4 mb-3 [text-wrap:balance]">{post.title}</h1>
+          {post.published_at && <p className="text-slate-500 text-sm mb-8 pb-8 border-b border-slate-200/80">{new Date(post.published_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>}
+        </div>
+        <div className="sc-blog-body text-slate-700 text-[1.0125rem] leading-[1.8] [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-slate-900 [&_h2]:mt-9 [&_h2]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-slate-900 [&_h3]:mt-6 [&_h3]:mb-2 [&_p]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-4 [&_li]:mb-1 [&_a]:text-brand [&_a]:underline [&_table]:w-full [&_table]:text-sm [&_table]:my-5 [&_th]:text-left [&_th]:font-semibold [&_th]:border-b [&_th]:border-slate-200 [&_th]:py-2 [&_td]:py-2 [&_td]:border-b [&_td]:border-slate-200 [&_blockquote]:border-l-2 [&_blockquote]:border-blue-300 [&_blockquote]:pl-4 [&_blockquote]:text-slate-500"
           dangerouslySetInnerHTML={{ __html: html }} />
         <div className="mt-10 text-center">
           <Link href="/cards/new?src=blog" className="rd-btn rd-btn-primary rd-btn-lg">Create your free card →</Link>

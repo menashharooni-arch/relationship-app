@@ -1,0 +1,214 @@
+/* ── Homepage only (redesign 2026-09-17) ─────────────────────────────────────
+   Scoped under `.hp`, the wrapper page.tsx puts around the homepage <main>;
+   nothing else renders it, so none of this reaches the rest of the site.
+
+   The brand gradient (--rd-aurora: deep blue → blue → sky) is the one idea the
+   page is built on. It is used as a MOMENT, not wallpaper: the headline word,
+   a ring around the signup box, one ribbon, headlines that fill with it as they
+   scroll in, and the closing panel. Everything else stays quiet — white, navy
+   and one blue — so those moments are what the eye lands on. */
+
+.hp {
+  --hp-ink: #0B1022;
+  --hp-ink-2: #3B4256;
+  --hp-ink-3: #6B7288;
+  --hp-soft: #F5F7FB;
+  --hp-line: rgba(11, 16, 34, 0.08);
+  --hp-navy: #080B18;
+  background: #fff;
+  color: var(--hp-ink);
+}
+.hp-soft { background: var(--hp-soft); }
+.hp-navy { background: var(--hp-navy); color: #E9ECF6; }
+
+/* ── Section kicker: the gradient in small caps, no pill ─────────────────── */
+.hp-kicker {
+  display: inline-block; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+  background: var(--rd-aurora); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hp-navy .hp-kicker { background: linear-gradient(115deg, #6FA0FF, #4DA8F5 60%, #9BD1FF); -webkit-background-clip: text; background-clip: text; }
+
+.hp-lede { font-size: clamp(1.02rem, 1.3vw, 1.125rem); line-height: 1.65; color: var(--hp-ink-3); }
+.hp-navy .hp-lede { color: rgba(233, 236, 246, 0.6); }
+
+/* ── Headlines that fill with the gradient as they scroll in ─────────────────
+   The phrase starts as a pale wash and the gradient sweeps across it when its
+   [data-reveal] ancestor gets .is-in. Without JS (.sc-js absent) and under
+   reduced motion it is simply the gradient. */
+.hp-fill {
+  background-image: linear-gradient(100deg, #1D3FB8 0%, #2563EB 24%, #4DA8F5 48%, #CDD6E6 52%, #CDD6E6 100%);
+  background-size: 210% 100%; background-position: 0% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hp-navy .hp-fill { background-image: linear-gradient(100deg, #3B6BF0 0%, #4D8DF7 24%, #7CC0FA 48%, rgba(255,255,255,.22) 52%, rgba(255,255,255,.22) 100%); }
+.sc-js .hp-fill { background-position: 100% 0; transition: background-position 1.3s cubic-bezier(.2,.7,.2,1) .25s; }
+.sc-js .is-in .hp-fill, .sc-js .is-in.hp-fill { background-position: 0% 0; }
+
+/* ── Section headings drop in line by line (HomeHeadingReveal) ─────────────
+   Kicker, headline, then the line under it, each a beat after the last; the
+   gradient sweep starts once the headline has landed. */
+.sc-js [data-hp-head] > * { opacity: 0; transform: translateY(28px);
+  transition: opacity .9s cubic-bezier(.16,.8,.3,1), transform .9s cubic-bezier(.16,.8,.3,1); }
+.sc-js [data-hp-head].is-in > * { opacity: 1; transform: none; }
+.sc-js [data-hp-head].is-in > :nth-child(2) { transition-delay: .14s; }
+.sc-js [data-hp-head].is-in > :nth-child(3) { transition-delay: .28s; }
+.sc-js [data-hp-head].is-in > :nth-child(n+4) { transition-delay: .42s; }
+.sc-js [data-hp-head].is-in .hp-fill { transition-delay: .55s; }
+
+/* ── Hero headline word ──────────────────────────────────────────────────── */
+/* "shares" stays on the line before; the changing word gets its own line, so
+   a longer word never reflows the rest of the headline. */
+.hp-word-line { display: inline; }
+.hp-word-slot { display: block; white-space: nowrap; }
+.hp-word-box { position: relative; display: inline-block; }
+/* Gradient text is only painted inside the element box, and a glyph like the
+   "g" in "everything" overhangs its advance width — so the right edge of the g
+   was cut off. Padding gives the paint room; the equal negative margin keeps
+   the layout (and the underline width) where it was. */
+.hp-word { display: inline-block; padding: 0 0.12em 0.08em 0; margin-right: -0.12em; }
+.hp-word-in { animation: hp-word-in 0.55s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes hp-word-in {
+  from { opacity: 0; transform: translateY(0.35em); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+.hp-swoosh { position: absolute; left: 0; right: 0; bottom: -0.12em; width: 100%; height: 0.24em; overflow: visible; }
+.hp-swoosh path { stroke-dasharray: 1; stroke-dashoffset: 0; }
+.sc-js .hp-swoosh path { stroke-dashoffset: 1; }
+/* Hidden between landings: an undrawn round-capped stroke still paints its cap as a dot. */
+.sc-js .hp-swoosh { opacity: 0; }
+.sc-js .hp-swoosh.hp-swoosh-on { opacity: 1; }
+.sc-js .hp-swoosh-on path { animation: hp-draw 0.9s cubic-bezier(.6,0,.2,1) 0.35s forwards; }
+@keyframes hp-draw { to { stroke-dashoffset: 0; } }
+
+/* ── Signup box: a gradient ring that slowly travels around it ───────────── */
+@property --hp-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.hp-ring { position: relative; isolation: isolate; border-radius: 999px; padding: 2px; width: 100%;
+  background: conic-gradient(from var(--hp-angle), #1D3FB8, #2563EB, #4DA8F5, #BFE0FF, #4DA8F5, #2563EB, #1D3FB8);
+  animation: hp-spin 5s linear infinite; }
+@media (min-width: 640px) { .hp-ring { width: auto; } }
+.hp-ring::after { content: ""; position: absolute; inset: -4px; border-radius: inherit; z-index: -1;
+  background: inherit; filter: blur(14px); opacity: 0.4; }
+@keyframes hp-spin { to { --hp-angle: 360deg; } }
+
+/* Flat buttons on this page (the site-wide shine sweep is switched off here). */
+.hp .rd-btn::before { display: none; }
+.hp .rd-claim-glare { display: none; }
+
+/* ── "See how it works": very light glitter (owner, 2026-09-17) ─────────────
+   Tiny stars scattered over the whole face of the button, each fading in and
+   out on its own offset of one slow cycle, so at any moment only one or two
+   are faintly visible. Positions and sizes are set inline in page.tsx. */
+.hp-sparkle { position: relative; overflow: visible; }
+.hp-sparks { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.hp-spark { position: absolute; color: #4DA8F5; opacity: 0; transform: translate(-50%, -50%) scale(.4);
+  animation: hp-twinkle 5.2s ease-in-out infinite; }
+@keyframes hp-twinkle {
+  0%, 70%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(.4) rotate(0deg); }
+  80% { opacity: .55; transform: translate(-50%, -50%) scale(1) rotate(30deg); }
+  90% { opacity: .18; transform: translate(-50%, -50%) scale(.75) rotate(55deg); }
+}
+
+/* ── Hero feature list: gradient-stroked icons, two columns ──────────────── */
+.hp-feat { display: flex; align-items: center; gap: 0.7rem; color: var(--hp-ink-2); font-size: 0.97rem; line-height: 1.35; font-weight: 500; }
+.hp-feat-ico { flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+  background: #fff; box-shadow: 0 1px 2px rgba(11,16,34,.06), inset 0 0 0 1px rgba(37,99,235,.16); }
+
+/* ── Gradient ribbon under the hero ──────────────────────────────────────── */
+.hp-ribbon { background: var(--rd-aurora); background-size: 200% 100%; animation: rd-aurora-pan 12s ease-in-out infinite; }
+.hp-ribbon-track { display: flex; width: max-content; animation: marquee 38s linear infinite; }
+.hp-ribbon:hover .hp-ribbon-track { animation-play-state: paused; }
+
+/* ── How it works ────────────────────────────────────────────────────────── */
+.hp-step { position: relative; background: #fff; border: 1px solid var(--hp-line); border-radius: 24px; padding: 1rem 1rem 1.5rem;
+  transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; }
+.hp-step:hover { transform: translateY(-4px); box-shadow: 0 30px 60px -30px rgba(29,63,184,.35); }
+.hp-step-stage { position: relative; height: 272px; border-radius: 16px; overflow: hidden; display: grid; place-items: center;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(77,168,245,.18), transparent 62%), var(--hp-soft); }
+.hp-step-num { font-family: var(--font-display), var(--font-geist-sans), sans-serif; font-weight: 700; font-size: 0.85rem;
+  width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; color: #fff; background: var(--rd-aurora); flex-shrink: 0; }
+/* The track above the three steps: a thick brand-gradient line with a bright
+   comet running along it and a numbered node over each step. It is the one
+   moving thing in this section, so it is what the eye follows left to right. */
+.hp-track { position: relative; align-items: center; }
+.hp-track-line { position: absolute; left: 16.66%; right: 16.66%; top: 50%; height: 4px; margin-top: -2px; border-radius: 4px;
+  background: var(--rd-aurora); box-shadow: 0 0 18px rgba(37,99,235,.35); overflow: hidden; }
+.hp-track-line::after { content: ""; position: absolute; top: -6px; bottom: -6px; left: -25%; width: 25%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.95), transparent); filter: blur(2px);
+  animation: hp-run 2.6s cubic-bezier(.55,0,.35,1) infinite; }
+@keyframes hp-run { to { left: 110%; } }
+.hp-node { position: relative; width: 44px; height: 44px; border-radius: 999px; display: grid; place-items: center;
+  font-family: var(--font-display), var(--font-geist-sans), sans-serif; font-weight: 700; font-size: 1.05rem; color: #fff;
+  background: var(--rd-aurora); box-shadow: 0 0 0 6px #fff, 0 10px 26px -8px rgba(29,63,184,.6); }
+.hp-node::after { content: ""; position: absolute; inset: -6px; border-radius: inherit; border: 2px solid rgba(77,168,245,.55);
+  animation: hp-node-ping 2.6s ease-out infinite; }
+.hp-track > div:nth-child(3) .hp-node::after { animation-delay: .87s; }
+.hp-track > div:nth-child(4) .hp-node::after { animation-delay: 1.74s; }
+@keyframes hp-node-ping { 0% { transform: scale(1); opacity: .9; } 70%,100% { transform: scale(1.6); opacity: 0; } }
+
+/* On desktop the track carries the step numbers, so the cards do not repeat them. */
+@media (min-width: 768px) { .hp-step .hp-step-num { display: none; } }
+
+/* The camera focus brackets in the Share picture. */
+.hp-scan-corner { position: absolute; width: 10px; height: 10px; border-style: solid; border-color: #FFD60A; }
+
+/* Step 1: rings pulsing out of the QR screen. */
+.hp-pulse { position: absolute; left: 50%; top: 50%; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 999px;
+  border: 2px solid #4DA8F5; opacity: 0; animation: hp-pulse 2.6s cubic-bezier(.2,.6,.3,1) infinite; }
+.hp-pulse:nth-child(2) { animation-delay: .85s; }
+.hp-pulse:nth-child(3) { animation-delay: 1.7s; }
+@keyframes hp-pulse { 0% { transform: scale(.7); opacity: .7; } 100% { transform: scale(2.3); opacity: 0; } }
+
+/* Step 2 & 3: little UI rows that pop in when the step reveals. */
+.hp-chip-row { background: #fff; border-radius: 14px; box-shadow: 0 12px 30px -14px rgba(11,16,34,.25), 0 0 0 1px rgba(11,16,34,.05); }
+.sc-js [data-reveal] .hp-pop { opacity: 0; transform: translateY(10px) scale(.97); transition: opacity .5s, transform .5s cubic-bezier(.2,.8,.2,1); }
+.sc-js [data-reveal].is-in .hp-pop { opacity: 1; transform: none; transition-delay: .2s; }
+.sc-js [data-reveal].is-in .hp-pop-2 { transition-delay: .65s; }
+
+/* ── Feature cards with a gradient edge that grows on hover (Teams) ──────── */
+.hp-card { position: relative; background: #fff; border-radius: 20px; padding: 1.5rem; border: 1px solid var(--hp-line); overflow: hidden;
+  transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; }
+.hp-card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--rd-aurora);
+  transform: scaleX(.18); transform-origin: left; transition: transform .5s cubic-bezier(.2,.7,.2,1); }
+.hp-card:hover { transform: translateY(-4px); box-shadow: 0 30px 60px -30px rgba(29,63,184,.3); }
+.hp-card:hover::before { transform: scaleX(1); }
+
+/* ── Dark sections: one soft gradient light ──────────────────────────────── */
+.hp-light-top { position: absolute; left: 0; right: 0; top: -20%; height: 70%; pointer-events: none;
+  background: radial-gradient(45% 55% at 75% 45%, rgba(37,99,235,.26), transparent 70%); }
+
+/* ── Closing panel ───────────────────────────────────────────────────────── */
+.hp-final { position: relative; overflow: hidden; isolation: isolate; border-radius: 36px; background: var(--rd-aurora); background-size: 180% 180%;
+  animation: rd-aurora-pan 10s ease-in-out infinite; box-shadow: 0 50px 100px -40px rgba(29,63,184,.55); }
+.hp-final-rings { position: absolute; right: -160px; top: 50%; width: 560px; height: 560px; margin-top: -280px; pointer-events: none; z-index: -1; }
+.hp-final-rings span { position: absolute; inset: 0; border-radius: 999px; border: 1.5px solid rgba(255,255,255,.22);
+  animation: hp-ring-breathe 4s ease-in-out infinite; }
+.hp-final-rings span:nth-child(2) { inset: 80px; animation-delay: .5s; }
+.hp-final-rings span:nth-child(3) { inset: 160px; animation-delay: 1s; }
+.hp-final-rings span:nth-child(4) { inset: 240px; background: rgba(255,255,255,.1); animation-delay: 1.5s; }
+@keyframes hp-ring-breathe { 0%,100% { opacity: .5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
+.hp-final-phone { position: absolute; right: 7%; top: 56px; z-index: 0; transform: rotate(-4deg); }
+.hp-btn-white { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 54px; padding: 0 1.9rem;
+  border-radius: 999px; background: #fff; color: #1D3FB8; font-weight: 700; font-size: 1.02rem;
+  box-shadow: 0 18px 40px -16px rgba(5,10,40,.5); transition: transform .2s, box-shadow .2s; }
+.hp-btn-white:hover { transform: translateY(-2px); box-shadow: 0 24px 50px -18px rgba(5,10,40,.6); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hp-spark, .hp-ring, .hp-ribbon, .hp-ribbon-track, .hp-track-line::after, .hp-node::after, .hp-pulse, .hp-final, .hp-final-rings span, .hp-word-in { animation: none !important; }
+  .hp-pulse { opacity: .35; }
+  .sc-js .hp-fill { transition: none; background-position: 0% 0; }
+  .sc-js [data-hp-head] > * { opacity: 1; transform: none; transition: none; }
+  .sc-js .hp-swoosh path { stroke-dashoffset: 0; }
+  .sc-js [data-reveal] .hp-pop { opacity: 1; transform: none; transition: none; }
+}
+
+/* ── Shared with the rest of the marketing site (2026-09-17) ─────────────────
+   Every marketing page imports this file for the same look as the homepage.
+   The rules below are only used off the homepage. */
+
+/* Eyebrow on a dark surface (components/site/Eyebrow dark). */
+.hp-kicker.hp-kicker-d { background: linear-gradient(115deg, #6FA0FF, #4DA8F5 60%, #9BD1FF); -webkit-background-clip: text; background-clip: text; }
+
+/* Page hero on light: a soft brand light from the top instead of a dark band. */
+.hp-page-hero { position: relative; overflow: hidden; background: #fff; }
+.hp-page-hero::before { content: ""; position: absolute; inset: -40% -10% auto -10%; height: 90%; pointer-events: none;
+  background: radial-gradient(50% 60% at 50% 30%, rgba(77,168,245,.16), transparent 70%); }

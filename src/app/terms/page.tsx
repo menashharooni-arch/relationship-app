@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import SiteNav from "@/components/site/SiteNav";
 import Link from "next/link";
 import SiteFooterMini from "@/components/site/SiteFooterMini";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import "@/app/home.css";
 import NativeHidden from "@/components/NativeHidden";
 import NativeOnly from "@/components/NativeOnly";
 
@@ -16,23 +18,32 @@ export const metadata: Metadata = {
 // governing-law sections.
 
 function H2({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
+  return <h2 className="text-[1.25rem] font-bold tracking-[-0.01em] text-slate-900 mt-12 mb-3">{children}</h2>;
 }
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-slate-600 text-[0.9375rem] leading-relaxed mb-3">{children}</p>;
+  return <p className="text-slate-600 text-[0.96875rem] leading-[1.75] mb-4">{children}</p>;
 }
 function LI({ children }: { children: React.ReactNode }) {
-  return <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
+  return <li className="text-slate-600 text-[0.96875rem] leading-[1.75] mb-2 ml-5 list-disc marker:text-slate-400">{children}</li>;
 }
 
 export default function TermsPage() {
   return (
-    <main className="min-h-screen bg-cream flex flex-col">
+    // bg-cream stays only for the native shell's status-bar canvas rule in
+    // globals.css (html.native-app:has(main.bg-cream)); .hp paints the page
+    // itself white (owner, 2026-09-17: light pages, no cream).
+    <main className="hp sc-canvas-white min-h-screen bg-cream flex flex-col">
       <SiteNav />
+      <HomeHeadingReveal />
 
-      <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
-        <h1 className="rd-display text-[clamp(1.8rem,3.4vw,2.3rem)] text-slate-900 mb-2 [text-wrap:balance]">Terms of Service</h1>
-        <p className="text-ink-muted text-sm mb-8">Last updated: July 21, 2026</p>
+      <section className="hp-page-hero border-b border-slate-200/70">
+        <div className="relative max-w-3xl mx-auto px-5 sm:px-6 pt-28 sm:pt-36 pb-10 sm:pb-12 w-full" data-hp-head>
+          <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 [text-wrap:balance]">Terms of Service</h1>
+          <p className="text-slate-500 text-[0.9375rem] mt-3">Last updated: July 21, 2026</p>
+        </div>
+      </section>
+
+      <div className="max-w-3xl mx-auto px-5 sm:px-6 pt-10 pb-20 w-full">
 
         <P>
           These terms are an agreement between you and SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;)
@@ -47,17 +58,17 @@ export default function TermsPage() {
           a corporation. More details are on our{" "}
           <Link href="/company" className="text-brand underline">Company page</Link>.
         </P>
-        <dl className="mt-4 mb-3 rounded-xl border border-slate-200 bg-white/60 divide-y divide-slate-200">
+        <dl className="mt-4 mb-3 rounded-2xl border border-slate-200/80 bg-[#F5F7FB] divide-y divide-slate-200/80">
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-ink-muted text-[0.8125rem] font-semibold sm:w-44 shrink-0">Operating entity</dt>
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Operating entity</dt>
             <dd className="text-slate-800 text-[0.9375rem]">Swift Card Inc</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-ink-muted text-[0.8125rem] font-semibold sm:w-44 shrink-0">Brand</dt>
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Brand</dt>
             <dd className="text-slate-800 text-[0.9375rem]">SwiftCard (swiftcard.me)</dd>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 py-3">
-            <dt className="text-ink-muted text-[0.8125rem] font-semibold sm:w-44 shrink-0">Contact</dt>
+            <dt className="text-slate-500 text-[0.8125rem] font-semibold sm:w-44 shrink-0">Contact</dt>
             <dd className="text-slate-800 text-[0.9375rem]">
               <a href="mailto:hello@swiftcard.me" className="text-brand underline">hello@swiftcard.me</a>
               {" · "}

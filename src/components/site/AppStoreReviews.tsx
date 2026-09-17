@@ -25,17 +25,14 @@ export default async function AppStoreReviews() {
   const appStoreUrl = process.env.NEXT_PUBLIC_APP_STORE_URL || null;
 
   return (
-    <section className="rd-light2 relative py-24">
+    // Light like the rest of the marketing site, with the site's kicker and the
+    // gradient that fills as the heading drops in (redesign 2026-09-17).
+    <section className="relative py-24" style={{ background: "#fff" }}>
       <div className="max-w-6xl mx-auto px-5 sm:px-6">
-        <div className="max-w-2xl mx-auto text-center mb-12" data-reveal>
-          <div className="flex justify-center mb-4">
-            <span className="rd-pill rd-pill-l">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--rd-aurora)" }} />
-              From the App Store
-            </span>
-          </div>
-          <h2 className="rd-h2 text-slate-900 text-[clamp(1.9rem,4vw,3rem)]">
-            What people say on the <span className="rd-aurora-text">App Store</span>
+        <div className="max-w-2xl mx-auto text-center mb-12" data-hp-head>
+          <span className="hp-kicker">From the App Store</span>
+          <h2 className="rd-h2 text-slate-900 text-[clamp(1.9rem,4vw,3rem)] mt-4">
+            What people say on the <span className="hp-fill">App Store</span>
           </h2>
           {avg !== null && (
             <p className="text-slate-500 text-[1.05rem] mt-4">
@@ -46,7 +43,7 @@ export default async function AppStoreReviews() {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {reviews.map((r, i) => (
-            <div key={r.id} className="rd-card-l p-6 flex flex-col" data-reveal style={{ transitionDelay: `${(i % 3) * 70}ms` }}>
+            <div key={r.id} className="hp-card !p-6 flex flex-col" data-reveal style={{ transitionDelay: `${(i % 3) * 70}ms` }}>
               <Stars rating={r.rating} />
               {r.title && <p className="text-slate-900 font-semibold text-[0.9375rem] mt-3">{r.title}</p>}
               <p className="text-slate-600 text-[0.875rem] leading-relaxed mt-2 flex-1 whitespace-pre-line line-clamp-6">{r.body}</p>

@@ -3,6 +3,8 @@ import Eyebrow from "@/components/site/Eyebrow";
 import Link from "next/link";
 import SiteNav from "@/components/site/SiteNav";
 import SiteFooterMini from "@/components/site/SiteFooterMini";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import "@/app/home.css";
 
 export const metadata: Metadata = {
   title: "SMS & Messaging Terms — SwiftCard",
@@ -13,23 +15,32 @@ export const metadata: Metadata = {
 const LAST_UPDATED = "July 27, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
+  return <h2 className="text-[1.25rem] font-bold tracking-[-0.01em] text-slate-900 mt-12 mb-3">{children}</h2>;
 }
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-slate-600 text-[0.9375rem] leading-relaxed mb-3">{children}</p>;
+  return <p className="text-slate-600 text-[0.96875rem] leading-[1.75] mb-4">{children}</p>;
 }
 function LI({ children }: { children: React.ReactNode }) {
-  return <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
+  return <li className="text-slate-600 text-[0.96875rem] leading-[1.75] mb-2 ml-5 list-disc marker:text-slate-400">{children}</li>;
 }
 
 export default function SmsTermsPage() {
   return (
-    <main className="min-h-screen bg-cream flex flex-col">
+    // bg-cream stays only for the native shell's status-bar canvas rule in
+    // globals.css (html.native-app:has(main.bg-cream)); .hp paints the page
+    // itself white (owner, 2026-09-17: light pages, no cream).
+    <main className="hp sc-canvas-white min-h-screen bg-cream flex flex-col">
       <SiteNav />
+      <HomeHeadingReveal />
 
-      <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
-        <h1 className="rd-display text-[clamp(1.8rem,3.4vw,2.3rem)] text-slate-900 mb-2 [text-wrap:balance]">SMS &amp; Messaging Terms</h1>
-        <p className="text-ink-muted text-sm mb-8">Last updated: {LAST_UPDATED}</p>
+      <section className="hp-page-hero border-b border-slate-200/70">
+        <div className="relative max-w-3xl mx-auto px-5 sm:px-6 pt-28 sm:pt-36 pb-10 sm:pb-12 w-full" data-hp-head>
+          <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 [text-wrap:balance]">SMS &amp; Messaging Terms</h1>
+          <p className="text-slate-500 text-[0.9375rem] mt-3">Last updated: {LAST_UPDATED}</p>
+        </div>
+      </section>
+
+      <div className="max-w-3xl mx-auto px-5 sm:px-6 pt-10 pb-20 w-full">
 
         <P>
           These terms describe SwiftCard&apos;s text-messaging program. SwiftCard is operated by{" "}
@@ -40,7 +51,7 @@ export default function SmsTermsPage() {
         </P>
 
         {/* At-a-glance summary card */}
-        <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
+        <div className="rounded-2xl border border-slate-200/80 bg-[#F5F7FB] p-5 sm:p-6 my-6">
           <div className="mb-3"><Eyebrow dark={false}>The short version</Eyebrow></div>
           <ul>
             <LI><strong>Swift Card Inc is the sender</strong> of every text in this program. We send them from our own registered number, using our own templates, to people who ticked the SMS consent box when sharing their contact information with a SwiftCard user — a card link and follow-ups about that exchange. Our users do not send texts through SwiftCard and do not write the content of an automated one.</LI>

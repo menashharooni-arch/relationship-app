@@ -8,6 +8,9 @@ import ScrollReveal from "@/components/ScrollReveal";
 import ScrollProgress from "@/components/ScrollProgress";
 import { PersonaShowcase } from "@/components/site/HeroShowcase";
 import NativeHidden from "@/components/NativeHidden";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import MarketingCta from "@/components/site/MarketingCta";
+import "@/app/home.css";
 
 // ── Vertical landing pages: /for/<industry> ──────────────────────────────────
 //
@@ -41,7 +44,7 @@ type Vertical = {
 };
 
 function A({ children }: { children: React.ReactNode }) {
-  return <span className="rd-aurora-text">{children}</span>;
+  return <span className="hp-fill">{children}</span>;
 }
 
 const FOR_VERTICALS: Record<string, Vertical> = {
@@ -314,29 +317,38 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
   };
 
   return (
-    <div className="rd-dark2">
+    <div className="bg-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <ScrollProgress />
       <ScrollReveal />
+      <HomeHeadingReveal />
       <SiteNav />
+      {/* One gradient every scene icon strokes with (homepage IconGradient pattern). */}
+      <svg width="0" height="0" className="absolute" aria-hidden="true">
+        <defs>
+          <linearGradient id="for-ico" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#1D3FB8" />
+            <stop offset="50%" stopColor="#2563EB" />
+            <stop offset="100%" stopColor="#4DA8F5" />
+          </linearGradient>
+        </defs>
+      </svg>
 
-      <main className="overflow-clip">
+      <main className="hp overflow-clip">
         {/* Hero */}
-        <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-24">
-          <div className="rd-glow rd-glow-violet rd-drift-a" style={{ width: 520, height: 520, left: "-8%", top: "-14%" }} />
-          <div className="rd-glow rd-glow-cyan rd-drift-b" style={{ width: 380, height: 380, right: "-6%", top: "6%", opacity: 0.3 }} />
+        <section className="hp-page-hero pt-32 pb-20 sm:pt-40 sm:pb-24">
           <div className="relative max-w-6xl mx-auto px-5 sm:px-6 grid lg:grid-cols-2 gap-14 items-center">
-            <div>
-              <div data-reveal="fade">
-                <span className="rd-pill rd-pill-d"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--rd-aurora)" }} />SwiftCard for {v.label.toLowerCase()}</span>
+            <div className="min-w-0">
+              <div data-hp-head>
+                <span className="hp-kicker">SwiftCard for {v.label.toLowerCase()}</span>
+                <h1 className="rd-display text-slate-900 text-[clamp(2.3rem,5vw,3.8rem)] mt-5">{v.h1}</h1>
+                <p className="hp-lede !text-[1.12rem] mt-5 max-w-[560px]">{v.sub}</p>
               </div>
-              <h1 className="rd-display text-white text-[clamp(2.3rem,5vw,3.8rem)] mt-6" data-reveal>{v.h1}</h1>
-              <p className="text-white/60 text-[1.12rem] mt-5 leading-relaxed max-w-[560px]" data-reveal>{v.sub}</p>
               <div className="mt-8 flex flex-wrap gap-3" data-reveal>
-                <Link href={`/cards/new?src=${src}`} className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-                <NativeHidden><Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link></NativeHidden>
+                <Link href={`/cards/new?src=${src}`} className="rd-btn rd-btn-primary rd-btn-lg">Create your free card</Link>
+                <NativeHidden><Link href="/pricing" className="rd-btn rd-btn-ghost-l rd-btn-lg">See pricing</Link></NativeHidden>
               </div>
-              <p className="text-white/40 text-[0.8125rem] mt-5" data-reveal>Free to start · No app for them to download · Live in 60 seconds</p>
+              <p className="text-slate-500 text-[0.8125rem] mt-5" data-reveal>Free to start · No app for them to download · Live in 60 seconds</p>
             </div>
             <div data-reveal="scale">
               {/* This profession's OWN SwiftCard, exactly as the product renders
@@ -350,15 +362,15 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
         </section>
 
         {/* Pains */}
-        <section className="rd-light relative py-24">
+        <section className="hp-soft relative py-20 sm:py-24">
           <div className="max-w-6xl mx-auto px-5 sm:px-6">
-            <div className="max-w-2xl" data-reveal>
+            <div className="max-w-2xl" data-hp-head>
               <h2 className="rd-h2 text-slate-900 text-[clamp(1.9rem,3.6vw,2.6rem)]">Sound familiar?</h2>
             </div>
             <div className="mt-10 grid sm:grid-cols-3 gap-4">
               {v.pains.map((p, i) => (
-                <div key={p.t} className="rd-card-l p-6" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
-                  <p className="text-slate-900 font-semibold text-[1rem]">{p.t}</p>
+                <div key={p.t} className="hp-card" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
+                  <p className="text-slate-900 font-semibold text-[1.0625rem]">{p.t}</p>
                   <p className="text-slate-500 text-[0.875rem] mt-1.5 leading-relaxed">{p.d}</p>
                 </div>
               ))}
@@ -367,21 +379,20 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
         </section>
 
         {/* Scenes — how this vertical actually uses it */}
-        <section className="relative py-24 overflow-hidden border-t border-white/10" style={{ background: "var(--rd-ink-1000)" }}>
-          <div className="absolute inset-0 opacity-70" style={{ background: "radial-gradient(70% 90% at 15% 0%, rgba(93,107,255,0.18), transparent 60%)" }} />
+        <section className="relative bg-white py-20 sm:py-24">
           <div className="relative max-w-5xl mx-auto px-5 sm:px-6">
-            <div className="max-w-2xl" data-reveal>
-              <div><Eyebrow>Built for the way you work</Eyebrow></div>
-              <h2 className="rd-h2 text-white text-[clamp(1.9rem,3.6vw,2.6rem)] mt-3">One card, everywhere {v.audience} win business.</h2>
+            <div className="max-w-2xl" data-hp-head>
+              <div><Eyebrow dark={false}>Built for the way you work</Eyebrow></div>
+              <h2 className="rd-h2 text-slate-900 text-[clamp(1.9rem,3.6vw,2.6rem)] mt-4">One card, everywhere {v.audience} win business.</h2>
             </div>
             <div className="mt-12 grid md:grid-cols-3 gap-4">
               {v.scenes.map((s, i) => (
-                <div key={s.t} className="rounded-2xl border border-white/10 bg-white/[0.04] p-6" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ background: "var(--rd-aurora)" }}>
-                    <svg viewBox="0 0 20 20" className="w-4.5 h-4.5 text-white" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
-                  </div>
-                  <p className="text-white font-semibold text-[1rem]">{s.t}</p>
-                  <p className="text-white/55 text-[0.875rem] mt-1.5 leading-relaxed">{s.d}</p>
+                <div key={s.t} className="hp-card" data-reveal style={{ transitionDelay: `${i * 70}ms` }}>
+                  <span className="hp-feat-ico mb-4">
+                    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="url(#for-ico)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 7L9.5 17.5 4 12" /></svg>
+                  </span>
+                  <p className="text-slate-900 font-semibold text-[1.0625rem]">{s.t}</p>
+                  <p className="text-slate-500 text-[0.875rem] mt-1.5 leading-relaxed">{s.d}</p>
                 </div>
               ))}
             </div>
@@ -389,12 +400,14 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
         </section>
 
         {/* FAQ — the JSON-LD above is generated from exactly this list */}
-        <section className="rd-light relative py-24">
+        <section className="hp-soft relative py-20 sm:py-24">
           <div className="max-w-3xl mx-auto px-5 sm:px-6">
-            <h2 className="rd-h2 text-slate-900 text-[clamp(1.9rem,3.6vw,2.6rem)]" data-reveal>Questions {v.audience} ask</h2>
+            <div data-hp-head>
+              <h2 className="rd-h2 text-slate-900 text-[clamp(1.9rem,3.6vw,2.6rem)]">Questions {v.audience} ask</h2>
+            </div>
             <div className="mt-10 flex flex-col gap-3">
               {v.faq.map((f, i) => (
-                <details key={f.q} className="rd-card-l group px-6 py-5" data-reveal style={{ transitionDelay: `${i * 50}ms` }}>
+                <details key={f.q} className="group rounded-2xl border border-[rgba(11,16,34,0.08)] bg-white px-6 py-5 transition-shadow hover:shadow-[0_20px_40px_-28px_rgba(29,63,184,0.3)]" data-reveal style={{ transitionDelay: `${i * 50}ms` }}>
                   {/* Same hit-area fix as site/FaqAccordion: the negative
                       margins cancel the padding, so the row looks identical and
                       all of it is clickable. */}
@@ -410,17 +423,16 @@ export default async function VerticalPage({ params }: { params: Promise<{ slug:
         </section>
 
         {/* CTA */}
-        <section className="relative py-24 overflow-hidden" style={{ background: "var(--rd-ink-1000)" }}>
-          <div className="absolute inset-0 opacity-90" style={{ background: "radial-gradient(80% 120% at 50% 120%, rgba(93,107,255,0.32), transparent 60%)" }} />
-          <div className="relative max-w-2xl mx-auto px-5 sm:px-6 text-center">
-            <h2 className="rd-h2 text-white text-[clamp(2rem,4.4vw,3.2rem)]" data-reveal>Your next client is one tap away.</h2>
-            <p className="text-white/60 text-[1.08rem] mt-4" data-reveal>The digital business card built for {v.audience} — free in 60 seconds.</p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3" data-reveal>
-              <Link href={`/cards/new?src=${src}`} className="rd-btn rd-btn-aurora rd-btn-lg">Create your free card</Link>
-              <NativeHidden><Link href="/pricing" className="rd-btn rd-btn-ghost-d rd-btn-lg">See pricing</Link></NativeHidden>
+        <div className="pt-16 sm:pt-20">
+          <MarketingCta>
+            <h2 className="rd-display text-white text-[clamp(2.2rem,5vw,4rem)]">Your next client is one tap away.</h2>
+            <p className="text-white/85 text-[1.15rem] mt-5 max-w-[480px]">The digital business card built for {v.audience} — free in 60 seconds.</p>
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <Link href={`/cards/new?src=${src}`} className="hp-btn-white">Create your free card</Link>
+              <NativeHidden><Link href="/pricing" className="rd-btn border border-white/40 bg-white/10 text-white">See pricing</Link></NativeHidden>
             </div>
-          </div>
-        </section>
+          </MarketingCta>
+        </div>
       </main>
 
       <SiteFooter />
