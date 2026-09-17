@@ -64,7 +64,7 @@ describe("plan line", () => {
     // They live on the STRUCTURAL list instead (used by the wizard's draft
     // restore), which the sanitizer never iterates.
     const plan = read("src/lib/plan.ts");
-    expect(plan).toMatch(/LINK_STRUCTURAL_KEYS = \["linkLook", "linkHeroStyle", "linkHeroContent", "linkHeroImage"\]/);
+    expect(plan).toContain('LINK_STRUCTURAL_KEYS = ["linkLook", "linkHeroStyle", "linkHeroContent", "linkHeroImage", "linkHeroMediaType"]');
     expect(plan).not.toMatch(/LINK_STRUCTURAL_KEYS[\s\S]{0,800}delete cust/);
   });
 
@@ -103,7 +103,7 @@ describe("rendering", () => {
     // "Upload photo": renders as a cover photo, HTTPS-only (the URL rides in
     // client-writable customization), and with no image falls down the chain.
     expect(src).toMatch(/heroContent === "custom" && pageStyle\?\.heroImage && \/\^https:/);
-    expect(src).toMatch(/customHero \? \{ kind: "photo" as const, url: customHero \}/);
+    expect(src).toContain('customHero ? { kind: pageStyle?.heroMediaType === "video" ? "video" : "photo", url: customHero }');
     expect(src).toMatch(/heroContent === "initials" \? \{ kind: "initials"/);
     expect(src).toMatch(/heroContent === "photo" && photoUrl \? \{ kind: "photo"/);
     expect(src).toMatch(/heroContent === "logo" && logoUrl \? \{ kind: "logo"/);
@@ -142,7 +142,9 @@ describe("both editors edit it", () => {
     // Header choices are never plan-disabled; button styles are (the per-link
     // picker lives in LinkButtonsControls since 2026-09-09).
     expect(src).toMatch(/HERO_STYLES\.map[\s\S]{0,700}onClick/);
-    expect(src).toMatch(/HERO_CONTENTS\.map[\s\S]{0,400}onClick/);
+    expect(src).toMatch(/HERO_CONTENTS\.filter\(\(o\) => o\.id !== "custom"\)\.map[\s\S]{0,600}onClick/);
+    // "custom" is its own obvious button, not a fifth small chip.
+    expect(src).toContain("Upload photo or video");
     expect(src).toMatch(/<LinkButtonsControls links=\{links\} onChange=\{onLinksChange\} pageRowStyle=/);
     const perLink = read("src/components/LinkButtonsControls.tsx");
     // Both rows are LIVE on every plan since 2026-09-11 — the Social design

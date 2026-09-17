@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import ImageUpload from "@/components/ImageUpload";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import { SwiftLinkStyleControls } from "@/components/SwiftLinkDesign";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
+import { LinkPageViewport, FullSizeOverlay } from "@/components/PinnedCardPreview";
 import { Switch } from "@/components/ui/DesignControls";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
@@ -26,6 +27,8 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [launching, setLaunching] = useState(false);
+  const [fullPreview, setFullPreview] = useState(false);
+  const closeFullPreview = useCallback(() => setFullPreview(false), []);
   const { sketch, patch, patchLinkStyle, patchSocial, handOff, reset } = useProductSketch("swiftlink", open);
 
   // The link is derived exactly like the real builder: prettyCardSlug fuses
@@ -187,18 +190,16 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
         // page shows. Zero drift: long bios aren't clamped, every social shows,
         // links look identical to the live page.
         preview={livePreview}
-        // Pinned on a phone it shows the TOP of the page — header, name and
-        // socials — at the same compact size as Social design, fading out
-        // below, so the controls keep most of the screen.
-        pinnedPreview={
-          <div
-            className="w-[190px] max-h-[min(270px,34vh)] overflow-hidden rounded-[22px]"
-            style={{ maskImage: "linear-gradient(180deg, #000 78%, transparent)", WebkitMaskImage: "linear-gradient(180deg, #000 78%, transparent)" }}
-          >
-            {livePreview}
-          </div>
-        }
+        // Pinned on a phone: the SAME scrollable page viewport Social design
+        // uses — follows the step being edited, jumps to any section, opens
+        // full size.
+        pinnedPreview={<LinkPageViewport onExpand={() => setFullPreview(true)}>{livePreview}</LinkPageViewport>}
       />
+      {fullPreview && (
+        <FullSizeOverlay label="See your Swift Links page full size" onClose={closeFullPreview}>
+          <div className="w-full max-w-[390px]">{livePreview}</div>
+        </FullSizeOverlay>
+      )}
     </>
   );
 }

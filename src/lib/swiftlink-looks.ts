@@ -411,7 +411,7 @@ export const HERO_CONTENTS: { id: HeroContent; name: string; hint: string }[] = 
   { id: "photo", name: "Headshot", hint: "Always your photo" },
   { id: "logo", name: "Logo", hint: "Always your company logo" },
   { id: "initials", name: "Initials", hint: "Just your initials" },
-  { id: "custom", name: "Upload photo", hint: "A photo you upload just for this header" },
+  { id: "custom", name: "Upload photo or video", hint: "A photo or short video you upload just for this header" },
 ];
 
 export const DEFAULT_HERO_CONTENT: HeroContent = "auto";
@@ -452,27 +452,18 @@ export function normalizeButtonStyle(v?: string | null): ButtonStyle {
 // Owner reference: linktr.ee/kelsieblevinsrealestate — a looping video filling
 // the page, a small round avatar over it, and frosted translucent link rows.
 //
-// TIED TO THE COMPACT-CIRCLE AND NO-HEADER LAYOUTS, on purpose. The "cover" and
-// "banner" headers already put a large photo across the top of the page; a
-// second full-bleed image behind it gives two competing photographs and no page
-// design survives that. The compact circle and "No header" (owner, 2026-09-16:
-// "for no header and compact circle they should be able to do that") are the
-// layouts with no big photo at the top — exactly the shape a background needs.
-// So the controls only appear for them (SwiftLinkDesign) and the render is
-// gated on them as well (SwiftLinkProfile), both through
-// headerAllowsPageMedia, which means switching to cover/banner HIDES a stored
-// background rather than deleting it: switch back and it returns.
+// EVERY HEADER (owner, 2026-09-17: "under Background & text … the user has the
+// option to add a photo or video"). It used to be tied to the compact-circle
+// and no-header layouts, so the option vanished under a cover photo or banner
+// and people could not find it. With a cover or banner the header photo now
+// DISSOLVES into the background media (SwiftLinkProfile masks the hero's own
+// alpha, the same technique the Glass looks use), so the two never meet at a
+// hard line.
 //
 // Pro fine-tuning — all four keys live in LINK_STYLE_KEYS, so a Free page
 // stores none of them and renders none of them.
 
 export type PageMediaType = "image" | "video";
-
-/** The headers a whole-page photo or video can sit behind: no big photo at the top. */
-export function headerAllowsPageMedia(heroStyle?: string | null): boolean {
-  const h = normalizeHeroStyle(heroStyle);
-  return h === "avatar" || h === "none";
-}
 
 export function normalizePageMediaType(v?: string | null): PageMediaType {
   return v === "video" ? "video" : "image";

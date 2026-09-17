@@ -26,7 +26,7 @@ import {
   ICON_SHAPES, ICON_FILLS, normalizeIconShape, normalizeIconFill,
   HERO_STYLES, normalizeHeroStyle,
   HERO_CONTENTS, normalizeHeroContent,
-  normalizePageDim, MAX_PAGE_DIM, headerAllowsPageMedia,
+  normalizePageDim, MAX_PAGE_DIM,
 } from "@/lib/swiftlink-looks";
 import { isAllowedMedia, uploadMedia, uploadErrorMessage, WRONG_TYPE_MESSAGE, IMAGE_TYPES, VIDEO_TYPES } from "@/lib/upload-media";
 import { resolveRowStyle } from "@/lib/swiftlink-tiles";
@@ -51,6 +51,8 @@ export type SwiftLinkStyle = {
   /** The uploaded header photo for linkHeroContent "custom" — a public URL
    *  from /api/upload (field "hero"). Every plan. */
   linkHeroImage?: string;
+  /** "video" when linkHeroImage is a short video (plays muted on a loop). */
+  linkHeroMediaType?: string;
   /** PAGE BACKGROUND MEDIA — a photo or short video behind the whole page,
    *  offered only with the compact-circle header (see lib/swiftlink-looks for
    *  why). Pro: all four keys are in LINK_STYLE_KEYS. */
@@ -422,94 +424,98 @@ function IconStyleControls({
   );
 }
 
-// Upload row for the "Upload photo" header option: choose/replace/remove the
-// header image. Uploads deferred (field "hero", defer=true) — the URL is
-// persisted through the editor's normal customization save, never here. With
-// no image yet the page falls down the auto chain, so the header can never
-// render empty while the owner decides.
-function HeroImageUpload({
-  url,
+// The header's own photo or video (owner, 2026-09-17: make "Upload photo" much
+// more obvious, "+ Upload photo"). One full-width dashed button that opens the
+// file picker straight away — no "select the option, then find the Choose
+// button" two-step. Uploading SELECTS it (linkHeroContent "custom"); once there
+// is an upload it shows as a thumbnail with Replace and Remove, and, if the
+// owner went back to Auto/Headshot/Logo/Initials, a "Use it" to switch back.
+// Deferred (field "hero"): the URL is persisted by the editor's normal save.
+function HeroMediaUpload({
+  value,
   onChange,
 }: {
-  url?: string;
+  value: SwiftLinkStyle;
   onChange: (patch: Partial<SwiftLinkStyle>) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const url = value.linkHeroImage;
+  const isVideo = value.linkHeroMediaType === "video";
+  const active = !!url && normalizeHeroContent(value.linkHeroContent) === "custom";
 
   async function pick(file: File) {
+    if (!isAllowedMedia(file)) { setError(WRONG_TYPE_MESSAGE); return; }
     setBusy(true);
     setError(null);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("field", "hero");
-      fd.append("defer", "true");
-      const r = await fetch("/api/upload", { method: "POST", body: fd });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok || !d?.url) {
-        // A guest in the wizard can't reach the upload route (401) — say what
-        // to do instead of parroting "Unauthorized".
-        setError(r.status === 401
-          ? "Sign in to upload — finish creating your card first, then add it here."
-          : (typeof d?.error === "string" ? d.error : "Upload failed — please try again."));
-        return;
-      }
-      onChange({ linkHeroImage: d.url });
-    } catch {
-      setError("Upload failed — please try again.");
+      const media = await uploadMedia(file, "hero");
+      onChange({ linkHeroContent: "custom", linkHeroImage: media.url, linkHeroMediaType: media.type === "video" ? "video" : undefined });
+    } catch (e) {
+      setError(uploadErrorMessage(e));
     } finally {
       setBusy(false);
     }
   }
 
+  const input = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept={[...IMAGE_TYPES, ...VIDEO_TYPES].join(",")}
+      className="hidden"
+      onChange={(e) => {
+        const f = e.target.files?.[0];
+        if (f) pick(f);
+        e.target.value = ""; // re-picking the same file must fire again
+      }}
+    />
+  );
+
   return (
-    <div className="mt-2">
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) pick(f);
-          e.target.value = ""; // re-picking the same file must fire again
-        }}
-      />
-      <div className="flex items-center gap-2.5">
-        {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt="Header" className="w-12 h-12 rounded-lg object-cover border border-gray-700 shrink-0" />
-        ) : (
-          <span className="w-12 h-12 rounded-lg border border-dashed border-gray-600 bg-gray-800/40 flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="w-5 h-5 text-gray-500">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0021.75 19.5V4.5A1.5 1.5 0 0020.25 3H3.75A1.5 1.5 0 002.25 4.5v15A1.5 1.5 0 003.75 21z" />
-            </svg>
+    <div className="mt-1.5">
+      {input}
+      {url ? (
+        <div className={`flex items-center gap-2.5 rounded-lg border px-2.5 py-2 ${active ? "border-blue-600 bg-blue-600/10" : "border-gray-700 bg-gray-800/40"}`}>
+          {isVideo ? (
+            <video src={`${url}#t=0.001`} muted loop autoPlay playsInline preload="auto" className="w-11 h-11 rounded-md object-cover border border-gray-700 shrink-0 bg-black" aria-label="Header video" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt="Header" className="w-11 h-11 rounded-md object-cover border border-gray-700 shrink-0" />
+          )}
+          <span className={`flex-1 min-w-0 text-[0.6875rem] font-semibold ${active ? "text-blue-200" : "text-gray-300"}`}>
+            {active ? (isVideo ? "Your header video" : "Your header photo") : (isVideo ? "Your uploaded video" : "Your uploaded photo")}
           </span>
-        )}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => fileRef.current?.click()}
-            className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/40 text-[0.6875rem] font-semibold text-gray-300 hover:border-gray-600 transition-colors disabled:opacity-50"
-          >
-            {busy ? "Uploading…" : url ? "Replace photo" : "Choose photo"}
+          {!active && !busy && (
+            <button type="button" onClick={() => onChange({ linkHeroContent: "custom" })} className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-[0.6875rem] font-semibold text-white transition-colors">
+              Use it
+            </button>
+          )}
+          <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className="px-2.5 py-1.5 rounded-lg border border-gray-700 bg-gray-800/40 text-[0.6875rem] font-semibold text-gray-300 hover:border-gray-600 transition-colors disabled:opacity-50">
+            {busy ? "Uploading…" : "Replace"}
           </button>
-          {url && !busy && (
+          {!busy && (
             <button
               type="button"
-              onClick={() => onChange({ linkHeroImage: undefined })}
-              className="px-3 py-1.5 rounded-lg text-[0.6875rem] font-semibold text-gray-500 hover:text-gray-300 transition-colors"
+              onClick={() => onChange({ linkHeroImage: undefined, linkHeroMediaType: undefined, ...(active ? { linkHeroContent: undefined } : {}) })}
+              className="px-1.5 py-1.5 text-[0.6875rem] font-semibold text-gray-500 hover:text-gray-300 transition-colors"
             >
               Remove
             </button>
           )}
         </div>
-      </div>
+      ) : (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => fileRef.current?.click()}
+          className="w-full flex items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-blue-500/60 bg-blue-600/10 hover:bg-blue-600/15 hover:border-blue-400 px-3 py-2.5 text-xs font-bold text-blue-300 transition-colors disabled:opacity-60"
+        >
+          {busy ? "Uploading…" : <><span className="text-base leading-none">+</span> Upload photo or video</>}
+        </button>
+      )}
       {error && <p className="text-[0.625rem] text-red-400 mt-1.5 leading-snug">{error}</p>}
-      {!url && !error && <p className="text-[0.625rem] text-gray-500 mt-1.5 leading-snug">Until you upload one, the header uses Auto.</p>}
     </div>
   );
 }
@@ -520,10 +526,7 @@ function HeroImageUpload({
 // two controls that only make sense once one is set: how far to darken it, and
 // whether the plain link rows go frosted over it.
 //
-// Rendered ONLY under the compact-circle or no-header layout — see lib/swiftlink-looks for
-// why that pairing and no other. Switching the header away hides this section
-// and stops the background rendering, but never deletes it: switch back and
-// the photo, the scrim and the frosting are all still there.
+// Offered under EVERY header (owner, 2026-09-17) — see lib/swiftlink-looks.
 function PageBackgroundMedia({
   value,
   onChange,
@@ -616,7 +619,7 @@ function PageBackgroundMedia({
             onClick={() => fileRef.current?.click()}
             className="px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800/40 text-[0.6875rem] font-semibold text-gray-300 hover:border-gray-600 transition-colors disabled:opacity-50 disabled:hover:border-gray-700"
           >
-            {busy ? "Uploading…" : url ? "Edit" : "Add"}
+            {busy ? "Uploading…" : url ? "Replace" : "+ Add photo or video"}
           </button>
           {url && !busy && (
             <button
@@ -703,10 +706,6 @@ export function SwiftLinkStyleControls({
    *  same reasoning that gives the mini-builder no "Link buttons" section. */
   canUpload?: boolean;
 }) {
-  // The compact-circle and no-header layouts are what unlock the page-background
-  // media below. Derived once, from the same rule the page renders with, so the
-  // editor and the live page can never disagree.
-  const mediaHeader = headerAllowsPageMedia(value.linkHeroStyle);
 
   // ── SECTION ORDER IS DELIBERATE: the panel is a route, not a list ─────────
   //
@@ -784,10 +783,12 @@ export function SwiftLinkStyleControls({
         {/* What the header shows — hidden for "No header" (nothing to show). */}
         {normalizeHeroStyle(value.linkHeroStyle) !== "none" && (
           <div className="mt-2.5">
-            <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Header shows — Auto uses your headshot, else your logo, else initials. Or upload a photo just for the header.</p>
-            <div className="grid grid-cols-3 gap-1.5">
-              {HERO_CONTENTS.map((o) => {
-                const active = normalizeHeroContent(value.linkHeroContent) === o.id;
+            <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Header shows — Auto uses your headshot, else your logo, else initials. Or upload your own photo or video.</p>
+            <div className="grid grid-cols-4 gap-1.5">
+              {HERO_CONTENTS.filter((o) => o.id !== "custom").map((o) => {
+                const active = normalizeHeroContent(value.linkHeroContent) === o.id
+                  // "custom" with nothing uploaded renders Auto, so Auto reads as picked.
+                  || (o.id === "auto" && normalizeHeroContent(value.linkHeroContent) === "custom" && !value.linkHeroImage);
                 return (
                   <button
                     key={o.id}
@@ -803,14 +804,7 @@ export function SwiftLinkStyleControls({
                 );
               })}
             </div>
-            {/* canUpload, same as the page background below it: in the
-                marketing sketch there is no account to upload against, so this
-                control could only ever answer 401. It was the last place in
-                this panel where a visitor could reach a button that has to
-                fail. */}
-            {normalizeHeroContent(value.linkHeroContent) === "custom" && canUpload && (
-              <HeroImageUpload url={value.linkHeroImage} onChange={onChange} />
-            )}
+            {canUpload && <HeroMediaUpload value={value} onChange={onChange} />}
           </div>
         )}
         </>
@@ -839,9 +833,7 @@ export function SwiftLinkStyleControls({
         <>
         <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
         <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">
-          {mediaHeader
-            ? "A colour, or a photo or video filling the whole page behind your links."
-            : "The surface behind your photo, bio, socials and links."}
+          A colour, or a photo or video filling the whole page behind your links.
         </p>
         <SwatchRow
           presets={BG_PRESETS}
@@ -850,38 +842,9 @@ export function SwiftLinkStyleControls({
           onPick={(v) => onChange({ linkBgColor: v })}
           customLocked={locked}
         />
-        {/* Only with the compact circle or no header. The cover and banner
-            headers already lead with a big photo — see lib/swiftlink-looks. */}
-        {mediaHeader && canUpload && <PageBackgroundMedia value={value} onChange={onChange} />}
-        {/* No account to upload against yet (a website guest): say where the
-            option went instead of leaving the header choice unexplained. */}
-        {mediaHeader && !canUpload && (
-          <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">You can add a photo or video filling the whole page once your account is created.</p>
-        )}
-        {/* …and under any other header, the switch is offered RIGHT HERE.
-            This pairing used to dictate the whole panel's order: Page header
-            had to come first, because the only way to reach the photo option
-            was to read about it, scroll down to the header, change it, and
-            scroll back. Doing it in place costs one button and frees the
-            background and text controls to sit where they belong, next to the
-            Look (owner, 2026-09-10).
-
-            A stored background is HIDDEN by another header, never deleted, so
-            the same line doubles as the answer to "where did my photo go". */}
-        {!mediaHeader && canUpload && (
-          <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">
-            {value.linkBgMedia
-              ? "Your background photo or video is saved and shows with the compact-circle or no-header layout."
-              : "Want a photo or video filling the whole page instead?"}{" "}
-            <button
-              type="button"
-              onClick={() => onChange({ linkHeroStyle: "avatar" })}
-              className="font-semibold text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors"
-            >
-              {value.linkBgMedia ? "Show it" : "Use the compact circle"}
-            </button>
-          </p>
-        )}
+        {/* Every header (owner, 2026-09-17). With a cover or banner the header
+            photo dissolves into it on the page. */}
+        {canUpload && <PageBackgroundMedia value={value} onChange={onChange} />}
         <div className="mt-4">
         <p className={`${rowLabel} mb-0.5`}>Text color</p>
         <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Your name, bio and link labels.</p>
@@ -984,6 +947,6 @@ export function SwiftLinkStyleControls({
       : []),
   ];
 
-  return <DesignSteps steps={steps} label="Design your Swift Links page, step by step" />;
+  return <DesignSteps steps={steps} label="Design your Swift Links page, step by step" name="swiftlinks" />;
 }
 

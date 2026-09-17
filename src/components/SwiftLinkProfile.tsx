@@ -12,7 +12,7 @@ import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
 import SwiftLinksPromoBadge from "@/components/SwiftLinksPromoBadge";
-import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeHeroContent, normalizeButtonStyle, pageMediaUrl, normalizePageMediaType, normalizePageDim, PAGE_MEDIA_BASE, washGradient, headerAllowsPageMedia } from "@/lib/swiftlink-looks";
+import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeHeroContent, normalizeButtonStyle, pageMediaUrl, normalizePageMediaType, normalizePageDim, PAGE_MEDIA_BASE, washGradient } from "@/lib/swiftlink-looks";
 
 // Owner-picked "Social design": a named Look (every plan — Free gets the free
 // pair, see lib/swiftlink-looks) plus optional Pro fine-tuning (bg/text/font)
@@ -23,13 +23,15 @@ export type SwiftLinkPageStyle = {
   look?: string; bg?: string; text?: string; font?: string;
   iconShape?: string; iconFill?: string;
   heroStyle?: string; heroContent?: string; heroImage?: string;
+  /** "video" when heroImage is a short video (plays muted on a loop). */
+  heroMediaType?: string;
   buttonStyle?: string; buttonColor?: string;
   /** Overrides the Look's accent: the Connect button, and social icons set to
    *  "Accent". Link rows fall back to it when they have no colour of their
    *  own, so one choice moves every call to action together. */
   accent?: string;
   /** Page BACKGROUND media — a photo or short video behind the whole page,
-   *  and only with the compact-circle header. See lib/swiftlink-looks. */
+   *  behind every header style. See lib/swiftlink-looks. */
   bgMedia?: string; bgMediaType?: string; bgDim?: number; glass?: boolean;
 };
 
@@ -157,8 +159,10 @@ export default function SwiftLinkProfile({
   const customHero = heroContent === "custom" && pageStyle?.heroImage && /^https:\/\//.test(pageStyle.heroImage)
     ? pageStyle.heroImage
     : null;
-  const hero =
-    customHero ? { kind: "photo" as const, url: customHero } :
+  // A header VIDEO renders where a photo would — cover-cropped in the hero,
+  // circle-cropped in the compact avatar — autoplaying, muted, on a loop.
+  const hero: { kind: "photo" | "video" | "logo" | "initials"; url: string | null } =
+    customHero ? { kind: pageStyle?.heroMediaType === "video" ? "video" : "photo", url: customHero } :
     heroContent === "initials" ? { kind: "initials" as const, url: null } :
     heroContent === "photo" && photoUrl ? { kind: "photo" as const, url: photoUrl } :
     heroContent === "logo" && logoUrl ? { kind: "logo" as const, url: logoUrl } :
@@ -167,15 +171,13 @@ export default function SwiftLinkProfile({
     { kind: "initials" as const, url: null };
 
   // ── Page background media ─────────────────────────────────────────────────
-  // A photo or short video behind the WHOLE page. Gated on the compact-circle
-  // and no-header layouts HERE as well as in the editor, so a stored background
-  // can never leak onto a cover/banner page — those already lead with a large
-  // photo, and two full-bleed images at once is not a design. Switching the header away therefore HIDES the background; it is
-  // never deleted, and switching back brings it straight back.
+  // A photo or short video behind the WHOLE page, under every header style
+  // (owner, 2026-09-17). With a cover or banner the hero dissolves into it —
+  // see the mask on the hero below.
   //
   // https-only (pageMediaUrl): the URL comes through client-writable
   // customization and is printed into a src on a public page.
-  const bgMedia = headerAllowsPageMedia(heroStyle) ? pageMediaUrl(pageStyle?.bgMedia) : null;
+  const bgMedia = pageMediaUrl(pageStyle?.bgMedia);
   const bgMediaVideo = bgMedia !== null && normalizePageMediaType(pageStyle?.bgMediaType) === "video";
   const bgDim = normalizePageDim(pageStyle?.bgDim);
 
@@ -434,18 +436,32 @@ export default function SwiftLinkProfile({
           // rather than solving it: the photo fades to TRANSPARENT and what
           // shows through is the wash itself, which is exactly what continues
           // below. There is nothing left to mismatch.
-          style={wash ? {
+          // Background media dissolves the hero the same way: the fade below
+          // ends on a solid colour, and over a photo or video that colour
+          // would be a hard band across the page.
+          style={wash || bgMedia ? {
             maskImage: HERO_DISSOLVE,
             WebkitMaskImage: HERO_DISSOLVE,
           } : undefined}
         >
-          {hero.kind === "photo" ? (
+          {hero.kind === "video" ? (
+            <video
+              src={`${hero.url}#t=0.001`}
+              className={`absolute inset-0 w-full h-full object-cover ${heroBanner ? "object-top" : ""}`}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              aria-label={name}
+            />
+          ) : hero.kind === "photo" ? (
             // A headshot is a photo of a person: fill the frame and crop, which
             // is what makes the link.me hero look right. The BANNER anchors the
             // crop to the TOP of the photo (faces live in the upper part of a
             // portrait) — centered cropping cut the head off and kept the torso.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={hero.url} alt={name} className={`absolute inset-0 w-full h-full object-cover ${heroBanner ? "object-top" : ""}`} />
+            <img src={hero.url!} alt={name} className={`absolute inset-0 w-full h-full object-cover ${heroBanner ? "object-top" : ""}`} />
           ) : hero.kind === "logo" ? (
             // A LOGO is not a headshot and must not be treated like one.
             // object-cover would crop a wide wordmark down to its middle
@@ -475,7 +491,7 @@ export default function SwiftLinkProfile({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={hero.url}
+                src={hero.url!}
                 alt={name}
                 className="max-w-full max-h-full w-auto h-auto object-contain"
               />
@@ -497,7 +513,7 @@ export default function SwiftLinkProfile({
               invisibly, so the content just emerges out of the photo. */}
           {/* Skipped for glass looks — the mask above does this job, and an
               overlay inside a masked box would simply be masked with it. */}
-          {!wash && (
+          {!wash && !bgMedia && (
             <div
               className="absolute inset-x-0 bottom-0 h-[55%] pointer-events-none"
               style={{ background: heroFade }}
@@ -550,13 +566,15 @@ export default function SwiftLinkProfile({
           {heroAvatar && (
             <div className="flex justify-center mb-4">
               <div className={`w-28 h-28 rounded-full overflow-hidden shrink-0 ring-4 ${light ? "ring-black/[0.06]" : "ring-white/15"}`}>
-                {hero.kind === "photo" ? (
+                {hero.kind === "video" ? (
+                  <video src={`${hero.url}#t=0.001`} className="w-full h-full object-cover" autoPlay muted loop playsInline preload="auto" aria-label={name} />
+                ) : hero.kind === "photo" ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={hero.url} alt={name} className="w-full h-full object-cover" />
+                  <img src={hero.url!} alt={name} className="w-full h-full object-cover" />
                 ) : hero.kind === "logo" ? (
                   <div className="w-full h-full bg-white flex items-center justify-center p-3.5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={hero.url} alt={name} className="max-w-full max-h-full w-auto h-auto object-contain" />
+                    <img src={hero.url!} alt={name} className="max-w-full max-h-full w-auto h-auto object-contain" />
                   </div>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center" style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 60%, #4338ca 100%)" }}>
@@ -602,6 +620,9 @@ export default function SwiftLinkProfile({
           {bio && <p className="text-sm leading-relaxed mt-3 max-w-[340px] mx-auto whitespace-pre-wrap" style={{ color: textColor, opacity: 0.75 }}>{bio}</p>}
 
           {/* Social icons — brand-colored, deep-link into apps on mobile */}
+          {/* Zero-height section anchors: the pinned editor preview scrolls to
+              the part of the page being edited (PinnedCardPreview). */}
+          <span data-sl-section="socials" aria-hidden className="block h-0" />
           <SocialIcons
             socials={socials}
             mode={light ? "light" : "dark"}
@@ -618,11 +639,13 @@ export default function SwiftLinkProfile({
           {/* Connect (lead capture) — the page's hero action. Its one-line
               value prompt below the button was removed 2026-08-18 on the
               owner's request; the button stands alone. */}
+          <span data-sl-section="connect" aria-hidden className="block h-0" />
           <div className="w-full mt-6">
             <ConnectButton cardOwner={username} ownerFirstName={firstName} accent={accent} accentText={accentText} />
           </div>
 
           {/* Featured links — rich preview cards */}
+          {links.length > 0 && <span data-sl-section="links" aria-hidden className="block h-0" />}
           <SwiftLinkButtons
             links={links}
             tileBg={look.tile}

@@ -83,6 +83,7 @@ export type CardPrefill = {
   panelMediaPoster?: string;
   panelDim?: number;
   linkHeroImage?: string;
+  linkHeroMediaType?: string;
   linkBgMedia?: string;
   linkBgMediaType?: string;
   linkBgDim?: number;
@@ -106,7 +107,7 @@ export const PREFILL_LINK_STYLE_KEYS = ["linkLook", "linkBgColor", "linkTextColo
 /** Uploaded media keys. Split by destination: the card's style state and the
  *  Swift Links page's. Values are strings, plus a number (dim) or boolean. */
 export const PREFILL_CARD_MEDIA_KEYS = ["panelMedia", "panelMediaType", "panelMediaPoster", "panelDim"] as const;
-export const PREFILL_LINK_MEDIA_KEYS = ["linkHeroImage", "linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass"] as const;
+export const PREFILL_LINK_MEDIA_KEYS = ["linkHeroImage", "linkHeroMediaType", "linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass"] as const;
 
 const KEY = "swiftcard_prefill";
 

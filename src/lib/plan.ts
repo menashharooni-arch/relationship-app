@@ -81,7 +81,7 @@ export const LINK_STYLE_KEYS = ["linkBgColor", "linkTextColor", "linkFontFamily"
 // sanitizer (the named Look has its own free-snap rule above). One list so the
 // wizard's guest-draft restore and any future copier can carry them without
 // re-deriving which keys are plan-gated.
-export const LINK_STRUCTURAL_KEYS = ["linkLook", "linkHeroStyle", "linkHeroContent", "linkHeroImage"] as const;
+export const LINK_STRUCTURAL_KEYS = ["linkLook", "linkHeroStyle", "linkHeroContent", "linkHeroImage", "linkHeroMediaType"] as const;
 
 // A paid plan = Pro or Office (enterprise). Office is a superset of Pro.
 export function isPaidPlan(plan?: string | null): boolean {

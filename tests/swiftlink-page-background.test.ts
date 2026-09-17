@@ -13,7 +13,6 @@ import {
   MAX_PAGE_DIM,
   PAGE_MEDIA_BASE,
   normalizeHeroStyle,
-  headerAllowsPageMedia,
 } from "@/lib/swiftlink-looks";
 
 // ── Swift Links PAGE BACKGROUND — a photo or video behind the whole page ────
@@ -32,51 +31,32 @@ import {
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
 
-describe("the header pairing", () => {
-  it("is offered ONLY with the compact circle or no header, in the editor and at render", () => {
-    // Both sides, because either alone is a bug: controls with no render is a
-    // dead switch, and render with no controls is a page nobody can turn off.
+describe("every header style (owner, 2026-09-17)", () => {
+  it("is offered under Background & text whatever the header, in the editor and at render", () => {
+    // It used to exist only with the compact circle or no header, so under a
+    // cover photo the option was simply missing and people could not find it.
     const design = read("src/components/SwiftLinkDesign.tsx");
-    expect(design).toMatch(/const mediaHeader = headerAllowsPageMedia\(value\.linkHeroStyle\)/);
-    expect(design).toMatch(/\{mediaHeader && canUpload && <PageBackgroundMedia/);
-
+    expect(design).toContain("{canUpload && <PageBackgroundMedia value={value} onChange={onChange} />}");
+    expect(design).not.toContain("mediaHeader");
     const profile = read("src/components/SwiftLinkProfile.tsx");
-    expect(profile).toMatch(/const bgMedia = headerAllowsPageMedia\(heroStyle\) \? pageMediaUrl\(pageStyle\?\.bgMedia\) : null/);
+    expect(profile).toContain("const bgMedia = pageMediaUrl(pageStyle?.bgMedia);");
   });
 
-  it("the shared rule: compact circle and no header yes, cover and banner no (owner, 2026-09-16)", () => {
-    expect(headerAllowsPageMedia("avatar")).toBe(true);
-    expect(headerAllowsPageMedia("none")).toBe(true);
-    expect(headerAllowsPageMedia("cover")).toBe(false);
-    expect(headerAllowsPageMedia("banner")).toBe(false);
-    expect(headerAllowsPageMedia(undefined)).toBe(false);
+  it("a cover or banner photo dissolves into the background instead of meeting it at a hard line", () => {
+    const profile = read("src/components/SwiftLinkProfile.tsx");
+    expect(profile).toContain("style={wash || bgMedia ? {");
+    expect(profile).toContain("{!wash && !bgMedia && (");
   });
 
   it('"avatar" is what the compact circle is called in stored data', () => {
-    // The render gate above compares against this exact id. If the vocabulary
-    // ever changes, the gate silently stops matching and every page loses its
-    // background at once.
     expect(normalizeHeroStyle("avatar")).toBe("avatar");
     expect(normalizeHeroStyle("cover")).toBe("cover");
     expect(normalizeHeroStyle(undefined)).toBe("cover");
   });
 
-  it("hides a stored background under another header rather than deleting it", () => {
-    // Switching header styles must not destroy an upload. The editor says so
-    // in words, and nothing in the switch path clears the key.
+  it("the header buttons write ONLY linkHeroStyle — switching never deletes an upload", () => {
     const design = read("src/components/SwiftLinkDesign.tsx");
-    expect(design).toMatch(/saved and shows with the compact-circle or no-header layout/);
-    // The header buttons write ONLY linkHeroStyle.
     expect(design).toMatch(/onChange\(\{ linkHeroStyle: o\.id === "cover" \? undefined : o\.id \}\)/);
-  });
-
-  it("offers the compact circle from inside Page background, not by scrolling", () => {
-    // Page header sits BELOW Page background since 2026-09-10, so the option
-    // has to be reachable from where it is described. Without this button the
-    // panel order would have to go back to leading with the header.
-    const design = read("src/components/SwiftLinkDesign.tsx");
-    expect(design).toMatch(/Want a photo or video filling the whole page instead\?/);
-    expect(design).toMatch(/onClick=\{\(\) => onChange\(\{ linkHeroStyle: "avatar" \}\)\}/);
   });
 });
 
@@ -449,17 +429,14 @@ describe("uploads", () => {
     expect(read("src/app/api/upload/route.ts")).toContain("guest/${randomUUID()}");
   });
 
-  it("NEITHER upload control is reachable in the sketch", () => {
-    // There are two of them in this panel — the header photo and the page
-    // background — and for a while only one was gated. A visitor could pick
-    // "Upload photo" under Page header, meet a file picker, and be told to
-    // sign in after choosing a file. Both are behind canUpload now.
+  it("both upload controls share the one uploader and the canUpload gate", () => {
     const design = read("src/components/SwiftLinkDesign.tsx");
-    expect(design).toMatch(/=== "custom" && canUpload && \(\s*<HeroImageUpload/);
-    expect(design).toMatch(/mediaHeader && canUpload && <PageBackgroundMedia/);
-    // …and nothing else in the panel calls the uploader directly.
+    expect(design).toContain("{canUpload && <HeroMediaUpload value={value} onChange={onChange} />}");
+    expect(design).toContain("{canUpload && <PageBackgroundMedia value={value} onChange={onChange} />}");
+    // Header and page background, both through lib/upload-media — no raw fetch.
     const calls = design.match(/uploadMedia\(/g) ?? [];
-    expect(calls.length).toBe(1);
+    expect(calls.length).toBe(2);
+    expect(design).not.toMatch(/fetch\("\/api\/upload"/);
   });
 
   it("a header picked in the sketch survives the hand-off too", () => {

@@ -178,6 +178,8 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     linkHeroContent?: string;
     /** Uploaded header photo for linkHeroContent "custom". Every plan. */
     linkHeroImage?: string;
+    /** "video" when the uploaded header is a short video. Every plan. */
+    linkHeroMediaType?: string;
     /** Link rows: "solid"/"outline" replace the rich tiles (Pro). */
     linkButtonStyle?: string;
     linkButtonColor?: string;
@@ -195,6 +197,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     look: ownerPaid ? customization.linkLook : freeSafeLook(customization.linkLook),
     // Every-plan structural keys, like the two hero keys below.
     heroImage: customization.linkHeroImage,
+    heroMediaType: customization.linkHeroMediaType,
     heroStyle: customization.linkHeroStyle,
     heroContent: customization.linkHeroContent,
     ...(ownerPaid
@@ -206,8 +209,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
           iconFill: customization.linkIconFill,
           buttonStyle: customization.linkButtonStyle,
           buttonColor: customization.linkButtonColor,
-          // Page background media — Pro, and rendered only with the
-          // compact-circle header (SwiftLinkProfile enforces that).
+          // Page background media — Pro, behind every header style.
           bgMedia: customization.linkBgMedia,
           bgMediaType: customization.linkBgMediaType,
           bgDim: customization.linkBgDim,
