@@ -47,11 +47,24 @@ export async function PATCH(req: NextRequest) {
       }
     : null;
   const hasAddr = !!cleanAddr && Object.values(cleanAddr).some(Boolean);
-  const lockTemplate = body.lockTemplate !== false; // default: locked (uniform template)
-  // Opt-in, so an absent field means OFF. lockTemplate defaults ON because a
-  // uniform card is the point of an office; this one would overwrite Swift
-  // Links pages members have already built, so it only exists when asked for.
-  const lockLinkDesign = body.lockLinkDesign === true;
+  // ── EACH TAB SENDS ONLY ITS OWN KEYS ────────────────────────────────────────
+  // A key the request does not carry KEEPS its stored value. This used to read
+  // absent as "off"/"clear": saving the Links tab (no phone/fax/address, no
+  // lockTemplate) deleted the office contact from every member card and turned
+  // "Keep every card matching" back on, and saving the Card tab (no
+  // lockLinkDesign) turned "Keep every Swift Links page matching" off. Found in
+  // the 2026-09-16 office audit; pinned in tests/office-brand-partial-save.
+  type StoredLocks = { template?: boolean; linkDesign?: boolean };
+  const storedLocks: StoredLocks | null = await (async () => {
+    try {
+      const { data: lockRow } = await admin.from("offices").select("brand_locks").eq("id", ctx.officeId).maybeSingle();
+      return (lockRow?.brand_locks as StoredLocks | null) ?? null;
+    } catch { return null; /* pre-migration: no locks column — defaults below */ }
+  })();
+  // Card lock defaults ON (a uniform card is the point of an office); the
+  // Swift Links lock is opt-in, because it overwrites pages members already built.
+  const lockTemplate = "lockTemplate" in body ? body.lockTemplate !== false : storedLocks?.template !== false;
+  const lockLinkDesign = "lockLinkDesign" in body ? body.lockLinkDesign === true : storedLocks?.linkDesign === true;
 
   // Company IDENTITY + look are set HERE — the Branding page is the brand's
   // single source of truth (the primary-card concept is gone). A field the
@@ -140,9 +153,9 @@ export async function PATCH(req: NextRequest) {
     brand_company: "company" in body ? (str(body.company) || null) : ((office.brand_company as string | null) ?? null),
     brand_website: "website" in body ? (str(body.website) || null) : ((office.brand_website as string | null) ?? null),
     brand_template: template,
-    brand_phone: typeof body.phone === "string" ? body.phone.trim() || null : null,
-    brand_fax: typeof body.fax === "string" ? body.fax.trim() || null : null,
-    brand_address: hasAddr ? cleanAddr : null,
+    brand_phone: "phone" in body ? (typeof body.phone === "string" ? body.phone.trim() || null : null) : ((office.brand_phone as string | null) ?? null),
+    brand_fax: "fax" in body ? (typeof body.fax === "string" ? body.fax.trim() || null : null) : ((office.brand_fax as string | null) ?? null),
+    brand_address: "address" in body ? (hasAddr ? cleanAddr : null) : ((office.brand_address as typeof cleanAddr) ?? null),
     brand_locks: { template: lockTemplate, linkDesign: lockLinkDesign },
     ...(design !== undefined ? { brand_design: design } : {}),
     ...linkFields,
