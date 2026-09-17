@@ -43,6 +43,20 @@ export const dashboardDocs = defineDocs([
       "Older answers that said \"one view per person per day\" are wrong — the window is 30 minutes, not 24 hours. Bot traffic is filtered out, and seeded demo views are excluded from milestone counts. Your own views are recognised two ways: by being signed in, and by the browser you signed in on — so opening your own card from the same browser doesn't count even if the session has since lapsed. Opening it from a browser you have never signed in on cannot be told apart from a stranger, and will count. Automated traffic from a cloud or datacenter connection — link scanners and preview crawlers that arrive with an ordinary-looking browser — doesn't count either; iCloud Private Relay and VPN visitors are real people and still do.",
   },
   {
+    id: "still-interested",
+    title: "The \"Still interested\" box",
+    audience: ["user"],
+    triggers: [
+      "still interested", "repeat visitor", "came back", "who keeps looking",
+      "anonymous visitor", "viewed twice", "warm visitor", "visitor list",
+      "who is this visitor", "can i contact them",
+    ],
+    answer:
+      "Under the Traffic box, \"Still interested\" lists people who came back to your card — or tapped one of your links — and never shared their details. Each row says what they did (\"Came back 3 times\"), where they arrived from, which card, roughly where they were, and how long ago. It only appears once there is someone to show.",
+    detail:
+      "These are not named contacts and there is no way to message them: SwiftCard recognises a returning BROWSER, never a person, so nobody's name, email or phone is known unless they typed it into your card themselves. Anyone who has shared their details is a contact and lives in Contacts instead, so they are left out of this list. One single view isn't enough to appear — it takes a genuine return (more than 30 minutes apart, the same rule as repeat views) or a link tap. The point of the list is which conversation is still warm: if the QR code from an event keeps pulling somebody back, that's the room worth following up on. Someone using two browsers or two phones shows up as two rows. The list covers the last 90 days across every card on the account, not just the card selected above it. On the Free plan the place is blurred out, the same as in notifications.",
+  },
+  {
     id: "notifications",
     title: "Notifications",
     audience: ["user"],
