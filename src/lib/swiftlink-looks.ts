@@ -452,20 +452,27 @@ export function normalizeButtonStyle(v?: string | null): ButtonStyle {
 // Owner reference: linktr.ee/kelsieblevinsrealestate — a looping video filling
 // the page, a small round avatar over it, and frosted translucent link rows.
 //
-// TIED TO THE COMPACT-CIRCLE HEADER, on purpose. The "cover" and "banner"
-// headers already put a large photo across the top of the page; a second
-// full-bleed image behind it gives two competing photographs and no page
-// design survives that. "No header" is deliberately the flat, quiet page. The
-// compact circle is the one layout with a small identity mark and nothing else
-// at the top — exactly the shape a background needs. So the controls only
-// appear for it (SwiftLinkDesign) and the render is gated on it as well
-// (SwiftLinkProfile), which means switching the header away HIDES a stored
+// TIED TO THE COMPACT-CIRCLE AND NO-HEADER LAYOUTS, on purpose. The "cover" and
+// "banner" headers already put a large photo across the top of the page; a
+// second full-bleed image behind it gives two competing photographs and no page
+// design survives that. The compact circle and "No header" (owner, 2026-09-16:
+// "for no header and compact circle they should be able to do that") are the
+// layouts with no big photo at the top — exactly the shape a background needs.
+// So the controls only appear for them (SwiftLinkDesign) and the render is
+// gated on them as well (SwiftLinkProfile), both through
+// headerAllowsPageMedia, which means switching to cover/banner HIDES a stored
 // background rather than deleting it: switch back and it returns.
 //
 // Pro fine-tuning — all four keys live in LINK_STYLE_KEYS, so a Free page
 // stores none of them and renders none of them.
 
 export type PageMediaType = "image" | "video";
+
+/** The headers a whole-page photo or video can sit behind: no big photo at the top. */
+export function headerAllowsPageMedia(heroStyle?: string | null): boolean {
+  const h = normalizeHeroStyle(heroStyle);
+  return h === "avatar" || h === "none";
+}
 
 export function normalizePageMediaType(v?: string | null): PageMediaType {
   return v === "video" ? "video" : "image";

@@ -26,7 +26,7 @@ import {
   ICON_SHAPES, ICON_FILLS, normalizeIconShape, normalizeIconFill,
   HERO_STYLES, normalizeHeroStyle,
   HERO_CONTENTS, normalizeHeroContent,
-  normalizePageDim, MAX_PAGE_DIM,
+  normalizePageDim, MAX_PAGE_DIM, headerAllowsPageMedia,
 } from "@/lib/swiftlink-looks";
 import { isAllowedMedia, uploadMedia, uploadErrorMessage, WRONG_TYPE_MESSAGE, IMAGE_TYPES, VIDEO_TYPES } from "@/lib/upload-media";
 import { resolveRowStyle } from "@/lib/swiftlink-tiles";
@@ -544,7 +544,7 @@ function HeroImageUpload({
 // two controls that only make sense once one is set: how far to darken it, and
 // whether the plain link rows go frosted over it.
 //
-// Rendered ONLY under the compact-circle header — see lib/swiftlink-looks for
+// Rendered ONLY under the compact-circle or no-header layout — see lib/swiftlink-looks for
 // why that pairing and no other. Switching the header away hides this section
 // and stops the background rendering, but never deletes it: switch back and
 // the photo, the scrim and the frosting are all still there.
@@ -724,10 +724,10 @@ export function SwiftLinkStyleControls({
    *  same reasoning that gives the mini-builder no "Link buttons" section. */
   canUpload?: boolean;
 }) {
-  // The compact-circle header is what unlocks the page-background media below.
-  // Derived once so the two sections can never disagree about which header is
-  // selected.
-  const isAvatarHeader = normalizeHeroStyle(value.linkHeroStyle) === "avatar";
+  // The compact-circle and no-header layouts are what unlock the page-background
+  // media below. Derived once, from the same rule the page renders with, so the
+  // editor and the live page can never disagree.
+  const mediaHeader = headerAllowsPageMedia(value.linkHeroStyle);
 
   // ── SECTION ORDER IS DELIBERATE: the panel is a route, not a list ─────────
   //
@@ -847,7 +847,7 @@ export function SwiftLinkStyleControls({
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
         <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">
-          {isAvatarHeader
+          {mediaHeader
             ? "A colour, or a photo or video filling the whole page behind your links."
             : "The surface behind your photo, bio, socials and links."}
         </p>
@@ -858,10 +858,9 @@ export function SwiftLinkStyleControls({
           onPick={(v) => onChange({ linkBgColor: v })}
           customLocked={locked}
         />
-        {/* Only with the compact circle. The cover and banner headers already
-            lead with a big photo, and "No header" is the deliberately flat
-            page — see lib/swiftlink-looks. */}
-        {isAvatarHeader && canUpload && <PageBackgroundMedia value={value} onChange={onChange} />}
+        {/* Only with the compact circle or no header. The cover and banner
+            headers already lead with a big photo — see lib/swiftlink-looks. */}
+        {mediaHeader && canUpload && <PageBackgroundMedia value={value} onChange={onChange} />}
         {/* …and under any other header, the switch is offered RIGHT HERE.
             This pairing used to dictate the whole panel's order: Page header
             had to come first, because the only way to reach the photo option
@@ -872,10 +871,10 @@ export function SwiftLinkStyleControls({
 
             A stored background is HIDDEN by another header, never deleted, so
             the same line doubles as the answer to "where did my photo go". */}
-        {!isAvatarHeader && canUpload && (
+        {!mediaHeader && canUpload && (
           <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">
             {value.linkBgMedia
-              ? "Your background photo or video is saved and shows with the compact-circle header."
+              ? "Your background photo or video is saved and shows with the compact-circle or no-header layout."
               : "Want a photo or video filling the whole page instead?"}{" "}
             <button
               type="button"

@@ -59,9 +59,9 @@ describe("card editor — one preview per tab, of the right kind", () => {
     expect(sharing, "the Socials tab still previews the card on mobile").not.toMatch(/mobileCardPreview\(/);
   });
 
-  it("Social design: the SWIFT LINKS preview stays at the top of the step", () => {
+  it("Social design: the SWIFT LINKS preview is pinned at the top of the step", () => {
     const s = src();
-    const preview = at(s, 'mobileLinkPreview("It updates live', "social-design preview");
+    const preview = at(s, "<PinnedLinkPreview>{linkPreviewInner}</PinnedLinkPreview>", "social-design preview");
     const controls = at(s, "<SwiftLinkStyleControls", "style controls");
     expect(preview, "the preview dropped below the controls").toBeLessThan(controls);
   });
@@ -103,7 +103,7 @@ describe("add-card wizard — the same four placements", () => {
   it("step 4: the SWIFT LINKS preview stays above the style controls", () => {
     const s = src();
     const step4 = at(s, "{step === 4 && (", "step 4");
-    const preview = s.indexOf("{mobileLinkPagePreview}", step4);
+    const preview = s.indexOf("<PinnedLinkPreview>{linkPageEl}</PinnedLinkPreview>", step4);
     const controls = s.indexOf("<SwiftLinkStyleControls", step4);
     expect(preview).toBeGreaterThan(step4);
     expect(preview, "the preview dropped below the controls").toBeLessThan(controls);
@@ -160,11 +160,12 @@ describe("desktop is untouched", () => {
   it("each Swift Links surface names what THAT step changes", () => {
     // One preview shared by two steps, so a single caption would be wrong on
     // one of them — "as you pick colors and fonts" on the Socials step.
-    for (const f of [EDITOR, WIZARD]) {
-      const c = code(f);
-      expect(c, `${f} lost the per-step caption`).toMatch(/Your bio, socials and links appear here/);
-      expect(c).toMatch(/It updates live as you pick colors and fonts/);
-    }
+    // The editor's Social design tab has no caption any more: its preview is
+    // the pinned one. The wizard's shared inline copy still names each step.
+    expect(code(EDITOR)).toMatch(/Your bio, socials and links appear here/);
+    const w = code(WIZARD);
+    expect(w).toMatch(/Your bio, socials and links appear here/);
+    expect(w).toMatch(/It updates live as you pick colors and fonts/);
   });
 
   it("both previews are defined once and shared, so the two can't drift", () => {
@@ -194,6 +195,18 @@ describe("Card design — the pinned preview", () => {
     for (const f of [EDITOR, WIZARD]) {
       expect(code(f), f).not.toMatch(/DockedCardPreview|design-inline-preview/);
     }
+  });
+
+  it("Social design pins the Swift Links page the same way in both editors", () => {
+    expect(code(EDITOR)).toContain("<PinnedLinkPreview>{linkPreviewInner}</PinnedLinkPreview>");
+    expect(code(WIZARD)).toContain("<PinnedLinkPreview>{linkPageEl}</PinnedLinkPreview>");
+  });
+
+  it("tapping a pinned preview opens it full size, above everything", () => {
+    const d = code(PIN);
+    expect(d).toContain("onClick={() => setOpen(true)}");
+    expect(d, "the full view must escape the sticky strip's stacking context").toContain("createPortal(");
+    expect(d).toMatch(/aria-modal="true"/);
   });
 
   it("both editors render the same card element in it", () => {

@@ -12,7 +12,7 @@ import SocialIcons, { type BrandSocial } from "@/components/SocialIcons";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SwiftLinkButtons from "@/components/SwiftLinkButtons";
 import SwiftLinksPromoBadge from "@/components/SwiftLinksPromoBadge";
-import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeHeroContent, normalizeButtonStyle, pageMediaUrl, normalizePageMediaType, normalizePageDim, PAGE_MEDIA_BASE, washGradient } from "@/lib/swiftlink-looks";
+import { getLook, hexAlpha, normalizeIconShape, normalizeIconFill, normalizeHeroStyle, normalizeHeroContent, normalizeButtonStyle, pageMediaUrl, normalizePageMediaType, normalizePageDim, PAGE_MEDIA_BASE, washGradient, headerAllowsPageMedia } from "@/lib/swiftlink-looks";
 
 // Owner-picked "Social design": a named Look (every plan — Free gets the free
 // pair, see lib/swiftlink-looks) plus optional Pro fine-tuning (bg/text/font)
@@ -168,15 +168,14 @@ export default function SwiftLinkProfile({
 
   // ── Page background media ─────────────────────────────────────────────────
   // A photo or short video behind the WHOLE page. Gated on the compact-circle
-  // header HERE as well as in the editor, so a background stored while that
-  // header was selected can never leak onto a cover/banner/none page — those
-  // already lead with a large photo, and two full-bleed images at once is not
-  // a design. Switching the header away therefore HIDES the background; it is
+  // and no-header layouts HERE as well as in the editor, so a stored background
+  // can never leak onto a cover/banner page — those already lead with a large
+  // photo, and two full-bleed images at once is not a design. Switching the header away therefore HIDES the background; it is
   // never deleted, and switching back brings it straight back.
   //
   // https-only (pageMediaUrl): the URL comes through client-writable
   // customization and is printed into a src on a public page.
-  const bgMedia = heroAvatar ? pageMediaUrl(pageStyle?.bgMedia) : null;
+  const bgMedia = headerAllowsPageMedia(heroStyle) ? pageMediaUrl(pageStyle?.bgMedia) : null;
   const bgMediaVideo = bgMedia !== null && normalizePageMediaType(pageStyle?.bgMediaType) === "video";
   const bgDim = normalizePageDim(pageStyle?.bgDim);
 
@@ -635,7 +634,7 @@ export default function SwiftLinkProfile({
             // Only with media behind them: a backdrop-filter over a flat sheet
             // colour has nothing to blur, and the row would just look washed
             // out for no reason. `bgMedia` is already gated on the
-            // compact-circle header, so this follows it.
+            // compact-circle and no-header layouts, so this follows it.
             glass={!!bgMedia && !!pageStyle?.glass}
             overMedia={!!bgMedia}
             accent={accent}
