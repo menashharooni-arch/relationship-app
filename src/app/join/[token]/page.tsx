@@ -158,7 +158,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
 
         <p className="text-center text-gray-600 text-xs mt-4">
           Signed in as {user.email} ·{" "}
-          <Link href="/login" className="hover:text-gray-400 transition-colors">Switch account</Link>
+          <Link href={`/login?next=${encodeURIComponent(`/join/${token}`)}`} className="hover:text-gray-400 transition-colors">Switch account</Link>
         </p>
       </div>
     </main>

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { awaitingPlanChoice } from "@/lib/card-active";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase-server";
@@ -66,6 +67,9 @@ export default async function SharePage({
   // Need a card to have a Swift Links URL / signature — send card-less users to
   // the dashboard to create one first.
   if (allCards.length === 0) redirect("/dashboard");
+  // A new account that hasn't chosen a plan has no live card yet; sharing a
+  // link that 404s is the wrong first experience (2026-09-16 website audit).
+  if (awaitingPlanChoice(profile)) redirect("/welcome");
 
   const isPro = isPaidPlan(profile.plan);
 

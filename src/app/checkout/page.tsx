@@ -41,7 +41,7 @@ export default async function CheckoutPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-950 flex items-center justify-center px-5 py-12">
+    <main className="sc-app min-h-screen bg-gray-950 flex items-center justify-center px-5 py-12">
       <Suspense fallback={<div className="text-gray-500 text-sm">Loading…</div>}>
         <CheckoutClient trialEligible={trialEligible} />
       </Suspense>

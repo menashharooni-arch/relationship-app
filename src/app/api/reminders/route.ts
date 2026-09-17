@@ -39,7 +39,7 @@ import { expireFreeMonths } from "@/lib/referral-server";
 import { purgeExpiredDeletedAccounts, reconcileDeletedSubscriptions } from "@/lib/account-purge";
 import { applyDueSeatReductions } from "@/lib/office-scheduled-seats";
 import { insertNotification } from "@/lib/notify";
-import { trialEndingSoonEmail, trialEndedEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
+import { trialEndingSoonEmail, trialChargeSoonEmail, trialEndedEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { canSendMarketing } from "@/lib/marketing-consent";
 import { preferenceCenterUrl } from "@/lib/email-token";
 import { reportError } from "@/lib/report-error";
@@ -354,6 +354,50 @@ export async function GET(req: NextRequest) {
     // nobody knew.
     console.error("[reminders] trial-ending warn failed:", e);
     await reportError("reminders.trial-ending-warn", e);
+  }
+
+  // Stripe Pro trials: a heads-up ~3 days before the first charge. The grant
+  // warning above excludes Stripe subscribers, and the live Stripe webhook is
+  // not subscribed to trial_will_end, so nothing reminded them before the
+  // charge. Reads the end date the webhook stores (_trialEndsAt), once per date.
+  try {
+    const nowMs = Date.now();
+    const { data: trials } = await supabase
+      .from("profiles")
+      .select("id, email, name, customization")
+      .eq("plan", "pro")
+      .not("stripe_subscription_id", "is", null)
+      .not("customization->>_trialEndsAt", "is", null);
+    for (const u of trials ?? []) {
+      const cust = (u.customization ?? {}) as Record<string, unknown>;
+      const endsAt = typeof cust._trialEndsAt === "string" ? cust._trialEndsAt : null;
+      if (!endsAt) continue;
+      const msLeft = new Date(endsAt).getTime() - nowMs;
+      if (!(msLeft > 0 && msLeft <= 3 * 86400000)) continue;
+      if (cust._trialChargeWarnedFor === endsAt) continue;
+      // Claim first, like the grant warning, so overlapping runs never double-send.
+      await supabase.from("profiles").update({ customization: { ...cust, _trialChargeWarnedFor: endsAt } }).eq("id", u.id);
+      const to = await getAccountEmail(u.id as string, (u.email as string) ?? null);
+      if (!to) continue;
+      const tpl = trialChargeSoonEmail({
+        firstName: (u.name as string)?.split(" ")[0] || "there",
+        chargeDate: new Date(endsAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+        manageUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}/settings/flows?billing=1`,
+      });
+      const { data: sent, error: sendError } = await resend.emails
+        .send({ ...tpl, to })
+        .catch((e: unknown) => ({ data: null, error: e instanceof Error ? e : new Error(String(e)) }));
+      if (sendError || !sent?.id) {
+        await reportError("reminders.trial-charge-soon.email", sendError ?? "no id returned", { userId: u.id });
+      } else {
+        try {
+          await supabase.from("email_logs").insert({ user_id: u.id, email: to, type: "trial_charge_soon", subject: tpl.subject, resend_id: sent.id });
+        } catch { /* logging is best-effort */ }
+      }
+    }
+  } catch (e) {
+    console.error("[reminders] stripe trial warn failed:", e);
+    await reportError("reminders.stripe-trial-warn", e);
   }
 
   // (Removed) The "you haven't shared your card yet" nudge email — users should

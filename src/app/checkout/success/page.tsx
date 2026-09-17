@@ -67,7 +67,9 @@ export default async function CheckoutSuccessPage({
       } catch { /* unknown session → treat as unpaid */ }
     }
     if (!paid) redirect("/welcome");
-    return <AwaitingPlan planName={isOffice ? "Office" : "Pro"} />;
+    const planLanded = isOffice ? isOfficePlan(profile?.plan) : isPaidPlan(profile?.plan);
+    const safeNextEarly = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") && SAFE_PATH.test(next) ? next : "/office/admin";
+    return <AwaitingPlan planName={isOffice ? "Office" : "Pro"} fallbackHref={planLanded ? safeNextEarly : undefined} />;
   }
 
   const { count } = await admin

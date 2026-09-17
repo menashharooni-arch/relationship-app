@@ -34,7 +34,9 @@ export default function CreateOfficeForm() {
       // the nav when they're ready, and it runs its own tour on first visit.
       // ?tour=1 respects the "already toured" flag, so an existing user who
       // upgrades isn't shown it twice.
-      window.location.assign("/dashboard?tour=1");
+      // The admin console, where its own tour runs on first visit; the copy
+      // above says to invite the team from there next.
+      window.location.assign("/office/admin");
     } catch {
       setError("Couldn't reach the server — check your connection and try again.");
       setStatus("error");

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { isShellRequest } from "@/lib/shell-request";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
@@ -242,7 +243,12 @@ export async function POST(req: NextRequest) {
         : `/checkout/success?plan=${planKey}`;
     // Cancel returns to the checkout page with the SAME selection preserved, so a
     // canceled/abandoned checkout can be retried without re-choosing (spec §1).
-    const cancelPath = `/checkout?plan=${planKey}&interval=${interval}${isOffice ? `&seats=${quantity}` : ""}&canceled=1`;
+    // A brand-new account paying from /welcome goes BACK to /welcome on cancel:
+    // its card isn't live yet, and /checkout ("Review your order", no Free
+    // option) stranded it there (2026-09-16 website audit).
+    const cancelPath = successPath.startsWith("/welcome")
+      ? "/welcome?canceled=1"
+      : `/checkout?plan=${planKey}&interval=${interval}${isOffice ? `&seats=${quantity}` : ""}&canceled=1`;
 
     // Reuse the existing Stripe customer so re-subscribing doesn't create
     // duplicates — and re-sync its email to the AUTH signup email, since a
@@ -295,7 +301,12 @@ export async function POST(req: NextRequest) {
     }, {
       // Idempotency: a double-click (or a retried request) within the same minute
       // returns the SAME Checkout Session instead of creating a duplicate.
-      idempotencyKey: `checkout:${user.id}:${priceId}:${quantity}:${Math.floor(Date.now() / 60000)}`,
+      // Every parameter that can differ between two clicks is part of the key.
+      // Stripe rejects a reused key whose parameters changed, so cancelling out
+      // of a /welcome checkout (which sets its own success page) and pressing
+      // "Continue" on /checkout within the minute showed a raw Stripe error
+      // (2026-09-16 website audit).
+      idempotencyKey: `checkout:${user.id}:${priceId}:${quantity}:${createHash("sha256").update(JSON.stringify([successPath, trialDays ?? 0, couponId ?? "", promoRedemptionId ?? ""])).digest("hex").slice(0, 16)}:${Math.floor(Date.now() / 60000)}`,
     });
 
     return NextResponse.json({ url: session.url });

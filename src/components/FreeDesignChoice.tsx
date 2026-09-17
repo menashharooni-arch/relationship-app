@@ -38,7 +38,10 @@ export default function FreeDesignChoice({
   onContinueFree,
   onIapPurchased,
   busy = false,
+  trialEligible = true,
 }: {
+  /** Web: no trial left for this account; offer Pro without "days free". */
+  trialEligible?: boolean;
   /** NATIVE: after Pro was bought through Apple (entitlement already synced). */
   onIapPurchased?: () => void;
   /** Plain-English lines from describeFreeDesignChanges(). Never empty. */
@@ -82,7 +85,7 @@ export default function FreeDesignChoice({
             disabled={busy}
             className="mt-4 w-full py-3.5 rounded-full text-sm font-bold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors"
           >
-            {busy ? "Saving…" : `Keep my card exactly like this — ${TRIAL_DAYS} days free →`}
+            {busy ? "Saving…" : trialEligible ? `Keep my card exactly like this — ${TRIAL_DAYS} days free →` : "Keep my card exactly like this — get Pro →"}
           </button>
           {/* The same disclosure the plan cards carry. A trial that takes a card
               and renews has to say so at every point it is offered, not only on
@@ -93,7 +96,7 @@ export default function FreeDesignChoice({
               and the subscription renews — the one piece of text here that has
               to be legible whether or not anyone wants to read it. 7.56:1. */}
           <p className="text-gray-400 text-[0.625rem] text-center mt-2 leading-snug">
-            {TRIAL_DAYS} days free for new customers · card required · renews automatically · cancel anytime
+            {trialEligible ? `${TRIAL_DAYS} days free for new customers · card required · renews automatically · cancel anytime` : "Renews automatically · cancel anytime"}
           </p>
         </>
       )}
