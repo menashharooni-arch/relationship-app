@@ -6,6 +6,7 @@ import { isPaidPlan } from "./plan";
 import { REFERRAL, freeMonthDays, sourceGrantsFreeMonth, isSignupSource } from "./referral";
 import { insertNotification } from "./notify";
 import { markProEnded } from "./pro-ended";
+import { after } from "next/server";
 
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no ambiguous chars (0/O/1/I/L)
@@ -275,11 +276,18 @@ export async function applyReferralOnSignup(
     // Successful (non-fraud) signup → tell the referrer where they stand
     // (1/3, 2/3, or the claimable 3/3). Best-effort: never blocks signup.
     if (referrer && status === "signed_up") {
-      try {
-        await notifyReferrerOfSignup(referrer.id);
-      } catch (e) {
-        console.error("[referral] progress notification failed:", e);
-      }
+      // after(): onboarding now AWAITS this function (so the plan step can
+      // see the gift), and the referrer's notification must not hold up the
+      // new account's first page.
+      const referrerId = referrer.id;
+      const notify = async () => {
+        try {
+          await notifyReferrerOfSignup(referrerId);
+        } catch (e) {
+          console.error("[referral] progress notification failed:", e);
+        }
+      };
+      try { after(notify); } catch { await notify(); }
     }
   }
 }
@@ -291,6 +299,23 @@ export async function applyReferralOnSignup(
  * chosen yet — so it can be started once, only at the plan step.
  */
 export async function referralGiftPending(userId: string, accountEmail: string | null | undefined): Promise<boolean> {
+  if (!(await referralGiftOffered(userId))) return false;
+  // ONE FREE PRO PERIOD PER PERSON (owner, 2026-09-17): the friend's month and
+  // the 14-day trial are both first-time-only, and each rules out the other.
+  // Someone who already had a trial — on this account, or on this email before
+  // an account deletion (the purge-proof ledger) — gets no referral month.
+  const { isProTrialEligible } = await import("./trial-eligibility");
+  const { trialHistoryFor } = await import("./trial-ledger");
+  const history = await trialHistoryFor(userId, accountEmail);
+  return isProTrialEligible(null, undefined, { ...history, referralGiftOffered: false });
+}
+
+/**
+ * The referral half of referralGiftPending, without the trial-history check —
+ * what lib/trial-ledger reads so that, while the friend's month is on offer,
+ * the 14-day trial is not ALSO offered (and checkout does not grant it).
+ */
+export async function referralGiftOffered(userId: string): Promise<boolean> {
   const admin = getAdminSupabase();
   const { data: p } = await admin
     .from("profiles")
@@ -306,14 +331,7 @@ export async function referralGiftPending(userId: string, accountEmail: string |
     .select("status")
     .eq("referred_id", userId)
     .maybeSingle();
-  if (row?.status !== "signed_up") return false;
-  // ONE FREE PRO PERIOD PER PERSON (owner, 2026-09-17): the friend's month and
-  // the 14-day trial are both first-time-only, and each rules out the other.
-  // Someone who already had a trial — on this account, or on this email before
-  // an account deletion (the purge-proof ledger) — gets no referral month.
-  const { isProTrialEligible } = await import("./trial-eligibility");
-  const { trialHistoryFor } = await import("./trial-ledger");
-  return isProTrialEligible(null, undefined, await trialHistoryFor(userId, accountEmail));
+  return row?.status === "signed_up";
 }
 
 /**

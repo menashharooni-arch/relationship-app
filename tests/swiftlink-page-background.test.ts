@@ -371,7 +371,7 @@ describe("frosted link rows", () => {
   it("is chosen per link; an untouched row falls back to the page-wide setting (stock rows only)", () => {
     expect(buttons).toContain('const glassRow = paid && (link.glass ?? (glass && variant === "compact"));');
     // Frosting a SOLID row keeps the owner's colour, translucent.
-    expect(buttons).toContain("{ background: hexAlpha(btnColor, 0.55), ...frost }");
+    expect(buttons).toContain("{ background: `color-mix(in srgb, ${btnColor} 55%, transparent)`, ...frost }");
     // Featured/Grid tiles get a frosted band under the title.
     expect(buttons).toContain("{paid && link.glass && (");
   });

@@ -10,9 +10,7 @@ import FreeDesignChoice from "@/components/FreeDesignChoice";
 import { consumePlanIntent, type PlanIntent } from "@/lib/plan-intent";
 import { detectNativeApp } from "@/lib/platform";
 import { TRIAL_DAYS } from "@/lib/plan";
-import { REFERRAL, freeMonthDays } from "@/lib/referral";
-
-const FREE_MONTH_LABEL = `${freeMonthDays(REFERRAL.NEW_USER_FREE_MONTHS)} days`;
+import ReferralGiftPanel from "@/components/ReferralGiftPanel";
 
 // Onboarding step shown once, right after a brand-new account's first card is
 // saved (routed here by GuestDraftClaim → /welcome?card=slug). It turns on
@@ -84,11 +82,11 @@ export default function WelcomePlan({
     // the Capacitor shell — the "Complete your subscription" checkout panel is
     // a selling surface. Native always falls through to the plan step, where
     // PlanCards renders only the free continue action. Web unchanged.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time consume of stored intent on mount (reads+clears storage; must not run during render)
     // presetIntent only: nothing writes the old localStorage plan intent any
     // more, so reading it could resurface a stale "Complete your Pro
     // subscription" from a past visit. Still cleared so it can't linger.
     consumePlanIntent();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time consume of stored intent on mount (reads+clears storage; must not run during render)
     setIntent(detectNativeApp() ? null : presetIntent);
   }, [presetIntent]);
 
@@ -170,19 +168,13 @@ export default function WelcomePlan({
     }
   }
 
+  // With a friend's free month on offer, the Pro card must not ALSO promise
+  // the 14-day trial: two different free offers side by side, and the account
+  // only ever gets one free Pro period (lib/trial-eligibility).
+  const offerTrial = trialEligible && !referralGift;
+
   const giftPanel = referralGift ? (
-    <div className="max-w-md mx-auto mb-6 rounded-2xl border border-blue-500/40 bg-blue-950/30 px-5 py-4 text-center">
-      <p className="text-white font-semibold text-base">🎁 A friend gave you a free month of Pro</p>
-      <p className="text-gray-400 text-sm mt-1">Everything in Pro for {FREE_MONTH_LABEL}, no card needed. When it ends you choose Pro or Free, and nothing is charged.</p>
-      <button
-        type="button"
-        onClick={startGiftMonth}
-        disabled={loading !== null}
-        className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm disabled:opacity-50"
-      >
-        {loading === "pro" ? "Starting…" : "Start my free month of Pro →"}
-      </button>
-    </div>
+    <ReferralGiftPanel onStart={startGiftMonth} busy={loading !== null} starting={loading === "pro"} />
   ) : null;
 
   async function checkout(plan: PaidPlan, annual: boolean, seats: number) {
@@ -301,7 +293,7 @@ export default function WelcomePlan({
             <FreeDesignChoice
               changes={proDesignChanges}
               onKeepWithTrial={() => checkout("pro", false, 1)}
-              trialEligible={trialEligible}
+              trialEligible={offerTrial}
               onContinueFree={confirmFree}
               onIapPurchased={goFree}
               busy={loading !== null}
@@ -329,7 +321,7 @@ export default function WelcomePlan({
               </p>
             )}
             {giftPanel}
-            <PlanCards onFree={chooseFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} freeLabel="Continue with Free →" trialEligible={trialEligible} />
+            <PlanCards onFree={chooseFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} freeLabel="Continue with Free →" trialEligible={offerTrial} />
           </>
         )}
 

@@ -276,7 +276,9 @@ describe("a friend's referral month and the 14-day trial rule each other out", (
   it("the referral month is refused to anyone who already had a trial", () => {
     const r = src("src/lib/referral-server.ts");
     const pending = r.slice(r.indexOf("export async function referralGiftPending"), r.indexOf("export async function startReferralGift"));
-    expect(pending).toMatch(/isProTrialEligible\(null, undefined, await trialHistoryFor\(userId, accountEmail\)\)/);
+    expect(pending).toContain("return isProTrialEligible(null, undefined, { ...history, referralGiftOffered: false });");
+    // …and while the month is on offer, no 14-day trial is offered or granted beside it.
+    expect(src("src/lib/trial-eligibility.ts")).toContain("if (history?.referralGiftOffered) return false;");
   });
   it("the iOS paywall applies the ACCOUNT's history, not only the Apple ID's", () => {
     const iap = src("src/lib/iap.ts");

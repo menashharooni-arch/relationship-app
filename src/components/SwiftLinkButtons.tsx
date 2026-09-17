@@ -13,7 +13,7 @@
 //   autoplaying embed. Free renders every link compact and videos link out —
 //   featured tiles, the grid and inline video are the advertised premium.
 
-import { fallbackTile, hexAlpha } from "@/lib/swiftlink-looks";
+import { fallbackTile } from "@/lib/swiftlink-looks";
 import { useEffect, useRef, useState } from "react";
 import { videoThumbnail, videoEmbed } from "@/lib/video";
 import { triggerSignupNudge } from "@/lib/nudge";
@@ -283,7 +283,7 @@ export default function SwiftLinkButtons({
             variant === "solid"
               ? glassRow
                 // Frosted SOLID: the owner's colour, translucent, over the blur.
-                ? { background: hexAlpha(btnColor, 0.55), ...frost }
+                ? { background: `color-mix(in srgb, ${btnColor} 55%, transparent)`, ...frost }
                 : { background: btnColor }
               : variant === "outline"
                 ? glassRow

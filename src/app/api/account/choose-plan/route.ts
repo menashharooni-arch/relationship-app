@@ -52,10 +52,22 @@ export async function POST(req: Request) {
     if (!(await referralGiftPending(user.id, user.email))) {
       return NextResponse.json({ error: "This free month isn't available on your account." }, { status: 400 });
     }
-    await startReferralGift(user.id, user.email);
+    // CLAIM FIRST, atomically: the plan marker is written only if no plan was
+    // chosen yet, and only the request whose update matched grants the month.
+    // Two tabs (or a replayed request) used to both pass the check above and
+    // stack two months.
     const { data: fresh } = await admin.from("profiles").select("customization").eq("id", user.id).maybeSingle();
     const freshCust = (fresh?.customization ?? {}) as Record<string, unknown>;
-    await admin.from("profiles").update({ customization: { ...freshCust, [PLAN_CHOSEN_KEY]: "pro_referral" } }).eq("id", user.id);
+    const { data: claimed } = await admin
+      .from("profiles")
+      .update({ customization: { ...freshCust, [PLAN_CHOSEN_KEY]: "pro_referral" } })
+      .eq("id", user.id)
+      .is("customization->>_planChosen", null)
+      .select("id");
+    if (!claimed?.length) {
+      return NextResponse.json({ error: "This free month isn't available on your account." }, { status: 400 });
+    }
+    await startReferralGift(user.id, user.email);
     await revalidateUserCards(user.id);
     after(() => sendWelcomeWhenCardLive(user.id, user.email));
     return NextResponse.json({ ok: true, converted: 0 });

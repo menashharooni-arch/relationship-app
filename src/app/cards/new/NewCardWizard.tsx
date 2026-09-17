@@ -42,6 +42,7 @@ import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import PlanCards from "@/components/PlanCards";
 import FreeDesignChoice from "@/components/FreeDesignChoice";
 import GuestGateModal from "@/components/GuestGateModal";
+import ReferralGiftPanel from "@/components/ReferralGiftPanel";
 import ForceLightTheme from "@/components/ForceLightTheme";
 
 type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
@@ -145,8 +146,10 @@ function ManagedTag() {
 // server wrapper (cards/new/page.tsx) passes guest={!user}. Every change is
 // snapshotted to a localStorage draft; the "Create card" action is gated behind
 // auth (requireAuth) and the draft is claimed → real card after they sign in.
-export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, trialEligible = true, tourOnDone = false, org = null, linkedinEnabled = false }: {
+export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, trialEligible = true, referralGift = false, tourOnDone = false, org = null, linkedinEnabled = false }: {
   isPro: boolean;
+  /** A friend's free month is waiting (server-resolved): offered in the plan gate. */
+  referralGift?: boolean;
   /** Whether this account can still get the Pro trial (server-resolved). */
   trialEligible?: boolean;
   guest?: boolean;
@@ -584,6 +587,15 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     handleCreate({ plan, annual, seats });
   }
 
+  // "Start my free month of Pro" in the builder's plan gate: save the card as
+  // designed (it is about to be Pro), then start the month exactly as /welcome
+  // does, then the same "Your card is live!" step.
+  function handleAuthedFirstCardGift() {
+    setPendingFreeConfirm(false);
+    setShowPlan(false);
+    handleCreate(undefined, undefined, true);
+  }
+
   // handleGuestFree / confirmGuestFree / pickPlanThenSignUp lived here and are
   // gone (2026-09-15). They existed to record a guest's plan choice BEFORE the
   // account existed, which meant the only place to put it was localStorage —
@@ -939,6 +951,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   async function handleCreate(
     planChoice?: { plan: "pro" | "office"; annual: boolean; seats: number },
     design?: { template: string; templateStyleState: TemplateStyle; linkStyleState: SwiftLinkStyle },
+    referralMonth = false,
   ) {
     const saveTemplate = design?.template ?? template;
     const saveTemplateStyle = design?.templateStyleState ?? templateStyleState;
@@ -1002,7 +1015,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           // A first card saved from the plan gate WITHOUT a paid pick is the
           // Free choice — say so, so the server records the plan as decided
           // (api/cards) and the dashboard does not send them back to choose.
-          ...(planChoice ? { chosenPlan: planChoice.plan } : showAuthedFirstCardGate ? { chosenPlan: "free" } : {}),
+          ...(planChoice ? { chosenPlan: planChoice.plan } : referralMonth ? { chosenPlan: "pro" } : showAuthedFirstCardGate ? { chosenPlan: "free" } : {}),
         }),
       });
     } catch {
@@ -1065,6 +1078,18 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       if (planChoice.plan === "office") qs.set("seats", String(planChoice.seats));
       qs.set("success", `/welcome?step=setup&for=${planChoice.plan}`);
       router.push(`/checkout?${qs.toString()}`);
+      return;
+    }
+
+    if (!guest && referralMonth) {
+      const r = await fetch("/api/account/choose-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralMonth: true }),
+      }).catch(() => null);
+      // Either way the card exists; /welcome shows "Your card is live!" when
+      // the month started, or the plan chooser again if it could not.
+      router.push(r?.ok ? "/welcome?step=setup&for=pro" : "/welcome");
       return;
     }
 
@@ -2121,6 +2146,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   : "Pick a plan for this card. Free to start — upgrade anytime."}
               </p>
             </div>
+            {referralGift && (
+              <ReferralGiftPanel onStart={handleAuthedFirstCardGift} busy={status === "loading"} starting={status === "loading"} />
+            )}
             {pendingFreeConfirm ? (
               <FreeDesignChoice
                 changes={freeDesignChanges()}
