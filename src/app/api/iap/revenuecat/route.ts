@@ -1,4 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
+import { revalidateUserCards } from "@/lib/card-page-data";
+import { sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { timingSafeEqual } from "node:crypto";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { decideRcEvent, type PlanSource, appleGrantPatch, sandboxEventAllowed } from "@/lib/iap-entitlement";
@@ -95,6 +97,9 @@ export async function POST(req: NextRequest) {
       const { data: authUser } = await admin.auth.admin.getUserById(profile.id as string);
       await recordProTrialStarted(profile.id as string, authUser?.user?.email ?? null);
     }
+    // The plan is settled: cards go live now, and the welcome email can go.
+    await revalidateUserCards(profile.id as string);
+    after(() => sendWelcomeWhenCardLive(profile.id as string));
     return NextResponse.json({ ok: true, applied: "grant" });
   }
 

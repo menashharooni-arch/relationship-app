@@ -18,7 +18,7 @@ import { provisionOfficeForOwner, tearDownOfficeForOwner, officeAccessEndedMessa
 import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { ledgerAdd, ledgerHas, recordProTrialStarted } from "@/lib/trial-ledger";
 import { EVER_PAID_KEY, PRO_ENDED_PENDING_KEY, TRIAL_ENDS_KEY, anyInvoiceActuallyPaid, proEndedNotice, stripeTrialEndIso } from "@/lib/billing-state";
-import { revalidateCardPage } from "@/lib/card-page-data";
+import { revalidateCardPage, revalidateUserCards } from "@/lib/card-page-data";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -429,6 +429,8 @@ export async function POST(req: NextRequest) {
       // Gated and idempotent — it no-ops if there is no card yet, and the
       // email_logs claim makes it once per account however often it is reached.
       after(() => sendWelcomeWhenCardLive(userId));
+      // …and the moment the cards go live (lib/card-active rule 5).
+      await revalidateUserCards(userId);
 
       // Referral: the friend just became a PAYING customer — grant the referrer
       // their one-time reward (verified Stripe event, never from the browser).

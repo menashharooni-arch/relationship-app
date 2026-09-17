@@ -37,9 +37,12 @@ export type CardRecord = Record<string, any>;
 
 export type CardPageData = {
   cardRow: CardRecord | null;
-  cardOwner: { plan: string | null; photo_url: string | null; customization: unknown } | null;
+  cardOwner: { plan: string | null; photo_url: string | null; customization: unknown; created_at?: string | null; office_id?: string | null } | null;
   profileRow: CardRecord | null;
   withinLimit: boolean;
+  /** Rule 5 in lib/card-active: a new owner has not chosen a plan yet, so the
+   *  card is not live — to anyone but its owner. */
+  awaitingPlan: boolean;
 };
 
 export const cardPageTag = (username: string) => `card-page:${username.toLowerCase()}`;
@@ -48,7 +51,7 @@ async function loadCardPageData(username: string): Promise<CardPageData> {
   const admin = getAdminSupabase();
   const { data: cardRow } = await admin.from("cards").select("*").eq("username", username).maybeSingle();
   const { data: cardOwner } = cardRow
-    ? await admin.from("profiles").select("plan, photo_url, customization").eq("id", cardRow.user_id).maybeSingle()
+    ? await admin.from("profiles").select("plan, photo_url, customization, created_at, office_id").eq("id", cardRow.user_id).maybeSingle()
     : { data: null };
   const { data: profileRow } = !cardRow
     ? await admin.from("profiles").select("*").eq("username", username).maybeSingle()
@@ -57,9 +60,11 @@ async function loadCardPageData(username: string): Promise<CardPageData> {
   // Same call the page made inline. Kept inside the cache so a Free account's
   // extra cards stay dark without a per-view query of their own.
   let withinLimit = true;
+  let awaitingPlan = false;
   if (cardRow) {
-    const { cardWithinPlanLimit } = await import("@/lib/card-active");
+    const { cardWithinPlanLimit, awaitingPlanChoice } = await import("@/lib/card-active");
     withinLimit = await cardWithinPlanLimit(cardRow.id as string, cardRow.user_id as string, cardOwner?.plan as string | undefined);
+    awaitingPlan = awaitingPlanChoice(cardOwner);
   }
 
   return {
@@ -67,6 +72,7 @@ async function loadCardPageData(username: string): Promise<CardPageData> {
     cardOwner: (cardOwner as CardPageData["cardOwner"]) ?? null,
     profileRow: (profileRow as CardRecord | null) ?? null,
     withinLimit,
+    awaitingPlan,
   };
 }
 
@@ -77,6 +83,15 @@ export function getCardPageData(username: string): Promise<CardPageData> {
     tags: [cardPageTag(slug)],
     revalidate: 60,
   })();
+}
+
+/** Drop the cached copy of every card an account owns — for the moments that
+ *  change whether ALL of them are live at once (a plan being chosen). */
+export async function revalidateUserCards(userId: string): Promise<void> {
+  try {
+    const { data } = await getAdminSupabase().from("cards").select("username").eq("user_id", userId);
+    revalidateCardPage(...(data ?? []).map((c: { username: string }) => c.username));
+  } catch { /* the 60s TTL still catches it */ }
 }
 
 /**

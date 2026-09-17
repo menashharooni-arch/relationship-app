@@ -38,7 +38,7 @@ const resolve = cache(async (username: string) => {
   // is the same backstop for visibility changes (downgrade, office kill-switch,
   // deletion). Nothing viewer-dependent is cached here — the owner check below
   // stays per-request.
-  const { cardRow, cardOwner, profileRow, withinLimit } = await getCardPageData(username);
+  const { cardRow, cardOwner, profileRow, withinLimit, awaitingPlan } = await getCardPageData(username);
   const legacyOk = !!profileRow && !((profileRow.customization as { _migrated?: boolean } | null)?._migrated) && !!profileRow.name;
   const ownerDeleted = cardRow
     ? !!((cardOwner?.customization as { _deleted?: boolean } | null)?._deleted)
@@ -67,14 +67,14 @@ const resolve = cache(async (username: string) => {
   const photoUrl = cardRow
     ? cardHeadshot(cardRow.customization, cardOwner?.photo_url)
     : (legacyOk ? (profileRow?.photo_url ?? null) : null);
-  return { cardOrLegacy, photoUrl, ownerPlan };
+  return { cardOrLegacy, photoUrl, ownerPlan, awaitingPlan: !!cardRow && awaitingPlan };
 });
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
   const { username: rawUsername } = await params;
   const username = rawUsername.toLowerCase();
-  const { cardOrLegacy } = await resolve(username);
-  if (!cardOrLegacy) return { title: "Swift Links", itunes: null };
+  const { cardOrLegacy, awaitingPlan } = await resolve(username);
+  if (!cardOrLegacy || awaitingPlan) return { title: "Swift Links", itunes: null };
   const name = cardOrLegacy.name || username;
   const description = `Connect with ${name} — all their links in one place.`;
   return {
@@ -121,7 +121,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
   // double as one.
   const sourceParam = Array.isArray(rawSource) ? rawSource[0] : rawSource;
   const source = (sourceParam ?? "swift_links").slice(0, 48);
-  const { cardOrLegacy, photoUrl, ownerPlan } = await resolve(username);
+  const { cardOrLegacy, photoUrl, ownerPlan, awaitingPlan } = await resolve(username);
   if (!cardOrLegacy) {
     const { findSlugAlias } = await import("@/lib/slug-alias");
     const alias = await findSlugAlias(username);
@@ -150,6 +150,10 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     }
   } catch { /* public viewer with a bad cookie — treat as anonymous */ }
   const isOwnerView = !!viewer && viewer.id === ownerId;
+
+  // Not live until its new owner has chosen a plan (lib/card-active rule 5);
+  // the owner can still see it.
+  if (awaitingPlan && !isOwnerView) notFound();
 
   const ownerPaid = isPaidPlan(ownerPlan);
   const customization = (cardOrLegacy.customization ?? {}) as {

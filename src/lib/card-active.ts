@@ -1,5 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
+import { PLAN_STEP_REQUIRED_SINCE } from "@/lib/billing-state";
 
 // ── Central "is this card allowed to be public?" kill-switch ────────────────
 // EVERY public surface (card page, Swift Links, OG/share image, Apple Wallet
@@ -18,6 +19,39 @@ import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 //   4. TAKEN OFFLINE    → an office admin pulled the card from /office/admin.
 //      Everything the card serves goes dark, but nothing is deleted, so it can
 //      be brought back online. Used when an employee leaves.
+//   5. NO PLAN CHOSEN   → a NEW account's card is not live until its owner has
+//      chosen a plan (owner, 2026-09-16: create the account → the card isn't
+//      live yet → choose Pro, Office or Free → then it goes live). The owner
+//      can still see it; nobody else can.
+
+/** The owner fields rule 5 reads. */
+export type PlanGateOwner = {
+  plan?: string | null;
+  customization?: unknown;
+  created_at?: string | null;
+  office_id?: string | null;
+};
+
+/**
+ * Rule 5: is this owner's card still waiting on the plan step?
+ *
+ * The same test the dashboard uses to send someone to /welcome, so "not live"
+ * and "go choose a plan" can never disagree:
+ *   • a paid plan (Stripe, Apple, an admin grant) IS a choice;
+ *   • "_planChosen" (lib/welcome-email PLAN_CHOSEN_KEY — written by Free,
+ *     Stripe and Apple) is a choice;
+ *   • an office member's plan is the team's, never theirs to choose;
+ *   • accounts from before PLAN_STEP_REQUIRED_SINCE were never asked, and stay
+ *     exactly as live as they were. A row without created_at is treated the
+ *     same way — fail open, never take an existing card down.
+ */
+export function awaitingPlanChoice(owner: PlanGateOwner | null | undefined): boolean {
+  if (!owner) return false;
+  if (isPaidPlan(owner.plan)) return false;
+  if (owner.office_id) return false;
+  if ((owner.customization as { _planChosen?: unknown } | null)?._planChosen) return false;
+  return typeof owner.created_at === "string" && owner.created_at >= PLAN_STEP_REQUIRED_SINCE;
+}
 
 export function ownerIsDeleted(customization: unknown): boolean {
   return !!(customization as { _deleted?: boolean } | null)?._deleted;
@@ -88,10 +122,11 @@ export async function isCardActive(username: string): Promise<boolean> {
     if (cardIsOffline(cardRow)) return false;
     const { data: owner } = await admin
       .from("profiles")
-      .select("plan, customization")
+      .select("plan, customization, created_at, office_id")
       .eq("id", cardRow.user_id)
       .maybeSingle();
     if (!owner || ownerIsDeleted(owner.customization)) return false;
+    if (awaitingPlanChoice(owner)) return false;
     return cardWithinPlanLimit(cardRow.id, cardRow.user_id, owner.plan);
   }
 

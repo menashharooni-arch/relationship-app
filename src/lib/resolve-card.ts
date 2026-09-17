@@ -59,7 +59,7 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
   // card view's database work for identical data. Callers outside a request
   // (the Wallet pass builder, the OG image) get a cache read too, which is
   // equally correct: an edit invalidates the tag.
-  const { cardRow, cardOwner: owner, profileRow } = await getCardPageData(username);
+  const { cardRow, cardOwner: owner, profileRow, awaitingPlan } = await getCardPageData(username);
 
   const deleted = cardRow
     ? !!(owner?.customization as { _deleted?: boolean } | null)?._deleted
@@ -73,6 +73,10 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
   // Plan kill-switch — extra Pro-era cards resolve to nothing (kills the OG
   // share image and the wallet pass alongside the page itself).
   if (cardRow && !(await cardWithinPlanLimit(cardRow.id, cardRow.user_id, owner?.plan))) return null;
+
+  // Not live until a plan is chosen (lib/card-active rule 5) — no share image,
+  // no link unfurl, no wallet pass for a card nobody else can open yet.
+  if (cardRow && awaitingPlan) return null;
 
   const legacyOk =
     !cardRow &&

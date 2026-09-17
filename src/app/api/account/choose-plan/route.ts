@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
-import { revalidateCardPage } from "@/lib/card-page-data";
+import { revalidateCardPage, revalidateUserCards } from "@/lib/card-page-data";
 import { PRO_ENDED_PENDING_KEY } from "@/lib/billing-state";
 
 // ── "I'll stay on Free" — the moment the plan becomes real ───────────────────
@@ -112,6 +112,10 @@ export async function POST(req: Request) {
       }
     }
   }
+
+  // Choosing a plan is what puts a new account's cards live (lib/card-active
+  // rule 5) — drop every cached copy so they open now, not after the TTL.
+  await revalidateUserCards(user.id);
 
   // after(): the visitor is waiting on this response to move to their
   // dashboard, and an email provider must never be in that path.

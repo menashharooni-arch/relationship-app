@@ -42,7 +42,7 @@ export const gettingStartedDocs = defineDocs([
       "unfinished card", "continue your card", "start a new card", "start over", "old card came back",
     ],
     answer:
-      "You can build a whole card at swiftcard.me/cards/new with no account — the draft lives in your browser until you choose a plan, at which point a \"Your work is ready\" prompt asks you to create an account or log in, and the card is saved.",
+      "You can build a whole card at swiftcard.me/cards/new with no account — the draft lives in your browser until you press \"Save & create account\" on the last step, where a \"Your work is ready\" prompt asks you to create an account or log in and the card is saved to it. The card is not live yet at that point: you choose a plan next (Pro, Office or Free), and choosing is what puts it live and sends the \"Your SwiftCard is live\" email.",
     detail:
       "Leaving the builder does not delete the draft — not the Home link, not the homepage. The next time you open the builder from any button (\"Get started free\", \"Start for free\", \"Create your free card\" and the rest), a screen headed \"You have an unfinished card\" asks: \"Continue your card\" picks up at the step you stopped on, \"Start a new card\" deletes the draft and opens a blank card at step 1. Reloading the builder or pressing the browser's Back button resumes without asking. Two ways a draft is really lost, both worth checking before assuming a fault. It is browser-local, so it doesn't follow you to another device or survive clearing site data, and choosing \"Start a new card\" deletes it for good. And the save has to happen within an hour of the account prompt: sign in much later and you land on the dashboard without the card. The prompt appears even if you're already signed in, on purpose, so a card is never quietly saved into whichever account happened to be open.",
   },
@@ -52,7 +52,7 @@ export const gettingStartedDocs = defineDocs([
     audience: ["user"],
     triggers: ["welcome", "first card", "just signed up", "card is live", "what now", "next steps"],
     answer:
-      "You land on a \"Your card is live!\" screen (/welcome) with your card URL, an offer to turn on notifications, a \"Get SwiftCard on iPhone\" box with a Download on the App Store button, and — if you picked a paid plan while building — a link on to /checkout to finish it. After that the dashboard opens with a short guided tour. Creating a further card later ends on the same screen inside the builder, with the same notifications switch and app download.",
+      "You land on a \"Your account is ready\" screen (/welcome) with your card URL — your card is not live yet; choosing a plan there (Pro, Office or Free) is what puts it live — an offer to turn on notifications, a \"Get SwiftCard on iPhone\" box with a Download on the App Store button, and — if you picked a paid plan while building — a link on to /checkout to finish it. After that the dashboard opens with a short guided tour. Creating a further card later ends on the same screen inside the builder, with the same notifications switch and app download.",
     detail:
       "If the card was designed with Pro-only colours but Free was chosen, a note explains the content is saved and the design falls back to a Free-safe version; nothing is lost.",
   },
