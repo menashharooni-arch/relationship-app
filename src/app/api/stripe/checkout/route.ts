@@ -281,7 +281,13 @@ export async function POST(req: NextRequest) {
         ...(isOffice ? { seats: String(quantity) } : {}),
         ...(promoRedemptionId ? { promo_redemption_id: promoRedemptionId } : {}),
       },
-      success_url: `${APP_URL}${successPath}`,
+      // ALWAYS through /checkout/success, carrying the caller's destination as
+      // `next` and Stripe's session id. Stripe redirects the buyer here the
+      // instant they pay, usually BEFORE the webhook has set their plan — and
+      // /office/admin sent anyone not yet on Office to /pricing (in the app:
+      // /pricing → /dashboard → /welcome, the plan chooser again). The success
+      // page holds them on "Setting up…" until the plan has landed.
+      success_url: `${APP_URL}/checkout/success?plan=${planKey}${successPath.startsWith("/checkout/success") ? "" : `&next=${encodeURIComponent(successPath)}`}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${APP_URL}${cancelPath}`,
       // Either a pre-applied coupon OR a promo-code box (Stripe forbids both):
       // with no coupon, customers can type admin-created promo codes at checkout.
