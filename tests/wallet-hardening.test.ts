@@ -67,12 +67,14 @@ describe("in-app signup and first-card flow", () => {
     expect(src).toMatch(/setTimeout\(\(\) => \{ document\.getElementById\("sc-auth-overlay"\)\?\.remove\(\); \}, 20000\)/);
   });
 
-  it("onboarding redirects without waiting on the referral grant", () => {
-    // The welcome email used to be the other after() here. It moved to the
-    // card-creation paths on 2026-09-11 — "Your SwiftCard is live" cannot go
-    // out before the card does — and is still never awaited there either.
+  it("onboarding records the referral before redirecting, but never waits on the referrer notification", () => {
+    // AWAITED since 2026-09-17: the plan step reads the referral row to offer
+    // the friend's free month, and an after() task could finish too late. The
+    // slow part (notifying the referrer) is deferred inside. The welcome email
+    // lives on the card-creation paths and is still never awaited there.
     const src = read2("src/app/onboarding/page.tsx");
-    expect(src).toMatch(/after\(\(\) => applyReferralOnSignup/);
+    expect(src).toMatch(/await applyReferralOnSignup\(/);
+    expect(read2("src/lib/referral-server.ts")).toContain("try { after(notify); } catch { await notify(); }");
     expect(read2("src/app/api/cards/route.ts")).toMatch(/after\(\(\) => sendWelcomeWhenCardLive/);
   });
 

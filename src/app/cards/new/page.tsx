@@ -11,6 +11,7 @@ import { isPaidPlan, PLAN_LIMITS } from "@/lib/plan";
 import { cookies } from "next/headers";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
 import { trialHistoryFor } from "@/lib/trial-ledger";
+import { referralGiftPending } from "@/lib/referral-server";
 import { SRC_COOKIE, COOKIE_MAX_AGE, isSignupSource } from "@/lib/referral";
 
 // NewCardWizard gains a `guest?: boolean` prop (owned by the card-editor agent).
@@ -21,6 +22,7 @@ const Wizard = NewCardWizard as ComponentType<{
   guest?: boolean;
   isFirstCard?: boolean;
   trialEligible?: boolean;
+  referralGift?: boolean;
   tourOnDone?: boolean;
   appUrl?: string;
   walletEnabled?: boolean;
@@ -202,6 +204,9 @@ export default async function NewCardPage({
   // that can still get it (one free Pro period per person: the 14-day trial or
   // a friend's referral month). Guests have no history: eligible.
   let trialEligible = true;
+  // Signed up through a friend's link FIRST, then built the card: the builder's
+  // own plan gate is their plan step, so it offers the free month too.
+  const referralGift = user && isFirstCard ? await referralGiftPending(user.id, user.email).catch(() => false) : false;
   if (user && isFirstCard) {
     try {
       const { data: billing } = await getAdminSupabase().from("profiles").select("stripe_customer_id").eq("id", user.id).maybeSingle();
@@ -217,6 +222,7 @@ export default async function NewCardPage({
         guest={!authedAdd}
         isFirstCard={isFirstCard}
         trialEligible={trialEligible}
+        referralGift={referralGift}
         tourOnDone={tourOnDone}
         appUrl={process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}
         walletEnabled={hasWalletConfig()}

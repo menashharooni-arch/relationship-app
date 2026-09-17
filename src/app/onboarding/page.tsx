@@ -136,13 +136,18 @@ export default async function OnboardingPage({
         const ip = trustedIp === "unknown" ? null : trustedIp;
         // Same reasoning as the welcome email: several queries and fraud
         // checks that the new account should never wait on.
-        after(() => applyReferralOnSignup(user.id, {
+        // AWAITED, not after(): the plan step (/welcome, or the builder's gate)
+        // reads the referral row to offer the friend's free month, and it can
+        // render before an after() task finishes — the gift was then never
+        // shown and lost for good once a plan was picked. The referrer's
+        // notification inside is still deferred.
+        await applyReferralOnSignup(user.id, {
           code: c.get(REF_COOKIE)?.value ?? null,
           source: c.get(SRC_COOKIE)?.value ?? null,
           ip,
           email: user.email ?? null,
           device: hashDevice(h.get("user-agent"), h.get("accept-language")),
-        }).catch((e) => console.error("[onboarding] referral apply failed:", e)));
+        }).catch((e) => console.error("[onboarding] referral apply failed:", e));
       } catch (e) {
         console.error("[onboarding] referral apply failed:", e);
       }

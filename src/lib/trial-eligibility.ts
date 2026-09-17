@@ -64,6 +64,9 @@ export async function isProTrialEligible(
     proTrialStartedAt?: string | null;
     /** The ACCOUNT email, checked against the purge-proof trial ledger. */
     accountEmail?: string | null;
+    /** A friend's free month is on offer (lib/referral-server): that is this
+     *  account's one free Pro period, so no 14-day trial beside it. */
+    referralGiftOffered?: boolean;
   },
 ): Promise<boolean> {
   // RULE 4 (2026-09-16), layered on rule 1: one trial per PERSON, not per
@@ -75,6 +78,7 @@ export async function isProTrialEligible(
   // Stripe check below: a missing marker or unreachable ledger reads as "no
   // record", never as a refusal.
   if (history?.proTrialStartedAt) return false;
+  if (history?.referralGiftOffered) return false;
   if (history?.accountEmail && (await ledgerHas("email_trial", history.accountEmail))) return false;
 
   if (!stripeCustomerId) return true;

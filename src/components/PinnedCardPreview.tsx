@@ -142,6 +142,9 @@ export function LinkPageViewport({ children, onExpand }: { children: React.React
   const [section, setSection] = useState<Section>("top");
   const [hasLinks, setHasLinks] = useState(false);
   const followRef = useRef<string | null>(null);
+  // A tapped jump ("Links") holds until the PAGE scrolls again; then the
+  // preview goes back to following the step being edited.
+  const manualRef = useRef(false);
 
   const scrollTo = useCallback((to: Section, smooth = true) => {
     const frame = frameRef.current;
@@ -196,7 +199,12 @@ export function LinkPageViewport({ children, onExpand }: { children: React.React
       const to = STEP_SECTION[key];
       if (to) scrollTo(to);
     };
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    const onScroll = (e: Event) => {
+      // The preview's own scrolling is not the page moving.
+      if (frameRef.current && e.target instanceof Node && frameRef.current.contains(e.target)) return;
+      if (manualRef.current) { manualRef.current = false; followRef.current = null; }
+      if (!raf) raf = requestAnimationFrame(update);
+    };
     // Touching a control is the surest sign of what is being edited.
     const onPointer = (e: Event) => {
       const li = (e.target as Element | null)?.closest?.("ol[data-design-steps=\"swiftlinks\"] li[data-design-step]") as HTMLElement | null;
@@ -232,7 +240,7 @@ export function LinkPageViewport({ children, onExpand }: { children: React.React
           <button
             key={sec}
             type="button"
-            onClick={() => scrollTo(sec)}
+            onClick={() => { manualRef.current = true; scrollTo(sec); }}
             aria-pressed={section === sec}
             className={`text-left px-3 py-1.5 rounded-full text-[0.6875rem] font-semibold border transition-colors ${
               section === sec ? "border-blue-600 bg-blue-600/15 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"

@@ -56,7 +56,12 @@ describe("referral free month requires a real, clean referral", () => {
     const signup = c.slice(c.indexOf("export async function applyReferralOnSignup"), c.indexOf("export async function referralGiftPending"));
     expect(signup).not.toMatch(/grantAppFreeMonths\(/);
     expect(code("src/app/api/account/choose-plan/route.ts")).toContain("if (!(await referralGiftPending(user.id, user.email)))");
-    expect(code("src/components/WelcomePlan.tsx")).toContain("Start my free month of Pro");
+    expect(code("src/components/ReferralGiftPanel.tsx")).toContain("Start my free month of Pro");
+    expect(code("src/components/WelcomePlan.tsx")).toContain("<ReferralGiftPanel");
+    // The builder's own plan gate (signed up first, then built the card) offers it too.
+    expect(code("src/app/cards/new/NewCardWizard.tsx")).toContain("<ReferralGiftPanel onStart={handleAuthedFirstCardGift}");
+    // Claimed atomically: only the request that sets the plan marker grants.
+    expect(code("src/app/api/account/choose-plan/route.ts")).toContain('.is("customization->>_planChosen", null)');
   });
 
   it("the route computes the grant with AND, not the old short-circuiting OR", () => {

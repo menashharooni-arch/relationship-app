@@ -50,8 +50,15 @@ export async function ledgerHas(kind: LedgerKind, raw: string | null | undefined
 export async function trialHistoryFor(
   userId: string,
   accountEmail: string | null | undefined,
-): Promise<{ proTrialStartedAt: string | null; accountEmail: string | null }> {
+): Promise<{ proTrialStartedAt: string | null; accountEmail: string | null; referralGiftOffered: boolean }> {
   let proTrialStartedAt: string | null = null;
+  // A friend's free month on offer IS this account's free Pro period — the
+  // 14-day trial is not offered or granted beside it (fails open to false).
+  let referralGiftOffered = false;
+  try {
+    const { referralGiftOffered: offered } = await import("./referral-server");
+    referralGiftOffered = await offered(userId);
+  } catch { /* no record → no gift */ }
   try {
     const { data, error } = await getAdminSupabase()
       .from("profiles")
@@ -60,7 +67,7 @@ export async function trialHistoryFor(
       .maybeSingle();
     if (!error) proTrialStartedAt = (data as { pro_trial_started_at?: string | null } | null)?.pro_trial_started_at ?? null;
   } catch { /* pre-migration */ }
-  return { proTrialStartedAt, accountEmail: accountEmail ?? null };
+  return { proTrialStartedAt, accountEmail: accountEmail ?? null, referralGiftOffered };
 }
 
 /**

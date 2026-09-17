@@ -108,6 +108,12 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
 
   async function save() {
     if (status === "saving") return;
+    // A value that cannot become a link would put a dead Instagram button on
+    // every member's page; the red line under the box already says why.
+    if (instagram.trim() && !socialDestination("instagram", instagram)) {
+      document.getElementById("office-link-ig")?.focus();
+      return;
+    }
     setStatus("saving");
     try {
       const res = await fetch("/api/office/brand", {
