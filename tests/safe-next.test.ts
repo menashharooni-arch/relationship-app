@@ -84,6 +84,8 @@ describe("every consumer uses the shared guard", () => {
     // The exact line that shipped the hole.
     const code = read("src/components/LoginForm.tsx");
     expect(code).not.toMatch(/location\.href\s*=\s*redirectTo\s*\?\?/);
-    expect(code).toMatch(/location\.href\s*=\s*safeNextPath\(redirectTo\)\s*\?\?/);
+    // Guarded, then passed through /onboarding (which provisions a missing
+    // profile) — still only the SAFE value ever reaches the URL.
+    expect(code).toMatch(/const next = safeNextPath\(redirectTo\);\s*window\.location\.href = next \? `\/onboarding\?next=\$\{encodeURIComponent\(next\)\}` : "\/onboarding";/);
   });
 });

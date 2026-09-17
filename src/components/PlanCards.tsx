@@ -8,7 +8,7 @@ import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS } from "@/lib/plan";
 import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
 import ProTrialPrice from "@/components/ProTrialPrice";
 import IapSubscribeButton from "@/components/NativePaywall";
-import { useIapMonthlyPrice } from "@/lib/use-iap-price";
+import { useIapOffer } from "@/lib/use-iap-price";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
 // The in-product plan chooser used during account creation — the card wizard's
@@ -248,27 +248,35 @@ function NativePro({
    *  there is no account to attribute a subscription to yet. */
   onNeedsAccount?: () => void;
 }) {
-  const price = useIapMonthlyPrice();
+  // Prices from StoreKit; the trial only for an Apple ID that can get it.
+  const { monthly: price, annual, trial } = useIapOffer();
   return (
     <div className="relative rounded-[28px] p-7 flex flex-col overflow-hidden" style={{ background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
       <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
       <div className="absolute top-6 right-6 z-[4] bg-white/25 text-white text-[0.6875rem] font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
       <div className="relative z-[2] flex flex-col flex-1">
         <p className="text-[1.35rem] font-extrabold tracking-tight text-black mb-3">Pro</p>
-        {price ? <ProTrialPrice price={price} period="month" /> : null}
+        {price ? (
+          trial
+            ? <ProTrialPrice price={price} period="month" />
+            : <div className="flex items-end gap-1"><span className="text-[2.4rem] font-bold text-white leading-none">{price}</span><span className="text-white/80 text-sm mb-1">/ month</span></div>
+        ) : null}
+        {annual && <p className="text-white/80 text-xs mt-2">or {annual} / year</p>}
         <p className="text-white/80 text-sm mb-6 mt-4">{PLAN_DESCRIPTIONS.pro}</p>
         <ul className="space-y-2.5 mb-7 flex-1">
           {features.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-white"><Check pro />{f}</li>))}
         </ul>
         <IapSubscribeButton
           className="!w-full !py-3.5 !text-sm !bg-white !text-[#2450d8]"
-          label={`Try Pro free for ${TRIAL_DAYS} days →`}
-          sublabel={`${TRIAL_DAYS} days free, then billed by Apple`}
+          label={trial === false ? "Get Pro →" : `Try Pro free for ${TRIAL_DAYS} days →`}
+          sublabel={trial === false ? "Billed by Apple · monthly or yearly" : `${TRIAL_DAYS} days free, then billed by Apple`}
           onPurchased={onPurchased}
           onNeedsAccount={onNeedsAccount}
         />
         <p className="text-white/70 text-[0.6875rem] text-center mt-2.5 leading-relaxed">
-          {TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account
+          {trial === false
+            ? "Renews automatically · cancel anytime in your Apple account"
+            : `${TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account`}
         </p>
       </div>
       <span className="rd-glisten-sweep" aria-hidden="true" />

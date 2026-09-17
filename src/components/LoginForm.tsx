@@ -184,7 +184,15 @@ export default function LoginForm({
       } else {
         // safeNextPath, NOT the raw redirectTo — `next` is attacker-controlled
         // (see the helper). This line was the one place the guard was missed.
-        window.location.href = safeNextPath(redirectTo) ?? "/dashboard";
+        //
+        // Through /onboarding, which passes an existing account straight on to
+        // `next` and PROVISIONS one that has no profile yet. An account created
+        // with email confirmation whose link opened in another browser (the
+        // iPhone app's link opens Safari) signs in here without ever having
+        // been through onboarding — and had no profile, so choosing a plan and
+        // buying Pro both silently failed (2026-09-16 audit).
+        const next = safeNextPath(redirectTo);
+        window.location.href = next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding";
       }
     } else {
       await clearExistingSession();

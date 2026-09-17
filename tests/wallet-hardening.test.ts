@@ -87,7 +87,7 @@ describe("in-app signup and first-card flow", () => {
   it("the native plan chooser mirrors the web cards and never hardcodes a price", () => {
     const src = read2("src/components/PlanCards.tsx");
     expect(src).toMatch(/function NativePro/);
-    expect(src).toMatch(/useIapMonthlyPrice\(\)/);
+    expect(src).toContain("useIapOffer()");
     expect(src).toMatch(/<ProTrialPrice price=\{price\} period="month" \/>/);
     expect(src).toMatch(/Free <span className="text-slate-\d00">Forever<\/span>/);
     // Office is Stripe-only with no IAP product: no Office CARD and no
@@ -162,5 +162,18 @@ describe("public card page caching and redirect safety", () => {
     const src = read3("src/app/api/settings/flows/route.ts");
     expect(src).toMatch(/getAdminSupabase\(\)\s*\n?\s*\.from\("profiles"\)\s*\n?\s*\.update\(\{ flow_settings: body \}\)/);
     expect(src).toMatch(/\.eq\("id", user\.id\)/);
+  });
+});
+
+describe("the app only promises a trial this Apple ID can get (2026-09-16)", () => {
+  it("drops the intro offer unless RevenueCat says ELIGIBLE", () => {
+    const iap = readFileSync("src/lib/iap.ts", "utf8");
+    expect(iap).toContain("checkTrialOrIntroductoryPriceEligibility");
+    expect(iap).toContain("?.status !== 2) p.introPriceString = null");
+  });
+  it("a finished purchase can never loop back to the plan chooser", () => {
+    const sync = readFileSync("src/app/api/iap/sync/route.ts", "utf8");
+    expect(sync).toContain('[PLAN_CHOSEN_KEY]: "pro_pending"');
+    for (const r of ["not_configured", "rc_error", "sandbox_not_allowed", "rc_unreachable"]) expect(sync).toContain(`skipped("${r}")`);
   });
 });

@@ -74,7 +74,10 @@ export default async function OfficeTeamPage() {
   const seats = overview?.stats.seats;
 
   const setup = computeSetupProgress({
-    hasBrand: !!brand,
+    // Ticked only once an admin has SAVED Branding: the brand is auto-filled
+    // from the owner's first card, so it existed (and this showed done) before
+    // anyone had opened the page (2026-09-16 audit).
+    hasBrand: !!brand && (office.brand_locks as { saved?: boolean } | null)?.saved === true,
     memberRowCount: people.filter((p) => !p.isOwner).length + invites.length,
     liveEmployeeCards: people.filter((p) => !p.isOwner && p.liveCards > 0).length,
     leadCount: overview?.totals.leads ?? 0,

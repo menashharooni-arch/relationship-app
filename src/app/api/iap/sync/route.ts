@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { revalidateUserCards } from "@/lib/card-page-data";
-import { sendWelcomeWhenCardLive } from "@/lib/welcome-email";
+import { sendWelcomeWhenCardLive, PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
 import { isOfficePlan } from "@/lib/plan";
 import { appleGrantPatch, sandboxEventAllowed } from "@/lib/iap-entitlement";
 import { createClient } from "@/lib/supabase-server";
@@ -20,12 +20,32 @@ import { recordProTrialStarted } from "@/lib/trial-ledger";
 // is a no-op and the webhook alone drives the plan — slower, still correct.
 
 export async function POST() {
-  const secret = process.env.REVENUECAT_SECRET_KEY;
-  if (!secret) return NextResponse.json({ ok: true, skipped: "not_configured" });
-
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  // When the grant can't be applied right now (no server key, RevenueCat
+  // down, a sandbox buyer not on the allow-list), the purchase still HAPPENED
+  // in front of them. Record that a plan was chosen, so the dashboard stops
+  // sending them back to "choose your plan" in a loop while the webhook
+  // catches up (2026-09-16 audit). This grants nothing: the plan stays as it
+  // is until RevenueCat confirms, and an account that has chosen a plan
+  // without paying is exactly a Free account — which anyone can choose.
+  const skipped = async (reason: string) => {
+    try {
+      const admin = getAdminSupabase();
+      const { data: p } = await admin.from("profiles").select("customization").eq("id", user.id).maybeSingle();
+      const cust = { ...((p?.customization as Record<string, unknown> | null) ?? {}) };
+      if (!cust[PLAN_CHOSEN_KEY]) {
+        await admin.from("profiles").update({ customization: { ...cust, [PLAN_CHOSEN_KEY]: "pro_pending" } }).eq("id", user.id);
+        await revalidateUserCards(user.id);
+      }
+    } catch { /* best-effort */ }
+    return NextResponse.json({ ok: true, skipped: reason });
+  };
+
+  const secret = process.env.REVENUECAT_SECRET_KEY;
+  if (!secret) return skipped("not_configured");
 
   let active = false;
   let introTrial = false;
@@ -34,7 +54,7 @@ export async function POST() {
       headers: { Authorization: `Bearer ${secret}` },
       cache: "no-store",
     });
-    if (!r.ok) return NextResponse.json({ ok: true, skipped: "rc_error" });
+    if (!r.ok) return skipped("rc_error");
     const d = await r.json();
     const ent = d?.subscriber?.entitlements?.[IAP_ENTITLEMENT];
     active = !!ent && (!ent.expires_date || new Date(ent.expires_date).getTime() > Date.now());
@@ -43,10 +63,10 @@ export async function POST() {
     const backing = ent && d?.subscriber?.subscriptions?.[ent.product_identifier];
     introTrial = backing?.period_type === "trial";
     if (active && backing?.is_sandbox && !sandboxEventAllowed(user.email)) {
-      return NextResponse.json({ ok: true, skipped: "sandbox_not_allowed" });
+      return skipped("sandbox_not_allowed");
     }
   } catch {
-    return NextResponse.json({ ok: true, skipped: "rc_unreachable" });
+    return skipped("rc_unreachable");
   }
 
   if (!active) return NextResponse.json({ ok: true, applied: "none" });
