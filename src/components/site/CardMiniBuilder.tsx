@@ -8,6 +8,7 @@ import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
+import TemplatePicker from "@/components/card-templates/TemplatePicker";
 import ClassicPro from "@/components/card-templates/ClassicPro";
 import ModernBold from "@/components/card-templates/ModernBold";
 import PhotoFirst from "@/components/card-templates/PhotoFirst";
@@ -152,35 +153,16 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
     },
     {
       title: "Make it yours",
-      subtitle: "Pick a template, then fine-tune the colours and font — the same design controls as the real editor.",
+      subtitle: "Pick a template, then work down the numbered steps — the same design controls as the real editor.",
       previewFirst: true,
       content: (
         <div className="space-y-4">
-          <div>
-            <span className="block text-white/55 text-[0.75rem] font-medium mb-2">Template</span>
-            {/* cols-3, not cols-5: with six templates a five-wide row leaves a
-                single orphan pill on a second row. Two rows of three. */}
-            <div className="grid grid-cols-3 gap-1.5">
-              {TEMPLATES.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => patch({ template: t.id })}
-                  className="rounded-lg px-1 py-2 text-[0.6875rem] font-medium transition-colors"
-                  style={{
-                    background: sketch.template === t.id ? "var(--rd-aurora)" : "rgba(255,255,255,0.05)",
-                    color: sketch.template === t.id ? "#fff" : "rgba(255,255,255,0.6)",
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* The very same control the signed-in card editor renders. On mobile
-              the live preview sits pinned above this step (previewFirst), so
-              there's no separate inline copy here. */}
-          <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} />
+          {/* EXACTLY the Card design tab (owner, 2026-09-16: "the same order,
+              the same everything"): the shared template gallery, then the
+              shared numbered design steps. Custom design is left out, as it is
+              for a website guest in the real builder. */}
+          <TemplatePicker template={sketch.template} onSelect={(id) => patch({ template: id })} data={data} customUnlocked={false} hideCustom />
+          <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} canUpload={false} />
         </div>
       ),
     },

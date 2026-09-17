@@ -42,6 +42,10 @@ export type CardPrefill = {
   textColor?: string;
   infoColor?: string;
   fontFamily?: string;
+  /** The second panel and the finish — steps 4 and 9 of the numbered design
+   *  path the builders share with Card design. */
+  surfaceColor?: string;
+  finish?: string;
   // Swift Links PAGE design ("Social design") — separate surface, separate keys.
   linkLook?: string;
   linkIconShape?: string;
@@ -52,6 +56,11 @@ export type CardPrefill = {
   /** The Connect button / accent colour. Carried like the other five so a
    *  colour picked in the marketing sketch survives the hand-off. */
   linkAccentColor?: string;
+  /** The Compact link rows' style and colour, set under "Link buttons". */
+  linkButtonStyle?: string;
+  linkButtonColor?: string;
+  /** The "Show the 'View SwiftCard' button" switch, turned OFF. */
+  hideCardLink?: boolean;
   /** The page header shape and what it shows. The mini-builder offers both
    *  (they are structural, so they are not Pro-gated and not upload-gated),
    *  which means a visitor can pick "Compact circle" there — and it has to
@@ -76,11 +85,11 @@ export type CardPrefill = {
 
 // Every design key a builder may carry over. Kept as one list so the sketch
 // writer, the wizard's autofill, and the tests can't drift apart.
-export const PREFILL_STYLE_KEYS = ["accentColor", "bgColor", "textColor", "infoColor", "fontFamily"] as const;
+export const PREFILL_STYLE_KEYS = ["accentColor", "bgColor", "textColor", "infoColor", "fontFamily", "surfaceColor", "finish"] as const;
 
 // Swift Links page design keys — separate list so the wizard can hydrate them
 // into its OWN "Social design" state instead of the card's style state.
-export const PREFILL_LINK_STYLE_KEYS = ["linkLook", "linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill", "linkAccentColor", "linkHeroStyle", "linkHeroContent"] as const;
+export const PREFILL_LINK_STYLE_KEYS = ["linkLook", "linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill", "linkAccentColor", "linkHeroStyle", "linkHeroContent", "linkButtonStyle", "linkButtonColor"] as const;
 
 const KEY = "swiftcard_prefill";
 
@@ -105,7 +114,8 @@ export function hasSketchContent(data: CardPrefill): boolean {
     // sketched something worth carrying — otherwise their colour/font work is
     // dropped on hand-off.
     PREFILL_STYLE_KEYS.some((k) => data[k]) ||
-    PREFILL_LINK_STYLE_KEYS.some((k) => data[k]),
+    PREFILL_LINK_STYLE_KEYS.some((k) => data[k]) ||
+    data.hideCardLink === true,
   );
 }
 

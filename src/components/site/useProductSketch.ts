@@ -60,6 +60,8 @@ export type Sketch = {
   linkStyle: SwiftLinkStyle;
   socials: SketchSocials;
   links: SketchLink[];
+  /** Social design's "Show the 'View SwiftCard' button" switch. On by default. */
+  showCardLink: boolean;
 };
 
 export const EMPTY_SOCIALS: SketchSocials = {
@@ -79,6 +81,7 @@ export const EMPTY_SKETCH: Sketch = {
   linkStyle: {},
   socials: { ...EMPTY_SOCIALS },
   links: [],
+  showCardLink: true,
 };
 
 // Sketch → the prefill shape the real wizard reads on hand-off.
@@ -100,6 +103,7 @@ export function toPrefill(s: Sketch, product: CardPrefill["product"]): CardPrefi
       Object.entries(s.socials).filter(([, v]) => v.trim()).map(([k, v]) => [k, v.trim()]),
     ),
     links: s.links,
+    ...(s.showCardLink ? {} : { hideCardLink: true }),
     headshotUrl: s.headshot,
     logoUrl: s.logo,
     product,
@@ -132,6 +136,8 @@ function fromPrefill(p: CardPrefill): Sketch {
       textColor: p.textColor,
       infoColor: p.infoColor,
       fontFamily: p.fontFamily,
+      surfaceColor: p.surfaceColor,
+      finish: p.finish,
     },
     linkStyle: {
       linkLook: p.linkLook,
@@ -143,9 +149,12 @@ function fromPrefill(p: CardPrefill): Sketch {
       linkAccentColor: p.linkAccentColor,
       linkHeroStyle: p.linkHeroStyle,
       linkHeroContent: p.linkHeroContent,
+      linkButtonStyle: p.linkButtonStyle,
+      linkButtonColor: p.linkButtonColor,
     },
     socials: { ...EMPTY_SOCIALS, ...(p.socials ?? {}) } as SketchSocials,
     links: p.links ?? [],
+    showCardLink: !p.hideCardLink,
   };
 }
 
