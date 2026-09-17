@@ -124,7 +124,10 @@ export function GetTheAppCard({ className = "" }: { className?: string }) {
           Share your card with a tap, keep it in Apple Wallet, and see who viewed it — right from your phone.
         </p>
         <div className="mt-3.5 flex justify-center">
-          <AppStoreBadge tone="glass" size="md" />
+          {/* Black, not glass: this card shows on LIGHT screens too (/welcome,
+              the builder), where the glass badge's white "Download on the"
+              line was invisible. A black badge reads on both themes. */}
+          <AppStoreBadge tone="black" size="md" />
         </div>
       </div>
     </NativeHidden>

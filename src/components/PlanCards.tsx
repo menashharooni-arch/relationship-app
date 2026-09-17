@@ -114,12 +114,16 @@ export default function PlanCards({
     <div>
       {/* Monthly / annual toggle — matches the Pricing page */}
       <div className="flex justify-center mb-8">
-        <div className="inline-flex items-center gap-4 rounded-full px-5 py-2.5 border border-white/12 bg-white/[0.04]">
-          <span className={`text-sm font-medium transition-colors ${!annual ? "text-white" : "text-white/40"}`}>Monthly</span>
+        {/* Theme classes (gray-*), not white/NN: this chooser renders on /welcome
+            and the builder's plan gate, which are LIGHT for most people, and
+            the light theme remaps gray-* but not white-with-opacity — the
+            inactive label was white-on-cream, invisible (2026-09-16 web run). */}
+        <div className="inline-flex items-center gap-4 rounded-full px-5 py-2.5 border border-gray-800 bg-gray-900/40">
+          <span className={`text-sm font-medium transition-colors ${!annual ? "text-white" : "text-gray-500"}`}>Monthly</span>
           <button onClick={() => setAnnual(!annual)} aria-label="Toggle annual billing" className="relative w-11 h-6 rounded-full transition-colors duration-200" style={{ background: annual ? "#2563EB" : "#475569" }}>
             <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: annual ? "translateX(22px)" : "translateX(2px)" }} />
           </button>
-          <span className={`text-sm font-medium transition-colors ${annual ? "text-white" : "text-white/40"}`}>
+          <span className={`text-sm font-medium transition-colors ${annual ? "text-white" : "text-gray-500"}`}>
             Annual <span className="ml-1 text-[0.625rem] font-black text-emerald-300 bg-emerald-400/15 px-1.5 py-0.5 rounded-full">SAVE 10%</span>
           </span>
         </div>

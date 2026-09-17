@@ -63,8 +63,11 @@ export default function GuestGateModal() {
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
       />
 
-      {/* Card — matches the editor's dark surface + brand CTA. */}
-      <div className="relative w-full max-w-sm rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-2xl">
+      {/* Card. `sc-app` puts it in the app theme system, so over the (always
+          white) card builder it is a light sheet like the page, not a dark box
+          dropped on a white screen (2026-09-16 web run). */}
+      <div className="sc-app relative w-full max-w-sm">
+      <div className="relative w-full rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-2xl">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-600/15 border border-blue-500/30">
           <svg className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -72,10 +75,10 @@ export default function GuestGateModal() {
         </div>
 
         <h2 id="guest-gate-title" className="text-center text-lg font-bold text-white">
-          Your work is ready
+          Save your card
         </h2>
         <p className="mt-2 text-center text-sm leading-relaxed text-gray-400">
-          Your work is ready. Create an account or log in to save and activate it.
+          Create your free account to save it. Next you&apos;ll choose your plan, and your card goes live.
         </p>
 
         <div className="mt-6 space-y-2.5">
@@ -111,6 +114,7 @@ export default function GuestGateModal() {
         >
           Keep editing
         </button>
+      </div>
       </div>
     </div>
   );
