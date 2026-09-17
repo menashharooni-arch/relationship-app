@@ -95,24 +95,6 @@ describe("design controls", () => {
     expect(small, `controls under ${MIN_TAP}px tall: ${JSON.stringify(small)}`).toEqual([]);
   });
 
-  it("the controls hidden behind More options clear it too", async () => {
-    const small = await inPhone(panel(), async (page) => {
-      await page.click("summary");
-      await page.waitForTimeout(120);
-      return page.evaluate((min) => {
-        const details = document.querySelector("details");
-        const els = [...(details?.querySelectorAll<HTMLElement>("button, input[type='color']") ?? [])];
-        return els
-          .map((el) => {
-            const r = el.getBoundingClientRect();
-            return { text: (el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 28), h: Math.round(r.height) };
-          })
-          .filter((r) => r.h > 0 && r.h < min);
-      }, MIN_TAP);
-    });
-    expect(small, `advanced controls under ${MIN_TAP}px: ${JSON.stringify(small)}`).toEqual([]);
-  });
-
   it("the panel speaks three type sizes, not seven", async () => {
     const sizes = await inPhone(panel(), (page) =>
       page.evaluate(() => {
@@ -245,13 +227,11 @@ describe("design controls", () => {
     expect(s.w).toBeGreaterThan(300);
   });
 
-  it("More options is reachable with no JavaScript at all", async () => {
-    // A native <details>, so it opens before hydration — the standing rule for
-    // anything interactive in this codebase.
+  it("nothing is folded away: every design step renders open, with no JavaScript", async () => {
+    // Owner, 2026-09-16: one numbered path, nothing behind a tab or a "More"
+    // fold. Static markup is what a phone paints before hydration.
     const html = panel();
-    expect(html).toMatch(/<details/);
-    expect(html).toMatch(/<summary/);
-    // And it is genuinely collapsed to begin with, or it is not decluttering.
-    expect(html).not.toMatch(/<details[^>]*\sopen/);
+    expect(html).not.toMatch(/<details/);
+    expect(html).not.toMatch(/shidden(=|s|>)/);
   });
 });

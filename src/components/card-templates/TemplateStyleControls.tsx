@@ -4,13 +4,15 @@
 // keeps a card looking professional — BACKGROUND surface, NAME/text color, and
 // FONT — because layout, accents and textures are each template's signature.
 //
-// Ordered by how often a control is actually touched, not by subject:
-//   1. "Look"      — Original plus the curated one-tap themes. Where most
-//                    people should live.
-//   2. "Fine-tune" — Colours (background, its photo or video, second surface,
-//                    name, accent) · Font · Finish, one group at a time behind
-//                    a Segmented.
-//   3. "More style options" — the details colour, behind a native <details>.
+// ONE numbered path, top to bottom, in the order a card is actually built —
+// the base first, then the details (owner, 2026-09-16: "users need to be told
+// where to go"). On Classic Pro that reads:
+//   1 Look · 2 Branding panel · 3 Photo or video · 4 Info panel ·
+//   5 Name color · 6 Accent / icons · 7 Details color · 8 Font · 9 Finish
+// Every template uses its own labels (template-style-presets META), and a
+// template with no second surface simply has one step fewer. Nothing is behind
+// a tab or a "More" fold any more: those hid half the panel from the people
+// who most needed to be led through it.
 // No PRO labels anywhere in the panel (owner, 2026-09-16): every control works
 // and previews on every plan; the Save dialog names what needs Pro.
 // The template's name and blurb are NOT repeated here: the editors' template
@@ -27,7 +29,7 @@ import { CARD_FONT_OPTIONS, isDarkBg } from "./shared";
 import type { TemplateStyle } from "./shared";
 import { META, FALLBACK_META, type Look, type StyleField } from "@/lib/template-style-presets";
 import { useRef, useState } from "react";
-import { Field, MoreOptions, SectionHeading, Segmented } from "@/components/ui/DesignControls";
+import { Field } from "@/components/ui/DesignControls";
 import {
   CARD_FINISHES, FINISH_FAMILIES, getFinish,
   composePanelBackground, PANEL_DIM_DEFAULT,
@@ -485,13 +487,10 @@ function PanelMediaControl({
   );
 }
 
-export type FineTuneSection = "colours" | "font" | "finish";
-
 export default function TemplateStyleControls({
   value,
   onChange,
   template,
-  initialSection = "colours",
 }: {
   value: TemplateStyle;
   onChange: (patch: Partial<TemplateStyle>) => void;
@@ -503,11 +502,8 @@ export default function TemplateStyleControls({
    * dialog at Save names what needs Pro, and the server enforces it.
    */
   locked?: boolean;
-  /** Which Fine-tune group opens first. Tests render each; the editors use the default. */
-  initialSection?: FineTuneSection;
 }) {
   const meta = (template && META[template]) || FALLBACK_META;
-  const [section, setSection] = useState<FineTuneSection>(initialSection);
 
   // A Look sets the card's whole scheme in one tap, INCLUDING clearing what it
   // does not specify. Leaving the previous finish or second surface underneath
@@ -524,108 +520,78 @@ export default function TemplateStyleControls({
   const applyOriginal = () =>
     onChange({ bgColor: undefined, textColor: undefined, fontFamily: undefined, finish: undefined, surfaceColor: undefined });
 
-  // A details colour set inside "More" is flagged on its summary, so it is
-  // never hiding where nobody would think to look.
-  const moreInUse = value.infoColor !== undefined;
-
   /** The short line under a colour field. The long `help` stays as its tooltip. */
-  const colourField = (
+  const swatches = (
     f: StyleField,
     current: string | undefined,
-    key: "bgColor" | "surfaceColor" | "textColor" | "accentColor",
-  ) => (
-    <div title={f.help}>
-      <Field label={f.label} help={f.hint}>
-        <Swatches presets={f.presets} value={current} fallbackHex={f.fallback} onPick={(v) => onChange({ [key]: v })} />
-      </Field>
-    </div>
-  );
+    key: "bgColor" | "surfaceColor" | "textColor" | "accentColor" | "infoColor",
+  ) => <Swatches presets={f.presets} value={current} fallbackHex={f.fallback} onPick={(v) => onChange({ [key]: v })} />;
+
+  // The path, in build order. Base first — the whole look, the main surface and
+  // what goes behind it, the second surface — then the type and colour details,
+  // then the material over all of it.
+  const steps: { key: string; label: string; help?: string; title?: string; body: React.ReactNode }[] = [
+    {
+      key: "look",
+      label: "Look",
+      help: "The whole card in one tap. Change any part of it below.",
+      body: (
+        <LooksGallery
+          looks={meta.looks}
+          value={value}
+          onPick={applyLook}
+          original={{ bg: meta.bg.fallback, text: meta.text.fallback }}
+          onOriginal={applyOriginal}
+        />
+      ),
+    },
+    { key: "bg", label: meta.bg.label, help: meta.bg.hint, title: meta.bg.help, body: swatches(meta.bg, value.bgColor, "bgColor") },
+    {
+      key: "media",
+      label: "Photo or video",
+      help: `Optional — goes behind your ${meta.bg.label.toLowerCase()}.`,
+      body: <PanelMediaControl value={value} onChange={onChange} />,
+    },
+    // Only some templates have a second surface; on the rest the background
+    // already paints the whole card and this step would do nothing.
+    ...(meta.surface
+      ? [{ key: "surface", label: meta.surface.label, help: meta.surface.hint, title: meta.surface.help, body: swatches(meta.surface, value.surfaceColor, "surfaceColor") }]
+      : []),
+    { key: "text", label: meta.text.label, help: meta.text.hint, title: meta.text.help, body: swatches(meta.text, value.textColor, "textColor") },
+    { key: "accent", label: meta.accent.label, help: meta.accent.hint, title: meta.accent.help, body: swatches(meta.accent, value.accentColor, "accentColor") },
+    { key: "info", label: meta.info.label, help: meta.info.hint, title: meta.info.help, body: swatches(meta.info, value.infoColor, "infoColor") },
+    {
+      key: "font",
+      label: "Font",
+      help: "Your name and details, across the whole card.",
+      body: <FontPills value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} />,
+    },
+    {
+      key: "finish",
+      label: "Finish",
+      help: `The material over your ${meta.bg.label.toLowerCase()}. Strongest on deeper colours.`,
+      body: <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} />,
+    },
+  ];
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4">
-      {/* ── LOOK → FINE-TUNE → MORE ──────────────────────────────────────────
-          A Look is one tap and does everything, so it leads. Fine-tune holds
-          the three things people adjust after a Look — colours (with the photo
-          or video behind the background), font, finish — one group at a time,
-          so the panel is a single decision tall instead of all three stacked
-          open. The long tail sits in More.
-
-          Every group stays MOUNTED; the inactive ones are `hidden`. That keeps
-          an in-flight photo/video upload alive across a segment switch, keeps
-          the markup identical before and after hydration, and lets the render
-          tests find every control. */}
-
-      <SectionHeading hint="The whole card, in one tap">Look</SectionHeading>
-      <LooksGallery
-        looks={meta.looks}
-        value={value}
-        onPick={applyLook}
-        original={{ bg: meta.bg.fallback, text: meta.text.fallback }}
-        onOriginal={applyOriginal}
-      />
-
-      <SectionHeading hint="Adjust one thing at a time">Fine-tune</SectionHeading>
-      <Segmented<FineTuneSection>
-        label="Fine-tune"
-        value={section}
-        onChange={setSection}
-        options={[
-          { value: "colours", label: "Colours" },
-          { value: "font", label: "Font" },
-          { value: "finish", label: "Finish" },
-        ]}
-      />
-
-      <div hidden={section !== "colours"} className="space-y-4">
-        {colourField(meta.bg, value.bgColor, "bgColor")}
-
-        {/* PHOTO OR VIDEO sits WITH the background it goes behind — a primary
-            background choice, not a "more options" one (owner, 2026-09-16:
-            it was folded under More, where nobody looking to change their
-            card's background would find it). Same control, same keys. */}
-        <Field
-          label="Photo or video"
-          help={`Behind your ${meta.bg.label.toLowerCase()}, under the finish.`}
-        >
-          <PanelMediaControl value={value} onChange={onChange} />
-        </Field>
-
-        {/* Only three of the six templates have a second surface. On the rest,
-            bgColor already paints the whole card and this would do nothing. */}
-        {meta.surface && colourField(meta.surface, value.surfaceColor, "surfaceColor")}
-        {colourField(meta.text, value.textColor, "textColor")}
-        {/* Accent lives HERE, not under More: it colours the card's icons AND
-            the buttons and background wash of the public card page
-            (lib/card-page-theme.ts) — the most visible colour after the
-            background itself. */}
-        {colourField(meta.accent, value.accentColor, "accentColor")}
-      </div>
-
-      <div hidden={section !== "font"}>
-        <Field label="Font" help="Your name and details, across the whole card.">
-          <FontPills value={value.fontFamily} onChange={(v) => onChange({ fontFamily: v })} />
-        </Field>
-      </div>
-
-      <div hidden={section !== "finish"}>
-        <Field label="Finish" help={`The material over your ${meta.bg.label.toLowerCase()}. Strongest on deeper colours.`}>
-          <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} />
-        </Field>
-      </div>
-
-      {/* ── The long tail, one tap away ──────────────────────────────────────
-          A native <details>, so it is keyboard- and screen-reader-reachable and
-          works before hydration. */}
-      <MoreOptions label="More style options" hint={meta.info.label} badge={moreInUse ? setDot : undefined}>
-        <div title={meta.info.help}>
-          <Field label={meta.info.label} help={meta.info.hint}>
-            <Swatches presets={meta.info.presets} value={value.infoColor} fallbackHex={meta.info.fallback} onPick={(v) => onChange({ infoColor: v })} />
-          </Field>
-        </div>
-      </MoreOptions>
-    </div>
+    <ol className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800" aria-label="Design your card, step by step">
+      {steps.map((st, i) => (
+        <li key={st.key} className="flex gap-3 p-4" title={st.title}>
+          {/* The number is the "where do I go next" — one column, read down. */}
+          <span
+            aria-hidden
+            className="mt-px w-6 h-6 shrink-0 rounded-full bg-blue-600 text-white text-[0.6875rem] font-bold flex items-center justify-center tabular-nums"
+          >
+            {i + 1}
+          </span>
+          <div className="min-w-0 flex-1">
+            <Field label={st.label} help={st.help}>
+              {st.body}
+            </Field>
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }
-
-/** "Something in here is set" — a neutral grey dot. */
-const setDot = <span aria-label="has a setting" className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />;

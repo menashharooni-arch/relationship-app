@@ -19,7 +19,7 @@ import { PlanGate, PlanNotice } from "@/components/PlanGate";
 import { isNativeApp } from "@/lib/platform";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import TemplatePicker, { PRESET_TEMPLATES } from "@/components/card-templates/TemplatePicker";
-import DockedCardPreview from "@/components/DockedCardPreview";
+import PinnedCardPreview from "@/components/PinnedCardPreview";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
@@ -1728,10 +1728,16 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           </div>
         )}
 
-        {/* Step 2 — Card design: Photos · Template · Look · Fine-tune · More
+        {/* Step 2 — Card design: Photos · Template · the numbered design steps
             (the same tab as the edit form's Card design) */}
         {step === 2 && (
           <div className="space-y-5">
+            {/* Phone: the card sits at the top of the step and stays pinned to
+                the top of the screen while every control below scrolls under
+                it. Not while the custom designer is open — that IS the card. */}
+            {!(customSelected && customDesignAvailable && !designLocked) && (
+              <PinnedCardPreview>{cardTemplateEl}</PinnedCardPreview>
+            )}
             <div className="mb-1">
               <h1 className="text-2xl font-bold text-white">Card design</h1>
               <p className="text-gray-400 text-sm mt-1">Add your logo and headshot, then pick a design.</p>
@@ -1871,16 +1877,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                       /api/scan-design needs a session and a paid plan. */}
                   <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} />
                 </div>
-              ) : (
-                /* Mobile: the preview sits BETWEEN the template gallery and the
-                   style panel — both change what it shows. Once it scrolls away,
-                   DockedCardPreview keeps a small copy on screen. It used to be
-                   pinned sticky at the very top of the step, which ate the
-                   screen and left the controls to be scrolled to blind. */
-                <div id="design-inline-preview" className="lg:hidden">{livePreview}</div>
-              )}
+              ) : null}
 
-              {/* Restyle the chosen preset: Look → Fine-tune → More. No PRO
+              {/* Restyle the chosen preset, one numbered step at a time. No PRO
                   badge on a header: Looks, swatches, fonts and three finishes
                   work on every plan. The Pro pieces carry their own tag inside
                   the panel (same as the editor — the two must never disagree). */}
@@ -1901,9 +1900,6 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               )}
             </div>
             )}
-            <DockedCardPreview anchorId="design-inline-preview" enabled={!designLocked && !(customSelected && customDesignAvailable)}>
-              {cardTemplateEl}
-            </DockedCardPreview>
 
             <div className="flex gap-3 mt-1">
               <button onClick={() => setStep(1)} className="flex-1 border border-gray-700 text-gray-400 hover:border-gray-500 font-semibold py-3 rounded-full transition-colors text-sm">
