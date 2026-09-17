@@ -17,7 +17,8 @@ import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
-import { Field } from "./BuilderFields";
+import { Field, LogoShapeToggle } from "./BuilderFields";
+import { prettyCardSlug } from "@/lib/slug";
 
 // The 6th tile in the Swift Cards template grid: a dashed card outline with a
 // "+" that opens the REAL card builder — the same controls the signed-in editor
@@ -37,11 +38,10 @@ const TEMPLATES = [
   { id: "logo-first", label: "Logo", Component: LogoFirst },
 ];
 
-// Same derivation the SwiftLink mini-builder (and the real wizard) uses, so
-// the card face previews the handle the visitor would actually get.
-function slugify(str: string): string {
-  return str.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
-}
+// The card face previews the REAL link. prettyCardSlug is the same helper the
+// wizard's own "Card URL" hint uses — "Alex Morgan" + "Morgan & Co." becomes
+// AlexMorgan-MorganCo, not the old alex-morgan-morgan-co. Routes are
+// case-insensitive, so the pretty form is what we show everywhere.
 
 export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinEnabled?: boolean }) {
   const router = useRouter();
@@ -70,12 +70,12 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
     initials: (sketch.name || "Y")[0].toUpperCase(),
     photoUrl: sketch.headshot,
     logoUrl: sketch.logo,
-    cardUrl: `swiftcard.me/${slugify(sketch.company.trim() ? `${sketch.name} ${sketch.company}` : sketch.name) || "your-card"}`,
+    cardUrl: `swiftcard.me/${prettyCardSlug(sketch.name, sketch.company) || "your-card"}`,
     linkedin: sketch.socials.linkedin,
     instagram: sketch.socials.instagram,
     twitter: sketch.socials.twitter,
     tiktok: sketch.socials.tiktok,
-    customization: { ...sketch.style, links: sketch.links },
+    customization: { ...sketch.style, links: sketch.links, logoShape: sketch.logoShape },
   };
 
   function launch() {
@@ -143,6 +143,9 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
           <div>
             <ImageUpload guest field="logo" shape="square" currentUrl={sketch.logo} label="Company logo" onUploaded={(u) => patch({ logo: u || null })} />
             <LogoSuggest company={sketch.company} email={sketch.email} onConfirm={(u) => patch({ logo: u })} />
+            {/* Logo plate shape — the editor's own control, shown only once a
+                logo exists, exactly as the editor does it. */}
+            {sketch.logo && <LogoShapeToggle value={sketch.logoShape} onChange={(v) => patch({ logoShape: v })} />}
           </div>
         </div>
       ),
@@ -228,7 +231,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
         launchLabel="Make it live →"
         previewCaption="This is your real card — recipients open it as a full page in their browser."
         preview={
-          <InertPreview className="w-[260px] max-w-full">
+          <InertPreview className="w-full max-w-[260px]">
             <div className="rounded-[var(--rd-r-lg)] overflow-hidden shadow-[var(--rd-sh-lg)]">
               <CardScaler><Preview data={data} /></CardScaler>
             </div>

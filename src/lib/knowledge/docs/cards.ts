@@ -83,7 +83,7 @@ export const cardDocs = defineDocs([
       "twitter", "snapchat", "add socials", "add a link", "extra links", "buttons", "bio",
     ],
     answer:
-      "The \"Socials\" tab (step 3 of the builder) — your bio, your social profiles, and additional link buttons. Each field shows the format it wants: LinkedIn as linkedin.com/in/you, Facebook as facebook.com/you, YouTube as youtube.com/@you, and Instagram, TikTok, X and Snapchat as an @handle.",
+      "The \"Socials\" tab (step 3 of the builder) — your bio, your social profiles, and additional link buttons. Every social box asks for the same thing: just your username. Under each one it says what that becomes — \"Just your username — becomes linkedin.com/in/alexmorgan\", and the same for instagram.com/, tiktok.com/@, facebook.com/, x.com/, snapchat.com/add/ and youtube.com/@. Pasting a full profile URL still works; once a box is filled it shows the exact address it opens, so a wrong handle is visible before anyone taps it.",
     detail:
       "These all appear on your Swift Links page, and the socials also show on your card page. Additional links take a name and a URL — Free shows the first {limit.links} of them publicly and keeps any extras stored but hidden, so they reappear if the account becomes paid.",
   },

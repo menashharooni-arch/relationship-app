@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { TemplateStyle } from "@/components/card-templates/shared";
+import type { CardLink } from "@/components/card-templates/types";
 import type { SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import { stashSketch, consumePrefill, writePrefill, type CardPrefill } from "@/lib/prefill";
 import { resetMarketingSketch } from "@/lib/guest-reset";
@@ -32,7 +33,10 @@ export type SketchSocials = {
   youtube: string;
 };
 
-export type SketchLink = { label: string; url: string };
+/** The sketch carries the REAL link shape (size, row style, media, headers),
+ *  so a per-link choice made on the marketing site survives the hand-off
+ *  instead of arriving as a bare label + url. */
+export type SketchLink = CardLink;
 
 export type Sketch = {
   name: string;
@@ -49,6 +53,8 @@ export type Sketch = {
   headshot: string | null;
   logo: string | null;
   template: string;
+  /** Logo plate shape — the same Original/Circle choice the real editor has. */
+  logoShape: "auto" | "circle";
   style: TemplateStyle;
   /** Swift Links PAGE design — separate surface, separate keys (see lib/plan). */
   linkStyle: SwiftLinkStyle;
@@ -68,6 +74,7 @@ export const EMPTY_SKETCH: Sketch = {
   // card / signature would look" live preview leads with it the moment someone
   // starts typing. They can still switch template + colours on the design step.
   template: "photo-first",
+  logoShape: "auto",
   style: {},
   linkStyle: {},
   socials: { ...EMPTY_SOCIALS },
@@ -86,6 +93,7 @@ export function toPrefill(s: Sketch, product: CardPrefill["product"]): CardPrefi
     bio: s.bio.trim(),
     address: { street: s.street.trim(), city: s.city.trim(), state: s.stateRegion.trim(), zip: s.zip.trim() },
     template: s.template,
+    logoShape: s.logoShape,
     ...s.style,
     ...s.linkStyle,
     socials: Object.fromEntries(
@@ -117,6 +125,7 @@ function fromPrefill(p: CardPrefill): Sketch {
     headshot: p.headshotUrl ?? null,
     logo: p.logoUrl ?? null,
     template: p.template ?? "photo-first",
+    logoShape: p.logoShape === "circle" ? "circle" : "auto",
     style: {
       accentColor: p.accentColor,
       bgColor: p.bgColor,

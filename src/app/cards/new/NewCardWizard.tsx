@@ -25,6 +25,7 @@ import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
 import { socialUrl, socialDestination } from "@/lib/social-url";
+import { SOCIAL_INPUTS, socialHint } from "@/lib/social-input";
 import { cardSlug, prettyCardSlug } from "@/lib/slug";
 import { useGuestDraft, saveDraft, loadDraft, clearDraft, draftHasWork, type GuestDraft } from "@/lib/guest-draft";
 import { resetMarketingSketch } from "@/lib/guest-reset";
@@ -43,23 +44,12 @@ import GuestGateModal from "@/components/GuestGateModal";
 
 type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
 
-const SOCIALS: { key: SocialKey; label: string; placeholder: string }[] = [
-  { key: "linkedin",  label: "LinkedIn",    placeholder: "linkedin.com/in/you" },
-  { key: "instagram", label: "Instagram",   placeholder: "@username or profile URL" },
-  { key: "tiktok",    label: "TikTok",      placeholder: "@username" },
-  { key: "facebook",  label: "Facebook",    placeholder: "facebook.com/you" },
-  { key: "twitter",   label: "X (Twitter)", placeholder: "@username" },
-  { key: "snapchat",  label: "Snapchat",    placeholder: "@username" },
-  { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@you" },
-];
+// The one place that decides what a person is told to type in a social box
+// lives in lib/social-input — see the note there. Every row now asks for the
+// same thing (a username) instead of a URL on some rows and a handle on others.
+const SOCIALS = SOCIAL_INPUTS;
 
 // For these URL-style networks, show the exact format to copy so the link works.
-const SOCIAL_FORMATS: Partial<Record<SocialKey, string>> = {
-  linkedin: "linkedin.com/in/yourfullname",
-  facebook: "facebook.com/yourfullname",
-  youtube: "youtube.com/@yourchannel",
-};
-
 type Socials = Record<SocialKey, string>;
 const EMPTY_SOCIALS: Socials = {
   linkedin: "", instagram: "", tiktok: "", facebook: "", twitter: "", snapchat: "", youtube: "",
@@ -266,6 +256,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // (?plan=pro/office, presetPlan below) already has a fixed target plan, so it
   // skips this extra choice.
   const designUnlocked = isPro || guest || isFirstCard;
+  // …but the freeform Custom design canvas is not part of that preview for a
+  // guest (owner order 2026-09-15: "Through the website, when someone is
+  // creating their card they shouldn't have access to open custom design").
+  // Signed-in Add card keeps it; the card editor is unaffected.
+  const customDesignAvailable = designUnlocked && !guest;
   const showAuthedFirstCardGate = !guest && isFirstCard && !isPro && !presetPlan;
 
   // Step 1 — card details. Managed fields start (and stay) on the org's values;
@@ -379,9 +374,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     if (p.bio) setBio(p.bio);
     if (p.website) setWebsite(p.website);
     if (p.socials) setSocials((prev) => ({ ...prev, ...p.socials }));
-    if (p.links?.length) setLinks(p.links.map((l) => ({ label: l.label, url: l.url })));
+    // Whole link, not a flattened copy — size/rowStyle/media are choices the
+    // visitor already made on the marketing builder.
+    if (p.links?.length) setLinks(p.links.map((l) => ({ ...l })));
     if (p.fax) setFax(p.fax);
-    if (p.template) setTemplate(p.template);
+    // Never put a guest onto the Custom canvas — it is not offered to them, so
+    // they would be stranded on a design they cannot open or change.
+    if (p.template && !(guest && p.template === "custom")) setTemplate(p.template);
+    if (p.logoShape === "circle") setLogoShape("circle");
     // Carry the WHOLE colour/font scheme, not just the accent — the homepage
     // builders expose the same TemplateStyleControls the editor does, so
     // dropping any of these would lose design work the visitor already did.
@@ -695,7 +695,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // On the design step the custom designer IS a live card you edit by touching
   // it, so the pinned preview column beside it would be a second, identical,
   // non-interactive copy. Give the designer the full width instead.
-  const designerIsCanvas = step === 2 && customSelected && designUnlocked && !designLocked;
+  const designerIsCanvas = step === 2 && customSelected && customDesignAvailable && !designLocked;
 
   // Guest autosave: snapshot the exact shape we'd POST to /api/cards into the
   // localStorage draft on every change. The claim route mirrors /api/cards'
@@ -786,7 +786,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       // A ?template= from "Apply this design" is an explicit choice made
       // seconds ago, so it beats whatever design a resumed draft happens to
       // carry. Everything else in the draft is still restored.
-      if (typeof p.template === "string" && !validPresetTemplate) setTemplate(p.template);
+      if (typeof p.template === "string" && !validPresetTemplate && !(guest && p.template === "custom")) setTemplate(p.template);
       setBio(s(cust.bio));
       setFax(s(cust.fax));
       if (Array.isArray(cust.links)) setLinks(cust.links as CardLink[]);
@@ -1513,7 +1513,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             {/* Social links (website lives on step 1 — it's card information) */}
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1">Social links</p>
-              <p className="text-gray-600 text-[0.6875rem] mb-3">Paste a profile URL or type an @handle — we link it automatically.</p>
+              <p className="text-gray-600 text-[0.6875rem] mb-3">Type your username for each one — we build the link. Pasting a full profile URL works too.</p>
               <div className="space-y-3">
                 {SOCIALS.map(({ key, label, placeholder }) => {
                   const linked = socials[key].trim().length > 0;
@@ -1548,13 +1548,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                         </p>
                       ) : linked ? (
                         <p className="text-red-400 text-[0.6875rem] mt-1">
-                          This won&rsquo;t open as a link{SOCIAL_FORMATS[key] ? <> — use <span className="font-medium">{SOCIAL_FORMATS[key]}</span></> : null}
+                          This won&rsquo;t open as a link — just your username, like <span className="font-medium">{SOCIALS.find((x) => x.key === key)!.example}</span>
                         </p>
-                      ) : SOCIAL_FORMATS[key] ? (
-                        <p className="text-gray-600 text-[0.6875rem] mt-1">
-                          Copy this exact format: <span className="text-gray-400 font-medium">{SOCIAL_FORMATS[key]}</span>
-                        </p>
-                      ) : null}
+                      ) : (
+                        <p className="text-gray-600 text-[0.6875rem] mt-1">{socialHint(SOCIALS.find((x) => x.key === key)!)}</p>
+                      )}
                     </div>
                   );
                 })}
@@ -1849,10 +1847,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 template={template}
                 onSelect={setTemplate}
                 data={withoutSocials(previewData)}
-                customUnlocked={designUnlocked}
+                customUnlocked={customDesignAvailable}
+                hideCustom={guest}
                 notice={!isPro && designUnlocked ? (
                   <p className="text-[0.6875rem] text-blue-300 bg-blue-950/40 border border-blue-800/40 rounded-lg px-3 py-2 leading-relaxed">
-                    Free preview — try any color, font, or the custom designer. You&apos;ll choose Free or Pro right before your card goes live.
+                    {guest
+                      ? <>Free preview — try any color, font or finish. You&apos;ll choose Free or Pro right before your card goes live.</>
+                      : <>Free preview — try any color, font, or the custom designer. You&apos;ll choose Free or Pro right before your card goes live.</>}
                   </p>
                 ) : undefined}
               />
@@ -1860,7 +1861,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               {/* The designer comes AFTER the picker that selects it, and is
                   itself a live card you edit by touching — so it stands in for
                   the inline preview rather than sitting above a second copy. */}
-              {customSelected && designUnlocked ? (
+              {customSelected && customDesignAvailable ? (
                 <div>
                   {/* canScan={isPro}, NOT designUnlocked: the designer is shown
                       to guests and Free first-card users as a preview, but
@@ -1897,7 +1898,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               )}
             </div>
             )}
-            <DockedCardPreview anchorId="design-inline-preview" enabled={!designLocked && !(customSelected && designUnlocked)}>
+            <DockedCardPreview anchorId="design-inline-preview" enabled={!designLocked && !(customSelected && customDesignAvailable)}>
               {cardTemplateEl}
             </DockedCardPreview>
 

@@ -14,6 +14,8 @@ export type PrefillSocials = Partial<
 
 export type PrefillAddress = Partial<Record<"street" | "unit" | "city" | "state" | "zip", string>>;
 
+import type { CardLink } from "@/components/card-templates/types";
+
 export type CardPrefill = {
   name?: string;
   title?: string;
@@ -25,7 +27,10 @@ export type CardPrefill = {
   bio?: string;
   website?: string;
   socials?: PrefillSocials;
-  links?: { label: string; url: string }[];
+  /** The full link, not just label + url: the mini-builder now offers the
+   *  same per-link Featured / Grid / Compact and row-style picks the editor
+   *  does, and flattening here threw every one of them away. */
+  links?: CardLink[];
   template?: string;
   // ── Design (mirrors TemplateStyle in lib/template-style) ──────────────────
   // The homepage builders offer the SAME colour/font controls as the real
@@ -56,6 +61,11 @@ export type CardPrefill = {
    *  sketch has canUpload={false}, so a visitor can never set one. */
   linkHeroStyle?: string;
   linkHeroContent?: string;
+  /** Original vs Circle logo plate. Structural (not a colour), so it rides on
+   *  its own rather than in PREFILL_STYLE_KEYS — the mini-builder offers the
+   *  same Original/Circle toggle the real editor does, and a visitor who picks
+   *  Circle must still have it picked when they land in the wizard. */
+  logoShape?: "auto" | "circle";
   logoUrl?: string | null;     // data URL from the guest crop — claimed on signup
   headshotUrl?: string | null; // data URL from the guest crop — claimed on signup
   /** Which product the visitor was building — picks the step the wizard opens

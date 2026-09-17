@@ -114,3 +114,72 @@ describe("guest suggestion endpoints are open but budgeted", () => {
     expect(src).toMatch(/if \(!user\)[\s\S]{0,200}data:image\/jpeg;base64/);
   });
 });
+
+// ── Parity with the product as it is TODAY ──────────────────────────────────
+//
+// The builders were written once and then the product moved: the card slug
+// became FirstLast-Company, the Swift Links page dropped its @handle line, the
+// logo gained a Circle plate, and every additional link gained its own
+// Featured / Grid / Compact size and row style. The builders kept showing the
+// old shapes, so a visitor designed one thing on the website and got another
+// in their account. Each of these pins one of those.
+describe("the builders show the product as it is now", () => {
+  const card = read(BUILDERS.card);
+  const swiftlink = read(BUILDERS.swiftlink);
+  const signature = read(BUILDERS.signature);
+  const fields = read("src/components/site/BuilderFields.tsx");
+
+  it("derives the handle with the real slug helper, not a local slugify", () => {
+    // The old local slugify produced alex-morgan-morgan-co. The product has
+    // issued AlexMorgan-MorganCo since the slug format changed, so the preview
+    // was showing an address that would never be the visitor's.
+    for (const src of [card, swiftlink, signature]) {
+      expect(src).toMatch(/prettyCardSlug\(/);
+      expect(src).not.toMatch(/function slugify\(/);
+    }
+  });
+
+  it("never promises an @handle — that line is gone from the page", () => {
+    expect(swiftlink).not.toMatch(/@handle/);
+  });
+
+  it("offers the Circle logo plate, in both card-shaped builders", () => {
+    expect(fields).toMatch(/Logo shape on the card/);
+    for (const src of [card, signature]) {
+      expect(src).toMatch(/LogoShapeToggle/);
+      // Gated on having a logo, exactly as the signed-in editor gates it.
+      expect(src).toMatch(/sketch\.logo && <LogoShapeToggle/);
+      // And the preview has to actually render the plate.
+      expect(src).toMatch(/logoShape: sketch\.logoShape/);
+    }
+  });
+
+  it("runs the REAL per-link picker, with uploads off for a visitor", () => {
+    // links + onLinksChange are what turn on SwiftLinkStyleControls' own
+    // "Link buttons" section (Featured / Grid / Compact + row styles);
+    // canUpload={false} keeps the per-tile media picker from offering an
+    // upload that would 401 with no account behind it.
+    expect(swiftlink).toMatch(/links=\{sketch\.links\}/);
+    expect(swiftlink).toMatch(/onLinksChange=/);
+    expect(swiftlink).toMatch(/canUpload=\{false\}/);
+  });
+
+  it("hands the WHOLE link over, not a flattened label + url", () => {
+    // The wizard used to rebuild each link as { label, url }, which threw away
+    // every per-link size and row style the visitor had just chosen.
+    const wizard = read("src/app/cards/new/NewCardWizard.tsx");
+    expect(wizard).not.toMatch(/p\.links\.map\(\(l\) => \(\{ label: l\.label, url: l\.url \}\)\)/);
+    expect(wizard).toMatch(/p\.links\.map\(\(l\) => \(\{ \.\.\.l \}\)\)/);
+    // …and the plate shape survives too.
+    expect(wizard).toMatch(/p\.logoShape === "circle"/);
+  });
+
+  it("the create-a-card canvas is white, not the app cream", () => {
+    // First screen after "Get started free" — the marketing site is white and
+    // landing on #FAF7F2 read as arriving somewhere else.
+    const wizard = read("src/app/cards/new/NewCardWizard.tsx");
+    const css = read("src/app/globals.css");
+    expect(wizard).toMatch(/sc-canvas-white/);
+    expect(css).toMatch(/sc-canvas-white \{ background-color: #FFFFFF/);
+  });
+});
