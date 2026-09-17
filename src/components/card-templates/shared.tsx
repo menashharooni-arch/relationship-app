@@ -66,7 +66,9 @@ export function titleLoad(data: CardData): number {
   if (len <= TITLE_COMFY) return 0;
   // Caps at 0.8 of a row: a very long title should make the card breathe, not
   // shrink everything else into illegibility.
-  return Math.min(0.8, ((len - TITLE_COMFY) / TITLE_COMFY) * 0.8);
+  // A long title now WRAPS to a readable second line (fitTitle) instead of
+  // shrinking, so it reserves up to a full row for that line.
+  return Math.min(1.1, ((len - TITLE_COMFY) / TITLE_COMFY) * 1.1);
 }
 
 export function contactRowCount(data: CardData): number {
@@ -74,6 +76,10 @@ export function contactRowCount(data: CardData): number {
   return (
     cardPhones(data).length +
     (data.email ? 1 : 0) +
+    // A long email now WRAPS onto a second line at a readable size (see fluid in
+    // ContactRows) instead of shrinking to a smudge, so it has to pay for that
+    // line here or the card doesn't grow for it and the QR is pushed off.
+    ((data.email ?? "").trim().length > 32 ? 0.8 : 0) +
     (data.website ? 0.9 : 0) +
     (cardFax(data) ? 0.9 : 0) +
     addrLines * 0.7 +
@@ -210,6 +216,11 @@ export function logoCircleStyle(f: number, base: number, extra?: React.CSSProper
 // make, so a 67-char address rendered 37% wider than its box and simply hung off
 // the side of the card. Measured by tests/render/card-overflow.test.ts.
 const FIT_FLOOR = 0.38;
+
+/** Company names and job titles wrap onto a second line rather than shrink
+ *  past this share of their design size (~8px on every template). */
+const COMPANY_FLOOR = 0.62;
+const TITLE_FLOOR = 0.78;
 
 // ── Company names must not break mid-word ───────────────────────────────────
 //
@@ -375,7 +386,11 @@ export function fitCompany(
   const s = (text ?? "").trim();
   // Start from the existing length-based size so short names are untouched and
   // this can only ever make text smaller, never larger.
-  let size = fitPx(base, s, comfy);
+  // Two lines, not one (owner, 2026-09-17 sheet review): a long company name
+  // was shrunk as if it had to sit on a single line and came out around 5px,
+  // e.g. "Northwind Commercial Real Estate Advisors". It wraps between words
+  // instead, so it is sized for two lines and kept readable.
+  let size = Math.max(base * COMPANY_FLOOR, fitPx(base, s, comfy * 2));
   if (!s || availPx <= 0) return { fontSize: size, letterSpacing: `${trackingEm}em` };
 
   const word = longestWord(s);
@@ -393,7 +408,7 @@ export function fitCompany(
   if (widthAt(size, tracking) > availPx) {
     // 2. Then size, never below the shared floor. Past the floor the word is
     //    genuinely wider than the space it has and breaking is correct.
-    size = Math.max(base * FIT_FLOOR, availPx / ((glyphs + n * tracking) * SAFETY));
+    size = Math.max(base * COMPANY_FLOOR, availPx / ((glyphs + n * tracking) * SAFETY));
   }
   return { fontSize: size, letterSpacing: `${Number(tracking.toFixed(3))}em` };
 }
@@ -483,7 +498,9 @@ export function fitName(base: number, name: string | null | undefined, comfyTota
  * calculation so the two can't drift apart.
  */
 export function fitTitle(base: number, title: string | null | undefined): number {
-  return fitPx(base, title, TITLE_COMFY);
+  // Two lines allowed (titleLoad already reserves the room), with a readable
+  // floor: "SENIOR VICE PRESIDENT, COMMERCIAL LEASING" rendered at ~5px.
+  return Math.max(base * TITLE_FLOOR, fitPx(base, title, TITLE_COMFY * 2));
 }
 
 // QR stays on the card at every density — it grows on sparse cards (more
@@ -497,7 +514,7 @@ export function qrSize(f: number): number {
 // nothing is EVER cut off — not the QR, not a single row. Stacked layouts
 // (header on top, e.g. LocalBusiness) have less vertical room for contacts,
 // so they pass a lower threshold to start growing earlier.
-export function cardAspect(data: CardData, threshold = 8): string {
+export function cardAspect(data: CardData, threshold = 7): string {
   const rows = contactRowCount(data);
   if (rows <= threshold) return "1.75 / 1";
   const ratio = Math.max(1.35, 1.75 - (rows - threshold) * 0.06);
@@ -529,8 +546,25 @@ export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; p
   // tighter budget — sized for the narrowest contact panel (ModernBold) so a
   // grown email can never poke past the card edge.
   const rowGrow = Math.min(s, 1.1 * scale);
-  const emailSize = fitGrownPx(13, rowGrow, data.email, 22);
-  const webSize = fitGrownPx(11.5, rowGrow, data.website, 24);
+  const phonePx = fitPx(14.5 * s, formatPhone(cardPhones(data)[0]?.number ?? ""), 16);
+  // EMAIL and WEBSITE are sized from the contact panel's actual width (a CSS
+  // container query), not a character budget. The budget had to assume the
+  // narrowest panel, so on a sparse card the email stayed ~12px beside a 20px
+  // phone, and a long address shrank to ~4px on a busy one (owner, 2026-09-17:
+  // phone and email should both read larger). Each is as large as its panel
+  // allows on one line, capped just under the phone, and never below a readable
+  // floor — past the floor it wraps instead of shrinking into a smudge.
+  const fluid = (text: string | null | undefined, maxPx: number, minPx: number, emPerChar: number) => {
+    const len = Math.max(1, (text ?? "").trim().length);
+    return `clamp(${minPx}px, calc((100cqw - 24px) / ${(len * emPerChar).toFixed(2)}), ${maxPx.toFixed(2)}px)`;
+  };
+  const emailMax = Math.max(fitGrownPx(13, rowGrow, data.email, 22), (cardPhones(data).length ? phonePx : 14.5 * s) * 0.86);
+  // Average advance per character: serif and monospace faces run wider than the
+  // default sans, and under-estimating them wrapped short emails mid-address.
+  const font = String((data.customization as { fontFamily?: string } | undefined)?.fontFamily ?? "").toLowerCase();
+  const perChar = font.includes("mono") ? 0.68 : font.includes("serif") && !font.includes("sans-serif") ? 0.63 : 0.58;
+  const emailSize = fluid(data.email, emailMax, 10, perChar);
+  const webSize = fluid(data.website, Math.max(fitGrownPx(11.5, rowGrow, data.website, 24), emailMax * 0.84), 9.5, perChar * 0.96);
 
   // Every row is a flex child, so it needs min-w-0 to be allowed to shrink below
   // its content width. Without it a flex item's automatic minimum size is its
@@ -544,7 +578,8 @@ export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; p
   const wrapLong: React.CSSProperties = { overflowWrap: "anywhere", minWidth: 0 };
 
   return (
-    <div className="flex flex-col" style={{ gap }}>
+    // container-type makes 100cqw the contact panel's own width (see fluid above).
+    <div className="flex flex-col" style={{ gap, containerType: "inline-size" }}>
       {cardPhones(data).map((p, i) => (
         <a key={`ph${i}`} href={`tel:${p.number.replace(/[^\d+]/g, "")}`} className={row} style={{ color: palette.strong, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.strong)}><IcoPhone /></span>
@@ -575,7 +610,7 @@ export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; p
       {cardFax(data) && (
         <div className="flex items-center gap-2" style={{ color: palette.soft }}>
           <span className="shrink-0" style={ic(palette.soft)}><IcoPhone /></span>
-          <span style={{ fontSize: 11 * s, fontWeight: 500 }}>
+          <span style={{ fontSize: Math.max(8.5, 11 * s), fontWeight: 500 }}>
             {formatPhone(cardFax(data))}
             <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5 * s, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
           </span>
@@ -584,7 +619,7 @@ export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; p
       {data.address && (
         <div className="flex items-start gap-2" style={{ color: palette.muted }}>
           <span className="shrink-0" style={{ ...ic(palette.muted), marginTop: 1 }}><IcoPin /></span>
-          <span style={{ fontSize: 10.5 * s, lineHeight: 1.3, whiteSpace: "pre-line" }}>{data.address}</span>
+          <span style={{ fontSize: Math.max(8.5, 10.5 * s), lineHeight: 1.3, whiteSpace: "pre-line" }}>{data.address}</span>
         </div>
       )}
     </div>

@@ -64,7 +64,7 @@ describe("titles", () => {
   });
 
   it("caps the budget a title can take, so it cannot crush the rest of the card", () => {
-    expect(titleLoad({ title: "x".repeat(400) } as CardData)).toBeLessThanOrEqual(0.8);
+    expect(titleLoad({ title: "x".repeat(400) } as CardData)).toBeLessThanOrEqual(1.1);
   });
 
   it("counts a long title as card density, which is what stopped it being clipped", () => {

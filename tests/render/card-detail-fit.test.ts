@@ -77,6 +77,16 @@ const SCENARIOS: Array<[string, CardData]> = [
     company: "Northwind Commercial Real Estate Advisors International",
     address: "1200 Ocean Avenue, Suite 400\nBuilding C, North Tower\nSan Francisco, CA 94122" }],
   ["single characters", { ...BASE, name: "A B", title: "X", company: "Y", phone: "5", email: "a@b.co", website: "c.co" }],
+  // Owner sheet review 2026-09-17: the busiest real card — three labelled
+  // phones, fax, a two-line address AND an email long enough to wrap.
+  ["three phones, fax, address and a long email", { ...BASE,
+    email: "alexander.morgan-whitfield@coastlinerealtygroup.com",
+    address: "1200 Ocean Ave, Suite 400
+San Francisco, CA 94122",
+    customization: { fax: "(415) 555-0100", phones: [
+      { number: "(415) 555-0188", label: "mobile", showOnCard: true },
+      { number: "(415) 555-0199", label: "office", showOnCard: true },
+      { number: "(415) 555-0177", label: "direct", showOnCard: true }] } }],
   ["everything at once", { ...BASE,
     title: "Senior Vice President of Business Development",
     address: "1200 Ocean Avenue, Suite 400\nSan Francisco, CA 94122\nUnited States",
