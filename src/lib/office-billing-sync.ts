@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { reportError } from "@/lib/report-error";
 import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan , seedBrandFromOwnersFirstCard } from "@/lib/office-brand";
 import { insertNotification } from "@/lib/notify";
 
@@ -167,5 +168,13 @@ export async function tearDownOfficeForOwner(admin: Admin, ownerId: string): Pro
     }
   }
   await admin.from("office_members").delete().eq("office_id", office.id);
-  await admin.from("offices").delete().eq("id", office.id);
+  // Every profile still pointing at this office — the OWNER's own row above
+  // all (only members are released in the loop). profiles.office_id has no
+  // ON DELETE action, so while any row references the office the delete below
+  // fails silently and the office outlives its team.
+  await admin.from("profiles").update({ office_id: null }).eq("office_id", office.id);
+  const { error: deleteError } = await admin.from("offices").delete().eq("id", office.id);
+  // Reported, never thrown: callers run this mid plan-change / webhook, and
+  // the members are already released by this point.
+  if (deleteError) await reportError("office.teardown-delete-failed", new Error(`office ${office.id}: ${deleteError.message}`)).catch(() => {});
 }
