@@ -59,6 +59,8 @@ import { backfillCardPhotos } from "@/lib/card-media";
 import { buildCardData } from "@/lib/card-data";
 import AddCardButton from "@/components/AddCardButton";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
+import WarmVisitors from "@/components/dashboard/WarmVisitors";
+import { warmVisitors, warmOnly } from "@/lib/visitor-intel";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -647,6 +649,18 @@ export default async function DashboardPage({
       .slice(0, 8);
   }
 
+  // Visitors who came back (or tapped through) and never left their details.
+  // Read straight from card_views/card_events here rather than through
+  // /api/visitors — the dashboard is already a server component with the
+  // owner's slugs in hand, so an HTTP hop to our own origin would only add
+  // latency. The route exists for the client surfaces (Contacts sorting).
+  //
+  // Scoped to EVERY card the account owns, not the selected one: a repeat
+  // visitor on a second card is the same signal, and hiding it behind the card
+  // picker is how it stays unseen.
+  const warmAll = await warmVisitors(allCards.map((c: { username: string }) => c.username), { paid: isPro });
+  const warmList = warmOnly(warmAll);
+
   const allLeads = leads ?? [];
   // Free plan: leads captured beyond the 5/month cap are tagged locked. The owner
   // sees only unlocked leads; the locked ones are counted for the upgrade banner
@@ -1178,6 +1192,13 @@ export default async function DashboardPage({
                 )}
               </div>
             </div>
+
+          {/* The repeat visitors who never introduced themselves. Renders
+              nothing at all when there are none — an empty "Still interested"
+              box would read as a broken feature on a new account. */}
+          <div className="mt-5">
+            <WarmVisitors visitors={warmList.slice(0, 5)} totalWarm={warmList.length} />
+          </div>
 
           {/* Captures a pixel-perfect image of THIS card for its share-link
               preview (Open Graph). Invisible; regenerates when the card changes. */}

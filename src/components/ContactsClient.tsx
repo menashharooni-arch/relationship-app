@@ -347,6 +347,10 @@ export default function ContactsClient({
   const [draftError, setDraftError] = useState<string | null>(null);
   const [seqSaving, setSeqSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity">("alpha");
+  // visitor_id → last time that browser was seen on one of this owner's cards.
+  // Fetched only when the owner asks for the activity sort: it is a rollup over
+  // 90 days of views and nobody on the alphabetical sort should pay for it.
+  const [lastSeen, setLastSeen] = useState<Record<string, string>>({});
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [detailTab, setDetailTab] = useState<"conversation" | "info">("conversation");
@@ -357,6 +361,31 @@ export default function ContactsClient({
   const [contactSaveStatus, setContactSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [convoMessages, setConvoMessages] = useState<{ id: string; direction: string; channel: string | null; body: string; status: string | null; created_at: string }[]>([]);
 
+
+  // Last-seen times for the activity sort. Loaded once, on first use, and kept
+  // for the rest of the session — a contact list that reorders itself under the
+  // reader's finger is worse than one that's a few minutes stale.
+  useEffect(() => {
+    if (sortBy !== "activity") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/visitors?scope=all&limit=100", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        for (const v of (data.visitors ?? []) as { visitorId: string; lastSeen: string }[]) {
+          map[v.visitorId] = v.lastSeen;
+        }
+        setLastSeen(map);
+      } catch {
+        // The sort silently keeps its old fallback order. A failed rollup is
+        // not worth an error state on a page whose job is the contact list.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [sortBy]);
 
   // Guided tour: when the tour reaches the Contacts page, auto-open the sample
   // (demo) contact on its info tab so the tour can walk through the contact's
@@ -779,8 +808,17 @@ export default function ContactsClient({
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
       if (sortBy === "activity") {
-        const aDate = a.follow_up_date ?? a.created_at;
-        const bDate = b.follow_up_date ?? b.created_at;
+        // REAL activity: when this person last opened the card or tapped a
+        // link. This used to sort on follow_up_date — a date the OWNER typed,
+        // about the future — so "Recent Activity" ranked contacts by when the
+        // owner meant to call them, which is the one thing it shouldn't mean.
+        //
+        // Falls back to the old pair when we have no sighting: a lead added by
+        // hand or by the scanner has no visitor id to match on, and dropping
+        // those to the bottom would hide most of the list on accounts that
+        // capture contacts that way.
+        const aDate = (a.visitor_id ? lastSeen[a.visitor_id] : null) ?? a.follow_up_date ?? a.created_at;
+        const bDate = (b.visitor_id ? lastSeen[b.visitor_id] : null) ?? b.follow_up_date ?? b.created_at;
         return new Date(bDate).getTime() - new Date(aDate).getTime();
       }
       return a.name.localeCompare(b.name);
