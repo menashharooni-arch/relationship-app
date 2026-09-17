@@ -159,10 +159,9 @@ describe("panel order", () => {
     }
   }, 60_000);
 
-  it("offers the compact-circle switch inside Page background, not by scrolling", async () => {
-    // Page header now sits BELOW Page background, so the photo/video option
-    // has to be reachable from where it is described. Without this the panel
-    // order would have to go back to putting the header first.
+  it("offers the photo/video background right inside Page background, under a cover header", async () => {
+    // Owner, 2026-09-17: the option must be under Background & text whatever
+    // the header — it used to hide behind a "switch to compact circle" link.
     const css = await appCss();
     const markup = renderToStaticMarkup(createElement(SwiftLinkStyleControls, {
       value: { linkHeroStyle: "cover" }, onChange: () => {}, links: LINKS, onLinksChange: () => {},
@@ -177,27 +176,18 @@ describe("panel order", () => {
       );
       const r = await page.evaluate(() => {
         const bgLabel = [...document.querySelectorAll("p")].find((p) => (p.textContent || "").trim().startsWith("Page background"));
-        const headerLabel = [...document.querySelectorAll("p")].find((p) => (p.textContent || "").trim() === "Page header");
+        const textLabel = [...document.querySelectorAll("p")].find((p) => (p.textContent || "").trim() === "Text color");
         const bgY = bgLabel?.getBoundingClientRect().top ?? -1;
-        // Scoped BELOW the background label on purpose: the Page header section
-        // now leads the panel and has its own "Compact circle" option button,
-        // so an unscoped search finds that one instead of the shortcut.
-        const btn = [...document.querySelectorAll("button")]
-          .filter((b) => /compact circle/i.test(b.textContent || ""))
-          .find((b) => b.getBoundingClientRect().top > bgY);
-        return {
-          hasSwitch: !!btn,
-          switchY: btn?.getBoundingClientRect().top ?? -1,
-          bgY,
-          headerY: headerLabel?.getBoundingClientRect().top ?? -1,
-        };
+        const textY = textLabel?.getBoundingClientRect().top ?? -1;
+        const add = [...document.querySelectorAll("button")].find((b) => /add photo or video/i.test(b.textContent || ""));
+        const upload = [...document.querySelectorAll("button")].find((b) => /upload photo or video/i.test(b.textContent || ""));
+        const addY = add?.getBoundingClientRect().top ?? -1;
+        return { hasAdd: !!add, addY, bgY, textY, hasUpload: !!upload };
       });
-      expect(r.hasSwitch, "Page background lost its compact-circle shortcut").toBe(true);
-      // Still inside the background section…
-      expect(r.switchY).toBeGreaterThan(r.bgY);
-      // …and the header it points at now sits ABOVE, so the dependency reads
-      // forward instead of being discovered at the bottom (owner, 2026-09-15).
-      expect(r.headerY).toBeLessThan(r.bgY);
+      expect(r.hasAdd, "Page background lost its photo/video button").toBe(true);
+      expect(r.addY).toBeGreaterThan(r.bgY);
+      expect(r.addY).toBeLessThan(r.textY);
+      expect(r.hasUpload, "the header lost its + Upload photo or video button").toBe(true);
     } finally {
       await page.close();
     }

@@ -11,6 +11,11 @@ export type CardLink = {
   /** Featured/Grid tiles: an uploaded photo or short video shown as the
    *  tile's preview instead of the link's own. */
   media?: { url: string; type: "image" | "video" };
+  /** Frosted glass for THIS link (Social design → Link buttons → Blur): a
+   *  compact row turns translucent with a blur behind it; a Featured or Grid
+   *  tile gets a frosted band under its title. Absent on a compact row = the
+   *  page's older page-wide "Blur the link buttons" setting. Pro. */
+  glass?: boolean;
   /** "header" = a section heading on the Swift Links page (label only, no
    *  destination — its url is ignored). Absent = an ordinary link. */
   kind?: "link" | "header";

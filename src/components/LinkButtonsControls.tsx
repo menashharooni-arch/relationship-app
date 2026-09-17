@@ -170,10 +170,14 @@ export default function LinkButtonsControls({
   links,
   onChange,
   pageRowStyle,
+  pageGlass = false,
   canUpload = true,
   isLocked,
 }: {
   links: CardLink[];
+  /** The page's older page-wide "Blur the link buttons" (with background
+   *  media): what an untouched compact row shows, so its switch never lies. */
+  pageGlass?: boolean;
   onChange: (links: CardLink[]) => void;
   /** Rows the member may not restyle — the company's pinned links on an
    *  Office card. Shown, tagged "Company", with no controls: the server
@@ -278,6 +282,30 @@ export default function LinkButtonsControls({
             ) : (
               <LinkMediaControl link={l} onChange={(p) => patch(i, p)} canUpload={canUpload} />
             )}
+            {/* Blur, per link and per size (owner, 2026-09-17: it used to be
+                one page-wide switch under Page background). */}
+            {(() => {
+              const on = l.glass ?? (pageGlass && size === "compact" && rowStyle === "tile");
+              return (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={on}
+                  onClick={() => patch(i, { glass: !on })}
+                  className="mt-2 w-full flex items-center justify-between gap-3 rounded-lg border border-gray-700 bg-gray-800/40 px-2.5 py-2 text-left hover:border-gray-600 transition-colors"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[0.6875rem] font-semibold text-gray-200">Blur</span>
+                    <span className="block text-[0.625rem] text-gray-500 leading-snug">
+                      {size === "compact" ? "Frosted glass row — best over a background photo or video." : "A frosted band behind the title."}
+                    </span>
+                  </span>
+                  <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${on ? "bg-blue-600" : "bg-gray-600"}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${on ? "left-[18px]" : "left-0.5"}`} />
+                  </span>
+                </button>
+              );
+            })()}
           </div>
         );
       })}

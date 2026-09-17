@@ -390,6 +390,12 @@ body {
 /* The pinned Card design preview (PinnedCardPreview) paints the page's own
    canvas behind the card, so the controls scrolling under it never show
    through: charcoal in dark, cream on app screens, white in the card builder. */
+/* A card lays itself out LEFT-aligned, whatever holds it. No template sets its
+   own text-align, so inside a <button> (the pinned preview is one) every line
+   inherited the button's centring: Photo First's name moved from the bottom-
+   left of its panel to the middle, Local Business drifted off its left edge
+   (owner, 2026-09-17). Elements that centre say so themselves. */
+.sc-card { text-align: left; }
 .sc-pinned-preview { background-color: #030712; }
 [data-sc-theme="light"] .sc-app .sc-pinned-preview { background-color: #FAF7F2; }
 [data-sc-theme="light"] .sc-app.sc-canvas-white .sc-pinned-preview { background-color: #FFFFFF; }

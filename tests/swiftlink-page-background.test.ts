@@ -368,8 +368,22 @@ describe("frosted link rows", () => {
     expect(profile).toMatch(/glass=\{!!bgMedia && !!pageStyle\?\.glass\}/);
   });
 
-  it("restyle the stock row only, never a colour the owner chose", () => {
-    expect(buttons).toMatch(/const glassRow = glass && variant === "compact"/);
+  it("is chosen per link; an untouched row falls back to the page-wide setting (stock rows only)", () => {
+    expect(buttons).toContain('const glassRow = paid && (link.glass ?? (glass && variant === "compact"));');
+    // Frosting a SOLID row keeps the owner's colour, translucent.
+    expect(buttons).toContain("{ background: hexAlpha(btnColor, 0.55), ...frost }");
+    // Featured/Grid tiles get a frosted band under the title.
+    expect(buttons).toContain("{paid && link.glass && (");
+  });
+
+  it("the Blur switch lives on each link, for every size (owner, 2026-09-17)", () => {
+    const controls = read("src/components/LinkButtonsControls.tsx");
+    expect(controls).toContain("onClick={() => patch(i, { glass: !on })}");
+    expect(controls).toContain('role="switch"');
+    // …and the Office branding copy keeps it when saved.
+    expect(read("src/lib/office-brand.ts")).toContain('if (typeof r.glass === "boolean") out.glass = r.glass;');
+    // …and the live preview passes it through.
+    expect(read("src/components/SwiftLinkLivePreview.tsx")).toContain("glass: l.glass");
   });
 
   it("section headers get their contrast from the media, not from the frosting", () => {
@@ -410,16 +424,11 @@ describe("uploads", () => {
     expect(design).toMatch(/onChange\(\{ linkBgMedia: undefined, linkBgMediaType: undefined \}\)/);
   });
 
-  it("frosting defaults on for a first background, and stays off once turned off", () => {
+  it("frosting still defaults on for the rows when a first background is added", () => {
     const design = read("src/components/SwiftLinkDesign.tsx");
     expect(design).toMatch(/linkGlass: value\.linkGlass \?\? true/);
-    // An explicit false, not undefined — otherwise replacing the photo would
-    // silently switch frosting back on. The control became the shared <Switch>
-    // on 2026-09-15 (it was the only checkbox in either design panel, and its
-    // 14px box the smallest target in both); `v` is that switch's boolean, so
-    // the "explicit, never undefined" guarantee is unchanged.
-    expect(design).toMatch(/onChange=\{\(v\) => onChange\(\{ linkGlass: v \}\)\}/);
-    expect(design).toMatch(/<Switch\b/);
+    // The per-link switch shows that default truthfully for untouched rows.
+    expect(design).toContain("pageGlass={!!value.linkGlass && !!value.linkBgMedia}");
   });
 
   it("is offered in the sketch too: guests can upload (owner, 2026-09-17)", () => {

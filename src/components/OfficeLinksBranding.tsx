@@ -34,7 +34,7 @@ import { OFFICE_LINK_DESIGN_KEYS } from "@/lib/office-link-design";
 // every page, not to stop a salesperson linking their own calendar.
 
 /** A company link, or a section header that chapters the page (no URL). */
-type OfficeLinkRow = { label: string; url: string; kind?: "header" | "link"; size?: "featured" | "grid" | "compact"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" } };
+type OfficeLinkRow = { label: string; url: string; kind?: "header" | "link"; size?: "featured" | "grid" | "compact"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" }; glass?: boolean };
 
 type OfficeRow = {
   // No id: /api/office/brand resolves the office from the SESSION, never from
