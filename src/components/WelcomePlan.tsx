@@ -10,6 +10,9 @@ import FreeDesignChoice from "@/components/FreeDesignChoice";
 import { consumePlanIntent, type PlanIntent } from "@/lib/plan-intent";
 import { detectNativeApp } from "@/lib/platform";
 import { TRIAL_DAYS } from "@/lib/plan";
+import { REFERRAL, freeMonthDays } from "@/lib/referral";
+
+const FREE_MONTH_LABEL = `${freeMonthDays(REFERRAL.NEW_USER_FREE_MONTHS)} days`;
 
 // Onboarding step shown once, right after a brand-new account's first card is
 // saved (routed here by GuestDraftClaim → /welcome?card=slug). It turns on
@@ -34,7 +37,11 @@ export default function WelcomePlan({
   setupFor = null,
   canceled = false,
   trialEligible = true,
+  referralGift = false,
 }: {
+  /** A friend's free month of Pro is waiting (referral sign-up). Offered as a
+   *  choice here — it used to switch on silently at signup and skip this step. */
+  referralGift?: boolean;
   /** Back from a cancelled Stripe checkout. */
   canceled?: boolean;
   /** Whether this account can still get the 14-day Pro trial. */
@@ -135,6 +142,48 @@ export default function WelcomePlan({
       setLoading(null);
     }
   }
+
+  // "Start my free month of Pro" — the referral gift. No payment: the server
+  // verifies the gift is still pending and starts the month.
+  async function startGiftMonth() {
+    setLoading("pro");
+    setError("");
+    try {
+      const res = await fetch("/api/account/choose-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralMonth: true }),
+      });
+      if (res.status === 401) { window.location.href = "/login?next=/welcome"; return; }
+      if (!res.ok) {
+        const { error: err } = await res.json().catch(() => ({ error: null }));
+        setError(err || "Couldn't start your free month. Please try again.");
+        setLoading(null);
+        return;
+      }
+      setPendingFreeConfirm(false);
+      setLoading(null);
+      setSetupNext(LANDING);
+    } catch {
+      setError("Couldn't reach the server. Please try again.");
+      setLoading(null);
+    }
+  }
+
+  const giftPanel = referralGift ? (
+    <div className="max-w-md mx-auto mb-6 rounded-2xl border border-blue-500/40 bg-blue-950/30 px-5 py-4 text-center">
+      <p className="text-white font-semibold text-base">🎁 A friend gave you a free month of Pro</p>
+      <p className="text-gray-400 text-sm mt-1">Everything in Pro for {FREE_MONTH_LABEL}, no card needed. When it ends you choose Pro or Free, and nothing is charged.</p>
+      <button
+        type="button"
+        onClick={startGiftMonth}
+        disabled={loading !== null}
+        className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-full transition-colors text-sm disabled:opacity-50"
+      >
+        {loading === "pro" ? "Starting…" : "Start my free month of Pro →"}
+      </button>
+    </div>
+  ) : null;
 
   async function checkout(plan: PaidPlan, annual: boolean, seats: number) {
     setLoading(plan);
@@ -248,6 +297,7 @@ export default function WelcomePlan({
               <h2 className="text-white font-bold text-xl">Before you go Free</h2>
               <p className="text-gray-400 text-sm mt-1.5">One thing to know about the card you just designed.</p>
             </div>
+            {giftPanel}
             <FreeDesignChoice
               changes={proDesignChanges}
               onKeepWithTrial={() => checkout("pro", false, 1)}
@@ -278,6 +328,7 @@ export default function WelcomePlan({
                 Checkout was cancelled and nothing was charged. Pick a plan below whenever you&apos;re ready.
               </p>
             )}
+            {giftPanel}
             <PlanCards onFree={chooseFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} freeLabel="Continue with Free →" trialEligible={trialEligible} />
           </>
         )}

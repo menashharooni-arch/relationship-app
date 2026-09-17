@@ -6,6 +6,7 @@ import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { revalidateCardPage, revalidateUserCards } from "@/lib/card-page-data";
 import { PRO_ENDED_PENDING_KEY } from "@/lib/billing-state";
+import { referralGiftPending, startReferralGift } from "@/lib/referral-server";
 
 // ── "I'll stay on Free" — the moment the plan becomes real ───────────────────
 //
@@ -38,10 +39,27 @@ export async function POST(req: Request) {
   // Optional body. `liveCardId` comes from ProEndedPanel: the card this person
   // wants to keep live on Free now that Pro has ended. The /welcome plan step
   // sends no body at all.
-  const body = (await req.json().catch(() => null)) as { liveCardId?: unknown } | null;
+  const body = (await req.json().catch(() => null)) as { liveCardId?: unknown; referralMonth?: unknown } | null;
   const liveCardId = typeof body?.liveCardId === "string" ? body.liveCardId : null;
 
   const admin = getAdminSupabase();
+
+  // "Start my free month of Pro" — a friend's referral gift, chosen on the
+  // plan step (it is no longer switched on at signup; see referral-server).
+  // Verified server-side: the gift must still be pending for THIS account.
+  // Nothing is converted — they are on Pro for the month.
+  if (body?.referralMonth === true) {
+    if (!(await referralGiftPending(user.id))) {
+      return NextResponse.json({ error: "This free month isn't available on your account." }, { status: 400 });
+    }
+    await startReferralGift(user.id);
+    const { data: fresh } = await admin.from("profiles").select("customization").eq("id", user.id).maybeSingle();
+    const freshCust = (fresh?.customization ?? {}) as Record<string, unknown>;
+    await admin.from("profiles").update({ customization: { ...freshCust, [PLAN_CHOSEN_KEY]: "pro_referral" } }).eq("id", user.id);
+    await revalidateUserCards(user.id);
+    after(() => sendWelcomeWhenCardLive(user.id, user.email));
+    return NextResponse.json({ ok: true, converted: 0 });
+  }
 
   const { data: profile } = await admin
     .from("profiles")
