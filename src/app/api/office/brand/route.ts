@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
 import { overlayOfficeContact, stripOfficeContact, propagateBrandToOfficeCards, OFFICE_DESIGN_KEYS, OFFICE_LINK_DESIGN_KEYS, cleanOfficeLinkStyle } from "@/lib/office-brand";
 import { writeAudit } from "@/lib/audit";
+import { normalizeSocial } from "@/lib/social-url";
 import { requireOfficeCapability } from "@/lib/office-roles";
 
 // Office admin sets the uniform brand (logo / company / website / template /
@@ -128,7 +129,9 @@ export async function PATCH(req: NextRequest) {
     linkFields.brand_link_design = Object.keys(clean).length ? clean : null;
   }
   if ("linkBio" in body) linkFields.brand_link_bio = (str(body.linkBio) || null)?.slice(0, 500) ?? null;
-  if ("linkInstagram" in body) linkFields.brand_link_instagram = (str(body.linkInstagram) || null)?.slice(0, 120) ?? null;
+  // A bare username is stored the way every other Instagram field stores it
+  // (normalizeSocial → "@handle"); a pasted profile URL is reduced to its handle.
+  if ("linkInstagram" in body) linkFields.brand_link_instagram = (normalizeSocial(str(body.linkInstagram) ?? "", "instagram") || null)?.slice(0, 120) ?? null;
   if ("links" in body) {
     const raw = Array.isArray(body.links) ? (body.links as unknown[]) : [];
     const clean = raw

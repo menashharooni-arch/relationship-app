@@ -161,6 +161,12 @@ export function welcomeEmail(opts: {
   const safeCardUrl = safeUrlAttr(opts.cardUrl);
   const cardUrlText = escapeHtml(opts.cardUrl);
   const shareUrl = `${APP_URL}/share`;
+  // The Swift Links page lives at /links/<the same slug as the card>.
+  const slug = opts.cardUrl.replace(/\/+$/, "").split("/").pop() || "";
+  const linksUrl = `${APP_URL}/links/${encodeURIComponent(slug)}`;
+  const safeLinksUrl = safeUrlAttr(linksUrl);
+  const linksText = escapeHtml(linksUrl.replace(/^https?:\/\//, ""));
+  const a = (href: string, text: string) => `<a href="${href}" style="color:#1D4ED8;text-decoration:underline;">${text}</a>`;
   const body = `
     ${h1(`Your SwiftCard is live, ${safeName}! 🎉`)}
     ${p("Send it as a link, show it as a QR code, or tap it over from an NFC card. When they share their details back, the new contact lands in your dashboard on its own \u2014 nothing to type in, nothing to lose.")}
@@ -170,10 +176,12 @@ export function welcomeEmail(opts: {
     `)}
     ${btn(safeCardUrl, "See my live card →")}
     ${card(`
-      <p style="margin:0 0 14px;font-weight:700;color:#0f172a;font-size:14px;">Three ways to share it</p>
-      ${step(1, "Send the link", "Paste it into a text, an email, or your social bio. It opens straight away \u2014 the person you send it to never has to install anything.")}
-      ${step(2, "Show your QR code", `Open your <a href="${APP_URL}/dashboard" style="color:#1D4ED8;text-decoration:underline;">dashboard</a> and tap \u201cOther ways to share\u201d to download it, then put it on a slide, a flyer, or your phone\u2019s lock screen for people to scan.`)}
-      ${step(3, "Add your Swift Signature", `Copy it from your <a href="${shareUrl}" style="color:#1D4ED8;text-decoration:underline;">Share page</a> and paste it into your email signature settings, so every message you send ends with your card.`, true)}
+      <p style="margin:0 0 14px;font-weight:700;color:#0f172a;font-size:14px;">The best ways to use your SwiftCard</p>
+      ${step(1, "Put your Swift Links in your bio", `Your link-in-bio page is live at ${a(safeLinksUrl, linksText)}. Paste it into your Instagram, TikTok and LinkedIn bios \u2014 your photo, socials, links and a Connect button, on one page.`)}
+      ${step(2, "Add your Swift Signature", `Copy it from your ${a(shareUrl, "Share page")} and paste it into your email signature settings, so every email you send ends with your card.`)}
+      ${step(3, "Add your card to Apple Wallet", `On your ${a(`${APP_URL}/dashboard`, "dashboard")}, tap \u201cOther ways to share\u201d \u2192 \u201cAdd to Apple Wallet\u201d. Your card and QR code are then one double-click away on your iPhone, even with no signal.`)}
+      ${step(4, "Send new contacts to your CRM", `When someone shares their details back, they can go straight into your CRM. Connect it in ${a(`${APP_URL}/settings/flows`, "Settings \u2192 Notifications and preferences")} under \u201cSend contacts to your CRM\u201d (Pro and Office).`)}
+      ${step(5, "Share it everywhere else", `Text or email the link, and download your QR code from \u201cOther ways to share\u201d for a slide, a flyer or your lock screen. Nobody has to install anything to open it.`, true)}
     `)}
     ${appStoreEmailBlock("SwiftCard for iPhone — your card, QR code and new contacts, right in your pocket.")}
   `;
