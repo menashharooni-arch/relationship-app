@@ -27,6 +27,7 @@ import CustomCard from "@/components/card-templates/CustomCard";
 import CustomCardDesigner from "@/components/CustomCardDesigner";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import TemplatePicker, { PRESET_TEMPLATES } from "@/components/card-templates/TemplatePicker";
+import LinkButtonsControls from "@/components/LinkButtonsControls";
 import PinnedCardPreview, { PinnedLinkPreview } from "@/components/PinnedCardPreview";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import { MoreOptions, Segmented, Switch } from "@/components/ui/DesignControls";
@@ -1252,6 +1253,16 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   fonts and page background are set by your Office admin. Your bio, your socials
                   and your own link buttons are still yours.
                 </p>
+                {/* The page LOOK is the office's, but each member's OWN link
+                    buttons are still theirs to style (owner, 2026-09-16).
+                    Company rows show here tagged and fixed. */}
+                {links.some((l) => l.kind !== "header" && !isOfficeRow(l)) && (
+                  <div className="mt-4 pt-4 border-t border-purple-500/15">
+                    <p className="text-gray-200 text-[0.8125rem] font-semibold">Your link buttons</p>
+                    <p className="text-gray-500 text-[0.6875rem] leading-snug mb-2">Choose how each of your own links appears: Featured, Grid or Compact.</p>
+                    <LinkButtonsControls links={links} onChange={setLinks} pageRowStyle={linkStyleState.linkButtonStyle} isLocked={isOfficeRow} />
+                  </div>
+                )}
               </div>
             ) : (
               <SwiftLinkStyleControls
@@ -1260,6 +1271,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 locked={!isPro}
                 links={links}
                 onLinksChange={setLinks}
+                isLinkLocked={isOfficeRow}
               />
             )}
             {/* Same removal as the Card design tab above: the offer belongs

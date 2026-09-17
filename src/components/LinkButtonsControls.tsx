@@ -171,9 +171,15 @@ export default function LinkButtonsControls({
   onChange,
   pageRowStyle,
   canUpload = true,
+  isLocked,
 }: {
   links: CardLink[];
   onChange: (links: CardLink[]) => void;
+  /** Rows the member may not restyle — the company's pinned links on an
+   *  Office card. Shown, tagged "Company", with no controls: the server
+   *  rebuilds those rows from the office's own list on every save, so a
+   *  control here could only ever be silently undone (office audit 2026-09-16). */
+  isLocked?: (l: CardLink) => boolean;
   /** Threaded to the per-tile media picker — see LinkMediaControl. */
   canUpload?: boolean;
   /** The page-wide row style older pages saved (linkButtonStyle) — what a
@@ -210,6 +216,20 @@ export default function LinkButtonsControls({
         // (see lib/swiftlink-tiles) — show that, so the control never lies.
         const size: TileSize = l.size === "featured" || l.size === "compact" || l.size === "grid" ? l.size : "grid";
         const rowStyle = resolveRowStyle(l, pageRowStyle);
+        if (isLocked?.(l)) {
+          return (
+            <div key={i} className="rounded-xl border border-purple-500/25 bg-purple-500/[0.06] px-3 py-2.5">
+              <div className="flex items-center gap-2.5">
+                <LinkPreviewThumb url={l.url} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-200 text-xs font-semibold truncate">{l.label || "Untitled link"}</p>
+                  <p className="text-gray-500 text-[0.625rem] truncate">Set by your organization</p>
+                </div>
+                <span className="text-[0.5625rem] font-semibold uppercase tracking-wide text-purple-300 shrink-0">Company</span>
+              </div>
+            </div>
+          );
+        }
         return (
           <div key={i} className="rounded-xl border border-gray-700 bg-gray-900 px-3 py-2.5">
             <div className="flex items-center gap-2.5 mb-2">
