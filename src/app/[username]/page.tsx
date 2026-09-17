@@ -148,7 +148,7 @@ export default async function CardPage({
   // These four reads are the same ones this page always made — they are now
   // served from a per-slug cache (lib/card-page-data.ts) so a QR scan does not
   // cost a database round trip. Viewer-dependent work stays below, per request.
-  const { cardRow, cardOwner, profileRow, withinLimit } = await getCardPageData(username);
+  const { cardRow, cardOwner, profileRow, withinLimit, awaitingPlan } = await getCardPageData(username);
 
   // Only treat a profile as a card if it's a legacy, not-yet-migrated card (so a
   // deleted/migrated card doesn't keep resolving from the account profile).
@@ -211,6 +211,10 @@ export default async function CardPage({
   // Don't count the owner viewing their own card as a view.
   const ownerId = cardRow ? (cardRow.user_id as string) : (profileRow?.id as string | undefined);
   const isOwnerView = !!viewer && viewer.id === ownerId;
+
+  // Not live until its new owner has chosen a plan (lib/card-active rule 5).
+  // The owner can still open it — it is their card, and /welcome links to it.
+  if (cardRow && awaitingPlan && !isOwnerView) notFound();
 
   // Per-card headshot (account photo is only a fallback for legacy cards).
   const accountPhotoUrl = cardRow ? (cardOwner?.photo_url ?? null) : (legacyCardOk ? (profileRow?.photo_url ?? null) : null);

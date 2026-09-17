@@ -163,7 +163,10 @@ describe("every card-rendering surface goes through the one builder", () => {
     // account physically cannot supply a name, company, phone or address to
     // someone else's card. A widened select is the first step of every bleed
     // this codebase has had, so the column list is the thing under test.
-    const ALLOWED = new Set(["photo_url", "customization", "plan"]);
+    // created_at + office_id (2026-09-16) are account STATUS, never shown on a
+    // card: they decide whether a new account's card is live yet (lib/card-active
+    // rule 5 — not live until a plan is chosen).
+    const ALLOWED = new Set(["photo_url", "customization", "plan", "created_at", "office_id"]);
     for (const f of [
       // EVERY public surface now reads the owner's profile through this one
       // cached loader — the card page first, and the Swift Links page since the

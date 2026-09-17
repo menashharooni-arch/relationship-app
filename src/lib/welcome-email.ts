@@ -163,8 +163,8 @@ export const PLAN_CHOSEN_KEY = "_planChosen";
  * "Your SwiftCard is live" to someone still sitting on the plan screen, and —
  * worse — before a Pro buyer had paid. The owner's rule is that the mail goes
  * out once the plan is settled: after payment for a paid plan, or on confirming
- * Free. The card genuinely IS live before then (no publish step exists), so
- * this is about the promise the email makes, not about visibility.
+ * Free. Since 2026-09-16 that is also the moment a new account's card goes
+ * live (lib/card-active rule 5), so the email and the card agree.
  *
  * The account email is resolved from AUTH, not from profiles.email — that
  * column drifts to the card's public contact address the moment someone sets

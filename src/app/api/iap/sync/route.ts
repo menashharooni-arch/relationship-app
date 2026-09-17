@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
+import { revalidateUserCards } from "@/lib/card-page-data";
+import { sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { isOfficePlan } from "@/lib/plan";
 import { appleGrantPatch, sandboxEventAllowed } from "@/lib/iap-entitlement";
 import { createClient } from "@/lib/supabase-server";
@@ -65,5 +67,10 @@ export async function POST() {
     .eq("id", user.id);
   // Same trial record as the RevenueCat webhook — whichever lands first.
   if (introTrial) await recordProTrialStarted(user.id, user.email ?? null);
+  // Buying Pro in the app IS the plan choice: the cards go live now and the
+  // "Your SwiftCard is live" email is finally true (it never went out for an
+  // Apple purchase before).
+  await revalidateUserCards(user.id);
+  after(() => sendWelcomeWhenCardLive(user.id, user.email));
   return NextResponse.json({ ok: true, applied: "grant" });
 }

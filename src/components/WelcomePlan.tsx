@@ -142,9 +142,11 @@ export default function WelcomePlan({
           <div className="w-14 h-14 rounded-full bg-green-900/40 border border-green-700/40 flex items-center justify-center mx-auto mb-4">
             <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
           </div>
-          <h1 className="text-white font-bold text-2xl sm:text-3xl">Your card is live!</h1>
+          {/* NOT "live" yet: a new account's card goes live when a plan is
+              chosen, not before (owner, 2026-09-16; lib/card-active rule 5). */}
+          <h1 className="text-white font-bold text-2xl sm:text-3xl">Your account is ready</h1>
           {cardSlug && <p className="text-blue-400 text-sm mt-1.5 font-mono">swiftcard.me/{cardSlug}</p>}
-          <p className="text-gray-400 text-sm mt-3 max-w-md mx-auto">One quick thing, then you&apos;re all set.</p>
+          <p className="text-gray-400 text-sm mt-3 max-w-md mx-auto">Choose your plan below and your card goes live at this link.</p>
         </div>
 
         {/* Notifications — always offered */}
