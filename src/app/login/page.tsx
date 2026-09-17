@@ -35,7 +35,7 @@ export default async function LoginPage({
                 ? "A friend invited you — your first month of Pro is free."
                 : initialMode === "signup"
                   ? "Free to start. Ready in 30 seconds."
-                  : "Sign in or create your account."}
+                  : "Sign in, or tap Get Started to build your card."}
           </p>
         </div>
         <div className="bg-warm-card border border-warm-card-border rounded-2xl p-6 shadow-sm">

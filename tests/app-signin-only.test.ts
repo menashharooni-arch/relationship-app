@@ -58,7 +58,16 @@ describe("Create account is a real form everywhere", () => {
   it("keeps both toggle tabs", async () => {
     const html = await render({ initialMode: "signin" });
     expect(html).toContain(">Sign in<");
-    expect(html).toContain(">Create account<");
+    // A plain visit offers "Get Started" (the card builder first, like the
+    // website); arriving with somewhere to return to keeps "Create account".
+    expect(html).toContain(">Get Started<");
+    const gated = await render({ initialMode: "signin", redirectTo: "/cards/new?claim=1" });
+    expect(gated).toContain(">Create account<");
+  });
+
+  it("Get Started opens the card builder rather than a bare account form", () => {
+    const src = readFileSync("src/components/LoginForm.tsx", "utf8");
+    expect(src).toMatch(/if (m === "signup" && !redirectTo && mode !== "signup") { window.location.assign("/cards/new"); return; }/);
   });
 
   it("the login page no longer strips signup mode for the shell", () => {

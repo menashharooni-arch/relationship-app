@@ -303,21 +303,31 @@ export default function LoginForm({
 
   return (
     <div className="w-full space-y-5">
-      {/* Sign-in / Create-account toggle — both tabs are real on web AND in
-          the app (in-app signup shipped with IAP, 2026-08-27). */}
+      {/* Sign-in / Get Started toggle.
+          A plain visit to the sign-in screen (no destination to return to — the
+          app's first screen, a bookmark) offers "Get Started" instead of a
+          bare account form: it opens the card builder, the SAME flow as the
+          website's "Get started" button — build the card, then create the
+          account when you save it, then choose a plan (owner, 2026-09-16).
+          Arriving WITH a destination (the builder's "Save & create account"
+          gate, a team invite) keeps the real "Create account" form, because
+          that is exactly where the account gets made. */}
       <div className="flex bg-[#EDE8E0] border border-[#E4DDD4] rounded-full p-1">
         {(["signin", "signup"] as const).map((m) => (
           <button
             key={m}
             type="button"
-            onClick={() => { setMode(m); setStatus("idle"); setErrorMsg(""); setSigninFailed(false); }}
+            onClick={() => {
+              if (m === "signup" && !redirectTo && mode !== "signup") { window.location.assign("/cards/new"); return; }
+              setMode(m); setStatus("idle"); setErrorMsg(""); setSigninFailed(false);
+            }}
             className="flex-1 py-2 text-sm font-semibold rounded-full transition-colors"
             style={{
               background: mode === m ? "#1D4ED8" : "transparent",
               color: mode === m ? "#fff" : "#5B5247",
             }}
           >
-            {m === "signin" ? "Sign in" : "Create account"}
+            {m === "signin" ? "Sign in" : !redirectTo && mode !== "signup" ? "Get Started" : "Create account"}
           </button>
         ))}
       </div>
