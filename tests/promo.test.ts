@@ -7,13 +7,16 @@ import {
   isDiscountType,
 } from "@/lib/promo";
 
-describe("FREE_PERIODS — the four offers, as exact day counts", () => {
-  it("is exactly one week / two weeks / one month / two months", () => {
+describe("FREE_PERIODS — the shortcuts in the admin form", () => {
+  it("offers one week / two weeks / one month / two months / three months", () => {
+    // Shortcuts only since 2026-09-17: the form also takes a custom number of
+    // days, so this is the menu, not the allow-list.
     expect(FREE_PERIODS.map((p) => [p.label, p.days])).toEqual([
       ["One week", 7],
       ["Two weeks", 14],
       ["One month", 30],
       ["Two months", 60],
+      ["Three months", 90],
     ]);
   });
 
@@ -25,12 +28,13 @@ describe("FREE_PERIODS — the four offers, as exact day counts", () => {
 });
 
 describe("isFreeDays — the server's allow-list", () => {
-  it("accepts only the four published periods", () => {
+  it("accepts every shortcut, and any whole number of days up to a year", () => {
     for (const p of FREE_PERIODS) expect(isFreeDays(p.days)).toBe(true);
+    for (const ok of [1, 31, 45, 365]) expect(isFreeDays(ok), `${ok} must be grantable`).toBe(true);
   });
 
-  it("rejects anything else, including plausible-looking values", () => {
-    for (const bad of [0, -7, 1, 31, 90, 365, 366, 3650, NaN, Infinity]) {
+  it("rejects anything that isn't a sane period", () => {
+    for (const bad of [0, -7, 366, 3650, 7.5, NaN, Infinity]) {
       expect(isFreeDays(bad), `${bad} must not be grantable`).toBe(false);
     }
     expect(isFreeDays("30")).toBe(false); // a string from a form body isn't a period

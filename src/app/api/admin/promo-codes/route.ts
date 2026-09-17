@@ -1,7 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/admin";
-import { FREE_PERIODS, isFreeDays, isDiscountType } from "@/lib/promo";
+import {
+  MAX_FREE_DAYS, isFreeDays, isDiscountType, isAppliesTo, isIntervalTarget,
+  isPromoDuration, isAudience, MAX_DURATION_MONTHS, type AppliesTo, type IntervalTarget,
+} from "@/lib/promo";
+
+// The Stripe PRODUCTS behind each plan, so a coupon can be restricted to the
+// plan it was created for. Without this, a code typed on Stripe's own checkout
+// page (allow_promotion_codes) applies to whatever is in the basket — an
+// "Office launch" code would happily take 50% off a Pro subscription.
+async function productIdsFor(applies: AppliesTo, interval: IntervalTarget): Promise<string[]> {
+  if (applies === "any" && interval === "any") return [];
+  const ids = [
+    { plan: "pro" as const, interval: "monthly" as const, price: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID || process.env.STRIPE_PRICE_ID },
+    { plan: "pro" as const, interval: "annual" as const, price: process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID },
+    { plan: "office" as const, interval: "monthly" as const, price: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID },
+    { plan: "office" as const, interval: "annual" as const, price: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_ANNUAL_PRICE_ID },
+  ].filter((r) => r.price && (applies === "any" || r.plan === applies));
+  if (!ids.length) return [];
+  const { getStripe } = await import("@/lib/stripe");
+  const stripe = getStripe();
+  const products = new Set<string>();
+  for (const row of ids) {
+    const price = await stripe.prices.retrieve(row.price as string);
+    const product = typeof price.product === "string" ? price.product : price.product?.id;
+    if (product) products.add(product);
+  }
+  // Monthly and annual usually share ONE product, so a per-interval coupon
+  // restriction is not possible at Stripe. The plan restriction still is, and
+  // the interval is enforced by our own checkout + redeem routes.
+  return [...products];
+}
 
 // POST /api/admin/promo-codes — create a new promo code
 export async function POST(req: NextRequest) {
@@ -19,11 +49,35 @@ export async function POST(req: NextRequest) {
     expires_at,
     plan_target = "free",
     stripe_coupon_id,
+    applies_to = "any",
+    interval_target = "any",
+    duration = "once",
+    duration_months,
   } = body;
 
   if (!code) return NextResponse.json({ error: "code is required" }, { status: 400 });
   if (!isDiscountType(discount_type)) {
     return NextResponse.json({ error: "Unknown discount type." }, { status: 400 });
+  }
+  if (!isAppliesTo(applies_to)) return NextResponse.json({ error: "Pick the plan this code is for." }, { status: 400 });
+  if (!isIntervalTarget(interval_target)) return NextResponse.json({ error: "Pick the billing period this code is for." }, { status: 400 });
+  if (!isAudience(plan_target)) return NextResponse.json({ error: "Pick who can redeem this code." }, { status: 400 });
+  if (!isPromoDuration(duration)) return NextResponse.json({ error: "Pick how long the discount lasts." }, { status: 400 });
+  if (duration === "repeating" && !(Number(duration_months) >= 1 && Number(duration_months) <= MAX_DURATION_MONTHS)) {
+    return NextResponse.json({ error: `A repeating discount runs for 1–${MAX_DURATION_MONTHS} months.` }, { status: 400 });
+  }
+  if (max_uses != null && max_uses !== "" && !(Number(max_uses) >= 1 && Number(max_uses) <= 100000)) {
+    return NextResponse.json({ error: "Total redemptions must be 1 or more." }, { status: 400 });
+  }
+  if (expires_at && Number.isNaN(new Date(expires_at).getTime())) {
+    return NextResponse.json({ error: "That expiry date isn't a real date." }, { status: 400 });
+  }
+  if (expires_at && new Date(expires_at) <= new Date()) {
+    return NextResponse.json({ error: "That expiry date is in the past." }, { status: 400 });
+  }
+  // A code is typed by a person: keep it to letters, numbers, dashes.
+  if (!/^[A-Za-z0-9][A-Za-z0-9-]{1,39}$/.test(String(code).trim())) {
+    return NextResponse.json({ error: "Codes can use letters, numbers and dashes (2–40 characters)." }, { status: 400 });
   }
 
   const isFreeTime = discount_type === "free_time";
@@ -35,7 +89,7 @@ export async function POST(req: NextRequest) {
   if (isFreeTime) {
     if (!isFreeDays(Number(free_days))) {
       return NextResponse.json(
-        { error: `Free period must be one of: ${FREE_PERIODS.map((p) => p.label.toLowerCase()).join(", ")}.` },
+        { error: `Free time must be a whole number of days, 1–${MAX_FREE_DAYS}.` },
         { status: 400 },
       );
     }
@@ -51,7 +105,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const cleanCode = code.toUpperCase().trim();
+  const cleanCode = String(code).toUpperCase().trim();
+
+  // Codes are typed by people and matched exactly — a second row with the same
+  // string would make "which one applies?" luck of the draw.
+  {
+    const { data: clash } = await getAdminSupabase()
+      .from("promo_codes").select("id, active").eq("code", cleanCode).maybeSingle();
+    if (clash) {
+      return NextResponse.json(
+        { error: clash.active ? "That code already exists." : "That code exists already (deactivated). Pick another string — reusing it would let past redeemers back in." },
+        { status: 409 },
+      );
+    }
+  }
 
   // ── Make the code real in Stripe ────────────────────────────────────────────
   // percent/fixed → a Stripe coupon + promotion code, so it can also be typed on
@@ -69,9 +136,14 @@ export async function POST(req: NextRequest) {
     try {
       const { getStripe } = await import("@/lib/stripe");
       const stripe = getStripe();
+      // The coupon carries the offer AND its plan restriction; the promotion
+      // code carries the string people type, its cap and its expiry.
+      const products = await productIdsFor(applies_to, interval_target);
       const coupon = await stripe.coupons.create({
         name: `SwiftCard ${cleanCode}`,
-        duration: "once", // discount applies to the first payment
+        duration,
+        ...(duration === "repeating" ? { duration_in_months: Number(duration_months) } : {}),
+        ...(products.length ? { applies_to: { products } } : {}),
         ...(discount_type === "fixed" && discount_amount
           ? { amount_off: Number(discount_amount), currency: "usd" }
           : { percent_off: Number(discount_percent) }),
@@ -81,6 +153,9 @@ export async function POST(req: NextRequest) {
         code: cleanCode,
         ...(max_uses ? { max_redemptions: Number(max_uses) } : {}),
         ...(expires_at ? { expires_at: Math.floor(new Date(expires_at).getTime() / 1000) } : {}),
+        // "New accounts only" is enforced on Stripe's own page too — otherwise a
+        // code meant for new customers works there for anyone.
+        ...(plan_target === "free" ? { restrictions: { first_time_transaction: true } } : {}),
       });
       couponId = coupon.id;
     } catch (e) {
@@ -90,18 +165,35 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = getAdminSupabase();
-  const { data, error } = await admin.from("promo_codes").insert({
+  const row = {
     code: cleanCode,
     description,
-    discount_percent: isFreeTime ? null : discount_percent,
+    discount_percent: isFreeTime ? null : (discount_percent ? Number(discount_percent) : null),
     discount_type,
-    discount_amount: isFreeTime ? null : discount_amount,
+    discount_amount: isFreeTime ? null : (discount_amount ? Number(discount_amount) : null),
     free_days: isFreeTime ? Number(free_days) : null,
-    max_uses,
+    max_uses: max_uses ? Number(max_uses) : null,
     expires_at: expires_at || null,
     plan_target,
     stripe_coupon_id: couponId,
-  }).select().single();
+    applies_to,
+    interval_target,
+    duration: isFreeTime ? "once" : duration,
+    duration_months: !isFreeTime && duration === "repeating" ? Number(duration_months) : null,
+  };
+  let { data, error } = await admin.from("promo_codes").insert(row).select().single();
+
+  // The four targeting columns arrive in supabase/promo-targeting.sql. Before
+  // it runs, save what the old schema holds rather than refusing the code, and
+  // say plainly which part isn't being enforced yet.
+  if (error && /applies_to|interval_target|duration_months|duration|column/i.test(error.message)) {
+    const { applies_to: _a, interval_target: _i, duration: _d, duration_months: _m, ...legacy } = row;
+    void _a; void _i; void _d; void _m;
+    ({ data, error } = await admin.from("promo_codes").insert(legacy).select().single());
+    if (!error) {
+      stripeWarning = "Saved, but the plan/billing-period options need supabase/promo-targeting.sql run first (Supabase → SQL Editor). Until then this code works on any plan.";
+    }
+  }
 
   if (error) {
     // The free_days column + the widened discount_type CHECK arrive in
