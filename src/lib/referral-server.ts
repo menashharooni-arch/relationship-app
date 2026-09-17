@@ -247,11 +247,15 @@ export async function applyReferralOnSignup(
   // Generate the new user's own referral code (retries on collision).
   await ensureReferralCode(userId);
 
-  if (grantsFreeMonth) {
-    // Stack the referral/promo month ON TOP of the reverse trial (extend from the
-    // later of now / current expiry) so a referred signup gets trial + month.
-    await grantAppFreeMonths(userId, REFERRAL.NEW_USER_FREE_MONTHS, true);
-  }
+  // The friend's free month is NOT switched on here any more (owner,
+  // 2026-09-17). Granting it at signup put the account on Pro before the plan
+  // step, and the plan step only shows for an account still on Free — so a
+  // referred sign-up skipped "choose your plan" entirely and landed on Pro
+  // without ever being asked. It is now offered ON the plan step ("Start my
+  // free month of Pro"), claimed through api/account/choose-plan. What makes
+  // it claimable is exactly what grantsFreeMonth checked: the referral row
+  // below with status "signed_up" and the referral source (referralGiftPending).
+  void grantsFreeMonth;
 
   // Record the referral relationship (only when there's a real or attempted referrer).
   if (referrer || flaggedReason) {
@@ -278,6 +282,36 @@ export async function applyReferralOnSignup(
       }
     }
   }
+}
+
+/**
+ * Whether this account has a friend's free month waiting to be started on the
+ * plan step. The same three conditions the signup grant used (a real referrer,
+ * a clean fraud status, the referral source), plus: still on Free and no plan
+ * chosen yet — so it can be started once, only at the plan step.
+ */
+export async function referralGiftPending(userId: string): Promise<boolean> {
+  const admin = getAdminSupabase();
+  const { data: p } = await admin
+    .from("profiles")
+    .select("plan, signup_source, referred_by, customization, office_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!p || isPaidPlan(p.plan as string | null) || p.office_id) return false;
+  if (!p.referred_by || !sourceGrantsFreeMonth(p.signup_source as string | null)) return false;
+  const cust = (p.customization ?? {}) as Record<string, unknown>;
+  if (cust._planChosen || cust._proEndedChoicePending || cust._trialEnded) return false;
+  const { data: row } = await admin
+    .from("referrals")
+    .select("status")
+    .eq("referred_id", userId)
+    .maybeSingle();
+  return row?.status === "signed_up";
+}
+
+/** Start the friend's free month. Callers check referralGiftPending first. */
+export async function startReferralGift(userId: string): Promise<void> {
+  await grantAppFreeMonths(userId, REFERRAL.NEW_USER_FREE_MONTHS, true);
 }
 
 // ── Signup-count referral rewards ────────────────────────────────────────────

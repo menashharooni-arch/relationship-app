@@ -48,6 +48,17 @@ describe("referral free month requires a real, clean referral", () => {
     }
   });
 
+  it("signup never switches the friend's month on — it is chosen on the plan step", () => {
+    // Granting at signup put a referred account on Pro before /welcome, and the
+    // plan step only shows on Free, so "choose your plan" was skipped (owner,
+    // 2026-09-17).
+    const c = code("src/lib/referral-server.ts");
+    const signup = c.slice(c.indexOf("export async function applyReferralOnSignup"), c.indexOf("export async function referralGiftPending"));
+    expect(signup).not.toMatch(/grantAppFreeMonths\(/);
+    expect(code("src/app/api/account/choose-plan/route.ts")).toMatch(/if \(!\(await referralGiftPending\(user\.id\)\)\)/);
+    expect(code("src/components/WelcomePlan.tsx")).toContain("Start my free month of Pro");
+  });
+
   it("the route computes the grant with AND, not the old short-circuiting OR", () => {
     const c = code("src/lib/referral-server.ts");
     expect(c).toMatch(

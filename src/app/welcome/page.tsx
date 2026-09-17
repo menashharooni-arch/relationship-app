@@ -8,6 +8,7 @@ import WelcomePlan from "@/components/WelcomePlan";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
 import { trialHistoryFor } from "@/lib/trial-ledger";
 import { findPendingInviteForEmail } from "@/lib/pending-invite";
+import { referralGiftPending } from "@/lib/referral-server";
 
 // Post-signup onboarding step. A brand-new account lands here right after its
 // first card is claimed (GuestDraftClaim → /welcome?card=slug): turn on
@@ -87,6 +88,8 @@ export default async function WelcomePage({
     const { data: billing } = await getAdminSupabase().from("profiles").select("stripe_customer_id").eq("id", user.id).maybeSingle();
     trialEligible = await isProTrialEligible((billing?.stripe_customer_id as string | null) ?? null, undefined, await trialHistoryFor(user.id, user.email));
   } catch { /* fail open, like /checkout */ }
+  // A friend's free month, offered here rather than switched on at signup.
+  const referralGift = await referralGiftPending(user.id).catch(() => false);
   // A paid plan picked on /pricing before signing up (carried by the claim).
   const presetIntent: PlanIntent | null =
     sp.plan === "pro" || sp.plan === "office"
@@ -104,6 +107,7 @@ export default async function WelcomePage({
       setupFor={setupFor}
       canceled={sp.canceled === "1"}
       trialEligible={trialEligible}
+      referralGift={referralGift}
       designConverted={sp.designConverted === "1"}
       proDesignChanges={proDesignChanges}
     />
