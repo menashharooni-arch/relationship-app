@@ -198,6 +198,15 @@ describe("resetGuestFlow wiring", () => {
     expect(src).toMatch(/function startNewCard\(\)\s*\{\s*clearDraft\(\);/);
   });
 
+  it("Start a new card really is blank — no 'Use what you already entered?' offer (owner, 2026-09-16)", () => {
+    const src = read("src/app/cards/new/NewCardWizard.tsx");
+    const body = src.slice(src.indexOf("function startNewCard()"), src.indexOf("function startNewCard()") + 900);
+    // Only an explicit "Make it live" hand-off (it carries a step) is applied;
+    // an ambient homepage sketch is dropped instead of re-offered.
+    expect(body).toMatch(/if \(held && typeof held\.step === "number"\) applySketchEntry\(held\);/);
+    expect(body).not.toMatch(/if \(held\) applySketchEntry\(held\);/);
+  });
+
   // Closing a builder must NOT wipe the draft: the three builders share one
   // draft and a visitor routinely closes one product to open another, so
   // clearing here would make them retype everything. Only an explicit
