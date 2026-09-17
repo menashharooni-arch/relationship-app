@@ -9,6 +9,7 @@ import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
 import { Field, TextArea, SocialFields, LinkButtons } from "./BuilderFields";
+import { prettyCardSlug } from "@/lib/slug";
 
 // "See how your SwiftLink would look" builder for the homepage SwiftLinks
 // section. Three steps: (1) name, business & profile photo, (2) bio, socials &
@@ -18,10 +19,6 @@ import { Field, TextArea, SocialFields, LinkButtons } from "./BuilderFields";
 // with everything prefilled, so the visitor walks through card creation +
 // account setup from the beginning.
 
-function slugify(str: string): string {
-  return str.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-");
-}
-
 
 export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { linkedinEnabled?: boolean }) {
   const router = useRouter();
@@ -30,8 +27,12 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
   const [launching, setLaunching] = useState(false);
   const { sketch, patch, patchLinkStyle, patchSocial, handOff, reset } = useProductSketch("swiftlink", open);
 
-  // Handle is derived exactly like the real builder: name + business, slugified.
-  const handle = slugify(sketch.company.trim() ? `${sketch.name} ${sketch.company}` : sketch.name) || "yourname";
+  // The link is derived exactly like the real builder: prettyCardSlug fuses
+  // name + business into AlexMorgan-MorganCo. The old local slugify produced
+  // alex-morgan-morgan-co, which is not a link this product has issued since
+  // the slug format changed — the visitor was shown an address that would not
+  // be theirs.
+  const handle = prettyCardSlug(sketch.name, sketch.company) || "YourName";
 
   function launch() {
     setLaunching(true);
@@ -58,15 +59,15 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
     // 1 — name, business & profile photo
     {
       title: "Name your SwiftLink",
-      subtitle: "Your @handle is built from your name and business — this is the page that lives in your bio.",
+      subtitle: "Your link is built from your name and business — this is the page that lives in your bio.",
       canAdvance: sketch.name.trim().length > 0,
       content: (
         <>
           <Field label="Your name" placeholder="Alex Morgan" value={sketch.name} onChange={(e) => patch({ name: e.target.value })} autoFocus />
           <Field label="Business name" placeholder="Morgan & Co." value={sketch.company} onChange={(e) => patch({ company: e.target.value })} />
-          <div className="flex items-center gap-2 rounded-xl bg-[#15171F] border border-white/10 px-3.5 py-2.5">
-            <span className="text-white/40 text-[0.75rem]">Your handle</span>
-            <span className="text-white font-semibold text-sm truncate">swiftcard.me/links/{handle}</span>
+          <div className="flex items-center gap-2 min-w-0 rounded-xl bg-[#15171F] border border-white/10 px-3.5 py-2.5">
+            <span className="text-white/40 text-[0.75rem] shrink-0">Your link</span>
+            <span className="min-w-0 text-white font-semibold text-sm truncate">swiftcard.me/links/{handle}</span>
           </div>
           <div className="pt-1">
             <span className="block text-white/55 text-[0.75rem] font-medium mb-1.5">Profile photo</span>
@@ -106,7 +107,19 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
       title: "Style your page",
       subtitle: "Pick a Look — solid, gradient, or your own photo — then style your social icons and font. Updates live.",
       previewFirst: true,
-      content: <SwiftLinkStyleControls value={sketch.linkStyle} onChange={patchLinkStyle} canUpload={false} />,
+      // links + onLinksChange turn on the real "Link buttons" section — the
+      // same per-link Featured / Grid / Compact picker and Standard / Solid /
+      // Outline row styles the Social design tab has. canUpload={false} keeps
+      // the per-tile media picker honest for a visitor with no account.
+      content: (
+        <SwiftLinkStyleControls
+          value={sketch.linkStyle}
+          onChange={patchLinkStyle}
+          links={sketch.links}
+          onLinksChange={(links) => patch({ links })}
+          canUpload={false}
+        />
+      ),
     },
   ];
 

@@ -60,9 +60,15 @@ const pickOff = "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-
 function LinkMediaControl({
   link,
   onChange,
+  canUpload = true,
 }: {
   link: CardLink;
   onChange: (patch: Partial<CardLink>) => void;
+  /** False on the marketing mini-builder: there is no account to upload
+   *  against and every upload route answers 401, so the picker would be a
+   *  dead end. The tile still shows the link's OWN preview image, which is
+   *  what a visitor gets until they sign up. */
+  canUpload?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -115,6 +121,12 @@ function LinkMediaControl({
           <LinkPreviewThumb url={link.url} />
         )}
         <div className="flex flex-wrap items-center gap-1.5">
+          {!canUpload && (
+            <p className="text-[0.625rem] text-gray-500 leading-snug">
+              Shows the link&apos;s own preview image. Sign up to swap in your own photo or video.
+            </p>
+          )}
+          {canUpload && (<>
           <button
             type="button"
             disabled={busy}
@@ -132,10 +144,11 @@ function LinkMediaControl({
               Use link preview
             </button>
           )}
+          </>)}
         </div>
       </div>
       {error && <p className="text-[0.625rem] text-red-400 mt-1.5 leading-snug">{error}</p>}
-      {!error && (
+      {!error && canUpload && (
         <p className="text-[0.625rem] text-gray-600 mt-1.5 leading-snug">
           {media
             ? "Shown centered and cropped to the tile — landscape (about 2:1) fits edge to edge."
@@ -157,9 +170,12 @@ export default function LinkButtonsControls({
   links,
   onChange,
   pageRowStyle,
+  canUpload = true,
 }: {
   links: CardLink[];
   onChange: (links: CardLink[]) => void;
+  /** Threaded to the per-tile media picker — see LinkMediaControl. */
+  canUpload?: boolean;
   /** The page-wide row style older pages saved (linkButtonStyle) — what a
    *  link shows as until it gets its own pick. */
   pageRowStyle?: string;
@@ -240,7 +256,7 @@ export default function LinkButtonsControls({
                 </div>
               </div>
             ) : (
-              <LinkMediaControl link={l} onChange={(p) => patch(i, p)} />
+              <LinkMediaControl link={l} onChange={(p) => patch(i, p)} canUpload={canUpload} />
             )}
           </div>
         );

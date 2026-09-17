@@ -35,22 +35,18 @@ import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
 import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayout } from "@/components/card-templates/types";
-import { socialUrl, socialDestination, normalizeSocial, SOCIAL_FORMATS } from "@/lib/social-url";
+import { socialUrl, socialDestination, normalizeSocial } from "@/lib/social-url";
+import { SOCIAL_INPUTS, socialHint } from "@/lib/social-input";
 import LinkPreviewThumb from "@/components/LinkPreviewThumb";
 import CardUrlEditor from "@/components/CardUrlEditor";
 
 
 type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
 
-const SOCIALS: { key: SocialKey; label: string; placeholder: string }[] = [
-  { key: "linkedin",  label: "LinkedIn",    placeholder: "linkedin.com/in/you" },
-  { key: "instagram", label: "Instagram",   placeholder: "@username or profile URL" },
-  { key: "tiktok",    label: "TikTok",      placeholder: "@username" },
-  { key: "facebook",  label: "Facebook",    placeholder: "facebook.com/you" },
-  { key: "twitter",   label: "X (Twitter)", placeholder: "@username" },
-  { key: "snapchat",  label: "Snapchat",    placeholder: "@username" },
-  { key: "youtube",   label: "YouTube",     placeholder: "youtube.com/@you" },
-];
+// The one place that decides what a person is told to type in a social box
+// lives in lib/social-input — see the note there. Every row now asks for the
+// same thing (a username) instead of a URL on some rows and a handle on others.
+const SOCIALS = SOCIAL_INPUTS;
 
 
 const inputCls =
@@ -1015,7 +1011,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 information) */}
             <div>
               <p className="text-xs font-medium text-gray-400 mb-1">Social links</p>
-              <p className="text-gray-600 text-[0.6875rem] mb-3">Paste a profile URL or type an @handle — we link it automatically.</p>
+              <p className="text-gray-600 text-[0.6875rem] mb-3">Type your username for each one — we build the link. Pasting a full profile URL works too.</p>
               <div className="space-y-3">
                 {SOCIALS.map(({ key, label: socialLabel, placeholder }) => {
                   // Instagram is the ONE social an office can set. Every other
@@ -1067,13 +1063,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                         </p>
                       ) : linked ? (
                         <p className="text-red-400 text-[0.6875rem] mt-1">
-                          This won&rsquo;t open as a link{SOCIAL_FORMATS[key] ? <> — use <span className="font-medium">{SOCIAL_FORMATS[key]}</span></> : null}
+                          This won&rsquo;t open as a link — just your username, like <span className="font-medium">{SOCIALS.find((x) => x.key === key)!.example}</span>
                         </p>
-                      ) : SOCIAL_FORMATS[key] ? (
-                        <p className="text-gray-600 text-[0.6875rem] mt-1">
-                          Copy this exact format: <span className="text-gray-400 font-medium">{SOCIAL_FORMATS[key]}</span>
-                        </p>
-                      ) : null}
+                      ) : (
+                        <p className="text-gray-600 text-[0.6875rem] mt-1">{socialHint(SOCIALS.find((x) => x.key === key)!)}</p>
+                      )}
                     </div>
                   );
                 })}

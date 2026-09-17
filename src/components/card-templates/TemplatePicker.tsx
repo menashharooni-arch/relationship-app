@@ -106,6 +106,7 @@ export default function TemplatePicker({
   data,
   customUnlocked,
   notice,
+  hideCustom = false,
 }: {
   template: string;
   onSelect: (id: string) => void;
@@ -115,6 +116,12 @@ export default function TemplatePicker({
   customUnlocked: boolean;
   /** Optional one-line note under the heading (the wizard's Free-preview notice). */
   notice?: React.ReactNode;
+  /** Leave the Custom design row out entirely. The website's card builder sets
+   *  this for a guest (owner order 2026-09-15: "when someone is creating their
+   *  card they shouldn't have access to open custom design"). Not greyed out,
+   *  not teased — a locked tile with no account behind it is a dead end, and
+   *  the designer's scan/upload paths need a session. The editor never sets it. */
+  hideCustom?: boolean;
 }) {
   // Seven real cards re-render on every colour tap. Deferring their data keeps
   // the main preview — the one the owner is actually watching — instant, while
@@ -141,12 +148,14 @@ export default function TemplatePicker({
         ))}
         {/* Full width, one slim row: an option with no picture to show does
             not get a card-sized box of its own. */}
-        <Tile label="Custom design" selected={customSelected} disabled={!customUnlocked} showLabel={false} className="col-span-full" onSelect={() => onSelect("custom")}>
-          <CustomDesignTileFace selected={customSelected} unlocked={customUnlocked} />
-        </Tile>
+        {!hideCustom && (
+          <Tile label="Custom design" selected={customSelected} disabled={!customUnlocked} showLabel={false} className="col-span-full" onSelect={() => onSelect("custom")}>
+            <CustomDesignTileFace selected={customSelected} unlocked={customUnlocked} />
+          </Tile>
+        )}
       </div>
       <p className="text-[0.6875rem] text-gray-500 leading-snug mt-3">{caption}</p>
-      {!customUnlocked && <CustomDesignUpsell />}
+      {!customUnlocked && !hideCustom && <CustomDesignUpsell />}
     </div>
   );
 }

@@ -97,7 +97,7 @@ export default function MiniBuilderModal({
     >
       <div className="min-h-full flex items-start sm:items-center justify-center py-6 px-4">
         <div
-          className="relative w-full max-w-3xl rounded-[var(--rd-r-2xl)] overflow-hidden shadow-[var(--rd-sh-lg)]"
+          className="relative w-full min-w-0 max-w-3xl rounded-[var(--rd-r-2xl)] overflow-hidden shadow-[var(--rd-sh-lg)]"
           style={{ background: "#0E1017", border: "1px solid rgba(255,255,255,0.10)" }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -123,9 +123,9 @@ export default function MiniBuilderModal({
             </div>
           )}
 
-          <div className="grid md:grid-cols-2">
+          <div className="grid md:grid-cols-2 min-w-0">
             {/* ── Left: form ─────────────────────────────── */}
-            <div className="p-6 sm:p-8">
+            <div className="p-6 sm:p-8 min-w-0">
               <div className="flex items-center gap-2 mb-5">
                 <span className="rd-pill rd-pill-d"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--rd-aurora)" }} />{eyebrow}</span>
               </div>
@@ -184,7 +184,7 @@ export default function MiniBuilderModal({
             </div>
 
             {/* ── Right: live preview ────────────────────── */}
-            <div className={`${hidePreviewOnMobile || current.previewFirst ? "hidden md:flex" : "flex"} relative flex-col items-center justify-center p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10`} style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(37,99,235,0.14), transparent 60%), #0A0B10" }}>
+            <div className={`${hidePreviewOnMobile || current.previewFirst ? "hidden md:flex" : "flex"} relative min-w-0 flex-col items-center justify-center p-6 sm:p-8 border-t md:border-t-0 md:border-l border-white/10`} style={{ background: "radial-gradient(120% 100% at 50% 0%, rgba(37,99,235,0.14), transparent 60%), #0A0B10" }}>
               <span className="absolute top-4 left-1/2 -translate-x-1/2 text-white/35 text-[0.6875rem] font-semibold uppercase tracking-widest">Live preview</span>
               <div className="w-full flex items-center justify-center mt-4">{preview}</div>
               {previewCaption && <p className="text-white/40 text-[0.75rem] mt-4 text-center">{previewCaption}</p>}

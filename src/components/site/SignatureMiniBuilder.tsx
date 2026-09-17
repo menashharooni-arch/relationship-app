@@ -17,7 +17,8 @@ import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import MiniBuilderModal, { type MiniStep } from "./MiniBuilderModal";
 import { useProductSketch } from "./useProductSketch";
-import { Field } from "./BuilderFields";
+import { Field, LogoShapeToggle } from "./BuilderFields";
+import { prettyCardSlug } from "@/lib/slug";
 
 // "See how your Swift Signature would look" builder for the homepage signature
 // section. Your signature IS your card rendered under your name, so it needs the
@@ -57,10 +58,10 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
     initials: (sketch.name || "Y")[0].toUpperCase(),
     photoUrl: sketch.headshot,
     logoUrl: sketch.logo,
-    cardUrl: "swiftcard.me/your-card",
+    cardUrl: `swiftcard.me/${prettyCardSlug(sketch.name, sketch.company) || "your-card"}`,
     // No socials: the Swift Signature is a replica of the card, and cards
     // render withoutSocials() — the preview must match the real thing.
-    customization: { ...sketch.style },
+    customization: { ...sketch.style, logoShape: sketch.logoShape },
   };
 
   function launch() {
@@ -120,6 +121,8 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
           <div>
             <ImageUpload guest field="logo" shape="square" currentUrl={sketch.logo} label="Company logo" onUploaded={(u) => patch({ logo: u || null })} />
             <LogoSuggest company={sketch.company} email={sketch.email} onConfirm={(u) => patch({ logo: u })} />
+            {/* The signature IS the card, so the same plate shape applies. */}
+            {sketch.logo && <LogoShapeToggle value={sketch.logoShape} onChange={(v) => patch({ logoShape: v })} />}
           </div>
         </div>
       ),

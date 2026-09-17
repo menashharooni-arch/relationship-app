@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { SketchSocials, SketchLink } from "./useProductSketch";
+import { socialInput, socialHint } from "@/lib/social-input";
 
 // Small form primitives shared by the three homepage product builders, styled
 // to match the dark builder shell. Kept in one place so the card, SwiftLink and
@@ -35,14 +36,13 @@ export function TextArea({ label, ...props }: { label: string } & React.Textarea
   );
 }
 
-const SOCIALS: { key: keyof SketchSocials; label: string; prefix?: string; placeholder: string }[] = [
-  { key: "linkedin", label: "LinkedIn", placeholder: "linkedin.com/in/you" },
-  { key: "instagram", label: "Instagram", prefix: "@", placeholder: "yourhandle" },
-  { key: "tiktok", label: "TikTok", prefix: "@", placeholder: "yourhandle" },
-  { key: "twitter", label: "X (Twitter)", prefix: "@", placeholder: "yourhandle" },
-  { key: "facebook", label: "Facebook", placeholder: "facebook.com/you" },
-  { key: "youtube", label: "YouTube", placeholder: "youtube.com/@you" },
-];
+// Same wording as the real builder and the card editor, from the one module
+// that decides it (lib/social-input): every box asks for just a username, and
+// the hint underneath shows the address it becomes. These used to mix a URL on
+// some rows with an @handle on others — the confusion the owner reported
+// 2026-09-15. The mini-builders keep their own subset and order.
+const MINI_SOCIAL_KEYS: (keyof SketchSocials)[] = ["linkedin", "instagram", "tiktok", "twitter", "facebook", "youtube"];
+const SOCIALS = MINI_SOCIAL_KEYS.map((k) => socialInput(k)!);
 
 export function SocialFields({
   socials,
@@ -54,18 +54,19 @@ export function SocialFields({
   /** Restrict to a product's supported set (e.g. a signature shows fewer). */
   only?: (keyof SketchSocials)[];
 }) {
-  const list = only ? SOCIALS.filter((s) => only.includes(s.key)) : SOCIALS;
+  const list = only ? SOCIALS.filter((s) => only.includes(s.key as keyof SketchSocials)) : SOCIALS;
   return (
     <div className="space-y-2.5">
       {list.map((s) => (
-        <Field
-          key={s.key}
-          label={s.label}
-          prefix={s.prefix}
-          placeholder={s.placeholder}
-          value={socials[s.key]}
-          onChange={(e) => onChange(s.key, s.prefix === "@" ? e.target.value.replace(/^@/, "") : e.target.value)}
-        />
+        <div key={s.key}>
+          <Field
+            label={s.label}
+            placeholder={s.placeholder}
+            value={socials[s.key as keyof SketchSocials]}
+            onChange={(e) => onChange(s.key as keyof SketchSocials, e.target.value)}
+          />
+          <p className="text-white/40 text-[0.625rem] mt-1 leading-snug">{socialHint(s)}</p>
+        </div>
       ))}
     </div>
   );
@@ -155,6 +156,45 @@ export function LinkButtons({
           );
         })()}
       </div>
+    </div>
+  );
+}
+
+// The card editor's "Logo shape on the card" control, for the builders. Same
+// labels and same copy as the signed-in editor, and like the editor it only
+// means anything once a logo exists — the caller renders it conditionally.
+export function LogoShapeToggle({
+  value,
+  onChange,
+}: {
+  value: "auto" | "circle";
+  onChange: (v: "auto" | "circle") => void;
+}) {
+  return (
+    <div className="mt-2.5">
+      <span className="block text-white/55 text-[0.75rem] font-medium mb-1.5">Logo shape on the card</span>
+      <div className="inline-flex items-center rounded-lg p-0.5" style={{ background: "rgba(255,255,255,0.06)" }}>
+        {([["auto", "Original"], ["circle", "Circle"]] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            aria-pressed={value === id}
+            className="text-xs font-semibold px-3 py-1.5 rounded-md transition-colors"
+            style={{
+              background: value === id ? "rgba(255,255,255,0.14)" : "transparent",
+              color: value === id ? "#fff" : "rgba(255,255,255,0.55)",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="text-white/40 text-[0.625rem] mt-1 leading-snug">
+        {value === "circle"
+          ? "Your full logo inside a clean circle — nothing gets cut off."
+          : "Adapts to your logo — square, wide, or banner."}
+      </p>
     </div>
   );
 }

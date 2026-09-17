@@ -122,12 +122,6 @@ export function socialDestination(platform: string, raw?: string | null): string
 }
 
 // For these URL-style networks, show the exact format to copy so the link works.
-export const SOCIAL_FORMATS: Record<string, string> = {
-  linkedin: "linkedin.com/in/yourfullname",
-  facebook: "facebook.com/yourfullname",
-  youtube: "youtube.com/@yourchannel",
-};
-
 export type ConnectLink = { label: string; href: string; sub?: string; color: string; textColor?: string };
 
 // Socials in the canonical order: Website, LinkedIn, Instagram, TikTok, Facebook, X, Snapchat, YouTube.

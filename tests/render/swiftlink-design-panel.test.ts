@@ -14,8 +14,13 @@ import { getLook } from "@/lib/swiftlink-looks";
 // bottom. I don't have to go to the top, start, go down, and then, 'Oh, I get
 // to the end and I see something that should have been at the top'."
 //
-// So the panel is a route, in two parts: the whole surface first, then the
-// page's own parts in the order a visitor scrolls past them. That second order
+// Owner, 2026-09-15, refining exactly that: "the page header should be first
+// because that will set how they design their whole page based off of what they
+// choose." The header is the one STRUCTURAL choice on the panel and it gates the
+// background's photo/video upload, so it leads.
+//
+// So the panel is a route, in two parts: the shape and then the whole surface,
+// then the page's own parts in the order a visitor scrolls past them. That second order
 // is not a matter of taste — it is the page itself — which makes it exactly the
 // kind of thing to pin, because a future section will otherwise be appended
 // wherever the file happens to end.
@@ -82,10 +87,11 @@ describe("panel order", () => {
 
   it("puts the whole surface first, then the page's parts in visitor order", async () => {
     expect(await sections()).toEqual([
-      // THE PAGE — the preset, then the three things that repaint all of it.
-      "The page", "Look", "Page background", "Text color", "Font",
+      // THE PAGE — the SHAPE first (owner, 2026-09-15), then the preset and the
+      // three things that repaint all of it.
+      "The page", "Page header", "Look", "Page background", "Text color", "Font",
       // ON THE PAGE — exactly the order a visitor scrolls past them.
-      "On the page", "Page header", "Social icons", "Connect button", "Link buttons",
+      "On the page", "Social icons", "Connect button", "Link buttons",
     ]);
   }, 60_000);
 
@@ -93,7 +99,7 @@ describe("panel order", () => {
     const order = await sections({ locked: true });
     expect(order.indexOf("Page background")).toBeGreaterThan(order.indexOf("Look"));
     expect(order.indexOf("Text color")).toBeGreaterThan(order.indexOf("Page background"));
-    expect(order.indexOf("Page header")).toBeGreaterThan(order.indexOf("Font"));
+    expect(order.indexOf("Page header")).toBeLessThan(order.indexOf("Look"));
     expect(order.indexOf("Connect button")).toBeGreaterThan(order.indexOf("Social icons"));
     expect(order.indexOf("Link buttons")).toBeGreaterThan(order.indexOf("Connect button"));
   }, 60_000);
@@ -164,20 +170,28 @@ describe("panel order", () => {
         { waitUntil: "load" },
       );
       const r = await page.evaluate(() => {
-        const btn = [...document.querySelectorAll("button")].find((b) => /compact circle/i.test(b.textContent || ""));
         const bgLabel = [...document.querySelectorAll("p")].find((p) => (p.textContent || "").trim().startsWith("Page background"));
         const headerLabel = [...document.querySelectorAll("p")].find((p) => (p.textContent || "").trim() === "Page header");
+        const bgY = bgLabel?.getBoundingClientRect().top ?? -1;
+        // Scoped BELOW the background label on purpose: the Page header section
+        // now leads the panel and has its own "Compact circle" option button,
+        // so an unscoped search finds that one instead of the shortcut.
+        const btn = [...document.querySelectorAll("button")]
+          .filter((b) => /compact circle/i.test(b.textContent || ""))
+          .find((b) => b.getBoundingClientRect().top > bgY);
         return {
           hasSwitch: !!btn,
-          // It must live in the background section, above the header section.
           switchY: btn?.getBoundingClientRect().top ?? -1,
-          bgY: bgLabel?.getBoundingClientRect().top ?? -1,
+          bgY,
           headerY: headerLabel?.getBoundingClientRect().top ?? -1,
         };
       });
-      expect(r.hasSwitch).toBe(true);
+      expect(r.hasSwitch, "Page background lost its compact-circle shortcut").toBe(true);
+      // Still inside the background section…
       expect(r.switchY).toBeGreaterThan(r.bgY);
-      expect(r.switchY).toBeLessThan(r.headerY);
+      // …and the header it points at now sits ABOVE, so the dependency reads
+      // forward instead of being discovered at the bottom (owner, 2026-09-15).
+      expect(r.headerY).toBeLessThan(r.bgY);
     } finally {
       await page.close();
     }

@@ -731,39 +731,108 @@ export function SwiftLinkStyleControls({
 
   // ── SECTION ORDER IS DELIBERATE: the panel is a route, not a list ─────────
   //
-  //   THE PAGE       Look → Page background → Text color → Font
-  //   ON THE PAGE    Page header → Social icons → Connect button → Link buttons
+  //   THE PAGE       Page header → Look → Page background → Text color → Font
+  //   ON THE PAGE    Social icons → Connect button → Link buttons
   //
-  // Two ideas, in that order. First the whole surface: the preset that sets
-  // everything at once, then the three things that repaint all of it. Then the
-  // page's own PARTS, in the order a visitor scrolls past them — the header at
-  // the top, the social row, the Connect button, the links.
+  // Shape first, then the whole surface, then the page's own PARTS in the order
+  // a visitor scrolls past them.
   //
-  // That second group is the thing worth protecting. Its order is not a
-  // judgement call anyone has to re-litigate; it is the page read top to
-  // bottom, so there is exactly one right answer and it is visible on screen.
+  // Page header leads (owner order 2026-09-15: "the page header should be first
+  // because that will set how they design their whole page based off of what
+  // they choose"). It is the one STRUCTURAL choice here — cover, short banner,
+  // compact circle or none — and it decides how much page there is left to
+  // style. It also gates the background's photo/video upload, so leading with
+  // it puts the dependency in front of the control that depends on it instead
+  // of behind it.
   //
-  // Two constraints this satisfies that the old order could not:
+  // Everything that made the previous order good is kept:
   //
-  //   • Page background and Text color sit next to the Look (owner, 2026-09-10:
-  //     they belong together). They also change the page more than anything
-  //     else here, and on a phone this step is ~3.3 screens tall with the
-  //     preview pinned at the top — so distance from the preview is what a
-  //     control costs to use. They used to sit ~1,440px and ~1,600px down.
-  //   • The accent lands BETWEEN the social icons and the link buttons, which
-  //     is both where the Connect button sits on the page and where it has to
-  //     be so that nobody sets a row colour before meeting the master control
+  //   • Page background and Text color still sit next to the Look (owner,
+  //     2026-09-10: they belong together), and still near the top, where the
+  //     preview is — on a phone this step is ~3.3 screens tall with the preview
+  //     pinned above, so distance from the preview is what a control costs.
+  //   • The accent still lands BETWEEN the social icons and the link buttons,
+  //     which is both where the Connect button sits on the page and where it
+  //     has to be so nobody sets a row colour before meeting the master control
   //     those rows fall back to.
   //
-  // The background's photo/video upload still needs the compact-circle header,
-  // which now sits BELOW it. That used to force Page header to come first; the
-  // background section now offers the switch inline instead, so the dependency
-  // costs one button rather than the whole panel's order.
+  // The background section keeps its inline "switch to the compact circle"
+  // button. It is now a shortcut back rather than the only way to resolve the
+  // dependency, which costs nothing and saves a scroll.
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-5">
-      <GroupHeading hint="the whole surface">The page</GroupHeading>
+      <GroupHeading hint="the shape first, then the whole surface">The page</GroupHeading>
 
       <div>
+        {/* Every plan — structural, like the Look picker, so never disabled. */}
+        <p className={`${rowLabel} mb-0.5`}>Page header</p>
+        <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">How your photo sits at the top — a full cover, or a compact circle that leaves more room for your links.</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {HERO_STYLES.map((o) => {
+            const active = normalizeHeroStyle(value.linkHeroStyle) === o.id;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                title={o.hint}
+                onClick={() => onChange({ linkHeroStyle: o.id === "cover" ? undefined : o.id })}
+                className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[0.6875rem] font-semibold text-left transition-colors ${
+                  active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
+                }`}
+              >
+                {/* Mini page sketch: cover = tall photo band; banner = short
+                    band; avatar = small circle; none = just content lines */}
+                <span className="w-7 h-9 rounded-[5px] bg-gray-900 border border-gray-600 overflow-hidden flex flex-col items-center shrink-0">
+                  {o.id === "cover" ? (
+                    <><span className="w-full h-4 bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /></>
+                  ) : o.id === "banner" ? (
+                    <><span className="w-full h-2.5 bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /><span className="mt-0.5 h-[3px] w-4 rounded bg-gray-600" /></>
+                  ) : o.id === "avatar" ? (
+                    <><span className="mt-1.5 w-3 h-3 rounded-full bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /></>
+                  ) : (
+                    <><span className="mt-1.5 h-[3px] w-4 rounded bg-gray-500" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-600" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-600" /></>
+                  )}
+                </span>
+                {o.name}
+              </button>
+            );
+          })}
+        </div>
+        {/* What the header shows — hidden for "No header" (nothing to show). */}
+        {normalizeHeroStyle(value.linkHeroStyle) !== "none" && (
+          <div className="mt-2.5">
+            <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Header shows — Auto uses your headshot, else your logo, else initials. Or upload a photo just for the header.</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {HERO_CONTENTS.map((o) => {
+                const active = normalizeHeroContent(value.linkHeroContent) === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    title={o.hint}
+                    onClick={() => onChange({ linkHeroContent: o.id === "auto" ? undefined : o.id })}
+                    className={`px-1 py-2 rounded-lg border text-[0.6875rem] font-semibold transition-colors ${
+                      active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
+                    }`}
+                  >
+                    {o.name}
+                  </button>
+                );
+              })}
+            </div>
+            {/* canUpload, same as the page background below it: in the
+                marketing sketch there is no account to upload against, so this
+                control could only ever answer 401. It was the last place in
+                this panel where a visitor could reach a button that has to
+                fail. */}
+            {normalizeHeroContent(value.linkHeroContent) === "custom" && canUpload && (
+              <HeroImageUpload url={value.linkHeroImage} onChange={onChange} />
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Look</p>
         <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">One tap sets the whole page — background, text, and button color, composed to read well together. Open a style below to see its designs.</p>
         {/* Picking a Look also clears the fine-tune background/text overrides:
@@ -774,8 +843,6 @@ export function SwiftLinkStyleControls({
           <p className="text-[0.625rem] text-gray-500 mt-2 leading-snug">Paper and Onyx are included free — the rest of the library comes with Pro.</p>
         )}
       </div>
-
-
 
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Page background{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
@@ -858,75 +925,6 @@ export function SwiftLinkStyleControls({
 
       <GroupHeading hint="in the order visitors see them">On the page</GroupHeading>
 
-      <div>
-        {/* Every plan — structural, like the Look picker, so never disabled. */}
-        <p className={`${rowLabel} mb-0.5`}>Page header</p>
-        <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">How your photo sits at the top — a full cover, or a compact circle that leaves more room for your links.</p>
-        <div className="grid grid-cols-2 gap-1.5">
-          {HERO_STYLES.map((o) => {
-            const active = normalizeHeroStyle(value.linkHeroStyle) === o.id;
-            return (
-              <button
-                key={o.id}
-                type="button"
-                title={o.hint}
-                onClick={() => onChange({ linkHeroStyle: o.id === "cover" ? undefined : o.id })}
-                className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-[0.6875rem] font-semibold text-left transition-colors ${
-                  active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
-                }`}
-              >
-                {/* Mini page sketch: cover = tall photo band; banner = short
-                    band; avatar = small circle; none = just content lines */}
-                <span className="w-7 h-9 rounded-[5px] bg-gray-900 border border-gray-600 overflow-hidden flex flex-col items-center shrink-0">
-                  {o.id === "cover" ? (
-                    <><span className="w-full h-4 bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /></>
-                  ) : o.id === "banner" ? (
-                    <><span className="w-full h-2.5 bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /><span className="mt-0.5 h-[3px] w-4 rounded bg-gray-600" /></>
-                  ) : o.id === "avatar" ? (
-                    <><span className="mt-1.5 w-3 h-3 rounded-full bg-gray-400" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-500" /></>
-                  ) : (
-                    <><span className="mt-1.5 h-[3px] w-4 rounded bg-gray-500" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-600" /><span className="mt-1 h-[3px] w-4 rounded bg-gray-600" /></>
-                  )}
-                </span>
-                {o.name}
-              </button>
-            );
-          })}
-        </div>
-        {/* What the header shows — hidden for "No header" (nothing to show). */}
-        {normalizeHeroStyle(value.linkHeroStyle) !== "none" && (
-          <div className="mt-2.5">
-            <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Header shows — Auto uses your headshot, else your logo, else initials. Or upload a photo just for the header.</p>
-            <div className="grid grid-cols-3 gap-1.5">
-              {HERO_CONTENTS.map((o) => {
-                const active = normalizeHeroContent(value.linkHeroContent) === o.id;
-                return (
-                  <button
-                    key={o.id}
-                    type="button"
-                    title={o.hint}
-                    onClick={() => onChange({ linkHeroContent: o.id === "auto" ? undefined : o.id })}
-                    className={`px-1 py-2 rounded-lg border text-[0.6875rem] font-semibold transition-colors ${
-                      active ? "border-blue-600 bg-blue-600/10 text-blue-200" : "border-gray-700 bg-gray-800/40 text-gray-300 hover:border-gray-600"
-                    }`}
-                  >
-                    {o.name}
-                  </button>
-                );
-              })}
-            </div>
-            {/* canUpload, same as the page background below it: in the
-                marketing sketch there is no account to upload against, so this
-                control could only ever answer 401. It was the last place in
-                this panel where a visitor could reach a button that has to
-                fail. */}
-            {normalizeHeroContent(value.linkHeroContent) === "custom" && canUpload && (
-              <HeroImageUpload url={value.linkHeroImage} onChange={onChange} />
-            )}
-          </div>
-        )}
-      </div>
-
       <div className="border-t border-gray-800 pt-4">
         <p className={`${rowLabel} mb-0.5`}>Social icons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
         <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">The shape and color of your social chips.</p>
@@ -957,14 +955,15 @@ export function SwiftLinkStyleControls({
         />
       </div>
 
-      {/* Per-link looks — only where the caller owns the links (the card
-          editor and the wizard); the marketing mini-builder's sketch has no
-          real links, so it gets no section rather than a dead one. */}
+      {/* Per-link looks — shown wherever the caller owns the links. The
+          marketing mini-builder passes them too (its "Additional links" step
+          collects real ones); it sets canUpload={false}, so the per-tile media
+          picker explains itself instead of offering an upload that would 401. */}
       {links && onLinksChange && (
         <div className="border-t border-gray-800 pt-4">
           <p className={`${rowLabel} mb-0.5`}>Link buttons{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
           <p className="text-[0.625rem] text-gray-500 mb-2 leading-snug">Choose how each additional link appears. Featured and Grid show a big preview you can swap for your own photo or video; Compact is a slim row you can style.</p>
-          <LinkButtonsControls links={links} onChange={onLinksChange} pageRowStyle={value.linkButtonStyle} />
+          <LinkButtonsControls links={links} onChange={onLinksChange} pageRowStyle={value.linkButtonStyle} canUpload={canUpload} />
           {links.some((l) => l.kind !== "header" && (l.size ?? "grid") === "compact" && resolveRowStyle(l, value.linkButtonStyle) !== "tile") && (
             <div className="mt-2.5">
               <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color for Solid and Outline rows — leave Default to match your Connect button.</p>
