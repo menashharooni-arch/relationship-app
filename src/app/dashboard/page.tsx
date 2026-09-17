@@ -868,7 +868,7 @@ export default async function DashboardPage({
         </div>
       </nav>
 
-      <MobileNavGate showAdmin={canSeeOfficeAdmin} />
+      <MobileNavGate showAdmin={canSeeOfficeAdmin} showSite={isAdmin} />
       <HelpWidget floating />
       {/* pb-36 on mobile (was pb-24): the floating help bubble is fixed at
           bottom-20 and is 52px tall, so it covers the band 80px–132px up from

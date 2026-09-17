@@ -116,9 +116,16 @@ describe("every surface that depicts the pass uses this one component", () => {
   it("the ways-to-share phones show the pass, not a shrunken business card", () => {
     const s = read("src/components/site/ShareWaysPhones.tsx");
     expect(s).toMatch(/<WalletPassFace/);
-    // The old mock rendered a card template inside the Wallet phone.
-    expect(s).not.toMatch(/ClassicPro/);
-    expect(s).not.toMatch(/CardScaler/);
+    // The bug this pins: the WALLET phone once rendered a card template where
+    // the pass belongs. Scoped to that screen rather than the whole file
+    // (2026-09-17): the SHARE SHEET phone in the same file now shows the real
+    // card page behind the sheet and the card as the sheet's thumbnail, which
+    // is what iOS actually shows — a card template there is correct, and the
+    // file-wide ban would have blocked it while protecting nothing.
+    const wallet = s.slice(s.indexOf("export function WalletScreen"), s.indexOf("// 2 — iOS share sheet"));
+    expect(wallet.length).toBeGreaterThan(200);
+    expect(wallet).not.toMatch(/ClassicPro/);
+    expect(wallet).not.toMatch(/CardScaler/);
     // The tucked credit cards stay — that is what makes it read as Wallet.
     expect(s).toMatch(/TUCKED/);
   });

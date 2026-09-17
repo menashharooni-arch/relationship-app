@@ -8,6 +8,8 @@ import FaqAccordion from "@/components/site/FaqAccordion";
 import ScrollProgress from "@/components/ScrollProgress";
 import ScrollReveal from "@/components/ScrollReveal";
 import NativeHidden from "@/components/NativeHidden";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import "@/app/home.css";
 
 // ── Competitor-alternative pages: /compare/<x>-alternative ──────────────────
 //
@@ -228,8 +230,8 @@ function Cell({ value, brand }: { value: string; brand?: boolean }) {
     <td className={`px-4 py-4 text-sm text-center align-middle ${brand ? "font-semibold" : "text-slate-600"}`} style={brand ? { color: "#1D4ED8" } : undefined}>
       {/* Same as /compare: the glyph is the answer, so it gets a text
           equivalent and a shade you can actually see (✗ was slate-300, ~1.6:1). */}
-      {isCross ? <><span aria-hidden="true" className="text-ink-muted">✗</span><span className="sr-only">No</span></> : isCheck ? (
-        <span><span aria-hidden="true" className="text-green-600 text-base">✓</span><span className="sr-only">Yes</span>{value.length > 1 ? <span className="text-ink-muted text-xs"> {value.slice(1).trim()}</span> : null}</span>
+      {isCross ? <><span aria-hidden="true" className="text-slate-500">✗</span><span className="sr-only">No</span></> : isCheck ? (
+        <span><span aria-hidden="true" className="text-green-600 text-base">✓</span><span className="sr-only">Yes</span>{value.length > 1 ? <span className="text-slate-500 text-xs"> {value.slice(1).trim()}</span> : null}</span>
       ) : value}
     </td>
   );
@@ -248,42 +250,57 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
   };
 
   return (
-    <main className="min-h-screen bg-cream flex flex-col">
+    // bg-cream stays only for the native shell's status-bar canvas rule in
+    // globals.css (html.native-app:has(main.bg-cream)); .hp paints the page
+    // itself white (owner, 2026-09-17: light pages, no cream).
+    <main className="hp sc-canvas-white min-h-screen bg-cream flex flex-col">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <ScrollProgress />
       <ScrollReveal />
+      <HomeHeadingReveal />
       <SiteNav />
 
       {/* Hero */}
-      <section className="text-center px-6 pt-28 pb-10">
-        <div className="mb-4"><Eyebrow dark={false}>Comparison</Eyebrow></div>
-        <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">Looking for a {c.name} alternative?</h1>
-        <p className="text-ink-muted text-lg max-w-xl mx-auto mb-2">{c.heroSub}</p>
-        <p className="text-ink-muted text-xs max-w-xl mx-auto">
-          {c.name} pricing/features sourced from their public pages and subject to change — confirm current details directly with them.
-        </p>
-        <div className="mt-7">
-          <Link href={`/cards/new?src=${src}`} className="rd-btn rd-btn-primary rd-btn-lg">
-            Try SwiftCard free →
-          </Link>
+      <section className="hp-page-hero text-center px-5 sm:px-6 pt-28 sm:pt-36 pb-14">
+        <div className="relative" data-hp-head>
+          <div className="mb-4"><Eyebrow dark={false}>Comparison</Eyebrow></div>
+          <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">Looking for a {c.name} alternative?</h1>
+          <p className="hp-lede max-w-xl mx-auto mb-2">{c.heroSub}</p>
+          <p className="text-slate-500 text-xs max-w-xl mx-auto">
+            {c.name} pricing/features sourced from their public pages and subject to change — confirm current details directly with them.
+          </p>
+          <div className="mt-7">
+            <Link href={`/cards/new?src=${src}`} className="rd-btn rd-btn-primary rd-btn-lg">
+              Try SwiftCard free →
+            </Link>
+          </div>
         </div>
       </section>
 
       {/* Table */}
-      <section className="max-w-3xl mx-auto w-full px-6 pb-12">
-        <div className="relative overflow-x-auto rounded-3xl border border-warm-border bg-white shadow-sm">
+      <div className="hp-soft">
+      <section className="max-w-3xl mx-auto w-full px-5 sm:px-6 pt-14 pb-16">
+        {/* Phones: the table is wider than the screen, so say it swipes and
+            fade the cut edge — without this the competitor columns are simply
+            invisible on a phone (owner mobile pass, 2026-09-17). */}
+        <p className="sm:hidden mb-2 flex items-center gap-1.5 text-[0.8125rem] font-medium text-slate-500">
+          Swipe the table to compare
+          <span aria-hidden="true">→</span>
+        </p>
+        <div className="relative">
+        <div className="relative overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-[0_18px_40px_-28px_rgba(15,23,42,0.3)]">
           <table className="w-full border-collapse min-w-[520px]">
             <thead>
-              <tr className="border-b border-warm-border">
+              <tr className="border-b border-slate-200">
                 <th className="px-4 py-4 text-left text-sm font-semibold text-slate-900 w-2/5">&nbsp;</th>
                 <th className="px-4 py-4 text-sm font-bold text-center" style={{ color: "#1D4ED8" }}>SwiftCard</th>
-                <th className="px-4 py-4 text-sm font-semibold text-ink-muted text-center">{c.name}</th>
+                <th className="px-4 py-4 text-sm font-semibold text-slate-500 text-center">{c.name}</th>
               </tr>
             </thead>
             <tbody>
               {c.rows.map((row, i) => {
                 const tr = (
-                  <tr key={row.label} className={i % 2 === 1 ? "bg-[#FAF7F2]" : ""}>
+                  <tr key={row.label} className={i % 2 === 1 ? "bg-[#F5F7FB]" : ""}>
                     <td className="px-4 py-4 text-sm font-medium text-slate-700">{row.label}</td>
                     <Cell value={row.swiftcard} brand />
                     <Cell value={row.them} />
@@ -295,58 +312,72 @@ export default async function AlternativePage({ params }: { params: Promise<{ sl
             </tbody>
           </table>
         </div>
-        <p className="text-slate-600 text-sm leading-relaxed max-w-2xl mx-auto text-center mt-8">{c.honest}</p>
+        {/* the cut edge, faded so it reads as "there is more" */}
+        <span className="sm:hidden pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-3xl" style={{ background: "linear-gradient(90deg, rgba(255,255,255,0) 0%, #ffffff 92%)" }} aria-hidden="true" />
+        </div>
+        <p className="text-slate-600 text-[0.9375rem] leading-relaxed max-w-2xl mx-auto text-center mt-8">{c.honest}</p>
       </section>
+      </div>
 
       {/* Why people switch */}
-      <section className="max-w-4xl mx-auto w-full px-6 pb-14">
-        <h2 className="rd-h2 text-[clamp(1.5rem,3vw,2rem)] text-slate-900 text-center mb-8 [text-wrap:balance]">Why people switch</h2>
+      <section className="max-w-4xl mx-auto w-full px-5 sm:px-6 pt-16 pb-16">
+        <div data-hp-head>
+          <h2 className="rd-h2 text-[clamp(1.6rem,3.2vw,2.3rem)] text-slate-900 text-center mb-8 [text-wrap:balance]">Why people switch</h2>
+        </div>
         <div className="grid sm:grid-cols-3 gap-4">
           {c.switchReasons.map((r) => (
-            <div key={r.t} className="rd-card-l p-6">
+            <div key={r.t} className="hp-card">
               <p className="text-slate-900 font-semibold text-[0.9375rem]">{r.t}</p>
-              <p className="text-ink-muted text-[0.84375rem] mt-1.5 leading-relaxed">{r.d}</p>
+              <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{r.d}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* Switching — the migration path the page promises in search results */}
-      <section className="max-w-4xl mx-auto w-full px-6 pb-14">
-        <h2 className="rd-h2 text-[clamp(1.5rem,3vw,2rem)] text-slate-900 text-center mb-3 [text-wrap:balance]">Switching from {c.name}</h2>
-        <p className="text-ink-muted text-sm text-center max-w-xl mx-auto mb-8">{c.migration.intro}</p>
+      <div className="hp-soft">
+      <section className="max-w-4xl mx-auto w-full px-5 sm:px-6 pt-16 pb-16">
+        <div data-hp-head>
+          <h2 className="rd-h2 text-[clamp(1.6rem,3.2vw,2.3rem)] text-slate-900 text-center mb-3 [text-wrap:balance]">Switching from {c.name}</h2>
+          <p className="text-slate-500 text-[0.9375rem] text-center max-w-xl mx-auto mb-8">{c.migration.intro}</p>
+        </div>
         <div className="grid sm:grid-cols-3 gap-4">
           {c.migration.steps.map((st, i) => (
-            <div key={st.t} className="rd-card-l p-6">
-              <p className="text-[0.6875rem] font-bold tracking-widest text-brand mb-2">STEP {i + 1}</p>
+            <div key={st.t} className="hp-card">
+              <p className="hp-kicker !text-[0.6875rem] mb-2">STEP {i + 1}</p>
               <p className="text-slate-900 font-semibold text-[0.9375rem]">{st.t}</p>
-              <p className="text-ink-muted text-[0.84375rem] mt-1.5 leading-relaxed">{st.d}</p>
+              <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{st.d}</p>
             </div>
           ))}
         </div>
       </section>
+      </div>
 
       {/* FAQ — the JSON-LD above is generated from exactly this list */}
+      <div className="pt-16">
       <FaqAccordion items={c.faq}>
         <Link href={`/cards/new?src=${src}`} className="rd-btn rd-btn-primary rd-btn-lg">
           Create your free card →
         </Link>
       </FaqAccordion>
+      </div>
 
       {/* Sibling comparisons — internal links keep these pages crawlable and ranking */}
-      <section className="max-w-2xl mx-auto w-full px-6 pb-16 text-center">
+      <div className="hp-soft flex-1">
+      <section className="max-w-2xl mx-auto w-full px-5 sm:px-6 pt-14 pb-16 text-center">
         <div className="mb-3"><Eyebrow dark={false}>More comparisons</Eyebrow></div>
         <div className="flex flex-wrap justify-center gap-2">
-          <Link href="/compare" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Full comparison table</Link>
-          <Link href="/business-card-view-tracking" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card view tracking</Link>
-          <Link href="/link-in-bio-with-analytics" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Link in bio with analytics</Link>
+          <Link href="/compare" className="text-[0.8125rem] text-slate-600 hover:text-slate-900 hover:border-slate-300 rounded-full px-3.5 py-1.5 bg-white border border-slate-200 transition-colors">Full comparison table</Link>
+          <Link href="/business-card-view-tracking" className="text-[0.8125rem] text-slate-600 hover:text-slate-900 hover:border-slate-300 rounded-full px-3.5 py-1.5 bg-white border border-slate-200 transition-colors">Card view tracking</Link>
+          <Link href="/link-in-bio-with-analytics" className="text-[0.8125rem] text-slate-600 hover:text-slate-900 hover:border-slate-300 rounded-full px-3.5 py-1.5 bg-white border border-slate-200 transition-colors">Link in bio with analytics</Link>
           {ALL_SLUGS.filter((s) => s !== slug).map((s) => (
-            <Link key={s} href={`/compare/${s}`} className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">
+            <Link key={s} href={`/compare/${s}`} className="text-[0.8125rem] text-slate-600 hover:text-slate-900 hover:border-slate-300 rounded-full px-3.5 py-1.5 bg-white border border-slate-200 transition-colors">
               {COMPETITORS[s].name} alternative
             </Link>
           ))}
         </div>
       </section>
+      </div>
 
       <SiteFooterMini />
     </main>

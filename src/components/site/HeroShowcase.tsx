@@ -51,13 +51,12 @@ type Persona = {
   subject: string;
   accent: string;
   socials: BrandSocial[];
-  /** The card page's action-link rows AND the Swift Links grid: [emoji, label]. */
-  rows: Array<[string, string]>;
-  /** Four half-width Swift Links grid tiles. Labels only: the live renderer
-   *  shows an emoji as a small corner chip when the owner picked one, and
-   *  nothing at all when they did not — which is the common case, and the
-   *  one that lets the brand-derived tile carry the design. */
+  /** The page's ONE featured tile - full width, the thing they most want tapped. */
+  featured: string;
+  /** Two half-width grid tiles, side by side under the featured one. */
   grid: string[];
+  /** One compact row - the quiet link at the bottom of a real page. */
+  compact: string;
   signoff: string;
 };
 
@@ -77,22 +76,36 @@ const BRAND: Record<string, string> = {
 const soc = (labels: Array<[string, string]>): BrandSocial[] =>
   labels.map(([label, href]) => ({ label, href, color: BRAND[label] }));
 
+const SERIF = "Georgia, 'Times New Roman', serif";
+
+// Every example is DESIGNED, not default (owner, 2026-09-17: "make all those
+// designs much nicer... play with all the features"). Each persona uses the
+// real systems a paying customer has:
+//   - the card's style controls (bgColor / surfaceColor / textColor /
+//     fontFamily) plus a finish (sheen, frosted, brushed, carbon, gilt, halo),
+//     the same values the named presets in lib/template-style-presets.ts carry;
+//   - a Swift Links Look from lib/swiftlink-looks - the glass and gradient
+//     ones, not just the flat defaults;
+//   - the whole link-tile system: one FEATURED tile, a GRID pair and a COMPACT
+//     row, which is what SwiftLinkButtons renders for a paid page.
 const PERSONAS: Persona[] = [
   {
     key: "realtor", job: "Realtor", Template: PhotoFirst, handle: "mayasellshomes",
-    subtitle: "Realtor® · Harbor & Vine Realty", accent: "#7C3AED",
+    subtitle: "Realtor® · Harbor & Vine Realty", accent: "#6D28D9",
     bio: "Helping Bay Area families find home for 12 years. 200+ closings and counting.",
     subject: "Re: 12 Harbor Lane — Saturday showing",
     data: p({
       name: "Maya Castillo", title: "Realtor®", company: "Harbor & Vine Realty",
       phone: "(415) 555-0132", email: "maya@harborvine.com", website: "harborvine.com",
       cardUrl: "swiftcard.me/mayacastillo", photoUrl: "/showcase/maya.jpg",
-      customization: { accentColor: "#7C3AED" },
+      // "Royal Violet" info panel, lit with a soft sheen.
+      customization: { accentColor: "#6D28D9", bgColor: "linear-gradient(145deg, #4f46e5 0%, #7c3aed 60%, #6d28d9 100%)", textColor: "#ffffff", finish: "sheen" },
     }),
-    look: getLook("nebula"),
+    look: getLook("aurora"),
     socials: soc([["Instagram", "#"], ["LinkedIn", "#"], ["Facebook", "#"], ["YouTube", "#"]]),
-    rows: [["🏡", "Current listings"], ["📅", "Book a private showing"]],
-    grid: ["Just listed", "Open houses", "Client reviews", "Home valuation"],
+    featured: "Just listed · 12 Harbor Lane",
+    grid: ["Open houses", "What's my home worth?"],
+    compact: "Book a private showing",
     signoff: "Talk soon,",
   },
   {
@@ -104,27 +117,33 @@ const PERSONAS: Persona[] = [
       name: "Ray Delgado", title: "Master Electrician", company: "Delgado Electric",
       phone: "(512) 555-0177", email: "ray@delgadoelectric.com", website: "delgadoelectric.com",
       cardUrl: "swiftcard.me/raydelgado", logoUrl: "/showcase/delgado-electric.svg",
+      // "Warm Amber" header stripe over a warm body.
+      customization: { accentColor: "#B45309", bgColor: "linear-gradient(100deg, #b45309 0%, #d97706 60%, #f59e0b 100%)", surfaceColor: "#FFFBF3", textColor: "#ffffff", finish: "sheen" },
     }),
-    look: getLook("sand"),
+    look: getLook("linen"),
     socials: soc([["Instagram", "#"], ["Facebook", "#"], ["YouTube", "#"]]),
-    rows: [["⚡", "Request a free quote"], ["⭐", "Read our 5-star reviews"]],
-    grid: ["Free quote", "EV chargers", "Reviews", "Our services"],
+    featured: "Same-week service · Book today",
+    grid: ["Free quote", "EV chargers"],
+    compact: "Read our 5-star reviews",
     signoff: "Thanks,",
   },
   {
     key: "insurance", job: "Insurance agent", Template: ClassicPro, handle: "danawhitfield",
-    subtitle: "Insurance Advisor · Beacon Mutual", accent: "#1D4ED8",
+    subtitle: "Insurance Advisor · Beacon Mutual", accent: "#2F6F8F",
     bio: "Coverage that actually fits your life — home, auto, and everything in between.",
     subject: "Re: Your coverage review",
     data: p({
       name: "Dana Whitfield", title: "Insurance Advisor", company: "Beacon Mutual",
       phone: "(303) 555-0149", email: "dana@beaconmutual.com", website: "beaconmutual.com",
       cardUrl: "swiftcard.me/danawhitfield", photoUrl: "/showcase/dana.jpg",
+      // "Sea Glass": frosted navy panel, pale ink, bright info surface.
+      customization: { accentColor: "#2F6F8F", bgColor: "linear-gradient(160deg, #1c3a5e 0%, #2f6f8f 100%)", textColor: "#f2fbff", surfaceColor: "#f8fafc", finish: "frosted" },
     }),
-    look: getLook("paper"),
+    look: getLook("tide"),
     socials: soc([["LinkedIn", "#"], ["Facebook", "#"], ["X / Twitter", "#"]]),
-    rows: [["🛡️", "Free coverage review"], ["📄", "Start a claim"]],
-    grid: ["Coverage review", "Home + auto", "Life insurance", "Start a claim"],
+    featured: "Free 10-minute coverage review",
+    grid: ["Home + auto", "Life insurance"],
+    compact: "Start a claim",
     signoff: "Best regards,",
   },
   {
@@ -136,27 +155,33 @@ const PERSONAS: Persona[] = [
       name: "Preston Cole", title: "Private Banker", company: "Meridian Private Bank",
       phone: "(212) 555-0186", email: "pcole@meridianpb.com", website: "meridianpb.com",
       cardUrl: "swiftcard.me/prestoncole", logoUrl: "/showcase/meridian-bank.svg",
+      // "Ivory & Gold", set in a serif, with the gilt edge.
+      customization: { accentColor: "#8C6D3F", bgColor: "#FAFAF6", textColor: "#1C1612", fontFamily: SERIF, finish: "gilt" },
     }),
     look: getLook("chrome"),
     socials: soc([["LinkedIn", "#"], ["X / Twitter", "#"]]),
-    rows: [["🗓️", "Schedule a consultation"], ["📈", "Quarterly market briefing"]],
-    grid: ["Consultation", "Market briefing", "Wealth guide", "Client portal"],
+    featured: "Q3 market briefing",
+    grid: ["Book a consultation", "Wealth guide"],
+    compact: "Client portal",
     signoff: "Kind regards,",
   },
   {
     key: "lawyer", job: "Attorney", Template: ModernBold, handle: "adlergrant",
-    subtitle: "Managing Partner · Adler & Grant LLP", accent: "#0F172A",
+    subtitle: "Managing Partner · Adler & Grant LLP", accent: "#5B8DEF",
     bio: "Trial-tested counsel for businesses and the people who run them.",
     subject: "Re: Your consultation on Thursday",
     data: p({
       name: "Simone Adler", title: "Managing Partner", company: "Adler & Grant LLP",
       phone: "(646) 555-0121", email: "sadler@adlergrant.law", website: "adlergrant.law",
       cardUrl: "swiftcard.me/simoneadler", photoUrl: "/showcase/simone.jpg",
+      // "Carbon": woven black, cool blue accent.
+      customization: { accentColor: "#5B8DEF", bgColor: "#0B0F16", textColor: "#ffffff", finish: "carbon" },
     }),
-    look: getLook("midnight"),
+    look: getLook("graphite"),
     socials: soc([["LinkedIn", "#"], ["X / Twitter", "#"], ["Instagram", "#"]]),
-    rows: [["⚖️", "Free case evaluation"], ["🏛️", "Practice areas"]],
-    grid: ["Case evaluation", "Practice areas", "Client results", "In the news"],
+    featured: "Free case evaluation",
+    grid: ["Practice areas", "Client results"],
+    compact: "In the news",
     signoff: "Sincerely,",
   },
   {
@@ -168,19 +193,19 @@ const PERSONAS: Persona[] = [
       name: "Tony Marchetti", title: "Sales Manager", company: "Marchetti Motors",
       phone: "(702) 555-0166", email: "tony@marchettimotors.com", website: "marchettimotors.com",
       cardUrl: "swiftcard.me/tonymarchetti", logoUrl: "/showcase/marchetti-motors.svg",
-      customization: { accentColor: "#DC2626" },
+      // "Brushed Steel" - machined metal behind the logo panel.
+      customization: { accentColor: "#DC2626", bgColor: "#39414F", textColor: "#ffffff", finish: "brushed" },
     }),
-    look: getLook("onyx"),
+    look: getLook("ember"),
     socials: soc([["Instagram", "#"], ["TikTok", "#"], ["YouTube", "#"], ["Facebook", "#"]]),
-    rows: [["🚗", "Browse new inventory"], ["🔑", "Book a test drive"]],
-    grid: ["New inventory", "Book a test drive", "Weekly deals", "Trade-in offer"],
+    featured: "This week's deals",
+    grid: ["New inventory", "Trade-in value"],
+    compact: "Book a test drive",
     signoff: "Drive safe,",
   },
 ];
 
-// SwiftLinkButtons' exact fallback gradients — a real page's grid tiles with
-// no preview image look precisely like this, indexed so neighbours differ.
-// Personas that exist for the /for/<industry> landing pages only — the
+// Personas that exist for the /for/<industry> landing pages only - the
 // homepage rotation stays the six above.
 const VERTICAL_PERSONAS: Persona[] = [
   {
@@ -192,46 +217,49 @@ const VERTICAL_PERSONAS: Persona[] = [
       name: "Marcus Webb", title: "Senior Loan Officer", company: "Summit Home Loans",
       phone: "(214) 555-0198", email: "marcus@summithl.com", website: "summithl.com",
       cardUrl: "swiftcard.me/MarcusWebb-SummitHomeLoans", photoUrl: "/showcase/marcus.jpg",
-      customization: { accentColor: "#0F766E" },
+      customization: { accentColor: "#0F766E", bgColor: "#052E2B", textColor: "#ffffff", surfaceColor: "#F7FBFA", finish: "sheen" },
     }),
-    look: getLook("forest"),
+    look: getLook("meadow"),
     socials: soc([["LinkedIn", "#"], ["Instagram", "#"], ["Facebook", "#"]]),
-    rows: [["🏠", "Start a pre-approval"], ["🧮", "Payment calculator"]],
-    grid: ["Get pre-approved", "Rate calculator", "Client reviews", "Agent partners"],
+    featured: "Get pre-approved in 10 minutes",
+    grid: ["Payment calculator", "Agent partners"],
+    compact: "Client reviews",
     signoff: "Talk soon,",
   },
   {
     key: "photographer", job: "Photographer", Template: PhotoFirst, handle: "lenabrooksphoto",
-    subtitle: "Wedding & Portrait Photographer", accent: "#DB2777",
+    subtitle: "Wedding & Portrait Photographer", accent: "#BE123C",
     bio: "Weddings, portraits, and brand shoots — natural light, real moments.",
-    subject: "Re: Your gallery is ready 🤍",
+    subject: "Re: Your gallery is ready",
     data: p({
       name: "Lena Brooks", title: "Photographer", company: "Lena Brooks Photography",
       phone: "(503) 555-0143", email: "hello@lenabrooks.photo", website: "lenabrooks.photo",
       cardUrl: "swiftcard.me/LenaBrooks-LenaBrooksPhotography", photoUrl: "/showcase/lena.jpg",
-      customization: { accentColor: "#DB2777" },
+      customization: { accentColor: "#BE123C", bgColor: "linear-gradient(145deg, #be123c 0%, #f43f5e 100%)", textColor: "#ffffff", finish: "sheen" },
     }),
-    look: getLook("blush"),
+    look: getLook("bloom"),
     socials: soc([["Instagram", "#"], ["TikTok", "#"], ["YouTube", "#"], ["Facebook", "#"]]),
-    rows: [["📸", "View my portfolio"], ["📅", "Check date availability"]],
-    grid: ["Portfolio", "Wedding packages", "Mini sessions", "Client galleries"],
+    featured: "2026 wedding dates",
+    grid: ["Portfolio", "Mini sessions"],
+    compact: "Client galleries",
     signoff: "With love,",
   },
   {
     key: "barber", job: "Barber & stylist", Template: ModernBold, handle: "zoecuts",
     subtitle: "Master Stylist · Fade District Studio", accent: "#7C3AED",
     bio: "Cuts, color, and fades by appointment. Walk out sharp, every time.",
-    subject: "Re: Saturday 2:00 confirmed ✂️",
+    subject: "Re: Saturday 2:00 confirmed",
     data: p({
       name: "Zoe Okafor", title: "Master Stylist", company: "Fade District Studio",
       phone: "(404) 555-0169", email: "zoe@fadedistrict.com", website: "fadedistrict.com",
       cardUrl: "swiftcard.me/ZoeOkafor-FadeDistrictStudio", photoUrl: "/showcase/zoe.jpg",
-      customization: { accentColor: "#7C3AED" },
+      customization: { accentColor: "#7C3AED", bgColor: "linear-gradient(135deg, #111827 0%, #6d28d9 100%)", textColor: "#ffffff", finish: "halo" },
     }),
     look: getLook("orchid"),
     socials: soc([["Instagram", "#"], ["TikTok", "#"], ["YouTube", "#"]]),
-    rows: [["💈", "Book a chair"], ["🗓️", "See open slots"]],
-    grid: ["Book now", "Price list", "Transformations", "Products I use"],
+    featured: "Book a chair this week",
+    grid: ["Price list", "Transformations"],
+    compact: "Products I use",
     signoff: "See you soon,",
   },
 ];
@@ -244,7 +272,7 @@ const ROTATE_MS = 4600;
 // this width and scales the whole thing down as one unit, so every proportion
 // (name size, chip size, tile radius) is exactly the live page's.
 const LINKS_NATURAL_W = 430;
-const LINKS_NATURAL_H = 1008;
+const LINKS_NATURAL_H = 1150; // taller since the page gained a featured tile + compact row
 const LINKS_SCALE = 0.46;
 const LINKS_W = Math.round(LINKS_NATURAL_W * LINKS_SCALE); // 198
 const LINKS_H = Math.round(LINKS_NATURAL_H * LINKS_SCALE); // 451
@@ -284,7 +312,10 @@ function MiniLinks({ persona }: { persona: Persona }) {
           ) : (
             <div
               className="absolute inset-0 flex items-center justify-center p-[18%] pb-[136px]"
-              style={{ background: "linear-gradient(160deg, #181538 0%, #2A2466 60%, #4338ca 100%)" }}
+              // Derived from the page's own Look (2026-09-17). It used to be a
+              // fixed indigo ramp, so an amber electrician or a gilt banker got
+              // a purple header that belonged to neither of them.
+              style={{ background: `linear-gradient(160deg, ${hexAlpha(L.accent, 0.92)} 0%, ${hexAlpha(L.accent, 0.55)} 55%, ${L.sheet} 100%)` }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={persona.data.logoUrl!} alt="" className="max-w-full max-h-full w-auto h-auto object-contain" />
@@ -319,17 +350,23 @@ function MiniLinks({ persona }: { persona: Persona }) {
             Connect with {first}
           </div>
 
-          {/* Links — the live tile system's GRID: half-width 1.91:1 tiles
-              packing in pairs, gradient fallback, bottom scrim, centered
-              title, shine sweep — SwiftLinkButtons' own classes. */}
-          <div className="w-full mt-6 flex flex-wrap justify-between">
-            {persona.grid.map((label, i) => {
-              // Same call the live page makes, so the tiles here ARE the
-              // tiles a visitor sees: one brand-derived ramp instead of the
-              // four fixed rainbow gradients this used to mirror.
+          {/* Links — all THREE sizes the live tile system renders for a paid
+              page (owner, 2026-09-17: "play with all the features"): one
+              full-width FEATURED tile, a GRID pair beneath it, then a COMPACT
+              row. Gradient fallback, bottom scrim, centered title and the
+              shine sweep are SwiftLinkButtons' own. */}
+          <div className="w-full mt-6">
+            {[{ label: persona.featured, full: true }, ...persona.grid.map((label) => ({ label, full: false }))].map(({ label, full }, i) => {
+              // Same call the live page makes, so these tiles ARE the tiles a
+              // visitor sees: one brand-derived ramp, indexed so neighbours
+              // differ.
               const fb = fallbackTile(L, i);
               return (
-              <div key={label} className="relative overflow-hidden rounded-[14px] mb-2.5 block aspect-[1.91/1] w-[calc(50%-6px)]" style={{ background: L.tile }}>
+              <div
+                key={label}
+                className={`relative overflow-hidden rounded-[14px] mb-2.5 ${full ? "block w-full aspect-[1.91/1]" : "inline-block align-top aspect-[1.91/1] w-[calc(50%-6px)]"} ${!full && i === 1 ? "mr-[12px]" : ""}`}
+                style={{ background: L.tile }}
+              >
                 <div className="absolute inset-0" style={{ background: fb.background }} />
                 <div
                   className="absolute inset-x-0 bottom-0 h-[70%]"
@@ -340,7 +377,7 @@ function MiniLinks({ persona }: { persona: Persona }) {
                   }}
                 />
                 <span className="absolute inset-x-0 bottom-[7px] z-[6] px-2 flex justify-center">
-                  <span className="font-semibold text-center leading-[1.3] text-[1rem]" style={{ color: fb.light ? "#0F172A" : "#ffffff", textShadow: fb.light ? "0 1px 6px rgba(255,255,255,0.7)" : "0 1px 8px rgba(0,0,0,0.6)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  <span className="font-semibold text-center leading-[1.3]" style={{ fontSize: full ? "1.25rem" : "1rem", color: fb.light ? "#0F172A" : "#ffffff", textShadow: fb.light ? "0 1px 6px rgba(255,255,255,0.7)" : "0 1px 8px rgba(0,0,0,0.6)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                     {label}
                   </span>
                 </span>
@@ -348,6 +385,21 @@ function MiniLinks({ persona }: { persona: Persona }) {
               </div>
               );
             })}
+
+            {/* The compact row: the quiet link at the foot of a real page —
+                translucent surface, favicon disc, label on the sheet's ink. */}
+            <div
+              className="w-full mb-2.5 flex items-center gap-3 rounded-[14px] px-3.5 py-3"
+              style={{ background: L.mode === "light" ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.10)" }}
+            >
+              <span
+                className="w-[34px] h-[34px] rounded-full shrink-0 grid place-items-center text-[0.8125rem] font-bold"
+                style={{ background: L.mode === "light" ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.10)", color: text }}
+              >
+                {(persona.data.website || "s").charAt(0).toUpperCase()}
+              </span>
+              <span className="font-semibold text-[0.9375rem] truncate" style={{ color: text }}>{persona.compact}</span>
+            </div>
           </div>
 
           {/* Made-with footer, every real profile carries it */}
@@ -370,6 +422,15 @@ function MiniSignature({ persona }: { persona: Persona }) {
   const first = persona.data.name.split(" ")[0];
   return (
     <div className="w-[200px] rounded-[18px] overflow-hidden bg-white flex flex-col">
+      {/* The mail app's own window bar (owner, 2026-09-17: "make it look
+          really real") — the signature is something you receive in a mail
+          client, so it arrives in one instead of on a bare white slab. */}
+      <div className="flex items-center gap-1.5 px-2.5 h-[18px] bg-[#F5F7FB] border-b border-slate-200/80" aria-hidden="true">
+        <span className="w-[5px] h-[5px] rounded-full bg-[#ff5f57]" />
+        <span className="w-[5px] h-[5px] rounded-full bg-[#febc2e]" />
+        <span className="w-[5px] h-[5px] rounded-full bg-[#28c840]" />
+        <span className="ml-1 text-[0.4375rem] font-semibold text-slate-400 tracking-wide">Inbox</span>
+      </div>
       {/* message header — sender, subject, timestamp */}
       <div className="px-3.5 pt-3 pb-2 border-b border-slate-100">
         <div className="flex items-center gap-2">
@@ -573,15 +634,35 @@ function Stage({ persona, entered, preload }: { persona: Persona; entered: boole
           drift keyframes animate `transform` — one element cannot hold both. */}
 
       {/* LEFT flanker — the full Swift Links page, furthest back. IN FRONT of
-          the phone's edge (owner: nothing may hide under the phone). */}
+          the phone's edge (owner: nothing may hide under the phone).
+          It now sits in a REAL phone (owner, 2026-09-17: "make these look way
+          more realistic") — a Swift Links page is something you open on a
+          phone, and a second device reads as a desk instead of a floating
+          slab. 213px body ≈ the 198px page width this panel is drawn at. */}
       <div
-        className="absolute left-0 top-[104px] z-10"
-        style={{ transform: "rotate(-2.4deg) scale(0.945)", transformOrigin: "left center", filter: "saturate(0.94) contrast(0.975)" }}
+        className="absolute left-0 top-[96px] z-10"
+        // 0.9, not 0.945: the page is in a phone body now (213px wide), and at
+        // 0.945 its right edge slipped under the centre phone — the owner’s
+        // standing rule is that nothing hides under it. Smaller also reads as
+        // further away, which is the point of this panel.
+        style={{ transform: "rotate(-2.4deg) scale(0.9)", transformOrigin: "left center", filter: "saturate(0.94) contrast(0.975)" }}
       >
-        <div className="rounded-[16px] shadow-[0_34px_70px_-26px_rgba(8,10,18,0.38)] ring-1 ring-black/5 sc-hs-drift">
-          <div key={persona.key + "-links"} className={`sc-hs-slide-l ${entered ? "" : "sc-hs-hidden-l"}`}>
-            <MiniLinks persona={persona} />
-          </div>
+        {/* The shadow the device casts on the surface it rests on. */}
+        <span className="sc-hs-ground" style={{ left: "6%", right: "6%", bottom: -14, height: 26 }} aria-hidden="true" />
+        <div className="sc-hs-drift">
+          <PhoneFrame
+            width={213}
+            tilt={0}
+            statusBar="overlay"
+            statusTone={persona.look.mode === "light" ? "dark" : "light"}
+            indicatorTone={persona.look.mode === "light" ? "dark" : "light"}
+            screenStyle={{ height: LINKS_H, background: persona.look.sheet }}
+            ariaLabel="A Swift Links page open on a phone"
+          >
+            <div key={persona.key + "-links"} className={`sc-hs-slide-l ${entered ? "" : "sc-hs-hidden-l"}`}>
+              <MiniLinks persona={persona} />
+            </div>
+          </PhoneFrame>
         </div>
       </div>
 
@@ -590,6 +671,7 @@ function Stage({ persona, entered, preload }: { persona: Persona; entered: boole
         className="absolute right-0 bottom-[70px] z-10"
         style={{ transform: "rotate(2.1deg)", transformOrigin: "right center" }}
       >
+        <span className="sc-hs-ground" style={{ left: "8%", right: "8%", bottom: -12, height: 22 }} aria-hidden="true" />
         <div className="rounded-[18px] shadow-[0_18px_38px_-12px_rgba(8,10,18,0.5),0_3px_8px_-2px_rgba(8,10,18,0.32)] ring-1 ring-black/5 sc-hs-drift" style={{ animationDelay: "1.4s", animationDuration: "5.1s" }}>
           <div key={persona.key + "-sig"} className={`sc-hs-slide-r ${entered ? "" : "sc-hs-hidden-r"}`}>
             <MiniSignature persona={persona} />
@@ -598,12 +680,19 @@ function Stage({ persona, entered, preload }: { persona: Persona; entered: boole
       </div>
 
       <style>{`
-        .sc-hs-fade { transition: opacity 0.38s ease; opacity: 1; }
-        .sc-hs-hidden { opacity: 0; }
-        .sc-hs-slide-l { transition: opacity 0.42s ease, transform 0.42s cubic-bezier(0.25,1,0.5,1); opacity: 1; transform: translateX(0); }
-        .sc-hs-hidden-l { opacity: 0; transform: translateX(-32px); }
-        .sc-hs-slide-r { transition: opacity 0.42s ease, transform 0.42s cubic-bezier(0.25,1,0.5,1); opacity: 1; transform: translateX(0); }
-        .sc-hs-hidden-r { opacity: 0; transform: translateX(32px); }
+        /* The hand-off between people. The three objects do not move as one
+           block: the far phone leads, the near signature follows a beat later,
+           and each drifts a little as it fades, the way a rack focus moves
+           between things at different distances. */
+        .sc-hs-fade { transition: opacity 0.42s ease, transform 0.42s cubic-bezier(0.25,1,0.5,1); opacity: 1; transform: scale(1); transition-delay: 0.06s; }
+        .sc-hs-hidden { opacity: 0; transform: scale(0.985); transition-delay: 0s; }
+        .sc-hs-slide-l { transition: opacity 0.46s ease, transform 0.46s cubic-bezier(0.25,1,0.5,1); opacity: 1; transform: translate3d(0,0,0) scale(1); }
+        .sc-hs-hidden-l { opacity: 0; transform: translate3d(-26px,8px,0) scale(0.97); }
+        .sc-hs-slide-r { transition: opacity 0.46s ease 0.12s, transform 0.46s cubic-bezier(0.25,1,0.5,1) 0.12s; opacity: 1; transform: translate3d(0,0,0) scale(1); }
+        .sc-hs-hidden-r { opacity: 0; transform: translate3d(26px,10px,0) scale(0.97); transition-delay: 0s; }
+        /* Contact shadow: what a device resting on a surface actually casts. */
+        .sc-hs-ground { position: absolute; z-index: -1; border-radius: 9999px; pointer-events: none;
+          background: radial-gradient(60% 50% at 50% 50%, rgba(8,10,18,0.30), rgba(8,10,18,0) 72%); filter: blur(6px); }
         @keyframes sc-hs-drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
         .sc-hs-drift { animation: sc-hs-drift 4.2s ease-in-out infinite; }
         @keyframes sc-hs-shine { 0% { transform: translateX(-160%) skewX(-18deg); } 55%, 100% { transform: translateX(320%) skewX(-18deg); } }

@@ -6,6 +6,8 @@ import SiteFooterMini from "@/components/site/SiteFooterMini";
 import ScrollProgress from "@/components/ScrollProgress";
 import ScrollReveal from "@/components/ScrollReveal";
 import NativeHidden from "@/components/NativeHidden";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import "@/app/home.css";
 
 export const metadata: Metadata = {
   title: "SwiftCard vs Linktree, Popl & Blinq — Digital Business Card Comparison",
@@ -53,9 +55,9 @@ function Cell({ value, brand }: { value: string; brand?: boolean }) {
         <span>
           <span aria-hidden="true" className="text-green-600 text-base">✓</span>
           <span className="sr-only">Yes</span>
-          {value.length > 1 ? <span className="text-ink-muted text-xs"> {value.slice(1).trim()}</span> : null}
+          {value.length > 1 ? <span className="text-slate-500 text-xs"> {value.slice(1).trim()}</span> : null}
         </span>
-      ) : isCross ? <><span aria-hidden="true" className="text-ink-muted">✗</span><span className="sr-only">No</span></>
+      ) : isCross ? <><span aria-hidden="true" className="text-slate-500">✗</span><span className="sr-only">No</span></>
         : value}
     </td>
   );
@@ -63,38 +65,53 @@ function Cell({ value, brand }: { value: string; brand?: boolean }) {
 
 export default function ComparePage() {
   return (
-    <main className="min-h-screen bg-cream flex flex-col">
+    // bg-cream stays only for the native shell's status-bar canvas rule in
+    // globals.css (html.native-app:has(main.bg-cream)); .hp paints the page
+    // itself white (owner, 2026-09-17: light pages, no cream).
+    <main className="hp sc-canvas-white min-h-screen bg-cream flex flex-col">
       <ScrollProgress />
       <ScrollReveal />
+      <HomeHeadingReveal />
       <SiteNav />
 
-      <section className="text-center px-6 pt-28 pb-10">
-        <div className="mb-4"><Eyebrow dark={false}>Comparison</Eyebrow></div>
-        <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">SwiftCard vs Linktree, Popl &amp; Blinq</h1>
-        <p className="text-ink-muted text-lg max-w-xl mx-auto mb-2">
-          Looking for a Linktree alternative, or weighing Popl against Blinq? Here&apos;s how SwiftCard actually compares — real numbers, no spin.
-        </p>
-        <p className="text-ink-muted text-xs max-w-xl mx-auto">
-          Competitor pricing/features sourced from their public pricing pages and subject to change — confirm current details directly with them.
-        </p>
+      <section className="hp-page-hero text-center px-5 sm:px-6 pt-28 sm:pt-36 pb-12">
+        <div className="relative" data-hp-head>
+          <div className="mb-4"><Eyebrow dark={false}>Comparison</Eyebrow></div>
+          <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 [text-wrap:balance]">SwiftCard vs Linktree, Popl &amp; Blinq</h1>
+          <p className="hp-lede max-w-xl mx-auto mb-2">
+            Looking for a Linktree alternative, or weighing Popl against Blinq? Here&apos;s how SwiftCard actually compares — real numbers, no spin.
+          </p>
+          <p className="text-slate-500 text-xs max-w-xl mx-auto">
+            Competitor pricing/features sourced from their public pricing pages and subject to change — confirm current details directly with them.
+          </p>
+        </div>
       </section>
 
-      <section className="max-w-4xl mx-auto w-full px-6 pb-12">
-        <div className="relative overflow-x-auto rounded-3xl border border-warm-border bg-white shadow-sm">
+      <div className="hp-soft flex-1">
+      <section className="max-w-4xl mx-auto w-full px-5 sm:px-6 pt-12 pb-16">
+        {/* Phones: the table is wider than the screen, so say it swipes and
+            fade the cut edge — without this the competitor columns are simply
+            invisible on a phone (owner mobile pass, 2026-09-17). */}
+        <p className="sm:hidden mb-2 flex items-center gap-1.5 text-[0.8125rem] font-medium text-slate-500">
+          Swipe the table to compare
+          <span aria-hidden="true">→</span>
+        </p>
+        <div className="relative">
+        <div className="relative overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-[0_18px_40px_-28px_rgba(15,23,42,0.3)]">
           <table className="w-full border-collapse min-w-[640px]">
             <thead>
-              <tr className="border-b border-warm-border">
+              <tr className="border-b border-slate-200">
                 <th className="px-4 py-4 text-left text-sm font-semibold text-slate-900 w-1/3">&nbsp;</th>
                 <th className="px-4 py-4 text-sm font-bold text-center" style={{ color: "#1D4ED8" }}>SwiftCard</th>
-                <th className="px-4 py-4 text-sm font-semibold text-ink-muted text-center">Linktree</th>
-                <th className="px-4 py-4 text-sm font-semibold text-ink-muted text-center">Popl</th>
-                <th className="px-4 py-4 text-sm font-semibold text-ink-muted text-center">Blinq</th>
+                <th className="px-4 py-4 text-sm font-semibold text-slate-500 text-center">Linktree</th>
+                <th className="px-4 py-4 text-sm font-semibold text-slate-500 text-center">Popl</th>
+                <th className="px-4 py-4 text-sm font-semibold text-slate-500 text-center">Blinq</th>
               </tr>
             </thead>
             <tbody>
               {ROWS.map((row, i) => {
                 const tr = (
-                  <tr key={row.label} className={i % 2 === 1 ? "bg-[#FAF7F2]" : ""}>
+                  <tr key={row.label} className={i % 2 === 1 ? "bg-[#F5F7FB]" : ""}>
                     <td className="px-4 py-4 text-sm font-medium text-slate-700">{row.label}</td>
                     <Cell value={row.swiftcard} brand />
                     <Cell value={row.linktree} />
@@ -107,6 +124,9 @@ export default function ComparePage() {
               })}
             </tbody>
           </table>
+        </div>
+        {/* the cut edge, faded so it reads as "there is more" */}
+        <span className="sm:hidden pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-3xl" style={{ background: "linear-gradient(90deg, rgba(255,255,255,0) 0%, #ffffff 92%)" }} aria-hidden="true" />
         </div>
 
         <div className="mt-8 max-w-2xl mx-auto text-center">
@@ -127,7 +147,7 @@ export default function ComparePage() {
         {/* Deep-dive pages per competitor — each owns one "<x> alternative" query. */}
         <div className="mt-10 flex flex-wrap justify-center gap-2">
           {["linktree", "popl", "blinq", "hihello"].map((s) => (
-            <Link key={s} href={`/compare/${s}-alternative`} className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors capitalize">
+            <Link key={s} href={`/compare/${s}-alternative`} className="text-[0.8125rem] text-slate-600 hover:text-slate-900 hover:border-slate-300 rounded-full px-3.5 py-1.5 bg-white border border-slate-200 transition-colors capitalize">
               {s === "hihello" ? "HiHello" : s.charAt(0).toUpperCase() + s.slice(1)} alternative →
             </Link>
           ))}
@@ -142,6 +162,7 @@ export default function ComparePage() {
           </Link>
         </div>
       </section>
+      </div>
 
       <SiteFooterMini />
     </main>

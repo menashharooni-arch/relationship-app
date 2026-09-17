@@ -3,6 +3,8 @@ import Eyebrow from "@/components/site/Eyebrow";
 import SiteNav from "@/components/site/SiteNav";
 import Link from "next/link";
 import SiteFooterMini from "@/components/site/SiteFooterMini";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import "@/app/home.css";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — SwiftCard",
@@ -18,26 +20,35 @@ export const metadata: Metadata = {
 const LAST_UPDATED = "September 16, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-lg font-bold text-slate-900 mt-10 mb-3">{children}</h2>;
+  return <h2 className="text-[1.25rem] font-bold tracking-[-0.01em] text-slate-900 mt-12 mb-3">{children}</h2>;
 }
 function H3({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-[0.9375rem] font-bold text-slate-800 mt-6 mb-2">{children}</h3>;
+  return <h3 className="text-[1rem] font-semibold text-slate-900 mt-7 mb-2">{children}</h3>;
 }
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-slate-600 text-[0.9375rem] leading-relaxed mb-3">{children}</p>;
+  return <p className="text-slate-600 text-[0.96875rem] leading-[1.75] mb-4">{children}</p>;
 }
 function LI({ children }: { children: React.ReactNode }) {
-  return <li className="text-slate-600 text-[0.9375rem] leading-relaxed mb-1.5 ml-5 list-disc">{children}</li>;
+  return <li className="text-slate-600 text-[0.96875rem] leading-[1.75] mb-2 ml-5 list-disc marker:text-slate-400">{children}</li>;
 }
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-cream flex flex-col">
+    // bg-cream stays only for the native shell's status-bar canvas rule in
+    // globals.css (html.native-app:has(main.bg-cream)); .hp paints the page
+    // itself white (owner, 2026-09-17: light pages, no cream).
+    <main className="hp sc-canvas-white min-h-screen bg-cream flex flex-col">
       <SiteNav />
+      <HomeHeadingReveal />
 
-      <div className="max-w-3xl mx-auto px-6 pt-28 pb-14 w-full">
-        <h1 className="rd-display text-[clamp(1.8rem,3.4vw,2.3rem)] text-slate-900 mb-2 [text-wrap:balance]">Privacy Policy</h1>
-        <p className="text-ink-muted text-sm mb-8">Last updated: {LAST_UPDATED}</p>
+      <section className="hp-page-hero border-b border-slate-200/70">
+        <div className="relative max-w-3xl mx-auto px-5 sm:px-6 pt-28 sm:pt-36 pb-10 sm:pb-12 w-full" data-hp-head>
+          <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 [text-wrap:balance]">Privacy Policy</h1>
+          <p className="text-slate-500 text-[0.9375rem] mt-3">Last updated: {LAST_UPDATED}</p>
+        </div>
+      </section>
+
+      <div className="max-w-3xl mx-auto px-5 sm:px-6 pt-10 pb-20 w-full">
 
         <P>
           SwiftCard (&quot;SwiftCard&quot;, &quot;we&quot;, &quot;us&quot;), a brand operated by Swift Card Inc,
@@ -52,7 +63,7 @@ export default function PrivacyPage() {
         </P>
 
         {/* At-a-glance summary — the four promises people actually care about */}
-        <div className="rounded-2xl border border-slate-200 bg-white/70 p-5 sm:p-6 my-6">
+        <div className="rounded-2xl border border-slate-200/80 bg-[#F5F7FB] p-5 sm:p-6 my-6">
           <div className="mb-3"><Eyebrow dark={false}>Privacy at a glance</Eyebrow></div>
           <ul className="space-y-2">
             {[
@@ -62,8 +73,8 @@ export default function PrivacyPage() {
               "You can export or permanently delete your data anytime from Settings.",
             ].map((t) => (
               <li key={t} className="flex items-start gap-2.5 text-slate-700 text-[0.875rem] leading-relaxed">
-                <span className="mt-1 w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(5,150,105,.12)" }}>
-                  <svg viewBox="0 0 20 20" className="w-2.5 h-2.5" fill="none" stroke="#059669" strokeWidth={3}><path d="M4 10.5l4 4 8-9" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                <span className="mt-[3px] w-[18px] h-[18px] rounded-full flex items-center justify-center shrink-0 text-white" style={{ background: "var(--rd-aurora)" }}>
+                  <svg viewBox="0 0 20 20" className="w-2.5 h-2.5" fill="none" stroke="#ffffff" strokeWidth={3}><path d="M4 10.5l4 4 8-9" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </span>
                 {t}
               </li>
@@ -96,10 +107,10 @@ export default function PrivacyPage() {
           None of this data is used for &quot;tracking&quot; as Apple defines it — we do not link your data with
           third-party data for advertising, and we do not share it with data brokers.
         </P>
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white/70 my-4">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-[#F5F7FB] my-4">
           <table className="w-full text-[0.84375rem]" style={{ minWidth: 560 }}>
             <thead>
-              <tr className="text-left text-ink-muted text-[0.6875rem] uppercase tracking-wide border-b border-slate-200">
+              <tr className="text-left text-slate-500 text-[0.6875rem] uppercase tracking-wide border-b border-slate-200">
                 <th className="px-4 py-3 font-semibold">Category</th>
                 <th className="px-4 py-3 font-semibold">What it includes</th>
                 <th className="px-4 py-3 font-semibold">Linked to you?</th>

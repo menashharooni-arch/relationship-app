@@ -174,7 +174,9 @@ export default function TemplateGallery({ linkedinEnabled = false }: { linkedinE
       {/* Template grid — every real template, name above each */}
       <div className="order-1 lg:order-2">
         <p className="rd-eyebrow text-slate-600 mb-5" data-reveal="fade">
-          Six designer templates — hover any to see it live
+          {/* "hover" is meaningless on a phone — same sentence, the verb the
+              device actually supports (owner mobile pass, 2026-09-17). */}
+          Six designer templates — <span className="sm:hidden">tap</span><span className="hidden sm:inline">hover</span> any to see it live
         </p>
         <div className="grid grid-cols-2 gap-x-5 gap-y-7">
           {TEMPLATES.map((t, i) => {

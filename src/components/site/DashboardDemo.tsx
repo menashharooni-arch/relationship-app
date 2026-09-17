@@ -488,15 +488,17 @@ export default function DashboardDemo() {
   // real dashboard gets — and if that remap is ever retuned, the demo follows
   // instead of drifting. Nothing here was recoloured by eye.
   //
-  // The browser chrome above stays dark: it is a browser window, not the app.
+  // The browser chrome is LIGHT too (owner, 2026-09-17: only the site header
+  // and footer stay dark), so the demo sits on the page instead of floating in
+  // a dark box.
   return (
-    <div data-sc-theme="light" className="rounded-[var(--rd-r-xl)] border border-white/10 bg-[#0A0B10] shadow-[var(--rd-sh-lg)] overflow-hidden">
+    <div data-sc-theme="light" className="rounded-[var(--rd-r-xl)] border border-slate-200 bg-white shadow-[0_30px_70px_-40px_rgba(11,16,34,0.45)] overflow-hidden">
       {/* browser chrome */}
-      <div className="flex items-center gap-2 px-4 h-11 border-b border-white/8 bg-[#0E1017]">
+      <div className="flex items-center gap-2 px-4 h-11 border-b border-slate-200 bg-[#F5F7FB]">
         <span className="w-3 h-3 rounded-full bg-[#ff5f57]" /><span className="w-3 h-3 rounded-full bg-[#febc2e]" /><span className="w-3 h-3 rounded-full bg-[#28c840]" />
-        <div className="ml-3 flex-1 max-w-[280px] h-6 rounded-md bg-white/[0.05] flex items-center px-3 gap-1.5">
-          <svg viewBox="0 0 24 24" className="w-3 h-3 text-white/30" fill="none" stroke="currentColor" strokeWidth={2}><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 018 0v3" /></svg>
-          <span className="text-white/40 text-[0.6875rem]">{activePath}</span>
+        <div className="ml-3 flex-1 max-w-[280px] h-6 rounded-md bg-white border border-slate-200 flex items-center px-3 gap-1.5">
+          <svg viewBox="0 0 24 24" className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" strokeWidth={2}><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 018 0v3" /></svg>
+          <span className="text-slate-500 text-[0.6875rem]">{activePath}</span>
         </div>
       </div>
 

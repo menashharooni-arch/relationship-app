@@ -64,7 +64,25 @@ const ADMIN_TAB = {
   ),
 };
 
-export default function MobileNav({ showAdmin = false }: { showAdmin?: boolean }) {
+// The SITE-OWNER console tab (ADMIN_EMAILS only) — a different thing from the
+// office "Admin" above, exactly as the dashboard's desktop header labels them.
+// It existed ONLY in that header, which is `hidden md:flex`: on a phone the
+// site owner had no way into /admin at all (owner report, 2026-09-17).
+const SITE_TAB = {
+  href: "/admin",
+  // No data-tour: the guided tour is for customers, and the site console is
+  // ADMIN_EMAILS-only — an anchor here would be a tour stop nobody can reach
+  // (tests/tour-anchors-exist).
+  tour: undefined,
+  label: "Site",
+  icon: (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+      <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm4.125 3.352a8.257 8.257 0 013.362 4.148h-2.78a14.6 14.6 0 00-1.37-4.148zM12 3.75c.69 0 1.717 1.507 2.25 4.5h-4.5c.533-2.993 1.56-4.5 2.25-4.5zM7.875 5.602A14.6 14.6 0 006.505 9.75h-2.78a8.257 8.257 0 014.15-4.148zM3.75 12c0-.264.013-.525.038-.782h3.02a19.4 19.4 0 000 3.064h-3.02A8.36 8.36 0 013.75 12zm.99 4.282h2.78a14.6 14.6 0 001.37 4.148 8.257 8.257 0 01-4.15-4.148zM12 20.25c-.69 0-1.717-1.507-2.25-4.5h4.5c-.533 2.993-1.56 4.5-2.25 4.5zm2.52-6h-5.04a17.6 17.6 0 010-4.5h5.04a17.6 17.6 0 010 4.5zm1.605 6.18a14.6 14.6 0 001.37-4.148h2.78a8.257 8.257 0 01-4.15 4.148zm1.067-5.648a19.4 19.4 0 000-3.064h3.02a8.36 8.36 0 010 3.064h-3.02z" clipRule="evenodd" />
+    </svg>
+  ),
+};
+
+export default function MobileNav({ showAdmin = false, showSite = false }: { showAdmin?: boolean; showSite?: boolean }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [card, setCard] = useState<string | null>(null);
@@ -80,11 +98,15 @@ export default function MobileNav({ showAdmin = false }: { showAdmin?: boolean }
   const withCard = (href: string) =>
     (href === "/dashboard" || href === "/contacts" || href === "/share") && card ? `${href}?card=${card}` : href;
 
-  const tabs = showAdmin ? [...TABS, ADMIN_TAB] : TABS;
+  // Office admin first, then the site console — the same order as the
+  // dashboard's desktop header. Six tabs only ever happen for a site owner who
+  // also runs an office; the tighter padding below keeps them on one row at 320px.
+  const tabs = [...TABS, ...(showAdmin ? [ADMIN_TAB] : []), ...(showSite ? [SITE_TAB] : [])];
+  const tight = tabs.length > 5;
 
   return (
     <nav className="sc-tabbar fixed bottom-0 left-0 right-0 z-40 md:hidden bg-gray-950/95 backdrop-blur border-t border-gray-800/80" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-      <div className="flex items-center justify-around px-2 py-2">
+      <div className={`flex items-center justify-around py-2 ${tight ? "px-0.5" : "px-2"}`}>
         {tabs.map(({ href, tour, label, icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
           // Admin gets the console's purple so it reads as a separate area.
@@ -99,7 +121,7 @@ export default function MobileNav({ showAdmin = false }: { showAdmin?: boolean }
               href={withCard(href)}
               data-tour={tour}
               aria-current={active ? "page" : undefined}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-0 ${active ? "font-bold" : ""}`}
+              className={`flex flex-col items-center gap-0.5 py-1.5 rounded-xl transition-colors min-w-0 ${tight ? "px-1.5" : "px-3"} ${active ? "font-bold" : ""}`}
               style={{ color: active ? activeColor : "#6b7280" }}
             >
               {icon}

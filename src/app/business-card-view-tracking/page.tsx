@@ -7,6 +7,8 @@ import FaqAccordion from "@/components/site/FaqAccordion";
 import ScrollProgress from "@/components/ScrollProgress";
 import ScrollReveal from "@/components/ScrollReveal";
 import NativeHidden from "@/components/NativeHidden";
+import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import "@/app/home.css";
 
 // ── Tier-1 landing page: "business card that tracks who viewed it" ──────────
 // Part of the SEO plan (owner directive 2026-09-01). Every claim below is a
@@ -54,16 +56,21 @@ export default function ViewTrackingPage() {
     mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
   };
   return (
-    <main className="min-h-screen bg-cream flex flex-col">
+    // bg-cream stays only for the native shell's status-bar canvas rule in
+    // globals.css (html.native-app:has(main.bg-cream)); .hp paints the page
+    // itself white (owner, 2026-09-17: light pages, no cream).
+    <main className="hp sc-canvas-white min-h-screen bg-cream flex flex-col">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <ScrollProgress />
       <ScrollReveal />
+      <HomeHeadingReveal />
       <SiteNav />
 
-      <section className="text-center px-6 pt-28 pb-10">
+      <section className="hp-page-hero text-center px-5 sm:px-6 pt-28 sm:pt-36 pb-14">
+        <div className="relative" data-hp-head>
         <div className="mb-4"><Eyebrow dark={false}>View tracking</Eyebrow></div>
         <h1 className="rd-display text-[clamp(2.1rem,4.4vw,3rem)] text-slate-900 mb-4 max-w-2xl mx-auto [text-wrap:balance]">A business card that tells you who&apos;s looking</h1>
-        <p className="text-ink-muted text-lg max-w-xl mx-auto">
+        <p className="hp-lede max-w-xl mx-auto">
           Paper cards disappear into pockets. A SwiftCard reports back — every view, its source, and whether they came back for a second look.
         </p>
         <div className="mt-7">
@@ -71,40 +78,47 @@ export default function ViewTrackingPage() {
             Create your free card →
           </Link>
         </div>
+        </div>
       </section>
 
-      <section className="max-w-4xl mx-auto w-full px-6 pb-14">
+      <div className="hp-soft">
+      <section className="max-w-4xl mx-auto w-full px-5 sm:px-6 pt-14 pb-16">
         <div className="grid sm:grid-cols-2 gap-4">
           {FEATURES.map((f) => (
-            <div key={f.t} className="rd-card-l p-6">
+            <div key={f.t} className="hp-card">
               <p className="text-slate-900 font-semibold text-[0.9375rem]">{f.t}</p>
-              <p className="text-ink-muted text-[0.84375rem] mt-1.5 leading-relaxed">{f.d}</p>
+              <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-relaxed">{f.d}</p>
             </div>
           ))}
         </div>
         <NativeHidden>
-          <p className="text-ink-muted text-sm text-center mt-8">
+          <p className="text-slate-500 text-[0.9375rem] text-center mt-8">
             Free to start. <Link href="/pricing" className="text-brand underline underline-offset-2">Pro</Link> adds viewer locations, full view history, and automated follow-up.
           </p>
         </NativeHidden>
       </section>
+      </div>
 
+      <div className="pt-16">
       <FaqAccordion items={FAQ}>
         <Link href={`/cards/new?src=${SRC}`} className="rd-btn rd-btn-primary rd-btn-lg">
           Start tracking your card →
         </Link>
       </FaqAccordion>
+      </div>
 
-      <section className="max-w-2xl mx-auto w-full px-6 pb-16 text-center">
+      <div className="hp-soft flex-1">
+      <section className="max-w-2xl mx-auto w-full px-5 sm:px-6 pt-14 pb-16 text-center">
         <div className="mb-3"><Eyebrow dark={false}>Keep exploring</Eyebrow></div>
         <div className="flex flex-wrap justify-center gap-2">
-          <Link href="/products/analytics" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Dashboard &amp; analytics</Link>
-          <Link href="/products/lead-capture" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Lead capture</Link>
-          <Link href="/link-in-bio-with-analytics" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Link in bio with analytics</Link>
-          <Link href="/compare" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Compare alternatives</Link>
-          <Link href="/templates" className="text-[0.8125rem] text-ink-muted hover:text-slate-800 rounded-full px-3 py-1.5 bg-white border border-warm-border transition-colors">Card designs</Link>
+          <Link href="/products/analytics" className="text-[0.8125rem] text-slate-600 hover:text-slate-900 hover:border-slate-300 rounded-full px-3.5 py-1.5 bg-white border border-slate-200 transition-colors">Dashboard &amp; analytics</Link>
+          <Link href="/products/lead-capture" className="text-[0.8125rem] text-slate-600 hover:text-slate-900 hover:border-slate-300 rounded-full px-3.5 py-1.5 bg-white border border-slate-200 transition-colors">Lead capture</Link>
+          <Link href="/link-in-bio-with-analytics" className="text-[0.8125rem] text-slate-600 hover:text-slate-900 hover:border-slate-300 rounded-full px-3.5 py-1.5 bg-white border border-slate-200 transition-colors">Link in bio with analytics</Link>
+          <Link href="/compare" className="text-[0.8125rem] text-slate-600 hover:text-slate-900 hover:border-slate-300 rounded-full px-3.5 py-1.5 bg-white border border-slate-200 transition-colors">Compare alternatives</Link>
+          <Link href="/templates" className="text-[0.8125rem] text-slate-600 hover:text-slate-900 hover:border-slate-300 rounded-full px-3.5 py-1.5 bg-white border border-slate-200 transition-colors">Card designs</Link>
         </div>
       </section>
+      </div>
 
       <SiteFooterMini />
     </main>

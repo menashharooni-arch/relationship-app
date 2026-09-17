@@ -62,7 +62,10 @@ const COLS: { title: string; links: { label: string; href: string }[] }[] = [
   },
 ];
 
-export default function SiteFooter() {
+// `light` (owner, 2026-09-17): every marketing page except the homepage sits
+// on light backgrounds, so its footer does too. The homepage keeps the dark one.
+export default function SiteFooter({ light = false }: { light?: boolean }) {
+  const muted = light ? "text-slate-500 hover:text-slate-900" : "text-white/55 hover:text-white";
   return (
     <>
     {/* Site-wide sales chatbot — appears on every marketing page via the footer */}
@@ -72,16 +75,16 @@ export default function SiteFooter() {
         globals.css. Three columns of site links and a "Get started free" CTA
         below every page is the clearest tell that an app is a wrapped website —
         and the surface App Review reads as one. */}
-    <footer className="sc-site-footer rd-dark2 relative overflow-hidden border-t border-white/10">
-      <div className="rd-glow rd-glow-violet" style={{ width: 520, height: 520, left: "-10%", bottom: "-60%", opacity: 0.25 }} />
+    <footer className={`sc-site-footer relative overflow-hidden border-t ${light ? "bg-[#F5F7FB] border-slate-200/80" : "rd-dark2 border-white/10"}`}>
+      {!light && <div className="rd-glow rd-glow-violet" style={{ width: 520, height: 520, left: "-10%", bottom: "-60%", opacity: 0.25 }} />}
       <div className="max-w-7xl mx-auto px-5 sm:px-6 py-16 relative">
         <div className="grid grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] gap-10">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2.5 mb-4">
               <SwiftCardIcon size={30} />
-              <span className="text-white font-bold text-[1.125rem] tracking-tight">SwiftCard</span>
+              <span className={`${light ? "text-slate-900" : "text-white"} font-bold text-[1.125rem] tracking-tight`}>SwiftCard</span>
             </Link>
-            <p className="text-white/55 text-[0.875rem] leading-relaxed max-w-[240px]">
+            <p className={`${light ? "text-slate-500" : "text-white/55"} text-[0.875rem] leading-relaxed max-w-[240px]`}>
               The digital business card that shares itself. One tap, and you&apos;re in their phone — card, links, and everything you do.
             </p>
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
@@ -95,16 +98,16 @@ export default function SiteFooter() {
                 Deliberately NOT wrapped in NativeHidden's opposite: someone
                 reading the marketing site in a browser is exactly who should
                 see it, and the whole footer is already hidden in the shell. */}
-            <AppStoreBadge tone="glass" size="md" className="mt-4" />
+            <AppStoreBadge tone={light ? "black" : "glass"} size="md" className="mt-4" />
           </div>
           {COLS.map((col) => (
             <div key={col.title}>
-              <p className="rd-eyebrow text-white/55 mb-4">{col.title}</p>
+              <p className={`rd-eyebrow ${light ? "text-slate-400" : "text-white/55"} mb-4`}>{col.title}</p>
               <ul className="space-y-2.5">
                 {col.links.map((l) => {
                   const li = (
                     <li key={l.label}>
-                      <Link href={l.href} className="text-[0.875rem] text-white/55 hover:text-white transition-colors">{l.label}</Link>
+                      <Link href={l.href} className={`text-[0.875rem] ${muted} transition-colors`}>{l.label}</Link>
                     </li>
                   );
                   // Hide the Pricing link inside the native app (no selling).
@@ -114,15 +117,15 @@ export default function SiteFooter() {
             </div>
           ))}
         </div>
-        <div className="rd-hair-d my-10" />
+        <div className={light ? "h-px bg-slate-200 my-10" : "rd-hair-d my-10"} />
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-white/55 text-[0.8125rem]">
+          <p className={`${light ? "text-slate-500" : "text-white/55"} text-[0.8125rem]`}>
             © {new Date().getFullYear()} SwiftCard. All rights reserved.{" "}
-            <Link href="/company" className="hover:text-white transition-colors">SwiftCard is operated by Swift Card Inc.</Link>
+            <Link href="/company" className={`${light ? "hover:text-slate-900" : "hover:text-white"} transition-colors`}>SwiftCard is operated by Swift Card Inc.</Link>
           </p>
           <div className="flex items-center gap-5">
-            <Link href="/privacy" className="text-white/55 hover:text-white text-[0.8125rem] transition-colors">Privacy</Link>
-            <Link href="/contact" className="text-white/55 hover:text-white text-[0.8125rem] transition-colors">Contact Us</Link>
+            <Link href="/privacy" className={`${muted} text-[0.8125rem] transition-colors`}>Privacy</Link>
+            <Link href="/contact" className={`${muted} text-[0.8125rem] transition-colors`}>Contact Us</Link>
           </div>
         </div>
       </div>
