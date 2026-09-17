@@ -3,6 +3,7 @@
 import { TRIAL_DAYS } from "@/lib/plan";
 import { useIsNativeApp } from "@/lib/platform";
 import IapSubscribeButton from "@/components/NativePaywall";
+import { useIapOffer } from "@/lib/use-iap-price";
 
 /**
  * The moment someone picks Free after building with Pro design.
@@ -49,6 +50,7 @@ export default function FreeDesignChoice({
   busy?: boolean;
 }) {
   const native = useIsNativeApp();
+  const { trial } = useIapOffer();
 
   return (
     <div className="max-w-md mx-auto">
@@ -100,12 +102,12 @@ export default function FreeDesignChoice({
         <>
           <IapSubscribeButton
             className="!mt-4 !w-full !py-3.5 !text-sm !font-bold"
-            label={`Keep my card exactly like this — ${TRIAL_DAYS} days free`}
-            sublabel="then billed by Apple"
+            label={trial === false ? "Keep my card exactly like this — get Pro" : `Keep my card exactly like this — ${TRIAL_DAYS} days free`}
+            sublabel={trial === false ? "Billed by Apple" : "then billed by Apple"}
             onPurchased={onIapPurchased}
           />
           <p className="text-gray-400 text-[0.625rem] text-center mt-2 leading-snug">
-            {TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account
+            {trial === false ? "Renews automatically · cancel anytime in your Apple account" : `${TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account`}
           </p>
         </>
       )}

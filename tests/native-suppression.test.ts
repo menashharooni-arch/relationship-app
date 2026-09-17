@@ -104,7 +104,7 @@ const GUARDS: Guard[] = [
   // ── App Store 3.1.1 leak fixes (overnight iOS review audit) ────────────────
   // Dashboard trial banner: status info may stay, the "Keep Pro →" /pricing CTA
   // must not render on native.
-  { file: "src/components/TrialBanner.tsx", patterns: [/useIsNativeApp/, /\{!native && \(/] },
+  { file: "src/components/TrialBanner.tsx", patterns: [/useIsNativeApp/, /\{!native && !billedFrom && \(/, /\{!native && billedFrom && \(/] },
   // The shared plan chooser (welcome + card-wizard guest step): native gets ONLY
   // the free continue action — no prices, no paid plans, no checkout.
   { file: "src/components/PlanCards.tsx", patterns: [/useIsNativeApp/, /if \(native\) \{/] },

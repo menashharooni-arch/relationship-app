@@ -36,7 +36,7 @@ import TourAutoStart from "@/components/TourAutoStart";
 import MyCardsList from "@/components/dashboard/MyCardsList";
 import TrialBanner from "@/components/TrialBanner";
 import ProEndedPanel from "@/components/ProEndedPanel";
-import { PLAN_STEP_REQUIRED_SINCE, PRO_ENDED_PENDING_KEY } from "@/lib/billing-state";
+import { PLAN_STEP_REQUIRED_SINCE, PRO_ENDED_PENDING_KEY, TRIAL_ENDS_KEY, formatBillingDate } from "@/lib/billing-state";
 import { PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
 import type { CardLink } from "@/components/card-templates/types";
 import PushNudge from "@/components/PushNudge";
@@ -169,6 +169,11 @@ export default async function DashboardPage({
   const isTrialGrant = !!(profile.customization as { _trial?: boolean } | null)?._trial;
 
   const profileCust = (profile.customization ?? {}) as Record<string, unknown>;
+  // A Stripe Pro trial (card on file, charges when it ends): the webhook stores
+  // the end date. Shown as a countdown like the app grant — it used to show
+  // nothing at all, so a trial user never saw when billing would start.
+  const stripeTrialEnds = typeof profileCust[TRIAL_ENDS_KEY] === "string" && !!profile.stripe_subscription_id ? (profileCust[TRIAL_ENDS_KEY] as string) : null;
+  const stripeTrialDaysLeft = stripeTrialEnds ? daysUntil(stripeTrialEnds) : 0;
 
   // Pro ended and the choice is still open (components/ProEndedPanel): which
   // card stays live, and what Free changes about the design. Named with the
@@ -886,6 +891,7 @@ export default async function DashboardPage({
 
           {/* Free-Pro grant countdown */}
           {onAppGrant && trialDaysLeft > 0 && <TrialBanner daysLeft={trialDaysLeft} isTrial={isTrialGrant} />}
+          {!onAppGrant && stripeTrialDaysLeft > 0 && <TrialBanner daysLeft={stripeTrialDaysLeft} isTrial billedFrom={formatBillingDate(stripeTrialEnds)} />}
 
           {/* First-run guided-tour invitation — only on the ?tour=1/?welcome=1
               load right after the first card is created (the banner reads the
@@ -988,7 +994,11 @@ export default async function DashboardPage({
               <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
                 <svg viewBox="0 0 20 20" fill="#4ade80" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd"/></svg>
               </div>
-              <p className="text-green-400 text-sm font-medium">Welcome to Pro! Your plan is now active.</p>
+              <p className="text-green-400 text-sm font-medium">
+                {stripeTrialDaysLeft > 0
+                  ? `Welcome to Pro! Your free trial runs until ${formatBillingDate(stripeTrialEnds)}.`
+                  : "Welcome to Pro! Your plan is now active."}
+              </p>
             </div>
           )}
 

@@ -185,6 +185,22 @@ export async function getIapPackages(): Promise<IapPackage[]> {
           : pkg.product.introPrice?.priceString ?? null,
       });
     }
+    // Only promise an intro offer this Apple ID can actually get. Apple gives
+    // the free trial once per subscription group; someone who already used it
+    // saw "14 days free" and then was charged (2026-09-16 audit). Anything but
+    // a definite ELIGIBLE (2) — including UNKNOWN, per RevenueCat's own advice —
+    // shows the regular price instead.
+    try {
+      const ids = out.filter((p) => p.introPriceString).map((p) => p.productId);
+      if (ids.length) {
+        const elig = await w.P.checkTrialOrIntroductoryPriceEligibility({ productIdentifiers: ids });
+        for (const p of out) {
+          if (p.introPriceString && (elig as Record<string, { status?: number }>)[p.productId]?.status !== 2) p.introPriceString = null;
+        }
+      }
+    } catch {
+      for (const p of out) p.introPriceString = null;
+    }
     return out;
   } catch (e) {
     reportIapFailure("offerings", e);
@@ -210,7 +226,15 @@ export async function purchaseIap(identifier: string): Promise<PurchaseResult> {
     const res = await w.P.purchasePackage({ aPackage: pkg });
     const active = !!res.customerInfo?.entitlements?.active?.[IAP_ENTITLEMENT];
     if (!active) return "failed";
-    await fetch("/api/iap/sync", { method: "POST" }).catch(() => {});
+    // Wait for the server to reflect it, briefly: the sync can come back
+    // "skipped" while RevenueCat catches up. A few short retries mean the
+    // dashboard sees Pro instead of the plan chooser; if it still isn't there
+    // the sync has recorded the choice, so nobody is looped (see the route).
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const r = await fetch("/api/iap/sync", { method: "POST" }).then((x) => x.json()).catch(() => null) as { applied?: string } | null;
+      if (r?.applied === "grant") break;
+      await new Promise((ok) => setTimeout(ok, 1500));
+    }
     return "purchased";
   } catch (e) {
     const err = e as { code?: string; errorCode?: string; message?: string };

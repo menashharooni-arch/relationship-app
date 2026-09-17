@@ -161,7 +161,10 @@ export async function PATCH(req: NextRequest) {
     brand_phone: "phone" in body ? (typeof body.phone === "string" ? body.phone.trim() || null : null) : ((office.brand_phone as string | null) ?? null),
     brand_fax: "fax" in body ? (typeof body.fax === "string" ? body.fax.trim() || null : null) : ((office.brand_fax as string | null) ?? null),
     brand_address: "address" in body ? (hasAddr ? cleanAddr : null) : ((office.brand_address as typeof cleanAddr) ?? null),
-    brand_locks: { template: lockTemplate, linkDesign: lockLinkDesign },
+    // `saved`: an admin has saved Branding at least once. The brand is auto-
+    // seeded from the owner's first card, so "a brand exists" can't tell the
+    // setup checklist whether anyone actually set it up.
+    brand_locks: { template: lockTemplate, linkDesign: lockLinkDesign, saved: true },
     ...(design !== undefined ? { brand_design: design } : {}),
     ...linkFields,
   };
