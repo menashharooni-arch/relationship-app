@@ -1003,7 +1003,11 @@ export default async function DashboardPage({
           )}
 
           {/* Free plan limit banner */}
-          <FirstLeadNudge leadCount={visibleLeads.length} isPro={isPro} />
+          {/* Real contacts only: the sample contact every new account starts
+              with (tagged "demo") made this "Your first contact! Refer a friend"
+              fire on the very first dashboard load, before anyone had shared
+              anything (2026-09-16 web run). */}
+          <FirstLeadNudge leadCount={visibleLeads.filter((l) => !(Array.isArray(l.tags) && l.tags.includes("demo"))).length} isPro={isPro} />
 
           {!isPro && (nearLimit || lockedCount > 0) && (
             <PlanGate

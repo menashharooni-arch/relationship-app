@@ -31,16 +31,19 @@ export default function MobilePlanTabs({
 
   return (
     <div className="md:hidden flex justify-center mb-5">
-      <div className={`inline-flex items-center gap-1 rounded-full p-1 border ${dark ? "bg-white/[0.06] border-white/12" : "bg-slate-100 border-slate-200"}`}>
+      {/* dark: theme classes, so the light theme (most /welcome visitors) keeps
+          the unselected tabs readable — the white/70 inline colour vanished on
+          cream (2026-09-16 web run). */}
+      <div className={`inline-flex items-center gap-1 rounded-full p-1 border ${dark ? "bg-gray-900 border-gray-800" : "bg-slate-100 border-slate-200"}`}>
         {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => onChangeAction(t.key)}
-            className="px-4 py-1.5 rounded-full text-xs font-bold transition-colors"
+            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${active !== t.key && dark ? "text-gray-300" : ""}`}
             style={{
               background: active === t.key ? "#2563EB" : "transparent",
-              color: active === t.key ? "#fff" : dark ? "rgba(255,255,255,0.7)" : "#334155",
+              ...(active === t.key ? { color: "#fff" } : dark ? {} : { color: "#334155" }),
             }}
           >
             {t.label}
