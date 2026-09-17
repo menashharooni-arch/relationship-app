@@ -15,6 +15,9 @@ import { withoutSocials } from "@/components/card-templates/types";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
+import TemplatePicker from "@/components/card-templates/TemplatePicker";
+import PinnedCardPreview from "@/components/PinnedCardPreview";
+import { Segmented } from "@/components/ui/DesignControls";
 import OfficeLinksBranding from "@/components/OfficeLinksBranding";
 import type { TemplateStyle } from "@/components/card-templates/shared";
 
@@ -27,15 +30,6 @@ import type { TemplateStyle } from "@/components/card-templates/shared";
 //   3. What team members can edit — where their control ends
 // Plus a live preview, so "every card uses this" is something they can see
 // rather than something they have to take on faith.
-
-const TEMPLATES = [
-  { id: "classic-pro", label: "Classic Pro" },
-  { id: "modern-bold", label: "Modern Bold" },
-  { id: "photo-first", label: "Photo First" },
-  { id: "local-business", label: "Local Business" },
-  { id: "luxury-minimal", label: "Luxury Minimal" },
-  { id: "logo-first", label: "Logo First" },
-] as const;
 
 const TEMPLATE_COMPONENTS = {
   "classic-pro": ClassicPro,
@@ -119,6 +113,11 @@ export default function OfficeBranding({ office }: { office: Brand }) {
     };
   });
   const patchDesign = (p: Partial<TemplateStyle>) => setDesign((prev) => ({ ...prev, ...p }));
+  // Original vs Circle logo plate — the same control Card design has, applied
+  // to every team card (the logo is the company's).
+  const [logoShape, setLogoShape] = useState<"auto" | "circle">(
+    (office.brand_design as Record<string, unknown> | null | undefined)?.logoShape === "circle" ? "circle" : "auto",
+  );
   const [phone, setPhone] = useState(office.brand_phone ?? "");
   const [fax, setFax] = useState(office.brand_fax ?? "");
   const [address, setAddress] = useState<Addr>(office.brand_address ?? {});
@@ -159,7 +158,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
       const res = await fetch("/api/office/brand", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logoUrl, company, website, template, design, phone, fax, address, lockTemplate }),
+        body: JSON.stringify({ logoUrl, company, website, template, design: { ...design, logoShape }, phone, fax, address, lockTemplate }),
       });
       setStatus(res.ok ? "saved" : "error");
       if (res.ok) setTimeout(() => setStatus("idle"), 2500);
@@ -191,6 +190,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
     // column happens to hold into something renderable.
     customization: {
       ...design,
+      logoShape,
       customLayout: office.brand_custom_layout ? normalizeCustomLayout(office.brand_custom_layout) : undefined,
     },
   });
@@ -235,6 +235,9 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         <OfficeLinksBranding office={office} />
       ) : (
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_300px] lg:items-start">
+      {/* Phone: the card pinned at the top while every section scrolls under
+          it — the same as Card design — below the admin header and tabs. */}
+      <PinnedCardPreview stickBelow=".sc-office-header"><Preview data={previewData} /></PinnedCardPreview>
       {/* 1 ── Company information ─────────────────────────────────────── */}
       <div className="lg:col-start-1 min-w-0">
         <Section n={1} title="Company information" desc="What's true about your business. This is the same on everyone's card.">
@@ -244,6 +247,20 @@ export default function OfficeBranding({ office }: { office: Brand }) {
               {/* Auto-search uses the website domain when set — a far better hit
                   rate than a name search — and falls back to the company name. */}
               <LogoSuggest company={company} domain={website || null} onConfirm={(u) => setLogoUrl(u)} />
+              {logoUrl && (
+                <div className="mt-2">
+                  <p className="text-[0.6875rem] text-gray-500 mb-1.5">Logo shape on the card</p>
+                  <Segmented
+                    label="Logo shape on the card"
+                    value={logoShape}
+                    onChange={setLogoShape}
+                    options={[
+                      { value: "auto", label: "Original" },
+                      { value: "circle", label: "Circle" },
+                    ]}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -292,7 +309,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
       {/* Live preview — moved here in DOCUMENT order (right after Company
           information) so mobile sees it right away. On desktop this becomes
           the sticky right-hand column via explicit grid placement below. */}
-      <aside className="lg:col-start-2 lg:[grid-row:1/-1] lg:sticky lg:top-24">
+      <aside className="hidden lg:block lg:col-start-2 lg:[grid-row:1/-1] lg:sticky lg:top-24">
         <p className="text-[0.6875rem] font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</p>
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-3">
           <div className="rounded-xl overflow-hidden">
@@ -314,23 +331,11 @@ export default function OfficeBranding({ office }: { office: Brand }) {
       <div className="lg:col-start-1 min-w-0 flex flex-col gap-4">
         {/* 2 ── Card appearance ─────────────────────────────────────────── */}
         <Section n={2} title="Card appearance" desc="The design your whole team inherits — template, colors and fonts.">
-          <div className="flex flex-wrap gap-2">
-            {TEMPLATES.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTemplate(t.id)}
-                aria-pressed={template === t.id}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                  template === t.id
-                    ? "bg-purple-600/20 text-purple-200 border border-purple-500/40"
-                    : "bg-gray-950 text-gray-500 border border-gray-800 hover:text-gray-300"
-                }`}
-              >
-                {t.label}{template === t.id ? " ✓" : ""}
-              </button>
-            ))}
-          </div>
+          {/* The same template gallery as Card design — every template drawn
+              with the company's details. Custom design is not offered here: a
+              brand can't be designed on this page (the designer lives in the
+              card editor). */}
+          <TemplatePicker template={template} onSelect={setTemplate} data={previewData} customUnlocked={false} hideCustom />
           <div className="mt-4">
             {/* The exact colour/font control the card editor uses — one look
                 system everywhere. Writes offices.brand_design on save. */}

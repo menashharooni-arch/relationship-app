@@ -113,7 +113,9 @@ describe("the Branding page", () => {
       try {
         const spills = await page.evaluate(() => {
           const grid = document.querySelector(".lg\\:grid") as HTMLElement | null;
-          const form = grid?.querySelector(":scope > div") as HTMLElement | null;
+          // The phone-pinned preview (sc-pinned-preview) leads the grid now; like the
+          // aside, it holds a runtime-scaled card, so it is skipped too.
+          const form = grid?.querySelector(":scope > div:not(.sc-pinned-preview)") as HTMLElement | null;
           if (!form) return ["form column not found"];
           const limit = form.getBoundingClientRect().right + 1;
           const out: string[] = [];

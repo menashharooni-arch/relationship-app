@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
+import { PinnedLinkPreview } from "@/components/PinnedCardPreview";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 // From lib/office-link-design, NOT lib/office-brand: that module reaches for
 // the service-role database client, and importing a value from it here would
@@ -33,7 +34,7 @@ import { OFFICE_LINK_DESIGN_KEYS } from "@/lib/office-link-design";
 // every page, not to stop a salesperson linking their own calendar.
 
 /** A company link, or a section header that chapters the page (no URL). */
-type OfficeLinkRow = { label: string; url: string; kind?: "header" };
+type OfficeLinkRow = { label: string; url: string; kind?: "header" | "link"; size?: "featured" | "grid" | "compact"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" } };
 
 type OfficeRow = {
   // No id: /api/office/brand resolves the office from the SESSION, never from
@@ -161,6 +162,10 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
   return (
     <div data-tour="admin-branding-links" className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_300px] lg:items-start">
       <div className="space-y-4 min-w-0">
+        {/* Phone: pinned at the top below the admin header while every
+            section scrolls under it, the same as Social design; tap to see the
+            whole page. */}
+        <PinnedLinkPreview stickBelow=".sc-office-header">{preview}</PinnedLinkPreview>
         <Section
           n={1}
           title="Links information"
@@ -297,20 +302,15 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
             design controls. Capped at 232px — the page renders at true phone
             width and scales to its slot, so a narrower slot is a smaller
             preview, and at full column width it was swallowing the screen. */}
-        <div className="lg:hidden">
-          <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
-          <div className="max-w-[232px]">
-            {preview}
-            {previewCaption}
-          </div>
-        </div>
 
         <Section
           n={2}
           title="Links appearance"
           desc="The design your whole team inherits — the same controls your teammates see under Social design."
         >
-          <SwiftLinkStyleControls value={style} onChange={patchStyle} />
+          {/* The same panel as Social design, including step 7 "Link buttons"
+              for the company links (Featured / Grid / Compact, photo or video). */}
+          <SwiftLinkStyleControls value={style} onChange={patchStyle} links={links} onLinksChange={setLinks} />
         </Section>
 
         <Section n={3} title="What team members can edit" desc="Everything else on their page is what you set above.">
