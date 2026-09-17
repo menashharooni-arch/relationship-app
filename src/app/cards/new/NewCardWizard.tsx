@@ -1052,6 +1052,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     if (!guest && planChoice) {
       const qs = new URLSearchParams({ plan: planChoice.plan, interval: planChoice.annual ? "annual" : "monthly" });
       if (planChoice.plan === "office") qs.set("seats", String(planChoice.seats));
+      qs.set("success", `/welcome?step=setup&for=${planChoice.plan}`);
       router.push(`/checkout?${qs.toString()}`);
       return;
     }

@@ -35,7 +35,7 @@ export default function TrialBanner({ daysLeft, isTrial, billedFrom }: {
       <div className="flex items-center gap-2.5 min-w-0">
         <p className={`text-sm font-medium ${urgent ? "text-amber-300" : "text-blue-200"}`}>
           {label} — <span className="font-bold">{days}</span>
-          <span className="hidden sm:inline text-gray-400 font-normal">
+          <span className={`${billedFrom ? "block sm:inline" : "hidden sm:inline"} text-gray-400 font-normal`}>
             {billedFrom
               ? ` · your subscription starts ${billedFrom}. Cancel anytime before then.`
               : " · then you move to Free. Nothing gets deleted."}

@@ -47,7 +47,7 @@ describe("a plan picked on /pricing is not asked for again", () => {
 
   it("/welcome turns it into the Complete-your-subscription step (web only)", () => {
     expect(read("src/app/welcome/page.tsx")).toMatch(/presetIntent=\{presetIntent\}/);
-    expect(read("src/components/WelcomePlan.tsx")).toMatch(/detectNativeApp\(\) \? null : \(presetIntent \?\? consumePlanIntent\(\)\)/);
+    expect(read("src/components/WelcomePlan.tsx")).toContain("setIntent(detectNativeApp() ? null : presetIntent);");
   });
 });
 
@@ -58,6 +58,6 @@ describe("Office has no free trial", () => {
   });
 
   it("the Office subscription step promises no trial", () => {
-    expect(read("src/components/WelcomePlan.tsx")).toMatch(/paidIntent\.plan === "pro" \? "14 days free, then auto-renews\. Cancel anytime\. " : ""/);
+    expect(read("src/components/WelcomePlan.tsx")).toContain('paidIntent.plan === "pro" && trialEligible ?');
   });
 });

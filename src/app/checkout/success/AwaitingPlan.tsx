@@ -6,15 +6,22 @@ import { useRouter } from "next/navigation";
 // Shown for the few seconds between Stripe sending the buyer back and Stripe's
 // webhook actually giving them the plan. Re-asks the server every two seconds;
 // the page redirects on its own the moment the plan is there.
-export default function AwaitingPlan({ planName }: { planName: string }) {
+export default function AwaitingPlan({ planName, fallbackHref }: {
+  planName: string;
+  /** The plan HAS landed but a follow-up (the office row) hasn't: after 20s
+   *  stop waiting and continue; /office/admin handles a missing office itself.
+   *  Without this a failed insert meant spinning forever. */
+  fallbackHref?: string;
+}) {
   const router = useRouter();
   const [slow, setSlow] = useState(false);
 
   useEffect(() => {
     const tick = setInterval(() => router.refresh(), 2000);
     const late = setTimeout(() => setSlow(true), 45000);
-    return () => { clearInterval(tick); clearTimeout(late); };
-  }, [router]);
+    const giveUp = fallbackHref ? setTimeout(() => router.push(fallbackHref), 20000) : null;
+    return () => { clearInterval(tick); clearTimeout(late); if (giveUp) clearTimeout(giveUp); };
+  }, [router, fallbackHref]);
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 flex items-center justify-center px-5">

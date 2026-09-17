@@ -48,7 +48,11 @@ export default function PlanCards({
   freeLabel = "Continue with Free →",
   onIapPurchased,
   onCreateAccountForPro,
+  trialEligible = true,
 }: {
+  /** Web: false for someone who already had a Pro trial; the Pro card then
+   *  shows the plain price instead of promising "14 days free". */
+  trialEligible?: boolean;
   onFree: () => void;
   onPaid: (plan: PaidPlan, annual: boolean, seats: number) => void;
   busy?: "free" | PaidPlan | null;
@@ -156,7 +160,9 @@ export default function PlanCards({
             <p className="text-[1.35rem] font-extrabold tracking-tight text-black mb-3">Pro</p>
             {/* "Free for your first 14 days, then $X" — owner-approved
                 2026-08-19; identical block on /pricing and /upgrade. */}
-            {annual ? (
+            {!trialEligible ? (
+              <div className="flex items-end gap-1"><span className="text-[2.4rem] font-bold text-white leading-none">{annual ? `$${PRO_ANNUAL}` : `$${PRO_MONTHLY}`}</span><span className="text-white/80 text-sm mb-1">/ {annual ? "year" : "month"}</span></div>
+            ) : annual ? (
               <ProTrialPrice price={`$${PRO_ANNUAL}`} period="year" note={`~$${PRO_ANNUAL_PER_MO}/mo · Save 10%`} />
             ) : (
               <ProTrialPrice price={`$${PRO_MONTHLY}`} period="month" />
@@ -175,14 +181,14 @@ export default function PlanCards({
                 explicitly declined a minute earlier (owner report 2026-09-15).
                 The word "free" here is bound to Pro and to a time limit. */}
             <button onClick={() => onPaid("pro", annual, 1)} disabled={disabled} className="w-full bg-white hover:bg-white/90 disabled:opacity-50 text-[#2450d8] font-bold py-3.5 rounded-full transition-colors text-sm shadow-lg">
-              {busy === "pro" ? "Loading…" : `Try Pro free for ${TRIAL_DAYS} days →`}
+              {busy === "pro" ? "Loading…" : trialEligible ? `Try Pro free for ${TRIAL_DAYS} days →` : "Get Pro →"}
             </button>
             {/* Eligibility + billing terms stay here; ProTrialCallout above
                 carries the offer itself. "for new customers" is load-bearing —
                 checkout only grants a trial to customers with no prior Stripe
                 subscription (pinned by copy-truth.test.ts). */}
             <p className="text-white/70 text-[0.6875rem] text-center mt-2.5 leading-relaxed">
-              {TRIAL_DAYS} days free for new customers · card required · renews automatically
+              {trialEligible ? `${TRIAL_DAYS} days free for new customers · card required · renews automatically` : "Renews automatically · cancel anytime"}
             </p>
           </div>
           <span className="rd-glisten-sweep" aria-hidden="true" />

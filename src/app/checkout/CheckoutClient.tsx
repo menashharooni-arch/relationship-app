@@ -36,6 +36,8 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
   // client-supplied coupon id used to be passed straight to Stripe).
   const promoCode = params.get("promo") || undefined;
   const canceled = params.get("canceled") === "1";
+  const successRaw = params.get("success");
+  const successParam = successRaw && successRaw.startsWith("/welcome?step=setup") ? successRaw : null;
   // ?trial=0 → start-and-pay, no free trial. Set by the in-product upgrade page
   // (/upgrade); the public pricing page omits it and keeps the trial offer.
   // Default true so every existing marketing link behaves exactly as before.
@@ -130,7 +132,9 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, interval, seats, trial, ...(promoCode ? { promoCode } : {}) }),
+        // A first plan chosen inside the card builder returns through the
+        // "Your card is live!" setup step, like /welcome (?success=/welcome...).
+        body: JSON.stringify({ plan, interval, seats, trial, ...(promoCode ? { promoCode } : {}), ...(successParam ? { successPath: successParam } : {}) }),
       });
       if (res.status === 401) {
         // Not signed in → create account / log in, then auto-resume here.

@@ -208,6 +208,22 @@ function proLossCard() {
   `);
 }
 
+// A Stripe Pro trial is ending and the card on file will be charged. The
+// trial-start email promises "cancel before then and you won't be charged";
+// this is the reminder that makes that promise fair (2026-09-16 audit).
+// Billing mail, not marketing: it is sent regardless of product-update prefs.
+export function trialChargeSoonEmail(opts: { firstName: string; chargeDate: string; manageUrl: string }) {
+  const safeName = escapeHtml(opts.firstName);
+  const date = escapeHtml(opts.chargeDate);
+  const body = `
+    ${h1(`Your Pro trial ends ${date}`)}
+    ${p(`Hi ${safeName}, a quick heads-up: your 14-day SwiftCard Pro trial ends on ${date}, and your subscription starts then on the card you added.`)}
+    ${p(`Keeping Pro? You don't need to do anything. Want to stay on Free instead? Cancel before ${date} and you won't be charged.`)}
+    ${btn(opts.manageUrl, "Manage my plan →")}
+  `;
+  return built(BILLING_FROM, `Your SwiftCard Pro trial ends ${opts.chargeDate}`, layout(body));
+}
+
 // Heads-up a few days before a trial / free-month grant ends.
 export function trialEndingSoonEmail(opts: {
   firstName: string;

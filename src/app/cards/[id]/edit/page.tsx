@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
@@ -19,10 +20,11 @@ export default async function CardEditPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ claim?: string; integration?: string }>;
+  searchParams: Promise<{ claim?: string; integration?: string; joined?: string }>;
 }) {
   const { id } = await params;
-  const { claim, integration } = await searchParams;
+  const { claim, integration, joined: joinedParam } = await searchParams;
+  const joined = joinedParam === "1";
   // Coming back from the LinkedIn consent hop: open the tab that owns the
   // headshot, so the photo importer is actually mounted to receive it.
   const initialTab = integration === "linkedin" ? ("design" as const) : undefined;
@@ -133,6 +135,16 @@ export default async function CardEditPage({
         <div className="mb-6">
           <p className="text-[0.6875rem] font-bold tracking-[0.25em] text-gray-500 uppercase mb-1">SwiftCard</p>
           <h1 className="text-2xl font-bold text-white">Edit card</h1>
+          {/* Arrived from accepting a team invite with a card already built:
+              say what just happened and where to go next, instead of a bare
+              editor (2026-09-16 website audit). */}
+          {joined && (
+            <div className="mt-3 rounded-xl border border-purple-500/25 bg-purple-500/[0.06] px-4 py-3">
+              <p className="text-sm font-semibold text-purple-200">You&apos;ve joined your team</p>
+              <p className="text-xs text-gray-400 mt-1 leading-relaxed">This card now carries your company&apos;s branding. Check your details, save, and your dashboard is ready.</p>
+              <Link href="/dashboard?tour=1" className="inline-block mt-2 text-xs font-semibold text-purple-300 hover:text-purple-200">Go to my dashboard →</Link>
+            </div>
+          )}
           <p className="text-gray-500 text-sm mt-1">/{card.username}</p>
         </div>
 

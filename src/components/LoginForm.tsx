@@ -63,7 +63,10 @@ export default function LoginForm({
     try {
       const err = new URLSearchParams(window.location.search).get("error");
       if (err === "oauth") {
-        msg = "Google sign-in didn't complete — please try again.";
+        // Not only Google comes back through here: an email-confirmation or
+        // sign-in LINK opened in a different browser or device fails the same
+        // way, and "Google sign-in didn't complete" told them nothing useful.
+        msg = "That sign-in didn't complete. If you opened an email link on a different device or browser, sign in here instead — use the device where you built your card to keep it.";
       } else if (err === "no_account") {
         // They tried to SIGN IN with Google but have no SwiftCard account yet —
         // flip to Create-account and tell them so, instead of leaving them
@@ -270,7 +273,7 @@ export default function LoginForm({
         <div>
           <p className="text-slate-900 font-semibold text-base">Confirm your email</p>
           <p className="text-slate-600 text-sm mt-1.5">
-            We sent a confirmation link to <span className="font-medium text-slate-700">{email}</span>. Tap it, then come back here and sign in.
+            We sent a confirmation link to <span className="font-medium text-slate-700">{email}</span>. Tap it on this device and you&apos;ll come straight back to your card.
           </p>
         </div>
         <button

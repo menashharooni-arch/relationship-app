@@ -21,12 +21,15 @@ export default function TourBanner() {
 
   useEffect(() => {
     const firstRun = params.get("tour") === "1" || params.get("welcome") === "1";
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
-    if (firstRun && !tourCompleted()) setShow(true);
+    // Delayed: on these loads TourAutoStart opens the tour ~0.5s later, and a
+    // banner that appears only to vanish is a flash. It shows only if the
+    // tour did NOT start (the start event below cancels it).
+    let pending: ReturnType<typeof setTimeout> | null = null;
+    if (firstRun && !tourCompleted()) pending = setTimeout(() => setShow(true), 1500);
     // If the tour finishes/skips elsewhere, hide the banner too.
     // …and the moment it STARTS: a new account's tour auto-starts, and a
     // "Take a quick tour" invite sitting under the running tour is noise.
-    const onEnd = () => setShow(false);
+    const onEnd = () => { if (pending) { clearTimeout(pending); pending = null; } setShow(false); };
     window.addEventListener(TOUR_END_EVENT, onEnd);
     window.addEventListener(TOUR_START_EVENT, onEnd);
     return () => {

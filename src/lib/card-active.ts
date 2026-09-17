@@ -49,7 +49,13 @@ export function awaitingPlanChoice(owner: PlanGateOwner | null | undefined): boo
   if (!owner) return false;
   if (isPaidPlan(owner.plan)) return false;
   if (owner.office_id) return false;
-  if ((owner.customization as { _planChosen?: unknown } | null)?._planChosen) return false;
+  const c = (owner.customization as { _planChosen?: unknown; _proEndedChoicePending?: unknown; _trialEnded?: unknown } | null) ?? null;
+  if (c?._planChosen) return false;
+  // Someone who HAD Pro (a referral free month, an app trial) that has since
+  // ended already went through a plan — their card must stay live on Free
+  // (2026-09-16 website audit: a referred user's card went dark when the free
+  // month expired, because they never saw the plan step).
+  if (c?._proEndedChoicePending || c?._trialEnded) return false;
   return typeof owner.created_at === "string" && owner.created_at >= PLAN_STEP_REQUIRED_SINCE;
 }
 

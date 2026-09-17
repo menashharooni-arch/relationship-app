@@ -237,7 +237,9 @@ describe("no plan chooser offers two different things under one label", () => {
   };
 
   it("PlanCards' Pro button never reads as the free plan", () => {
-    const label = labelAfter(read("src/components/PlanCards.tsx"), /busy === "pro" \? "Loading…" :/);
+    const label = labelAfter(read("src/components/PlanCards.tsx"), /busy === "pro" \? "Loading…" : trialEligible \?/);
+    // The no-trial label names Pro too.
+    expect(read("src/components/PlanCards.tsx")).toContain(': "Get Pro →"');
     expect(label, "PlanCards' Pro button label moved — re-point this test").toBeTruthy();
     expect(readsAsFreePlan(label!), `Pro button reads as free: "${label}"`).toBe(false);
   });

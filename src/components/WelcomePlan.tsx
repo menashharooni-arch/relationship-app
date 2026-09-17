@@ -9,6 +9,7 @@ import PlanCards, { type PaidPlan } from "@/components/PlanCards";
 import FreeDesignChoice from "@/components/FreeDesignChoice";
 import { consumePlanIntent, type PlanIntent } from "@/lib/plan-intent";
 import { detectNativeApp } from "@/lib/platform";
+import { TRIAL_DAYS } from "@/lib/plan";
 
 // Onboarding step shown once, right after a brand-new account's first card is
 // saved (routed here by GuestDraftClaim → /welcome?card=slug). It turns on
@@ -31,7 +32,13 @@ export default function WelcomePlan({
   proDesignChanges = [],
   presetIntent = null,
   setupFor = null,
+  canceled = false,
+  trialEligible = true,
 }: {
+  /** Back from a cancelled Stripe checkout. */
+  canceled?: boolean;
+  /** Whether this account can still get the 14-day Pro trial. */
+  trialEligible?: boolean;
   /** Back from Stripe with the plan already paid: open straight on the
    *  "card is live" setup step, then continue to this plan's home. */
   setupFor?: "pro" | "office" | null;
@@ -71,7 +78,11 @@ export default function WelcomePlan({
     // a selling surface. Native always falls through to the plan step, where
     // PlanCards renders only the free continue action. Web unchanged.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time consume of stored intent on mount (reads+clears storage; must not run during render)
-    setIntent(detectNativeApp() ? null : (presetIntent ?? consumePlanIntent()));
+    // presetIntent only: nothing writes the old localStorage plan intent any
+    // more, so reading it could resurface a stale "Complete your Pro
+    // subscription" from a past visit. Still cleared so it can't linger.
+    consumePlanIntent();
+    setIntent(detectNativeApp() ? null : presetIntent);
   }, [presetIntent]);
 
   // Straight to the dashboard, settling nothing. Used ONLY after a purchase has
@@ -172,11 +183,10 @@ export default function WelcomePlan({
             <h1 className="text-white font-bold text-2xl sm:text-3xl">Your card is live!</h1>
             {cardSlug && <p className="text-blue-400 text-sm mt-1.5 font-mono">swiftcard.me/{cardSlug}</p>}
             <p className="text-gray-400 text-sm mt-3">We also sent you an email with your link.</p>
-            <div className="mt-8 rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-4 mb-3">
-              <p className="text-blue-200 font-semibold text-sm">Turn on notifications</p>
-              <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">Get an instant alert the moment someone shares their info through your card.</p>
-            </div>
-            <EnablePushButton />
+            {/* One notifications control: it carries its own heading and, in an
+                iPhone browser, its own Add-to-Home-Screen guide. A second
+                "Turn on notifications" box above it said the same thing twice. */}
+            <div className="mt-8 mb-3"><EnablePushButton /></div>
             <GetTheAppCard className="mt-3" />
             <button
               type="button"
@@ -214,7 +224,7 @@ export default function WelcomePlan({
               {loading ? "Redirecting to checkout…" : `Continue to secure checkout →`}
             </button>
             <p className="mt-3 text-[0.6875rem] leading-relaxed text-gray-500">
-              {paidIntent.plan === "pro" ? "14 days free, then auto-renews. Cancel anytime. " : ""}
+              {paidIntent.plan === "pro" && trialEligible ? `${TRIAL_DAYS} days free for new customers · card required · renews automatically. ` : ""}
               By continuing you agree to our{" "}
               <Link href="/terms" className="underline hover:text-gray-300">Terms</Link> and{" "}
               <Link href="/privacy" className="underline hover:text-gray-300">Privacy Policy</Link>.
@@ -241,6 +251,7 @@ export default function WelcomePlan({
             <FreeDesignChoice
               changes={proDesignChanges}
               onKeepWithTrial={() => checkout("pro", false, 1)}
+              trialEligible={trialEligible}
               onContinueFree={confirmFree}
               onIapPurchased={goFree}
               busy={loading !== null}
@@ -250,7 +261,7 @@ export default function WelcomePlan({
               disabled={loading !== null}
               className="mt-4 w-full text-gray-500 hover:text-gray-300 text-xs transition-colors disabled:opacity-50"
             >
-              ← Back to plans
+              ← Back
             </button>
           </div>
         ) : (
@@ -262,7 +273,12 @@ export default function WelcomePlan({
               <h2 className="text-white font-bold text-xl">Choose your plan</h2>
               <p className="text-gray-400 text-sm mt-1">Your card is saved either way — pick how you want to run it.</p>
             </div>
-            <PlanCards onFree={chooseFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} freeLabel="Continue with Free →" />
+            {canceled && (
+              <p className="max-w-md mx-auto mb-5 text-center text-sm text-gray-400 bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
+                Checkout was cancelled and nothing was charged. Pick a plan below whenever you&apos;re ready.
+              </p>
+            )}
+            <PlanCards onFree={chooseFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} freeLabel="Continue with Free →" trialEligible={trialEligible} />
           </>
         )}
 

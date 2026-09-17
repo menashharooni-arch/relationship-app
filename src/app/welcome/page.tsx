@@ -5,6 +5,8 @@ import { isPaidPlan, describeFreeDesignChanges, proLinkFeaturesInUse, PLAN_LIMIT
 import type { PlanIntent } from "@/lib/plan-intent";
 import type { CardLink } from "@/components/card-templates/types";
 import WelcomePlan from "@/components/WelcomePlan";
+import { isProTrialEligible } from "@/lib/trial-eligibility";
+import { trialHistoryFor } from "@/lib/trial-ledger";
 import { findPendingInviteForEmail } from "@/lib/pending-invite";
 
 // Post-signup onboarding step. A brand-new account lands here right after its
@@ -16,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function WelcomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ card?: string; designConverted?: string; plan?: string; interval?: string; seats?: string; promo?: string; step?: string; for?: string }>;
+  searchParams: Promise<{ card?: string; designConverted?: string; plan?: string; interval?: string; seats?: string; promo?: string; step?: string; for?: string; canceled?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -40,7 +42,9 @@ export default async function WelcomePage({
   // Back from paying: the "card is live" setup step (notifications, the app),
   // then on to their plan's home. Anyone else already paid skips this page.
   const setupFor = sp.step === "setup" && isPaidPlan(profile?.plan) ? (sp.for === "office" ? "office" : "pro") : null;
-  if (isPaidPlan(profile?.plan) && !setupFor) redirect("/dashboard?welcome=1&tour=1");
+  // tour=1 only (not welcome=1): welcome=1 re-opened the "Your account is
+  // ready, get the app" popup for accounts that had already seen it.
+  if (isPaidPlan(profile?.plan) && !setupFor) redirect("/dashboard?tour=1");
 
   // WHAT FREE WOULD COST THEM, worked out server-side so the choice can be
   // honest at the moment it is made.
@@ -76,6 +80,13 @@ export default async function WelcomePage({
     : [];
 
   const cardSlug = typeof sp.card === "string" && sp.card ? sp.card : ((card?.username as string | undefined) ?? null);
+  // Same eligibility check /checkout uses, so /welcome never promises a trial
+  // checkout won't grant.
+  let trialEligible = true;
+  try {
+    const { data: billing } = await getAdminSupabase().from("profiles").select("stripe_customer_id").eq("id", user.id).maybeSingle();
+    trialEligible = await isProTrialEligible((billing?.stripe_customer_id as string | null) ?? null, undefined, await trialHistoryFor(user.id, user.email));
+  } catch { /* fail open, like /checkout */ }
   // A paid plan picked on /pricing before signing up (carried by the claim).
   const presetIntent: PlanIntent | null =
     sp.plan === "pro" || sp.plan === "office"
@@ -91,6 +102,8 @@ export default async function WelcomePage({
       cardSlug={cardSlug}
       presetIntent={presetIntent}
       setupFor={setupFor}
+      canceled={sp.canceled === "1"}
+      trialEligible={trialEligible}
       designConverted={sp.designConverted === "1"}
       proDesignChanges={proDesignChanges}
     />
