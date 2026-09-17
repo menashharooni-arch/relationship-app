@@ -22,7 +22,9 @@ describe("after paying, nobody is bounced before the plan lands", () => {
 
   it("the success page waits for the plan, but only for a real, paid session of this account", () => {
     const src = read("src/app/checkout/success/page.tsx");
-    expect(src).toMatch(/const settled = isOffice \? isOfficePlan\(profile\?\.plan\) : isPaidPlan\(profile\?\.plan\)/);
+    expect(src).toMatch(/const settled = \(isOffice \? isOfficePlan\(profile\?\.plan\) : isPaidPlan\(profile\?\.plan\)\) && officeReady;/);
+    // Office also waits for the office row the webhook creates after the plan.
+    expect(src).toMatch(/from\("offices"\)\.select\("id"\)\.eq\("owner_id", user!\.id\)/);
     expect(src).toMatch(/session\.client_reference_id === user!\.id && session\.status === "complete"/);
     expect(src).toMatch(/if \(!paid\) redirect\("\/welcome"\)/);
     expect(src).toMatch(/<AwaitingPlan /);

@@ -45,7 +45,15 @@ export default async function CheckoutSuccessPage({
 
   const admin = getAdminSupabase();
   const { data: profile } = await admin.from("profiles").select("plan").eq("id", user!.id).maybeSingle();
-  const settled = isOffice ? isOfficePlan(profile?.plan) : isPaidPlan(profile?.plan);
+  // Office also waits for its office ROW: the webhook writes the plan first
+  // and creates the office a moment later, and /office/admin in that gap
+  // showed a new owner the "Name your team" form (2026-09-16 audit).
+  let officeReady = true;
+  if (isOffice && isOfficePlan(profile?.plan)) {
+    const { data: officeRow } = await admin.from("offices").select("id").eq("owner_id", user!.id).limit(1).maybeSingle();
+    officeReady = !!officeRow;
+  }
+  const settled = (isOffice ? isOfficePlan(profile?.plan) : isPaidPlan(profile?.plan)) && officeReady;
 
   if (!settled) {
     // Only wait for a checkout that really was THIS account's and really was

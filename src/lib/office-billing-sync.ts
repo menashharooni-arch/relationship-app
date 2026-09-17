@@ -35,7 +35,13 @@ export async function provisionOfficeForOwner(admin: Admin, ownerId: string, sea
     officeId = existing.id as string;
   } else {
     const { data: prof } = await admin.from("profiles").select("name, company").eq("id", ownerId).maybeSingle();
-    const officeName = (prof?.company as string | null) || (prof?.name ? `${prof.name}'s Team` : "My Office");
+    // profiles.company/name are empty for a normal signup (the card holds
+    // them), which named nearly every office "My Office" — shown in the admin
+    // header, on the join page and in invites. The owner's first card first.
+    const { data: firstCard } = await admin.from("cards").select("company, name").eq("user_id", ownerId).order("created_at", { ascending: true }).limit(1).maybeSingle();
+    const cardCompany = ((firstCard?.company as string | null) ?? "").trim();
+    const cardName = ((firstCard?.name as string | null) ?? "").trim();
+    const officeName = cardCompany || (prof?.company as string | null) || (cardName ? `${cardName}'s Team` : prof?.name ? `${prof.name}'s Team` : "My Office");
     const { data: created } = await admin
       .from("offices")
       .insert({ owner_id: ownerId, name: officeName, seats })
