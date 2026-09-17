@@ -82,6 +82,7 @@ export default function SwiftLinkLivePreview({
     // Header style + content + uploaded header photo are every-plan
     // (structural), so they preview for Free too.
     heroImage: style?.linkHeroImage,
+    heroMediaType: style?.linkHeroMediaType,
     heroStyle: style?.linkHeroStyle,
     heroContent: style?.linkHeroContent,
     ...(paid ? { bg: style?.linkBgColor, text: style?.linkTextColor, font: style?.linkFontFamily, iconShape: style?.linkIconShape, iconFill: style?.linkIconFill, buttonStyle: style?.linkButtonStyle, buttonColor: style?.linkButtonColor,

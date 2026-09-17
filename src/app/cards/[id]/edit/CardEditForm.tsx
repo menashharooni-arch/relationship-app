@@ -80,7 +80,7 @@ type Card = {
   twitter: string;
   tiktok: string;
   template: string;
-  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; surfaceColor?: string; finish?: string; panelMedia?: string; panelMediaType?: string; panelMediaPoster?: string; panelDim?: number; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkButtonStyle?: string; linkButtonColor?: string; linkBgMedia?: string; linkBgMediaType?: string; linkBgDim?: number; linkGlass?: boolean; linkAccentColor?: string };
+  customization?: { bio?: string; facebook?: string; snapchat?: string; youtube?: string; about?: string; address?: CardAddress; links?: CardLink[]; customLayout?: CustomLayout; phones?: CardPhone[]; fax?: string; accentColor?: string; bgColor?: string; textColor?: string; infoColor?: string; fontFamily?: string; surfaceColor?: string; finish?: string; panelMedia?: string; panelMediaType?: string; panelMediaPoster?: string; panelDim?: number; linkLook?: string; linkBgColor?: string; linkTextColor?: string; linkFontFamily?: string; linkIconShape?: string; linkIconFill?: string; logoShape?: "auto" | "circle"; hideCardLink?: boolean; linkHeroStyle?: string; linkHeroContent?: string; linkHeroImage?: string; linkHeroMediaType?: string; linkButtonStyle?: string; linkButtonColor?: string; linkBgMedia?: string; linkBgMediaType?: string; linkBgDim?: number; linkGlass?: boolean; linkAccentColor?: string };
 };
 
 // Company information owned by the user's Office organization (sub-users only).
@@ -277,6 +277,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     linkHeroStyle: card.customization?.linkHeroStyle ?? undefined,
     linkHeroContent: card.customization?.linkHeroContent ?? undefined,
     linkHeroImage: card.customization?.linkHeroImage ?? undefined,
+    linkHeroMediaType: card.customization?.linkHeroMediaType ?? undefined,
     linkButtonStyle: card.customization?.linkButtonStyle ?? undefined,
     linkButtonColor: card.customization?.linkButtonColor ?? undefined,
     linkBgMedia: card.customization?.linkBgMedia ?? undefined,
@@ -482,6 +483,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             linkHeroStyle: linkStyleState.linkHeroStyle ?? null,
             linkHeroContent: linkStyleState.linkHeroContent ?? null,
             linkHeroImage: linkStyleState.linkHeroImage ?? null,
+            linkHeroMediaType: linkStyleState.linkHeroMediaType ?? null,
             linkButtonStyle: linkStyleState.linkButtonStyle ?? null,
             linkButtonColor: linkStyleState.linkButtonColor ?? null,
             // Page background media. This list is a WHITELIST, not a spread —

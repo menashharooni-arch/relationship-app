@@ -204,7 +204,7 @@ describe("Card design — the pinned preview", () => {
 
   it("tapping a pinned preview opens it full size, above everything", () => {
     const d = code(PIN);
-    expect(d).toContain("onClick={() => setOpen(true)}");
+    expect(d).toContain("onClick={expand}");
     expect(d, "the full view must escape the sticky strip's stacking context").toContain("createPortal(");
     expect(d).toMatch(/aria-modal="true"/);
   });

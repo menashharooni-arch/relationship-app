@@ -156,6 +156,7 @@ function fromPrefill(p: CardPrefill): Sketch {
       linkButtonStyle: p.linkButtonStyle,
       linkButtonColor: p.linkButtonColor,
       linkHeroImage: p.linkHeroImage,
+      linkHeroMediaType: p.linkHeroMediaType,
       linkBgMedia: p.linkBgMedia,
       linkBgMediaType: p.linkBgMediaType,
       linkBgDim: p.linkBgDim,

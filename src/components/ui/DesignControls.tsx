@@ -294,11 +294,11 @@ export type DesignStep = {
  * do I go next"; one column, read down, nothing behind a tab or a fold.
  * Shared so the two panels can never number, space or label differently.
  */
-export function DesignSteps({ steps, label }: { steps: DesignStep[]; label: string }) {
+export function DesignSteps({ steps, label, name }: { steps: DesignStep[]; label: string; /** Lets a live preview follow the step being edited (data-design-steps). */ name?: string }) {
   return (
-    <ol className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800" aria-label={label}>
+    <ol className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800" aria-label={label} data-design-steps={name}>
       {steps.map((st, i) => (
-        <li key={st.key} className="flex gap-3 p-4" title={st.title}>
+        <li key={st.key} className="flex gap-3 p-4" title={st.title} data-design-step={st.key}>
           <span
             aria-hidden
             className="mt-px w-6 h-6 shrink-0 rounded-full bg-blue-600 text-white text-[0.6875rem] font-bold flex items-center justify-center tabular-nums"
