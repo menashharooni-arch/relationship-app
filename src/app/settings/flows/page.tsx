@@ -401,8 +401,9 @@ export default async function FlowSettingsPage({
     },
     {
       id: "help",
-      label: isOfficeSubUser ? "Help" : "Help and referrals",
-      desc: isOfficeSubUser ? "Ask a question or replay the guided tour." : "Get help, invite a friend, and earn free months.",
+      // No referrals on any Office account (owner included), so no "referrals" in the name.
+      label: isOfficeSubUser || profile.plan === "enterprise" ? "Help" : "Help and referrals",
+      desc: isOfficeSubUser || profile.plan === "enterprise" ? "Ask a question or replay the guided tour." : "Get help, invite a friend, and earn free months.",
       icon: I.help,
       content: (
         <div data-tour="settings-help" className="space-y-3">
