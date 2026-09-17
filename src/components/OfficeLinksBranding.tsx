@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import { PinnedLinkPreview } from "@/components/PinnedCardPreview";
+import { normalizeSocial, socialDestination } from "@/lib/social-url";
+import { socialHint, socialInput } from "@/lib/social-input";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
 // From lib/office-link-design, NOT lib/office-brand: that module reaches for
 // the service-role database client, and importing a value from it here would
@@ -113,7 +115,7 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
         headers: { "Content-Type": "application/json" },
         // ONLY the Links keys. The Card tab's fields are absent, so the route
         // leaves every one of them exactly as it found them.
-        body: JSON.stringify({ linkDesign: style, linkBio: bio, linkInstagram: instagram, links, lockLinkDesign }),
+        body: JSON.stringify({ linkDesign: style, linkBio: bio, linkInstagram: normalizeSocial(instagram, "instagram"), links, lockLinkDesign }),
       });
       setStatus(res.ok ? "saved" : "error");
       if (res.ok) setTimeout(() => setStatus("idle"), 2500);
@@ -195,9 +197,24 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
                 id="office-link-ig"
                 value={instagram}
                 onChange={(e) => setInstagram(e.target.value)}
-                placeholder="@yourcompany"
+                // Just the username, like every other Instagram box in the
+                // product (owner, 2026-09-17): the link is built for them.
+                onBlur={() => setInstagram((v) => normalizeSocial(v, "instagram"))}
+                placeholder="yourcompany"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 className={inputCls}
               />
+              {instagram.trim() && socialDestination("instagram", instagram) ? (
+                <p className="text-gray-600 text-[0.6875rem] mt-1">
+                  Opens <span className="text-gray-400 font-medium break-all">{socialDestination("instagram", instagram)}</span>
+                </p>
+              ) : instagram.trim() ? (
+                <p className="text-red-400 text-[0.6875rem] mt-1">This won&rsquo;t open as a link — just the username, like <span className="font-medium">yourcompany</span></p>
+              ) : (
+                <p className="text-gray-600 text-[0.6875rem] mt-1">{socialHint(socialInput("instagram")!)}</p>
+              )}
               <p className="text-[0.625rem] text-gray-600 mt-1">
                 The only social the office sets — a Swift Links page has one Instagram button, so yours is
                 the one it shows. Each teammate&apos;s own handle is kept and comes back if you clear this.
