@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { createBrowserClient } from "@supabase/ssr";
 import { clearPersonScopedState, LAST_AUTH_UID_KEY } from "@/lib/account-state";
 import { unbindDevicePush } from "@/lib/push-device";
@@ -80,7 +81,12 @@ export default function SignOutButton({ variant = "text" }: { variant?: Variant 
         Sign out
       </button>
 
-      {confirming && (
+      {/* Portalled to <body>. On the dashboard (the "Select your card" screen)
+          this button lives in the top bar, which has backdrop-blur — and a
+          backdrop-filter makes an element the containing block for its FIXED
+          descendants, so the "full-screen" dialog was pinned inside the 56px
+          bar and cut off at the top of the screen (owner, 2026-09-16). */}
+      {confirming && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center px-5"
           role="dialog"
@@ -127,7 +133,8 @@ export default function SignOutButton({ variant = "text" }: { variant?: Variant 
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
