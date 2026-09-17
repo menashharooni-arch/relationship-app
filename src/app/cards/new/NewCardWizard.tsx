@@ -19,6 +19,7 @@ import { PlanGate, PlanNotice } from "@/components/PlanGate";
 import { isNativeApp } from "@/lib/platform";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import TemplatePicker, { PRESET_TEMPLATES } from "@/components/card-templates/TemplatePicker";
+import LinkButtonsControls from "@/components/LinkButtonsControls";
 import PinnedCardPreview, { PinnedLinkPreview } from "@/components/PinnedCardPreview";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
@@ -1960,6 +1961,16 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   Every Swift Links page on your team matches. Your bio, your socials and your own
                   link buttons are still yours.
                 </p>
+                {/* The page LOOK is the office's, but each member's OWN link
+                    buttons are still theirs to style (owner, 2026-09-16).
+                    Company rows show here tagged and fixed. */}
+                {links.some((l) => l.kind !== "header" && !isOfficeRow(l)) && (
+                  <div className="mt-4 pt-4 border-t border-purple-500/15">
+                    <p className="text-gray-200 text-[0.8125rem] font-semibold">Your link buttons</p>
+                    <p className="text-gray-500 text-[0.6875rem] leading-snug mb-2">Choose how each of your own links appears: Featured, Grid or Compact.</p>
+                    <LinkButtonsControls links={links} onChange={setLinks} pageRowStyle={linkStyleState.linkButtonStyle} isLocked={isOfficeRow} canUpload={!guest} />
+                  </div>
+                )}
               </div>
             ) : (
               <SwiftLinkStyleControls
@@ -1968,6 +1979,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 locked={!designUnlocked}
                 links={links}
                 onLinksChange={setLinks}
+                isLinkLocked={isOfficeRow}
                 // A guest has no account to upload against yet (every upload
                 // route answers 401) — same rule as the homepage builder.
                 canUpload={!guest}

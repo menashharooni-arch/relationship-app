@@ -58,7 +58,7 @@ describe("where the controls live", () => {
       // editor now passes them conditionally, because an Office can lock the
       // links and the controls must be OMITTED rather than shown and silently
       // reverted by the server on save (see office-links-lock.test.ts).
-      const el = /<SwiftLinkStyleControls[\s\S]{0,400}?\/>/.exec(src);
+      const el = /<SwiftLinkStyleControls[\s\S]{0,800}?\/>/.exec(src);
       expect(el, `${p}: SwiftLinkStyleControls is no longer rendered`).toBeTruthy();
       expect(el![0]).toMatch(/links=\{(links|linksLocked \? undefined : links)\}/);
       expect(el![0]).toMatch(/onLinksChange=\{(setLinks|linksLocked \? undefined : setLinks)\}/);

@@ -686,10 +686,13 @@ export function SwiftLinkStyleControls({
   links,
   onLinksChange,
   canUpload = true,
+  isLinkLocked,
 }: {
   value: SwiftLinkStyle;
   onChange: (patch: Partial<SwiftLinkStyle>) => void;
   locked?: boolean;
+  /** Company rows on an Office card: shown in Link buttons, never restyled. */
+  isLinkLocked?: (l: CardLink) => boolean;
   /** The card's additional links, for the per-link "Link buttons" section.
    *  Both editors pass them; the marketing mini-builder doesn't. */
   links?: CardLink[];
@@ -959,7 +962,7 @@ export function SwiftLinkStyleControls({
           trailing: locked ? <ProTag /> : undefined,
           body: (
             <>
-          <LinkButtonsControls links={links} onChange={onLinksChange} pageRowStyle={value.linkButtonStyle} canUpload={canUpload} />
+          <LinkButtonsControls links={links} onChange={onLinksChange} pageRowStyle={value.linkButtonStyle} canUpload={canUpload} isLocked={isLinkLocked} />
           {links.some((l) => l.kind !== "header" && (l.size ?? "grid") === "compact" && resolveRowStyle(l, value.linkButtonStyle) !== "tile") && (
             <div className="mt-2.5">
               <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color for Solid and Outline rows — leave Default to match your Connect button.</p>
