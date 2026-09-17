@@ -86,9 +86,16 @@ describe("choosing a plan opens the cards immediately and sends the email", () =
     });
   }
 
-  it("/welcome no longer tells a new account its card is live", () => {
+  it("/welcome says 'live' only AFTER a plan is chosen", () => {
     const src = read("src/components/WelcomePlan.tsx");
-    expect(src).not.toMatch(/>Your card is live!</);
+    // Before the plan: "Your account is ready … your card goes live".
+    expect(src).toMatch(/>Your account is ready</);
     expect(src).toMatch(/your card goes live/);
+    // "Your card is live!" exists only inside the post-plan setup step.
+    const live = src.indexOf(">Your card is live!<");
+    const setupStart = src.indexOf("{setupNext !== null ? (");
+    const planStep = src.indexOf(">Your account is ready<");
+    expect(live).toBeGreaterThan(setupStart);
+    expect(live).toBeLessThan(planStep);
   });
 });

@@ -318,14 +318,14 @@ function PaywallSheet({ onClose, onPurchased }: { onClose: () => void; onPurchas
       role="dialog"
       aria-modal="true"
       aria-labelledby="iap-paywall-title"
-      className="fixed inset-0 z-[120] flex items-end justify-center p-3 pb-[max(0.75rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:items-center sm:pb-3"
+      className="fixed inset-0 z-[120] flex items-end justify-center px-3 pt-[max(0.75rem,calc(env(safe-area-inset-top)+0.5rem))] pb-[max(0.75rem,calc(env(safe-area-inset-bottom)+0.5rem))] sm:items-center sm:pb-3"
       style={{ background: "rgba(0,0,0,0.65)" }}
     >
       {/* sc-dark-sheet: this panel is dark ON PURPOSE. Without it the light
           theme flips .bg-gray-900 to white and .text-gray-300 to near-black,
           which is what the owner photographed on 2026-09-11: a see-through
           sheet with the settings page showing through it. */}
-      <div className="sc-dark-sheet w-full max-w-sm overflow-hidden rounded-3xl border border-gray-800 bg-gray-900 shadow-2xl">
+      <div className="sc-dark-sheet w-full max-w-sm max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] overflow-y-auto rounded-3xl border border-gray-800 bg-gray-900 shadow-2xl">
         {/* Aurora header — the same gradient the Pro card wears everywhere else. */}
         <div className="sc-dark-sheet relative px-6 pt-6 pb-5" style={{ background: "var(--rd-aurora)" }}>
           <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />

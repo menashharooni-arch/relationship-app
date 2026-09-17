@@ -571,8 +571,8 @@ export default function CustomCardDesigner({
                the rebuild side by side, walks the checklist, and only their
                tap writes the card. ── */}
         {transfer && (
-          <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Approve your rebuilt card design">
-            <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-4 sm:p-5 space-y-4">
+          <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center px-4 pt-[max(1rem,calc(env(safe-area-inset-top)+0.5rem))] pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))]" role="dialog" aria-modal="true" aria-label="Approve your rebuilt card design">
+            <div className="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] overflow-y-auto p-4 sm:p-5 space-y-4">
               <p className="text-sm font-semibold text-white">Your card, in that design — check it before it goes on</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>

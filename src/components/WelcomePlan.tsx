@@ -58,6 +58,10 @@ export default function WelcomePlan({
   function finishSetup() {
     // The web dashboard's "Get the app" popup would repeat the card shown here.
     try { localStorage.setItem("sc_appstore_seen", "1"); } catch { /* ignore */ }
+    // They just answered the notifications question on this screen; the
+    // dashboard's "Know the moment someone connects" nudge must not ask again
+    // seconds later (its activity ask can still come once views arrive).
+    try { if (!localStorage.getItem("sc_push_nudge_dismissed")) localStorage.setItem("sc_push_nudge_dismissed", "1"); } catch { /* ignore */ }
     router.push(setupNext ?? LANDING);
   }
 
