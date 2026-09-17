@@ -218,7 +218,9 @@ export default async function DashboardPage({
   if (!hasCards) {
     return (
       <>
-        <AppStorePopup trigger={params.welcome === "1"} />
+        {/* No "Your account is ready — get the app" popup HERE: this is the
+            no-card screen, and the invite belongs after the first card exists
+            (it is shown on the card-is-live step instead). */}
         {/* NO TourAutoStart here. Running the tour on this screen used to mark
             it completed (sc_tour_completed) before the account had a single
             card, so the real tour — and its banner — never appeared. The card

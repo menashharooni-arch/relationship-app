@@ -1273,13 +1273,17 @@ html.native-app[data-sc-theme="light"] .sc-tabbar {
   html.native-app .sc-tabbar a svg { transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
   /* ── Page-in: content rises gently on every navigation, app-style. ────── */
+  /* Opacity only. A transform on <body> makes it the containing block for
+     every position:fixed element while it runs, so the tab bar, toasts and
+     any dialog already open were laid out against the whole document and
+     jumped into place after 340ms (2026-09-16 audit). */
   html.native-app body {
     animation: sc-native-page-in 0.34s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 @keyframes sc-native-page-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* Chrome is UI, not a document: no text selection or callouts on it. */

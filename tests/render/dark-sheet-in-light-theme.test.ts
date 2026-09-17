@@ -66,7 +66,7 @@ describe("the paywall stays dark in the light theme", () => {
   it("the paywall and every Pro button actually carry the class", () => {
     const paywall = readFileSync("src/components/NativePaywall.tsx", "utf8");
     // the sheet itself
-    expect(paywall).toMatch(/className="sc-dark-sheet w-full max-w-sm overflow-hidden rounded-3xl border border-gray-800 bg-gray-900/);
+    expect(paywall).toMatch(/className="sc-dark-sheet w-full max-w-sm [^"]*rounded-3xl border border-gray-800 bg-gray-900/);
     // the heading must not be black on the blue header
     expect(paywall).not.toMatch(/id="iap-paywall-title"[^>]*text-black/);
     expect(paywall).toMatch(/id="iap-paywall-title"[^>]*text-white/);

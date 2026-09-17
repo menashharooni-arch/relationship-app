@@ -1051,7 +1051,7 @@ export default function ContactsClient({
       </div>
 
       {/* Right: detail panel — full-screen overlay on mobile, side pane on desktop */}
-      <div className={`${selected ? "fixed inset-0 z-40 bg-gray-950 overflow-y-auto" : "hidden"} lg:static lg:z-auto lg:block lg:flex-1 lg:overflow-y-auto`}>
+      <div className={`${selected ? "fixed inset-0 z-50 bg-gray-950 overflow-y-auto" : "hidden"} lg:static lg:z-auto lg:block lg:flex-1 lg:overflow-y-auto`}>
         {!selected ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-gray-600 gap-3">
             <svg className="w-10 h-10 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -1825,7 +1825,7 @@ export default function ContactsClient({
         <div
           role="status"
           aria-live="polite"
-          className="fixed inset-x-4 bottom-24 md:bottom-6 z-50 mx-auto max-w-sm rounded-xl border border-red-900/60 bg-gray-900 px-4 py-3 shadow-xl flex items-start gap-3"
+          className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+7rem)] md:bottom-6 z-50 mx-auto max-w-sm rounded-xl border border-red-900/60 bg-gray-900 px-4 py-3 shadow-xl flex items-start gap-3"
         >
           <span className="text-sm text-red-300 flex-1 min-w-0 break-words">{notice}</span>
           <button

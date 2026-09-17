@@ -372,11 +372,11 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+        <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center px-4 pt-[max(1rem,calc(env(safe-area-inset-top)+0.5rem))] pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.5rem))]"
           onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
           {/* max-h + flex-col so the body scrolls on small phones instead of
               overflowing off-screen; header (with the X) stays pinned. */}
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 shrink-0">
               <p className="text-white font-semibold text-sm">Your Swift Signature</p>
               <button

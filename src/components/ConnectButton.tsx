@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import { triggerSignupNudge } from "@/lib/nudge";
 import { getVisitorId, getVisitorInfo, markSharedWith } from "@/lib/visitor";
@@ -113,9 +114,12 @@ export default function ConnectButton({
         Connect with {ownerFirstName}
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }} onClick={(e) => e.target === e.currentTarget && closeModal()}>
-          <div className="w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6" style={{ background: "#FAF7F2", border: "1px solid #E4DDD4", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}>
+      {/* Portalled: on a glass/aura Swift Links page this button sits inside a
+          backdrop-filter section, which traps a fixed overlay inside it — the
+          sheet opened clipped in the middle of the page (2026-09-16 audit). */}
+      {open && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pt-[env(safe-area-inset-top)]" style={{ background: "rgba(0,0,0,0.5)" }} onClick={(e) => e.target === e.currentTarget && closeModal()}>
+          <div className="w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 max-h-[calc(100dvh-env(safe-area-inset-top))] overflow-y-auto" style={{ background: "#FAF7F2", border: "1px solid #E4DDD4", paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}>
             {status === "done" ? (
               <div className="text-center py-4">
                 <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
@@ -169,7 +173,8 @@ export default function ConnectButton({
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

@@ -242,7 +242,7 @@ export default function NotificationBell({
           <div
             role="dialog"
             aria-label="Notifications"
-            className="sc-drop-in fixed z-[61] right-3 top-16 w-[min(360px,calc(100vw-1.5rem))] max-h-[70vh] bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden flex flex-col"
+            className="sc-drop-in fixed z-[61] right-3 top-[calc(env(safe-area-inset-top)+4.25rem)] w-[min(360px,calc(100vw-1.5rem))] max-h-[70vh] bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden flex flex-col"
           >
 
             <div className="relative flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">

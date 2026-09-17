@@ -67,7 +67,7 @@ describe("Create account is a real form everywhere", () => {
 
   it("Get Started opens the card builder rather than a bare account form", () => {
     const src = readFileSync("src/components/LoginForm.tsx", "utf8");
-    expect(src).toMatch(/if (m === "signup" && !redirectTo && mode !== "signup") { window.location.assign("/cards/new"); return; }/);
+    expect(src).toContain('if (m === "signup" && !redirectTo && mode !== "signup") { window.location.assign("/cards/new"); return; }');
   });
 
   it("the login page no longer strips signup mode for the shell", () => {

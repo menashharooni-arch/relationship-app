@@ -835,6 +835,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     applyLiPhoto();
   }
 
+  // The "Your card is live!" screen just asked about notifications; the
+  // dashboard's first push nudge must not repeat the question moments later.
+  function markPushAsked() {
+    try { if (!localStorage.getItem("sc_push_nudge_dismissed")) localStorage.setItem("sc_push_nudge_dismissed", "1"); } catch { /* ignore */ }
+    try { localStorage.setItem("sc_appstore_seen", "1"); } catch { /* ignore */ }
+  }
+
   function startNewCard() {
     clearDraft();
     setResumeChoice(null);
@@ -1725,7 +1732,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             {postCheckout === "office" ? (
               <button
                 type="button"
-                onClick={() => router.push("/office/admin")}
+                onClick={() => { markPushAsked(); router.push("/office/admin"); }}
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-base py-4 rounded-full transition-colors"
               >
                 Go to your Office dashboard →
@@ -1733,7 +1740,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             ) : (
               <button
                 type="button"
-                onClick={() => router.push(doneHref)}
+                onClick={() => { markPushAsked(); router.push(doneHref); }}
                 className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-base py-4 rounded-full transition-colors"
               >
                 Continue to dashboard →

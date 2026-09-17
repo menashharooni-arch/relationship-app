@@ -13,7 +13,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { startTour, tourCompleted, TOUR_END_EVENT } from "@/lib/tour";
+import { startTour, tourCompleted, TOUR_END_EVENT, TOUR_START_EVENT } from "@/lib/tour";
 
 export default function TourBanner() {
   const [show, setShow] = useState(false);
@@ -24,9 +24,15 @@ export default function TourBanner() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration read from localStorage
     if (firstRun && !tourCompleted()) setShow(true);
     // If the tour finishes/skips elsewhere, hide the banner too.
+    // …and the moment it STARTS: a new account's tour auto-starts, and a
+    // "Take a quick tour" invite sitting under the running tour is noise.
     const onEnd = () => setShow(false);
     window.addEventListener(TOUR_END_EVENT, onEnd);
-    return () => window.removeEventListener(TOUR_END_EVENT, onEnd);
+    window.addEventListener(TOUR_START_EVENT, onEnd);
+    return () => {
+      window.removeEventListener(TOUR_END_EVENT, onEnd);
+      window.removeEventListener(TOUR_START_EVENT, onEnd);
+    };
   }, [params]);
 
   if (!show) return null;
