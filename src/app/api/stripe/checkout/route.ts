@@ -6,7 +6,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getAccountEmail } from "@/lib/account-email";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS, isPaidPlan } from "@/lib/plan";
-import { isFreeDays } from "@/lib/promo";
+import { isFreeDays, promoFitsPurchase } from "@/lib/promo";
 import { priceIdForPlan, type BillingInterval } from "@/lib/subscription";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
@@ -95,56 +95,6 @@ export async function POST(req: NextRequest) {
     // Carried into the Checkout Session metadata so the webhook can mark this
     // redemption spent once the customer actually completes checkout.
     let promoRedemptionId: string | null = null;
-    if (promoCode) {
-      // promo_codes / promo_code_redemptions are service-role only (RLS on, no
-      // client policy), so this must not use the caller's session client.
-      const admin = getAdminSupabase();
-      const { data: promo } = await admin
-        .from("promo_codes")
-        .select("id, discount_type, free_days, stripe_coupon_id, active, expires_at, max_uses, uses_count, plan_target")
-        .eq("code", promoCode)
-        .eq("active", true)
-        .maybeSingle();
-
-      // Every failure below is silent: the purchase proceeds at full price
-      // rather than erroring. A promo that quietly doesn't apply is a support
-      // ticket; a checkout that refuses to complete is a lost sale.
-      const usable =
-        !!promo &&
-        (!promo.expires_at || new Date(promo.expires_at as string) > new Date()) &&
-        (promo.max_uses == null || (promo.uses_count as number) < (promo.max_uses as number));
-
-      if (usable) {
-        // Did this user actually redeem it? Without this, knowing the string is
-        // enough — which is exactly the hole we're closing.
-        const { data: redemption } = await admin
-          .from("promo_code_redemptions")
-          .select("id, consumed_at")
-          .eq("code_id", promo!.id as string)
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        // consumed_at is the whole point: this used to gate on the row merely
-        // EXISTING, and nothing ever marked it spent. So one redeemed "N days
-        // free" code could be re-applied on every re-subscribe — take the free
-        // days, cancel before the first bill, check out again, forever.
-        // max_uses caps how many people redeem a code, not how many times one
-        // redemption pays out.
-        //
-        // Note the free days also override the first-time-customer trial check
-        // computed further down (Math.max), so a returning customer who should
-        // get no trial at all still got the code's full free period each time.
-        if (redemption && !redemption.consumed_at) {
-          promoRedemptionId = redemption.id as string;
-          if (promo!.discount_type === "free_time" && isFreeDays(Number(promo!.free_days))) {
-            promoFreeDays = Number(promo!.free_days);
-          } else if (promo!.stripe_coupon_id) {
-            couponId = promo!.stripe_coupon_id as string;
-          }
-        }
-      }
-    }
-
     // Resolve the price from EITHER an explicit priceId (legacy callers) OR a
     // {plan, interval} pair resolved server-side (the unified /checkout flow), so
     // the price↔plan mapping lives in one place (lib/subscription) and can't drift.
@@ -179,6 +129,62 @@ export async function POST(req: NextRequest) {
         );
       }
       quantity = requestedQty;
+    }
+
+    // The promo is resolved HERE, after the plan and billing period are known:
+    // a code carries the plan it is for, so it cannot be judged before then.
+    if (promoCode) {
+      // promo_codes / promo_code_redemptions are service-role only (RLS on, no
+      // client policy), so this must not use the caller's session client.
+      const admin = getAdminSupabase();
+      const { data: promo } = await admin
+        .from("promo_codes")
+        .select("id, discount_type, free_days, stripe_coupon_id, active, expires_at, max_uses, uses_count, plan_target, applies_to, interval_target")
+        .eq("code", promoCode)
+        .eq("active", true)
+        .maybeSingle();
+
+      // Every failure below is silent: the purchase proceeds at full price
+      // rather than erroring. A promo that quietly doesn't apply is a support
+      // ticket; a checkout that refuses to complete is a lost sale.
+      // Scope: an "Office launch" code must not take money off a Pro
+      // subscription, and an annual-only code must not apply to a monthly one
+      // (owner, 2026-09-17). Checked against what is actually being bought.
+      const usable =
+        !!promo &&
+        (!promo.expires_at || new Date(promo.expires_at as string) > new Date()) &&
+        (promo.max_uses == null || (promo.uses_count as number) < (promo.max_uses as number)) &&
+        promoFitsPurchase(promo, { plan: isOffice ? "office" : "pro", interval });
+
+      if (usable) {
+        // Did this user actually redeem it? Without this, knowing the string is
+        // enough — which is exactly the hole we're closing.
+        const { data: redemption } = await admin
+          .from("promo_code_redemptions")
+          .select("id, consumed_at")
+          .eq("code_id", promo!.id as string)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        // consumed_at is the whole point: this used to gate on the row merely
+        // EXISTING, and nothing ever marked it spent. So one redeemed "N days
+        // free" code could be re-applied on every re-subscribe — take the free
+        // days, cancel before the first bill, check out again, forever.
+        // max_uses caps how many people redeem a code, not how many times one
+        // redemption pays out.
+        //
+        // Note the free days also override the first-time-customer trial check
+        // computed further down (Math.max), so a returning customer who should
+        // get no trial at all still got the code's full free period each time.
+        if (redemption && !redemption.consumed_at) {
+          promoRedemptionId = redemption.id as string;
+          if (promo!.discount_type === "free_time" && isFreeDays(Number(promo!.free_days))) {
+            promoFreeDays = Number(promo!.free_days);
+          } else if (promo!.stripe_coupon_id) {
+            couponId = promo!.stripe_coupon_id as string;
+          }
+        }
+      }
     }
 
     const stripe = getStripe();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isRateLimited } from "@/lib/rate-limit";
+import { promoLabel, scopeLabel, durationLabel, promoScopeMessage } from "@/lib/promo";
 
 // POST /api/promo/redeem — user redeems a promo code
 export async function POST(req: NextRequest) {
@@ -54,6 +55,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "You have already used this promo code" }, { status: 409 });
   }
 
+  // Which plan/period the code is FOR — told here, where the code is typed,
+  // so nobody carries a code to checkout only to watch it not apply.
+  // (plan_target below is a different question: who may redeem.)
+
   // Check plan_target eligibility
   if (promo.plan_target !== "all") {
     const { data: profile } = await admin
@@ -64,10 +69,10 @@ export async function POST(req: NextRequest) {
 
     const plan = (profile as { plan?: string } | null)?.plan ?? "free";
     if (promo.plan_target === "free" && plan !== "free") {
-      return NextResponse.json({ error: "This code is only for free-plan users" }, { status: 403 });
+      return NextResponse.json({ error: "This code is for accounts that aren't subscribed yet." }, { status: 403 });
     }
     if (promo.plan_target === "pro" && plan === "free") {
-      return NextResponse.json({ error: "This code is only for Pro users" }, { status: 403 });
+      return NextResponse.json({ error: "This code is for accounts that already subscribe." }, { status: 403 });
     }
   }
 
@@ -106,6 +111,15 @@ export async function POST(req: NextRequest) {
       discount_percent: promo.discount_percent,
       discount_amount: promo.discount_amount,
       free_days: promo.free_days ?? null,
+      applies_to: promo.applies_to ?? "any",
+      interval_target: promo.interval_target ?? "any",
+      duration: promo.duration ?? "once",
+      duration_months: promo.duration_months ?? null,
+      // What to show the person: "30% off Pro only · the first 3 months".
+      label: promoLabel(promo),
+      scope: scopeLabel(promo),
+      scope_message: promoScopeMessage(promo),
+      duration_label: durationLabel(promo),
     },
   });
 }
