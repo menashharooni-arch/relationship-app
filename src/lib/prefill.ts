@@ -66,8 +66,8 @@ export type CardPrefill = {
    *  which means a visitor can pick "Compact circle" there — and it has to
    *  still be picked when they land in the real builder.
    *
-   *  linkHeroImage is deliberately NOT here: it is an uploaded URL, and the
-   *  sketch has canUpload={false}, so a visitor can never set one. */
+   *  The uploaded header photo (linkHeroImage) rides with the other uploaded
+   *  media below, in PREFILL_MEDIA_KEYS. */
   linkHeroStyle?: string;
   linkHeroContent?: string;
   /** Original vs Circle logo plate. Structural (not a colour), so it rides on
@@ -75,6 +75,18 @@ export type CardPrefill = {
    *  same Original/Circle toggle the real editor does, and a visitor who picks
    *  Circle must still have it picked when they land in the wizard. */
   logoShape?: "auto" | "circle";
+  // ── Uploaded media (owner, 2026-09-17: a visitor can add a photo or video
+  // before they have an account). Public URLs from a guest upload, carried so
+  // the wizard opens with the same background the sketch showed.
+  panelMedia?: string;
+  panelMediaType?: string;
+  panelMediaPoster?: string;
+  panelDim?: number;
+  linkHeroImage?: string;
+  linkBgMedia?: string;
+  linkBgMediaType?: string;
+  linkBgDim?: number;
+  linkGlass?: boolean;
   logoUrl?: string | null;     // data URL from the guest crop — claimed on signup
   headshotUrl?: string | null; // data URL from the guest crop — claimed on signup
   /** Which product the visitor was building — picks the step the wizard opens
@@ -90,6 +102,11 @@ export const PREFILL_STYLE_KEYS = ["accentColor", "bgColor", "textColor", "infoC
 // Swift Links page design keys — separate list so the wizard can hydrate them
 // into its OWN "Social design" state instead of the card's style state.
 export const PREFILL_LINK_STYLE_KEYS = ["linkLook", "linkBgColor", "linkTextColor", "linkFontFamily", "linkIconShape", "linkIconFill", "linkAccentColor", "linkHeroStyle", "linkHeroContent", "linkButtonStyle", "linkButtonColor"] as const;
+
+/** Uploaded media keys. Split by destination: the card's style state and the
+ *  Swift Links page's. Values are strings, plus a number (dim) or boolean. */
+export const PREFILL_CARD_MEDIA_KEYS = ["panelMedia", "panelMediaType", "panelMediaPoster", "panelDim"] as const;
+export const PREFILL_LINK_MEDIA_KEYS = ["linkHeroImage", "linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass"] as const;
 
 const KEY = "swiftcard_prefill";
 
@@ -115,6 +132,7 @@ export function hasSketchContent(data: CardPrefill): boolean {
     // dropped on hand-off.
     PREFILL_STYLE_KEYS.some((k) => data[k]) ||
     PREFILL_LINK_STYLE_KEYS.some((k) => data[k]) ||
+    Boolean(data.panelMedia || data.linkBgMedia || data.linkHeroImage) ||
     data.hideCardLink === true,
   );
 }

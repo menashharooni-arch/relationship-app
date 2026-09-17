@@ -201,7 +201,13 @@ describe("the card preview supplies every customization key a template reads", (
 
   it.each(CARD_BUILDERS)("%s passes them all to its live preview", (file) => {
     const block = previewData(read(file), file);
+    // Design keys (TemplateStyle: colours, font, finish…) arrive as one spread
+    // of the builder's style state, so a key the spread carries is supplied.
+    const styleSrc = read("src/lib/template-style.ts");
+    const styleType = styleSrc.slice(styleSrc.indexOf("export type TemplateStyle"), styleSrc.indexOf("\n};", styleSrc.indexOf("export type TemplateStyle")));
+    const spreadsStyle = /\.\.\.templateStyleState,/.test(block);
     for (const key of keysRead()) {
+      if (spreadsStyle && new RegExp(`^\\s*${key}\\?:`, "m").test(styleType)) continue;
       expect(block, `${file}'s preview omits customization.${key} — the saved card will show it, the preview won't`)
         .toMatch(new RegExp(`\\b${key}[,:]`));
     }

@@ -442,10 +442,11 @@ describe("uploads", () => {
     expect(design).toMatch(/<Switch\b/);
   });
 
-  it("is not offered where there is no account to upload against", () => {
+  it("is offered in the sketch too: guests can upload (owner, 2026-09-17)", () => {
     // The marketing mini-builder's sketch belongs to a visitor; every upload
     // route answers 401 there.
-    expect(read("src/components/site/SwiftLinkMiniBuilder.tsx")).toMatch(/canUpload=\{false\}/);
+    expect(read("src/components/site/SwiftLinkMiniBuilder.tsx")).not.toContain("canUpload={false}");
+    expect(read("src/app/api/upload/route.ts")).toContain("guest/${randomUUID()}");
   });
 
   it("NEITHER upload control is reachable in the sketch", () => {
