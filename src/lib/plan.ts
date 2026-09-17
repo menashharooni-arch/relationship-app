@@ -407,7 +407,7 @@ export function sanitizeCustomizationForPlan<T extends Record<string, unknown>>(
  */
 export function proLinkFeaturesInUse(
   style: Record<string, unknown>,
-  links?: readonly { kind?: string | null; size?: string | null; media?: unknown }[] | null,
+  links?: readonly { kind?: string | null; size?: string | null; media?: unknown; glass?: unknown }[] | null,
 ): string[] {
   const names: string[] = [];
   const s = (k: string) => pickStr(style[k]);
@@ -439,7 +439,7 @@ export function proLinkFeaturesInUse(
   // someone styles six links and watches all six come back plain.
   const styledButtons =
     !!s("linkIconShape") || !!s("linkIconFill") || !!s("linkButtonStyle") || !!style.linkGlass ||
-    (links ?? []).some((l) => l?.kind === "header" || l?.size === "featured" || l?.size === "grid" || !!l?.media);
+    (links ?? []).some((l) => l?.kind === "header" || l?.size === "featured" || l?.size === "grid" || !!l?.media || l?.glass === true);
   if (styledButtons) names.push("How your links and social icons look");
 
   return names;

@@ -13,7 +13,7 @@
 //   autoplaying embed. Free renders every link compact and videos link out —
 //   featured tiles, the grid and inline video are the advertised premium.
 
-import { fallbackTile } from "@/lib/swiftlink-looks";
+import { fallbackTile, hexAlpha } from "@/lib/swiftlink-looks";
 import { useEffect, useRef, useState } from "react";
 import { videoThumbnail, videoEmbed } from "@/lib/video";
 import { triggerSignupNudge } from "@/lib/nudge";
@@ -264,7 +264,10 @@ export default function SwiftLinkButtons({
           // colour away. Featured/grid tiles are unaffected either way — they
           // paint their own image over the surface, so a backdrop blur behind
           // them would never be visible.
-          const glassRow = glass && variant === "compact";
+          // Per link (Link buttons → Blur) since 2026-09-17; a row never
+          // touched falls back to the older page-wide switch, which only ever
+          // frosted the stock rows.
+          const glassRow = paid && (link.glass ?? (glass && variant === "compact"));
           const rowClass =
             variant === "solid"
               ? "shadow-[0_2px_10px_rgba(15,23,42,0.10)]"
@@ -275,11 +278,17 @@ export default function SwiftLinkButtons({
                   : light
                     ? "ring-1 bg-white ring-black/[0.08] shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
                     : "ring-1 bg-white/[0.07] ring-white/10";
+          const frost = { backdropFilter: "blur(20px) brightness(1.1) contrast(0.9)", WebkitBackdropFilter: "blur(20px) brightness(1.1) contrast(0.9)" };
           const rowStyle =
             variant === "solid"
-              ? { background: btnColor }
+              ? glassRow
+                // Frosted SOLID: the owner's colour, translucent, over the blur.
+                ? { background: hexAlpha(btnColor, 0.55), ...frost }
+                : { background: btnColor }
               : variant === "outline"
-                ? { boxShadow: `inset 0 0 0 1.5px ${btnColor}` }
+                ? glassRow
+                  ? { boxShadow: `inset 0 0 0 1.5px ${btnColor}`, background: "rgba(255,255,255,0.08)", ...frost }
+                  : { boxShadow: `inset 0 0 0 1.5px ${btnColor}` }
                 : glassRow
                   ? {
                       // Measured off the reference page (linktr.ee, 2026-09-10):
@@ -410,10 +419,22 @@ export default function SwiftLinkButtons({
               <div className="absolute inset-0" style={{ background: fb.background }} />
             )}
 
+            {/* Frosted band under the title (Link buttons → Blur, per link). */}
+            {paid && link.glass && (
+              <div
+                className="absolute inset-x-0 bottom-0 z-[5] h-[40%]"
+                style={{
+                  background: lightTile ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.18)",
+                  backdropFilter: "blur(14px) saturate(1.2)",
+                  WebkitBackdropFilter: "blur(14px) saturate(1.2)",
+                  borderTop: "1px solid rgba(255,255,255,0.18)",
+                }}
+              />
+            )}
             {/* Bottom gradient so the title reads over any image — matched to
                 the measured tone of the strip it covers. */}
             <div
-              className="absolute inset-x-0 bottom-0 h-[70%]"
+              className={`absolute inset-x-0 bottom-0 h-[70%] ${paid && link.glass ? "opacity-40" : ""}`}
               style={{
                 background: lightTile
                   ? "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.82) 100%)"

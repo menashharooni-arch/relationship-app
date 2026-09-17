@@ -73,10 +73,11 @@ function PinnedPreview({
           className="relative block mx-auto rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
         >
           {pinned}
-          {/* The "tap me" cue: small, in a corner, never over a name. */}
+          {/* The "tap me" cue sits OFF the card face, on its top-right corner:
+              inside the card it covered the QR code on every template. */}
           <span
             aria-hidden
-            className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center shadow"
+            className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gray-900 text-white ring-2 ring-white/80 flex items-center justify-center shadow"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />

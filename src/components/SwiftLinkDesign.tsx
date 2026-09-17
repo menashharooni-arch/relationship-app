@@ -18,7 +18,7 @@
 
 import { useRef, useState } from "react";
 import { CARD_FONT_OPTIONS } from "@/components/card-templates/shared";
-import { Switch, DesignSteps, type DesignStep } from "@/components/ui/DesignControls";
+import { DesignSteps, type DesignStep } from "@/components/ui/DesignControls";
 import {
   DEFAULT_SWIFTLINK_LOOK, isFreeLook, getLook,
   LOOK_FAMILIES, looksInFamily, washGradient, hexAlpha,
@@ -665,17 +665,7 @@ function PageBackgroundMedia({
             <p className="text-[0.625rem] text-gray-500 mt-0.5 leading-snug">Darker backgrounds make your name and links easier to read.</p>
           </div>
 
-          {/* An on/off, so it is a switch — it was a 14px checkbox, the only
-              checkbox in either design panel and the smallest target in both.
-              Same control as every other on/off in the editor now. */}
-          <div className="mt-3">
-            <Switch
-              checked={!!value.linkGlass}
-              onChange={(v) => onChange({ linkGlass: v })}
-              label="Blur the link buttons"
-              help="Frosted glass rows, so your background shows softly through them."
-            />
-          </div>
+          {/* "Blur" moved to each link under Link buttons (owner, 2026-09-17). */}
         </>
       )}
     </div>
@@ -925,7 +915,7 @@ export function SwiftLinkStyleControls({
           trailing: locked ? <ProTag /> : undefined,
           body: (
             <>
-          <LinkButtonsControls links={links} onChange={onLinksChange} pageRowStyle={value.linkButtonStyle} canUpload={canUpload} isLocked={isLinkLocked} />
+          <LinkButtonsControls links={links} onChange={onLinksChange} pageRowStyle={value.linkButtonStyle} pageGlass={!!value.linkGlass && !!value.linkBgMedia} canUpload={canUpload} isLocked={isLinkLocked} />
           {links.some((l) => l.kind !== "header" && (l.size ?? "grid") === "compact" && resolveRowStyle(l, value.linkButtonStyle) !== "tile") && (
             <div className="mt-2.5">
               <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Button color for Solid and Outline rows — leave Default to match your Connect button.</p>

@@ -35,7 +35,7 @@ export type SwiftLinkPageStyle = {
   bgMedia?: string; bgMediaType?: string; bgDim?: number; glass?: boolean;
 };
 
-type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" } };
+type LinkItem = { emoji: string; label: string; url: string; size?: "featured" | "grid" | "compact"; kind?: "link" | "header"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" }; glass?: boolean };
 
 // Perceived lightness of a hex surface — decides whether neutral chrome
 // (rings, hover wells) should be dark-on-light or light-on-dark when a Pro

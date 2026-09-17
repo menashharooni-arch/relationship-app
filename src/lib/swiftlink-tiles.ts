@@ -43,6 +43,8 @@ export type SizedLink = {
   rowStyle?: RowStyle;
   /** Featured/Grid tiles only. Absent → the link's own preview. */
   media?: LinkMedia;
+  /** Frosted glass for this link (Link buttons → Blur). */
+  glass?: boolean;
 };
 
 /** The picker's vocabulary — "Auto" was retired 2026-09-09 (owner order:

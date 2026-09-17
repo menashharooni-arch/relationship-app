@@ -218,7 +218,7 @@ describe("Swift Links page background", () => {
     expect(r.hasLayer).toBe(true);
   }, 60_000);
 
-  it("is ignored by the cover and banner headers", async () => {
+  it("renders under the cover and banner headers too (owner, 2026-09-17)", async () => {
     for (const heroStyle of ["cover", "banner", undefined]) {
       const r = await probe({
         heroStyle,
@@ -226,9 +226,7 @@ describe("Swift Links page background", () => {
         bgMediaType: "image",
         glass: true,
       });
-      expect(r.hasLayer, `heroStyle=${String(heroStyle)}`).toBe(false);
-      // …and the rows stay stock: glass follows the media, not the flag.
-      expect(r.rowBackdrop, `heroStyle=${String(heroStyle)}`).toBe("none");
+      expect(r.hasLayer, `heroStyle=${String(heroStyle)}`).toBe(true);
     }
   }, 60_000);
 

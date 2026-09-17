@@ -147,12 +147,13 @@ export function pinOfficeLinks(
  *  uploaded photo or video — validated so a crafted request cannot store
  *  anything else on every member's page. Admins set these in Branding → Links
  *  (Link buttons); before 2026-09-16 they were dropped on save and on read. */
-export type OfficeLinkStyle = { size?: "featured" | "grid" | "compact"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" } };
+export type OfficeLinkStyle = { size?: "featured" | "grid" | "compact"; rowStyle?: "tile" | "solid" | "outline"; media?: { url: string; type: "image" | "video" }; glass?: boolean };
 export function cleanOfficeLinkStyle(l: unknown): OfficeLinkStyle {
-  const r = (l && typeof l === "object" ? l : {}) as { size?: unknown; rowStyle?: unknown; media?: unknown };
+  const r = (l && typeof l === "object" ? l : {}) as { size?: unknown; rowStyle?: unknown; media?: unknown; glass?: unknown };
   const out: OfficeLinkStyle = {};
   if (r.size === "featured" || r.size === "grid" || r.size === "compact") out.size = r.size;
   if (r.rowStyle === "tile" || r.rowStyle === "solid" || r.rowStyle === "outline") out.rowStyle = r.rowStyle;
+  if (typeof r.glass === "boolean") out.glass = r.glass;
   const m = r.media as { url?: unknown; type?: unknown } | null | undefined;
   if (m && typeof m.url === "string" && m.url.startsWith("https://") && (m.type === "image" || m.type === "video")) {
     out.media = { url: m.url.slice(0, 500), type: m.type };
