@@ -49,10 +49,10 @@ export async function POST(req: Request) {
   // Verified server-side: the gift must still be pending for THIS account.
   // Nothing is converted — they are on Pro for the month.
   if (body?.referralMonth === true) {
-    if (!(await referralGiftPending(user.id))) {
+    if (!(await referralGiftPending(user.id, user.email))) {
       return NextResponse.json({ error: "This free month isn't available on your account." }, { status: 400 });
     }
-    await startReferralGift(user.id);
+    await startReferralGift(user.id, user.email);
     const { data: fresh } = await admin.from("profiles").select("customization").eq("id", user.id).maybeSingle();
     const freshCust = (fresh?.customization ?? {}) as Record<string, unknown>;
     await admin.from("profiles").update({ customization: { ...freshCust, [PLAN_CHOSEN_KEY]: "pro_referral" } }).eq("id", user.id);

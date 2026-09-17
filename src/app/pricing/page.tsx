@@ -67,6 +67,18 @@ export default function PricingPage() {
   const [loading, setLoading] = useState<"pro" | "enterprise" | null>(null);
   const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
   const [promo, setPromo] = useState<PromoState>({ code: "", status: "idle", message: "" });
+  // A SIGNED-IN account that already had its free Pro period (the trial or a
+  // friend's referral month) is not offered another — the same rule checkout
+  // enforces. Signed out, or on any error, the answer is true.
+  const [trialOk, setTrialOk] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/iap/trial-eligible", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { eligible?: unknown } | null) => { if (!cancelled && d?.eligible === false) setTrialOk(false); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   async function applyPromo() {
     if (!promo.code.trim()) return;
@@ -184,7 +196,7 @@ export default function PricingPage() {
                     were indistinguishable — one genuinely free, one a
                     subscription that takes a card. See PlanCards for the
                     incident this comes from. */}
-                {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : `Try Pro free for ${TRIAL_DAYS} days →`}
+                {loading === "pro" ? "Loading…" : promo.status === "valid" ? `Get Pro Plan · ${promo.discountLabel} →` : trialOk ? `Try Pro free for ${TRIAL_DAYS} days →` : "Get Pro →"}
               </button>
               {/* Fine print keeps the ELIGIBILITY condition and the billing
                   terms; the callout above carries the offer. Checkout grants a
@@ -192,7 +204,7 @@ export default function PricingPage() {
                   "for new customers" must survive here no matter how the
                   headline is worded (pinned by copy-truth.test.ts). */}
               <p className="text-white/70 text-[0.6875rem] text-center mt-2.5 leading-relaxed">
-                {TRIAL_DAYS} days free for new customers · card required · renews automatically
+                {trialOk ? <>{TRIAL_DAYS} days free for new customers · card required · renews automatically</> : <>Your account has had its free Pro period · billing starts today · renews automatically</>}
               </p>
               {checkoutErr && loading === null && (
                 <p className="text-center text-[0.75rem] font-semibold mt-2 rounded-lg py-2 px-3" style={{ background: "rgba(254,226,226,0.95)", color: "#b91c1c" }}>{checkoutErr}</p>

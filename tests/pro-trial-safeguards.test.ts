@@ -264,3 +264,25 @@ describe("QA seed accounts are never sent to the plan step", () => {
     });
   }
 });
+
+// ── One free Pro period per person: the referral month counts (2026-09-17) ──
+describe("a friend's referral month and the 14-day trial rule each other out", () => {
+  const src = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+  it("starting the referral month is recorded exactly like a trial", () => {
+    const r = src("src/lib/referral-server.ts");
+    const start = r.slice(r.indexOf("export async function startReferralGift"));
+    expect(start).toMatch(/recordProTrialStarted\(userId, accountEmail\)/);
+  });
+  it("the referral month is refused to anyone who already had a trial", () => {
+    const r = src("src/lib/referral-server.ts");
+    const pending = r.slice(r.indexOf("export async function referralGiftPending"), r.indexOf("export async function startReferralGift"));
+    expect(pending).toMatch(/isProTrialEligible\(null, undefined, await trialHistoryFor\(userId, accountEmail\)\)/);
+  });
+  it("the iOS paywall applies the ACCOUNT's history, not only the Apple ID's", () => {
+    const iap = src("src/lib/iap.ts");
+    expect(iap).toContain("/api/iap/trial-eligible");
+    expect(iap).toContain("if (!(await accountTrialEligible())) for (const p of out) p.introPriceString = null;");
+    expect(iap).toContain("all[NO_TRIAL_OFFERING]");
+    expect(src("src/app/api/iap/trial-eligible/route.ts")).toMatch(/isProTrialEligible\(/);
+  });
+});
