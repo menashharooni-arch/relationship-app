@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { htmlToText } from "@/lib/email-text";
 import { reportError } from "@/lib/report-error";
+import { contactCardUrl } from "@/lib/contact-links";
 import { from as senderAddress, replyToFor, type SenderKey } from "@/lib/email-senders";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -474,16 +475,25 @@ export async function deliverToLead(opts: {
 
   if (use === "email" && lead.email) {
     if (await isOptedOut("email", lead.email)) return { channel: "email", status: "opted_out" };
+    // This contact's own link in the signature: opening it is how the browser
+    // they read mail in gets recognised as them (lib/contact-links.ts).
+    const emailCardUrl = () =>
+      opts.cardUsername
+        ? contactCardUrl(getAdminSupabase(), { leadId: opts.leadId, cardSlug: opts.cardUsername, channel: "email" })
+        : Promise.resolve(null);
     const status = opts.email
       ? await sendRawEmail({ to: lead.email, subject: opts.email.subject, html: opts.email.html, sender: "connect", replyTo: sender.email || null, fromName: sender.name || null, personal: opts.personal })
-      : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, title: sender.title, text: opts.text, subject: opts.subject, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername, senderPaid: opts.senderPaid, personal: opts.personal });
+      : await sendBrandedEmail({ to: lead.email, senderName, company: sender.company, title: sender.title, text: opts.text, subject: opts.subject, replyTo: sender.email || null, phone: sender.phone || null, website: sender.website || null, cardUsername: opts.cardUsername, cardUrl: await emailCardUrl(), senderPaid: opts.senderPaid, personal: opts.personal });
     if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "email", body: opts.text, status });
     return { channel: "email", status };
   }
 
   if (use === "sms" && lead.phone) {
     if (await isOptedOut("sms", lead.phone)) return { channel: "sms", status: "opted_out" };
-    const cardUrl = opts.cardUsername ? `${APP_URL}/${opts.cardUsername}` : null;
+    // The contact's own link, same as the email path above.
+    const cardUrl = opts.cardUsername
+      ? await contactCardUrl(getAdminSupabase(), { leadId: opts.leadId, cardSlug: opts.cardUsername, channel: "sms" })
+      : null;
     const { status, sid } = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, cardUrl, paid: opts.senderPaid }));
     // providerSid lets the delivery callback correct this row from "sent" to
     // "undelivered" if the carrier drops it after Twilio accepted it.
@@ -590,6 +600,9 @@ export async function sendBrandedEmail(opts: {
   phone?: string | null;
   website?: string | null;
   cardUsername?: string | null;
+  /** The link the signature points at, when the caller has a better one than
+   *  the plain card URL (a per-contact tracked link). */
+  cardUrl?: string | null;
   /** Paid sender → no SwiftCard promo line in the footer. */
   senderPaid?: boolean;
   /** A HUMAN pressed send just now — omits List-Unsubscribe. See personalHeaders(). */
@@ -600,7 +613,7 @@ export async function sendBrandedEmail(opts: {
   // A reply to a card share is a reply to THAT PERSON. It must reach them, not
   // us — connect@ only catches the case where the card carries no email.
   const replyTo = replyToFor("connect", opts.replyTo);
-  const cardUrl = opts.cardUsername ? `${APP_URL}/${opts.cardUsername}` : null;
+  const cardUrl = opts.cardUrl ?? (opts.cardUsername ? `${APP_URL}/${opts.cardUsername}` : null);
   const subject = opts.subject?.trim() || `Message from ${opts.senderName}`;
   // Sign off with the sender's card — the stored Swift Signature when they have
   // one, the live card render when they don't. Both live behind one URL that

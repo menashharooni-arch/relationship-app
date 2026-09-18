@@ -149,6 +149,7 @@ export async function bindViaLink(
       visitor_id: visitorId,
       bound_via: "link",
       link_id: linkId,
+      link_device_index: bound + 1,
     });
     if (error) return error.code === "23505" ? { status: "already", leadId, linkId } : { status: "invalid" };
     await admin.from("contact_links").update({ devices_bound: bound + 1 }).eq("id", linkId);
@@ -167,6 +168,25 @@ export async function revokeContactLinks(admin: Admin, leadIds: string[]): Promi
       .update({ revoked_at: new Date().toISOString() })
       .in("lead_id", leadIds)
       .is("revoked_at", null);
+  } catch {
+    /* best effort */
+  }
+}
+
+/**
+ * The person unsubscribed from email: every link ever sent to them — by any
+ * owner, since the opt-out is platform-wide — stops binding browsers. Opting
+ * out of messages is read as opting out of being recognised from them.
+ */
+export async function revokeContactLinksForEmail(admin: Admin, email: string): Promise<void> {
+  const e = email.trim();
+  if (!e) return;
+  try {
+    // ilike for case, with its wildcards escaped: an address is matched
+    // literally, never as a pattern.
+    const literal = e.replace(/[\\%_]/g, (c) => `\\${c}`);
+    const { data } = await admin.from("leads").select("id").ilike("email", literal);
+    await revokeContactLinks(admin, (data ?? []).map((r) => r.id as string));
   } catch {
     /* best effort */
   }

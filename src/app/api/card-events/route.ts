@@ -17,6 +17,7 @@ import { stripLocationMarks } from "@/lib/location-privacy";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 import { recordView } from "@/lib/record-view";
 import { resolveKnownContact, touchContactDevice } from "@/lib/known-contact";
+import { bindViaLink, isContactToken } from "@/lib/contact-links";
 import { notifyVisit, visitKey } from "@/lib/visit-notify";
 import type { PushCategory } from "@/lib/push-policy";
 
@@ -61,6 +62,9 @@ export async function POST(req: NextRequest) {
     // (lib/track-link-click.ts) and re-bounded here like every other stored
     // field, because a client value is a client value.
     const target = str(body?.target, 120);
+    // A per-contact link token (?ct=, lib/contact-links.ts). The tracker only
+    // sends it AFTER the human gate, and only on a view.
+    const contact_token = isContactToken(body?.contact_token) ? (body.contact_token as string) : null;
 
     if (!card_owner_username || !event_type || !EVENT_TYPES.has(event_type)) {
       // Nothing to log: with no slug there is no entity to attribute a decision
@@ -179,6 +183,21 @@ export async function POST(req: NextRequest) {
     // bound to one browser is "ambiguous", which is anonymous. Stamped on the
     // view and the event rows as lead_id, so a contact's history is a join on
     // their id rather than a match on anything they typed (lib/known-contact.ts).
+    //
+    // A per-contact link opened in this browser is evidence, so it binds FIRST
+    // — then the resolution below already sees the contact on this very view.
+    // Only for a view (the tracker's post-human-gate POST), only for this
+    // card's own owner, and never from a datacenter: link scanners (Outlook
+    // SafeLinks, Proofpoint, Mimecast) run there, and a scanner "opening" the
+    // link must never become "Priya re-opened your card". resolveGeo is cached
+    // per IP, so recordView's own lookup below is a cache hit.
+    if (contact_token && event_type === "viewed_card" && ownerId) {
+      const tokenGeo = await resolveGeo(req, ip);
+      const rateOk = !(await isRateLimited(`contact-token:${ip}`, 20, 10 * 60 * 1000));
+      if (!tokenGeo.isHosting && rateOk) {
+        await bindViaLink(admin, { token: contact_token, ownerId, visitorId: visitor_id });
+      }
+    }
     const contact = await resolveKnownContact(admin, { ownerId, visitorId: visitor_id });
     const knownLeadId = contact.kind === "known" ? contact.leadId : null;
 
@@ -698,18 +717,30 @@ export async function GET(req: NextRequest) {
       const probe = await admin.from("card_events").select("surface").limit(1);
       if (probe.error && (probe.error.code === "42703" || probe.error.code === "PGRST204")) cols = WANT;
     }
+    // lead_confidence arrives with warm-lead-alerts.sql; probed the same way.
+    if (cols !== WANT) {
+      const probe = await admin.from("card_events").select("lead_confidence").limit(1);
+      if (!probe.error) cols = `${cols}, lead_confidence`;
+    }
     // Every browser the contact is BOUND to (lib/known-contact.ts): the one
     // they shared from, plus any that opened a link the owner sent. Events
     // from those browsers before the binding existed are theirs too.
     let boundVisitorIds: string[] = [];
     if (leadId) {
+      // Forwarded-link browsers (link_device_index > 1) are NOT the contact:
+      // their events reach this timeline only through their lead_id stamp,
+      // which carries lead_confidence "forwarded" and is labelled as the link.
       const { data: bindings } = await admin
         .from("contact_devices")
-        .select("visitor_id")
+        .select("visitor_id, bound_via, link_device_index")
         .eq("lead_id", leadId)
         .is("superseded_at", null)
         .is("wrong_at", null);
-      boundVisitorIds = [...new Set((bindings ?? []).map((b) => b.visitor_id as string))].filter((v) => v !== visitorId);
+      boundVisitorIds = [...new Set(
+        (bindings ?? [])
+          .filter((b) => !(b.bound_via === "link" && ((b.link_device_index as number | null) ?? 1) > 1))
+          .map((b) => b.visitor_id as string),
+      )].filter((v) => v !== visitorId);
     }
     const lookups = [
       // The server-stamped contact id — the join that needs nothing typed.

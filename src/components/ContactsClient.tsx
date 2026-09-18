@@ -11,6 +11,7 @@ import type { GeoAccuracy } from "@/lib/request-geo";
 import { CRON_HOUR_UTC } from "@/lib/cron-schedule";
 import AddContactModal from "@/components/AddContactModal";
 import ShareMyInfoButton, { type CardSigner } from "@/components/ShareMyInfoButton";
+import CopyPersonalLinkButton from "@/components/CopyPersonalLinkButton";
 import { PlanGate } from "@/components/PlanGate";
 import { AiDraftTag } from "@/components/AiConsentGate";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
@@ -50,6 +51,10 @@ type CardEvent = {
   surface?: string | null;
   /** For clicked_link: the destination host the visitor tapped. */
   target?: string | null;
+  /** How the visitor was recognised (lib/known-contact.ts). "forwarded" is a
+   *  browser that opened a link sent to this contact after another browser
+   *  already had: shown as the link, never as the person. */
+  lead_confidence?: string | null;
   source: string | null;
   visitor_name: string | null;
   visitor_email: string | null;
@@ -1187,6 +1192,10 @@ export default function ContactsClient({
               </button>
             </div>
 
+            {/* This contact's own card link — opening it is how SwiftCard
+                recognises them when they come back (lib/contact-links.ts). */}
+            <CopyPersonalLinkButton leadId={selected.id} firstName={(selected.name || "them").split(" ")[0]} />
+
             {/* Tab switcher */}
             <div className="flex bg-gray-900 rounded-xl p-1 gap-1 mb-6">
               {([
@@ -1701,7 +1710,7 @@ export default function ContactsClient({
                   // (same tap) — we stopped emitting it, and we hide the historical
                   // ones so old conversations show one "saved your contact" line too.
                   if (ev.event_type === "clicked_save_contact") continue;
-                  items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: eventLabel(ev).icon, text: `${fname} ${activityPhrase(ev) ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
+                  items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: eventLabel(ev).icon, text: ev.lead_confidence === "forwarded" ? `Your link to ${fname} was opened on another device` : `${fname} ${activityPhrase(ev) ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
                 }
                 items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✓", text: `${fname} shared their info with you`, source: selected.source });
                 if (selected.message) items.push({ at: selected.created_at, key: "note", kind: "in", body: selected.message });
