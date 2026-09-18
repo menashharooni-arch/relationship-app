@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { cardEventNotice } from "@/lib/card-event-notify";
@@ -16,6 +16,7 @@ import { resolveGeo, type GeoResult } from "@/lib/request-geo";
 import { stripLocationMarks } from "@/lib/location-privacy";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 import { recordView } from "@/lib/record-view";
+import { resolveKnownContact, touchContactDevice } from "@/lib/known-contact";
 import { notifyVisit, visitKey } from "@/lib/visit-notify";
 import type { PushCategory } from "@/lib/push-policy";
 
@@ -171,6 +172,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // ── Is this someone the owner already KNOWS? ───────────────────────────────
+    // Only from a binding the owner earned (they shared their details from this
+    // browser, or opened a link the owner sent them) — never from the name the
+    // browser volunteered, never from IP or user agent. Two different people
+    // bound to one browser is "ambiguous", which is anonymous. Stamped on the
+    // view and the event rows as lead_id, so a contact's history is a join on
+    // their id rather than a match on anything they typed (lib/known-contact.ts).
+    const contact = await resolveKnownContact(admin, { ownerId, visitorId: visitor_id });
+    const knownLeadId = contact.kind === "known" ? contact.leadId : null;
+
     // VIEWS: record the card_views row (chart, counters, locations) HERE,
     // through the same function /api/views uses, and only carry on to the
     // notification when it was genuinely recorded. Keyed on the SURFACE
@@ -205,6 +216,7 @@ export async function POST(req: NextRequest) {
         // The cookie arrived with the request: a proven identity, so its row
         // carries no device key and can never be merged with someone else's.
         identityFromCookie: !visitIdentity.setCookie,
+        leadId: knownLeadId,
         source,
         ip,
       });
@@ -340,15 +352,27 @@ export async function POST(req: NextRequest) {
       // back to — see lib/request-geo.ts and lib/location-display.ts.
       geo_accuracy: geo.accuracy,
       geo_source: geo.source,
+      // WHO, when the owner knows (supabase/warm-lead-alerts.sql). Absent — not
+      // null — for everyone else, so an unapplied migration costs nothing on
+      // the common anonymous path.
+      ...(contact.kind === "known" ? { lead_id: contact.leadId, lead_confidence: contact.confidence } : {}),
     };
     let { error: insertErr } = await admin.from("card_events").insert(row);
+    if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204") && "lead_id" in row) {
+      // warm-lead-alerts.sql not applied yet: keep everything else on the row
+      // and drop only the contact stamp. The newest columns go first.
+      const { lead_id: _l, lead_confidence: _lc, ...withoutLead } = row as typeof row & { lead_id?: string; lead_confidence?: string };
+      void _l; void _lc;
+      ({ error: insertErr } = await admin.from("card_events").insert(withoutLead));
+    }
     if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
       // A column this row carries isn't migrated yet — record the event without
       // the optional ones rather than dropping it. Ordered newest-first so the
       // retry is the widest row production can actually accept: location came
       // with view-visit-window.sql, surface/geo_* with analytics-accuracy.sql.
-      const { surface: _s, target: _t, geo_accuracy: _ga, geo_source: _gs, ...withoutNew } = row;
-      void _s; void _t; void _ga; void _gs;
+      const { surface: _s, target: _t, geo_accuracy: _ga, geo_source: _gs, lead_id: _l2, lead_confidence: _lc2, ...withoutNew } =
+        row as typeof row & { lead_id?: string; lead_confidence?: string };
+      void _s; void _t; void _ga; void _gs; void _l2; void _lc2;
       ({ error: insertErr } = await admin.from("card_events").insert(withoutNew));
       if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
         const { location: _unused, ...withoutLocation } = withoutNew;
@@ -379,6 +403,11 @@ export async function POST(req: NextRequest) {
     // What the notification layer did with this event, for the decision log:
     // the one question the audit could not answer was "this view recorded — did
     // the owner hear about it, and if not, why?".
+    if (contact.kind === "known" && ownerId) {
+      const leadId = contact.leadId;
+      after(touchContactDevice(admin, { ownerId, visitorId: visitor_id, leadId }));
+    }
+
     let notified: IngestDecision["notified"] = "not_eligible";
     let identityLevel: IngestDecision["identityLevel"] = "anonymous";
 
@@ -669,7 +698,23 @@ export async function GET(req: NextRequest) {
       const probe = await admin.from("card_events").select("surface").limit(1);
       if (probe.error && (probe.error.code === "42703" || probe.error.code === "PGRST204")) cols = WANT;
     }
+    // Every browser the contact is BOUND to (lib/known-contact.ts): the one
+    // they shared from, plus any that opened a link the owner sent. Events
+    // from those browsers before the binding existed are theirs too.
+    let boundVisitorIds: string[] = [];
+    if (leadId) {
+      const { data: bindings } = await admin
+        .from("contact_devices")
+        .select("visitor_id")
+        .eq("lead_id", leadId)
+        .is("superseded_at", null)
+        .is("wrong_at", null);
+      boundVisitorIds = [...new Set((bindings ?? []).map((b) => b.visitor_id as string))].filter((v) => v !== visitorId);
+    }
     const lookups = [
+      // The server-stamped contact id — the join that needs nothing typed.
+      leadId ? admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("lead_id", leadId) : null,
+      boundVisitorIds.length ? admin.from("card_events").select(cols).in("card_owner_username", usernames).in("visitor_id", boundVisitorIds) : null,
       visitorId ? admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("visitor_id", visitorId) : null,
       email ? admin.from("card_events").select(cols).in("card_owner_username", usernames).ilike("visitor_email", email) : null,
       phone ? admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("visitor_phone", phone) : null,

@@ -18,6 +18,7 @@ import { notifyVisit } from "@/lib/visit-notify";
 import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveGeo } from "@/lib/request-geo";
 import { attachVisitIdentity, resolveVisitIdentity } from "@/lib/visit-identity";
+import { bindFormDevice } from "@/lib/known-contact";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -255,6 +256,21 @@ export async function POST(req: NextRequest) {
     // must NEVER report failure back to the visitor (they'd see "something went
     // wrong" and re-submit a duplicate, even though we captured them fine).
     try {
+    // THIS BROWSER IS THIS CONTACT from now on, for this owner — the binding
+    // that lets their later visits be recognised (lib/known-contact.ts). After
+    // the response, like every other side effect here: a return visit worth
+    // announcing is at least a visit window away, and the visitor must not
+    // wait on it. The owner's own details are never bound (they tested their
+    // own form), and a different person bound to this browser is superseded.
+    if (insertedLead?.id && ownerProfile?.id) {
+      const leadId = insertedLead.id as string;
+      const ownerId = ownerProfile.id as string;
+      after(
+        bindFormDevice(admin, { leadId, ownerId, visitorId: visitor_id, email, phone })
+          .catch((e) => reportError("leads.bindFormDevice", e)),
+      );
+    }
+
     // Sync to every connected CRM and the Zapier webhook (non-blocking).
     // Plan is re-checked HERE, at send time, not just when the integration was
     // connected. A token survives a downgrade, so without this a lapsed account
