@@ -4,8 +4,9 @@
 // step, settings). Registers the service worker, asks permission, and stores
 // the subscription so the server can send contact alerts + view milestones.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { detectNativeApp } from "@/lib/platform";
+import { notePushOn, stopAsk } from "@/lib/push-ask-client";
 
 type State = "loading" | "unsupported" | "ios-install" | "native" | "denied" | "subscribed" | "idle" | "working" | "error";
 
@@ -359,6 +360,27 @@ export default function EnablePushButton({
   const [busyOff, setBusyOff] = useState(false);
   const [forcedOff, setForcedOff] = useState(false);
 
+  // "Don't Allow" / "Block" at the device's own prompt, answered HERE — the
+  // switch went "working" (the prompt was up) and came back "denied" — is the
+  // clearest no there is, whichever screen this switch is on (the card-is-live
+  // step, Settings, a reminder under a notification). It ends the reminders on
+  // every device. A switch that mounts ALREADY denied says nothing: that answer
+  // was given some other time, and has already been honoured.
+  const askedHere = useRef(false);
+  useEffect(() => {
+    if (state === "working") { askedHere.current = true; return; }
+    if (state === "denied" && askedHere.current) {
+      askedHere.current = false;
+      stopAsk();
+    }
+  }, [state]);
+
+  // Switching push OFF is a decision, and the reminders under notifications
+  // must honour it: they end here, on every device (/api/push/ask). Not called
+  // for sign-out or an account switch — those unbind the device without
+  // anybody saying "I don't want this" (lib/push-device.ts).
+  const turnedOffOnPurpose = () => stopAsk();
+
   // Unsubscribe this device: browser subscription + our server record.
   async function disable() {
     setBusyOff(true);
@@ -380,6 +402,7 @@ export default function EnablePushButton({
         // saw permission granted + a matching uid and turned push back ON.
         try { localStorage.removeItem(PUSH_UID_KEY); } catch { /* ignore */ }
         setForcedOff(true);
+        turnedOffOnPurpose();
         setBusyOff(false);
         return;
       }
@@ -395,6 +418,7 @@ export default function EnablePushButton({
         }).catch(() => {});
       }
       setForcedOff(true); // usePushState computed once on mount — reflect the change locally
+      turnedOffOnPurpose();
     } catch { /* leave state as-is; user can retry */ }
     setBusyOff(false);
   }
@@ -479,7 +503,9 @@ export default function EnablePushButton({
   async function toggle() {
     if (isOn) { await disable(); return; }
     const ok = await enable();
-    if (ok) { setForcedOff(false); onDone?.(); }
+    // onDone FIRST: a reminder that turned push on marks itself for its
+    // "You're set" before notePushOn() retires every other ask on screen.
+    if (ok) { setForcedOff(false); onDone?.(); notePushOn(); }
   }
 
   return (

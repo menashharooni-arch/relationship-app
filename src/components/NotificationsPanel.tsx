@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useIsNativeApp } from "@/lib/platform";
 import NotificationBody from "@/components/NotificationBody";
+import PushAskCallout, { usePushAsk } from "@/components/PushAskCallout";
+import { pickAskCandidate } from "@/lib/push-ask";
 
 // Native-safe remaps for stored notification bodies that contain selling copy.
 // The stored body is unchanged on web; only the in-app native render is swapped.
@@ -113,6 +115,16 @@ export default function NotificationsPanel({
   const unread = items.filter((n) => !n.read).length;
   const readCount = items.filter((n) => n.read).length;
 
+  // Native app: drop the referral "claim your free month of Pro" promo
+  // entirely (a selling incentive). Web shows every notification.
+  const shown = items.filter((n) => !(isNative && n.type === "referral_claim"));
+
+  // "Get notifications like this on your phone" — under ONE row at most. Same
+  // rules as the bell (lib/push-ask.ts), and never both at once: this list
+  // outranks the bell, the dashboard's own box outranks both.
+  const askId = pickAskCandidate(shown);
+  const ask = usePushAsk("panel", askId, true);
+
   // "Tap here to get it" — the explicit claim for an earned referral month.
   async function claimReferral(id: string) {
     setClaiming(id);
@@ -208,8 +220,9 @@ export default function NotificationsPanel({
       <div className="divide-y divide-gray-800">
         {/* Native app: drop the referral "claim your free month of Pro" promo
             entirely (a selling incentive). Web shows every notification. */}
-        {items.filter((n) => !(isNative && n.type === "referral_claim")).map((n) => (
-          <div key={n.id} className={`flex items-start gap-3 px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950/40"}`}>
+        {shown.map((n) => (
+          <Fragment key={n.id}>
+          <div className={`flex items-start gap-3 px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950/40"} ${n.id === askId && ask.show ? "border-b-0" : ""}`}>
             <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
             <div
               className={`min-w-0 flex-1 ${CONTACT_TYPES.has(n.type) ? "cursor-pointer" : ""}`}
@@ -271,6 +284,11 @@ export default function NotificationsPanel({
               </svg>
             </button>
           </div>
+          {/* A SIBLING of the row, not inside it: the row's text is a button
+              that opens the contact, and a tap on this switch must never
+              also navigate away. */}
+          {n.id === askId && <PushAskCallout ask={ask} tone="panel" />}
+          </Fragment>
         ))}
       </div>
     </div>
