@@ -18,7 +18,9 @@
 
 import { useRef, useState } from "react";
 import { CARD_FONT_OPTIONS } from "@/components/card-templates/shared";
-import { DesignSteps, type DesignStep } from "@/components/ui/DesignControls";
+// ProTag is the shared light-blue tag, so Social design and Card design tag
+// Pro identically (owner, 2026-09-18).
+import { DesignSteps, ProTag, type DesignStep } from "@/components/ui/DesignControls";
 import {
   DEFAULT_SWIFTLINK_LOOK, isFreeLook, getLook,
   LOOK_FAMILIES, looksInFamily, washGradient, hexAlpha,
@@ -92,10 +94,6 @@ function isHex(v?: string): v is string {
 }
 
 const rowLabel = "text-[0.6875rem] font-semibold text-gray-300 uppercase tracking-wide";
-
-function ProTag() {
-  return <span className="text-[0.5rem] font-bold px-1 py-0.5 rounded-full bg-blue-600 text-white leading-none">PRO</span>;
-}
 
 function SwatchRow({
   presets,
@@ -836,7 +834,9 @@ export function SwiftLinkStyleControls({
             photo dissolves into it on the page. */}
         {canUpload && <PageBackgroundMedia value={value} onChange={onChange} />}
         <div className="mt-4">
-        <p className={`${rowLabel} mb-0.5`}>Text color</p>
+        {/* Tagged like Page background: a text colour is Pro on save
+            (proLinkFeaturesInUse, "Your own colors and font"), so it says so. */}
+        <p className={`${rowLabel} mb-0.5`}>Text color{locked && <span className="ml-1.5 align-middle"><ProTag /></span>}</p>
         <p className="text-[0.625rem] text-gray-500 mb-1.5 leading-snug">Your name, bio and link labels.</p>
         <SwatchRow
           presets={TEXT_PRESETS}
@@ -853,6 +853,8 @@ export function SwiftLinkStyleControls({
       key: "font",
       label: "Font",
       help: "Sets the typeface across your Swift Links page.",
+      // Any font but Default is Pro on save (proLinkFeaturesInUse).
+      trailing: locked ? <ProTag /> : undefined,
       body: (
         <div className="grid grid-cols-2 gap-1.5">
           {[{ label: "Default", value: undefined as string | undefined }, ...CARD_FONT_OPTIONS].map((o) => {

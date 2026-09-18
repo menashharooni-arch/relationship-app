@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PlanGate } from "@/components/PlanGate";
+import { ProTag } from "@/components/ui/DesignControls";
 
 // The entry point to the custom designer, as the seventh tile of the template
 // gallery (TemplatePicker). It used to be a full-width banner ABOVE the six
@@ -19,7 +20,7 @@ export const CUSTOM_DESIGN_BLURB =
  * seventh card-shaped tile it sat alone on its own row as a large empty box —
  * the one thing in the gallery with nothing to show.
  */
-export function CustomDesignTileFace({ selected, unlocked }: { selected: boolean; unlocked: boolean }) {
+export function CustomDesignTileFace({ selected, unlocked, proTag = false }: { selected: boolean; unlocked: boolean; /** Free account's Edit card only. */ proTag?: boolean }) {
   return (
     <div
       className={`w-full min-h-[52px] rounded-xl flex items-center gap-3 px-3 py-2.5 border ${
@@ -29,10 +30,14 @@ export function CustomDesignTileFace({ selected, unlocked }: { selected: boolean
       <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.7} className="w-5 h-5 shrink-0" aria-hidden>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
       </svg>
-      <span className="flex-1 min-w-0 text-[0.8125rem] font-semibold text-gray-200 truncate">Custom design</span>
-      {/* No PRO badge (owner, 2026-09-16): the Card Design tab carries no Pro
-          labels. Whether the designer can be opened is unchanged — the row
-          says "Locked" and the line under the gallery explains why. */}
+      <span className="flex-1 min-w-0 flex items-center gap-1.5">
+        <span className="min-w-0 text-[0.8125rem] font-semibold text-gray-200 truncate">Custom design</span>
+        {proTag && <ProTag />}
+      </span>
+      {/* The PRO tag shows on a Free account's Edit card (owner, 2026-09-18),
+          like every other Pro choice there. Whether the designer can be opened
+          is unchanged — the row says "Locked" and the line under the gallery
+          explains why. */}
       <span className={`text-[0.6875rem] font-semibold shrink-0 ${selected ? "text-blue-300" : "text-gray-400"}`}>
         {selected ? "Selected" : unlocked ? "Design →" : "Locked"}
       </span>

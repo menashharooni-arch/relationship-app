@@ -28,7 +28,7 @@ const ENTRIES: Record<string, string> = {
     function App() {
       const [t, setT] = useState(params.get("t") || "classic-pro");
       (window as any).__picked = t;
-      return createElement(TemplatePicker, { template: t, onSelect: setT, data: ${DATA}, customUnlocked: params.get("unlocked") === "1" });
+      return createElement(TemplatePicker, { template: t, onSelect: setT, data: ${DATA}, customUnlocked: params.get("unlocked") === "1", proTags: params.get("proTags") === "1" });
     }
     createRoot(document.getElementById("root")!).render(createElement(App));
   `,
@@ -46,6 +46,7 @@ const ENTRIES: Record<string, string> = {
         onChange: (p: any) => { (window as any).__patches = [...((window as any).__patches || []), p]; setV((prev: any) => ({ ...prev, ...p })); },
         template: params.get("t") || "classic-pro",
         locked: params.get("locked") === "1",
+        proTags: params.get("proTags") === "1",
       });
     }
     createRoot(document.getElementById("root")!).render(createElement(App));
@@ -169,6 +170,17 @@ describe("template gallery", () => {
     const custom = await page.$("button[aria-label='Custom design']");
     expect(await custom!.isDisabled()).toBe(true);
     expect(await page.textContent("body")).toContain("unlock the custom designer with Pro");
+    // No tag unless the Edit card of a Free account asks for it.
+    expect(await page.$$eval("[data-ds='badge']", (els) => els.length)).toBe(0);
+    await page.context().close();
+  });
+
+  it("tags the Custom design row PRO on a Free Edit card (owner, 2026-09-18)", async () => {
+    const page = await mount("picker", "unlocked=0&proTags=1");
+    const tag = await page.$("[data-ds='badge']");
+    expect(await tag!.textContent()).toBe("PRO");
+    expect(await tag!.isVisible()).toBe(true);
+    expect(await page.$$eval("[data-ds='badge']", (els) => els.length)).toBe(1);
     await page.context().close();
   });
 });
@@ -246,15 +258,50 @@ describe("style panel: one numbered path, in build order", () => {
     await page.context().close();
   });
 
-  it("shows no PRO label anywhere, even on a Free account using Pro choices (owner, 2026-09-16)", async () => {
-    // A custom colour, a Pro finish and a Pro-finish Look all in play: the
-    // Save dialog names these; the panel itself says nothing about plans.
+  it("shows no PRO tag without `proTags` — the build wizard and Pro accounts", async () => {
+    // `locked` alone is what the wizard passes; it must stay untagged.
     const v = encodeURIComponent(JSON.stringify({ bgColor: "#123456", finish: "carbon" }));
     const page = await mount("style", `v=${v}&locked=1`);
     const proText = await page.evaluate(() =>
       [...document.querySelectorAll<HTMLElement>("body *")].filter((el) => el.children.length === 0 && /\bPRO\b/i.test(el.textContent || "")).map((el) => el.textContent),
     );
     expect(proText, JSON.stringify(proText)).toEqual([]);
+    await page.context().close();
+  });
+
+  it("tags exactly the Pro choices on a Free Edit card, visibly, without cutting a name short (owner, 2026-09-18)", async () => {
+    const page = await mount("style", "v={}&locked=1&proTags=1");
+    const found = await page.evaluate(() => {
+      const tags = [...document.querySelectorAll<HTMLElement>("[data-ds='badge']")].filter((el) => el.textContent === "PRO");
+      const where = tags.map((t) => {
+        const finish = t.closest("[data-design-step='finish'] button");
+        const look = t.closest("[data-design-step='look'] button");
+        const step = t.closest("li[data-design-step]")?.getAttribute("data-design-step");
+        const r = t.getBoundingClientRect();
+        return {
+          kind: finish ? `finish:${finish.textContent?.replace("PRO", "").trim()}` : look ? "look" : t.closest("label") ? `anycolor:${step}` : `step:${step}`,
+          visible: r.width > 8 && r.height > 8 && getComputedStyle(t).visibility !== "hidden",
+          inside: (() => { const b = (t.closest("button,label,li") as HTMLElement).getBoundingClientRect(); return r.left >= b.left - 0.5 && r.right <= b.right + 0.5; })(),
+        };
+      });
+      // A tile name that truncates shows an ellipsis: scrollWidth > clientWidth.
+      const cut = [...document.querySelectorAll<HTMLElement>("[data-design-step='finish'] button span.truncate")]
+        .filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => s.textContent);
+      return { where, cut };
+    });
+    const kinds = found.where.map((w) => w.kind);
+    expect(kinds.filter((k) => k.startsWith("finish:")).sort()).toEqual(
+      ["finish:Brushed", "finish:Carbon", "finish:Frosted", "finish:Gilt edge", "finish:Linen"],
+    );
+    expect(kinds).toContain("step:media");
+    expect(kinds.filter((k) => k.startsWith("anycolor:")).length).toBeGreaterThanOrEqual(4);
+    // Free finishes and fonts are never tagged.
+    expect(kinds.some((k) => /Flat|Sheen|Halo/.test(k) || k === "step:font")).toBe(false);
+    for (const w of found.where) {
+      expect(w.visible, JSON.stringify(w)).toBe(true);
+      expect(w.inside, JSON.stringify(w)).toBe(true);
+    }
+    expect(found.cut, "a finish name is cut short").toEqual([]);
     await page.context().close();
   });
 

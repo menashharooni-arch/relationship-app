@@ -80,6 +80,34 @@ export function SectionHeading({ children, hint }: { children: string; hint?: st
 }
 
 /**
+ * The light-blue PRO tag on a design control a Free account can try but not
+ * keep (owner, 2026-09-18: "how do these users know which features are pro
+ * features?"). Every control still works and previews on Free and Save
+ * Changes is still where Pro is enforced (ProRequiredDialog) — the tag only
+ * says, in advance, which of the choices that dialog will name. One component,
+ * so Card design and Social design tag identically.
+ *
+ * A SOLID pale blue with dark text, set inline: tags sit on the dark panel,
+ * on the light theme, on the Social design swatch well (light grey) and on
+ * Look tiles of any colour, and a translucent tint vanishes on half of those.
+ * Inline colours also keep the light theme's class remaps off it.
+ *
+ * `data-ds="badge"`: deliberately smaller than any label, which the design
+ * type-scale render test allows for badges only.
+ */
+export function ProTag() {
+  return (
+    <span
+      data-ds="badge"
+      className="inline-flex items-center shrink-0 rounded-full px-1.5 py-[3px] text-[0.5625rem] font-bold leading-none tracking-wide"
+      style={{ background: "#BAE6FD", color: "#0C4A6E" }}
+    >
+      PRO
+    </span>
+  );
+}
+
+/**
  * One labelled control: label, one line of help, the control.
  *
  * Sections used to repeat this markup each with their own margins, which is

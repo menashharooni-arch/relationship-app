@@ -50,12 +50,19 @@ describe("the panel: nothing is dead on a Free account", () => {
     // that carry the tag as their `trailing` (owner, 2026-09-16 numbering).
     expect(design, "the Page background section lost its PRO tag")
       .toMatch(/Page background\{locked && <span[^>]*><ProTag/);
-    for (const label of ["Social icons", "Connect button", "Link buttons"]) {
+    // Text color and Font are Pro on save too ("Your own colors and font on
+    // Swift Links"), so they carry the tag as well (owner, 2026-09-18).
+    expect(design, "the Text color section lost its PRO tag")
+      .toMatch(/Text color\{locked && <span[^>]*><ProTag/);
+    for (const label of ["Font", "Social icons", "Connect button", "Link buttons"]) {
       expect(design, `the ${label} section lost its PRO tag`)
         .toMatch(new RegExp(`label: "${label}",[\\s\\S]{0,400}?trailing: locked \\? <ProTag />`));
     }
     expect(design).toMatch(/famLocked && <ProTag \/>/);
     expect(design).toMatch(/customLocked && <ProTag \/>/);
+    // One tag for the whole product: the shared light-blue one, not a local copy.
+    expect(design).not.toMatch(/function ProTag/);
+    expect(design).toMatch(/import \{[^}]*\bProTag\b[^}]*\} from "@\/components\/ui\/DesignControls"/);
   });
 });
 
