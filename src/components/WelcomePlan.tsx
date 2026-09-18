@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import EnablePushButton from "@/components/EnablePushButton";
 import { GetTheAppCard } from "@/components/AppStoreBadge";
@@ -36,7 +36,10 @@ export default function WelcomePlan({
   canceled = false,
   trialEligible = true,
   referralGift = false,
+  initialTier = "pro",
 }: {
+  /** Phone-width web: open the plan tabs on Office (sent by the app's Office card). */
+  initialTier?: "pro" | "office";
   /** A friend's free month of Pro is waiting (referral sign-up). Offered as a
    *  choice here — it used to switch on silently at signup and skip this step. */
   referralGift?: boolean;
@@ -89,6 +92,19 @@ export default function WelcomePlan({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time consume of stored intent on mount (reads+clears storage; must not run during render)
     setIntent(detectNativeApp() ? null : presetIntent);
   }, [presetIntent]);
+
+  // NATIVE: the Office card sends people OUT to swiftcard.me to set up their
+  // team (PlanCards NativeOffice). When they come back the plan may be settled
+  // — re-ask the server, which sends a paid account on to its dashboard instead
+  // of leaving them on a chooser for a choice they have already made. Only
+  // after that button was actually used: an Apple purchase sheet must never be
+  // able to trigger this and race the "Your card is live!" step.
+  const leftForOffice = useRef(false);
+  useEffect(() => {
+    const onReturn = () => { if (leftForOffice.current && document.visibilityState === "visible") router.refresh(); };
+    document.addEventListener("visibilitychange", onReturn);
+    return () => document.removeEventListener("visibilitychange", onReturn);
+  }, [router]);
 
   // Straight to the dashboard, settling nothing. Used ONLY after a purchase has
   // already happened (onIapPurchased) — they are on a paid plan, so the free
@@ -321,7 +337,7 @@ export default function WelcomePlan({
               </p>
             )}
             {giftPanel}
-            <PlanCards onFree={chooseFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} freeLabel="Continue with Free →" trialEligible={offerTrial} />
+            <PlanCards onFree={chooseFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} freeLabel="Continue with Free →" trialEligible={offerTrial} initialTier={initialTier} onLeftForOffice={() => { leftForOffice.current = true; }} />
           </>
         )}
 
