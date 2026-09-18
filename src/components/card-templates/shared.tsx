@@ -603,6 +603,31 @@ export function cardAspect(data: CardData, threshold = 7): string {
 // identical and even across designs: phone (largest, bold) → email → website →
 // fax → address (smallest). Templates keep their character via the palette.
 
+// ── Details start at the top and fill downward ───────────────────────────────
+//
+// Owner, 2026-09-18: "I only put my phone number on it. For some reason my
+// phone number is on the bottom of the card... It should normally start filling
+// from the top and then go down as you go."
+//
+// Four templates laid their details column out as `justify-between` over
+// [header, details, QR], so the details block sat wherever the spare height put
+// it: mid-column on Photo First, Luxury Minimal and Logo First, and at the very
+// BOTTOM on Local Business (two children, so "between" means "last"). A full
+// card hid it, because a full card has no spare height to distribute.
+//
+// The rule now, on every template: the details block follows the header after
+// DetailsGap, and the QR is pinned to the bottom by QR_PINNED. The gap is a
+// flex item with an enormous shrink factor and no content, so on a packed card
+// it collapses to nothing BEFORE anything else is squeezed — it can never be
+// the reason a detail row is cut off, which the old zero-when-full spacing
+// guaranteed and this must keep guaranteeing (card-detail-fit.test.ts).
+export function DetailsGap({ f }: { f: number }) {
+  return <div aria-hidden style={{ flex: `0 1000 ${Math.round(9 * Math.min(f, 1.15))}px`, minHeight: 0 }} />;
+}
+
+/** Pins a column's QR row to the bottom now that the column stacks from the top. */
+export const QR_PINNED: React.CSSProperties = { marginTop: "auto" };
+
 export type RowPalette = {
   accent?: string;      // icon color; omit to have icons inherit each row's text color
   strong: string;       // phone numbers

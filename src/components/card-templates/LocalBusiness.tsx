@@ -7,7 +7,7 @@ import { isDarkBg, panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, nameClass } from "./shared";
+import { cardAspect, ContactRows, DetailsGap, contactScale, fitFactor, fitCompany, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, nameClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const AMBER_DEFAULT  = "#b45309";
@@ -134,10 +134,16 @@ export default function LocalBusiness({ data }: { data: CardData }) {
       {/* ── Cream body ─────────────────────────────────── */}
       <div
         className="flex-1 flex"
-        style={{ padding: "10px 18px 12px" }}
+        // minHeight 0: without it this body grows to fit its content instead of
+        // staying inside the card, so DetailsGap never collapses on a packed
+        // card and the QR is pushed toward the bottom edge.
+        style={{ padding: "10px 18px 12px", minHeight: 0 }}
       >
-        {/* Left: company + contact info */}
-        <div className="flex-1 flex flex-col justify-between">
+        {/* Left: company + contact info. Details start directly under the
+            company and fill DOWNWARD (DetailsGap, shared.tsx) — this column
+            used to be justify-between, which dropped a lone phone number to the
+            very bottom of the card. */}
+        <div className="flex-1 flex flex-col justify-start" style={{ minHeight: 0 }}>
           {/* Company name */}
           <div className="min-w-0">
             <p className="font-black leading-tight" style={{ ...companyFit, color: bodyInk.strong, overflowWrap: "anywhere" }}>
@@ -146,6 +152,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
             <div className="w-12 h-[2px] mt-1 rounded-full" style={{ background: `linear-gradient(90deg, ${AMBER2}, #fbbf24)` }} />
           </div>
 
+          <DetailsGap f={f} />
           {/* Contact rows — shared block (address included), auto-fits to the amount of info */}
           <ContactRows data={data} f={f} scale={contactScale(data)} palette={style.infoColor ? { accent: AMBER, ...infoPaletteFrom(style.infoColor) } : { accent: AMBER, ...bodyInk }} />
         </div>
