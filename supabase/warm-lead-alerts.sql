@@ -105,6 +105,12 @@ ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS opened_at timestamptz;
 CREATE INDEX IF NOT EXISTS idx_notifications_lead
   ON public.notifications (lead_id) WHERE lead_id IS NOT NULL;
 
+-- The per-contact push cap (decision D4: one "returning contact" push per
+-- contact per day) is counted from push_log, so a push says who it was about.
+ALTER TABLE public.push_log ADD COLUMN IF NOT EXISTS lead_id uuid REFERENCES public.leads(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_push_log_lead
+  ON public.push_log (lead_id, created_at DESC) WHERE lead_id IS NOT NULL;
+
 -- 4 ── Backfill: every lead that already carries a visitor_id is a 'form'
 --      binding for that browser. Owner resolved from the card slug, falling
 --      back to a legacy profile username. Leads whose owner can't be resolved
