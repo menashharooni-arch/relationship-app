@@ -21,6 +21,8 @@ import { resolveKnownContact, touchContactDevice } from "@/lib/known-contact";
 import { bindViaLink, isContactToken } from "@/lib/contact-links";
 import { contactReturnNotice, isLockedContact, isReturnVisit } from "@/lib/contact-return-notify";
 import { isPaidPlan } from "@/lib/plan";
+import { loadIntent } from "@/lib/intent-load";
+import { readPushPrefs } from "@/lib/push-policy";
 import { notifyVisit, visitKey } from "@/lib/visit-notify";
 import type { PushCategory } from "@/lib/push-policy";
 
@@ -455,8 +457,8 @@ export async function POST(req: NextRequest) {
       // table first (multi-card accounts), then the legacy profile slug.
       const { data: cardRow } = await admin.from("cards").select("user_id").eq("username", card_owner_username).maybeSingle();
       const { data: owner } = cardRow?.user_id
-        ? await admin.from("profiles").select("id, plan").eq("id", cardRow.user_id).maybeSingle()
-        : await admin.from("profiles").select("id, plan").eq("username", card_owner_username).maybeSingle();
+        ? await admin.from("profiles").select("id, plan, customization").eq("id", cardRow.user_id).maybeSingle()
+        : await admin.from("profiles").select("id, plan, customization").eq("username", card_owner_username).maybeSingle();
 
       if (owner?.id) {
         const isView = event_type === "viewed_card";
@@ -501,6 +503,11 @@ export async function POST(req: NextRequest) {
             .select("id", { count: "exact", head: true })
             .eq("lead_id", returning.leadId)
             .gte("viewed_at", new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString());
+          // Their tier, this visit included (lib/intent-score.ts): "Hot" leads
+          // a Pro lock screen, and "Only Hot contacts" holds everyone else to
+          // the bell.
+          const intent = (await loadIntent(admin, [{ id: returning.leadId, created_at: returning.capturedAt }]))
+            .get(returning.leadId);
           returnNotice = contactReturnNotice({
             contact: returning,
             eventType: event_type as "viewed_card" | "downloaded_vcard" | "clicked_link",
@@ -508,7 +515,15 @@ export async function POST(req: NextRequest) {
             linkName: target_label ?? target,
             visitsThisWeek: visitsErr ? 1 : Math.max(count ?? 1, 1),
             paid: isPaidPlan(owner.plan as string | null),
+            tier: intent?.tier ?? null,
           });
+          if (
+            returnNotice?.pushCategory === "contact_return" &&
+            readPushPrefs(owner.customization).returningHotOnly &&
+            intent?.tier !== "hot"
+          ) {
+            returnNotice = { ...returnNotice, pushCategory: undefined };
+          }
         }
 
         // identity, not the raw client field — the notification must name the

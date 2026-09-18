@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { requireAdmin, isAdminEmail } from "@/lib/admin";
 import { getAccountEmailMap } from "@/lib/account-email";
 import { isPaidPlan } from "@/lib/plan";
+import { warmLeadMetrics } from "@/lib/warm-lead-metrics";
 
 // Rough monthly price per paid plan (matches the pricing page).
 const PRO_PRICE = 4.99;
@@ -262,9 +263,14 @@ export async function GET() {
     }
   }
 
+  // Returning-contact alerts: do they get opened, followed up, and are they
+  // ever about the wrong person? (lib/warm-lead-metrics.ts)
+  const warmLead = await warmLeadMetrics(admin, now);
+
   return NextResponse.json({
     funnel,
     ingest,
+    warmLead,
     accounts: {
       total: totalAccounts,
       today: signupToday, d7: signup7, d30: signup30,

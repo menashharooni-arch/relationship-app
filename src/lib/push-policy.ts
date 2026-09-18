@@ -151,7 +151,13 @@ export const VIEW_UPDATE_MIN_GAP_MS = 5 * 60 * 1000;
 /** The collapse id every view-count update shares: ONE running counter, replaced in place. */
 export const VIEW_ROLLUP_TAG = "views-hour";
 
-export type PushPrefs = Record<PushCategory, boolean> & { quietHours?: boolean; timezone?: string | null };
+export type PushPrefs = Record<PushCategory, boolean> & {
+  quietHours?: boolean;
+  timezone?: string | null;
+  /** "Only Hot contacts": a returning contact who isn't Hot (lib/intent-score)
+   *  reaches the bell but not the phone. Off unless switched on. */
+  returningHotOnly?: boolean;
+};
 
 /** Read the per-category switches out of profiles.customization. */
 export function readPushPrefs(customization: unknown): PushPrefs {
@@ -164,6 +170,7 @@ export function readPushPrefs(customization: unknown): PushPrefs {
   // Quiet hours are ON unless deliberately switched off.
   out.quietHours = stored.quietHours !== false;
   out.timezone = typeof stored.timezone === "string" ? stored.timezone : null;
+  out.returningHotOnly = stored.returningHotOnly === true;
   return out;
 }
 

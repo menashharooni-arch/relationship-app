@@ -15,7 +15,7 @@ import {
 // a feature that does not exist. Saves on toggle, because a "Save" button on a
 // panel of switches is a step people skip and then wonder why nothing changed.
 
-type Prefs = Record<PushCategory, boolean> & { quietHours?: boolean };
+type Prefs = Record<PushCategory, boolean> & { quietHours?: boolean; returningHotOnly?: boolean };
 
 export default function PushPreferencesForm() {
   const [prefs, setPrefs] = useState<Prefs>({ ...DEFAULT_PUSH_PREFS, quietHours: true });
@@ -70,6 +70,18 @@ export default function PushPreferencesForm() {
           onChange={(v) => set(cat, v)}
         />
       ))}
+
+      {prefs.contact_return !== false && (
+        <Toggle
+          label="Only Hot contacts"
+          // lib/intent-score.ts: Hot = back several times, or tapped a booking
+          // link, in the last few days.
+          description="Returning contacts who aren't Hot show up in the app instead of on your phone."
+          checked={prefs.returningHotOnly === true}
+          disabled={!loaded}
+          onChange={(v) => set("returningHotOnly", v)}
+        />
+      )}
 
       <div className="pt-1" style={{ borderTop: "1px solid #F1EBE3" }} />
 
