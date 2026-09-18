@@ -38,8 +38,10 @@ export default function CopyPersonalLinkButton({ leadId, firstName }: { leadId: 
   };
 
   return (
-    <div className="-mt-3 mb-6 flex items-center justify-between gap-3">
-      <p className="text-xs text-gray-400 leading-snug">
+    // Wraps rather than shrinks: at 375px the sentence and the button do not
+    // fit on one line (tests/render/portal-phone-fit.test.ts).
+    <div className="-mt-3 mb-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <p className="min-w-0 flex-1 basis-52 text-xs text-gray-400 leading-snug">
         Send {firstName} your personal link and SwiftCard can tell you when they come back.
       </p>
       <button
