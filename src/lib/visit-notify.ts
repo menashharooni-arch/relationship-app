@@ -218,10 +218,12 @@ export async function notifyVisit(opts: {
       title: notice.pushTitle ?? notice.title,
       body: notice.pushBody ?? notice.body,
       url: notice.url,
+      // Names the card on the lock screen when the account has several.
+      cardOwner: opts.cardOwner,
       // Same tag for every notification in this visit → the messenger replaces
       // the banner instead of stacking a second one.
       tag,
-      ...(notice.leadId ? { leadId: notice.leadId } : {}),
+      leadId: notice.leadId,
     }).catch(() => { /* a dead subscription must never fail the event */ });
   };
 

@@ -25,9 +25,11 @@ describe("apns endpoint namespacing", () => {
 
 describe("push routing splits APNs from web-push", () => {
   const src = read("src/lib/push.ts");
-  it("filters subscriptions by isApnsEndpoint and sends via sendApnsNotification", () => {
+  it("filters subscriptions by isApnsEndpoint and sends via the APNs sender", () => {
     expect(src).toMatch(/isApnsEndpoint/);
-    expect(src).toMatch(/sendApnsNotification/);
+    // sendApnsDetailed — the variant that returns Apple's own answer, so a
+    // rejected send is never counted as delivered.
+    expect(src).toMatch(/sendApnsDetailed/);
     // web-push must stay for browser subscriptions
     expect(src).toMatch(/webpush\.sendNotification/);
   });

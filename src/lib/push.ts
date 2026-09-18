@@ -1,13 +1,14 @@
 import webpush from "web-push";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { isApnsEndpoint, sendApnsNotification } from "@/lib/apns";
+import { isApnsEndpoint, sendApnsDetailed } from "@/lib/apns";
+import { reportError as reportServerError } from "@/lib/report-error";
 import { assertSafeUrl } from "@/lib/safe-fetch";
 import { isPaidPlan } from "@/lib/plan";
 import { stripLocationMarks, withoutLocation } from "@/lib/location-privacy";
 import { genericNames, stripNameMarks } from "@/lib/contact-privacy";
 import {
-  decidePush, fitBody, readPushPrefs, MAX_TITLE_CHARS, OWN_CAP, UNCAPPED, VIEW_ROLLUP_TAG,
-  type PushCategory,
+  decidePush, fitBody, readPushPrefs, pushCardTag, cardTagLine, MAX_TITLE_CHARS, OWN_CAP, UNCAPPED, VIEW_ROLLUP_TAG,
+  type PushCategory, type PushCardRow,
 } from "@/lib/push-policy";
 
 // web-push POSTs to whatever host the stored endpoint names. Endpoints are
@@ -46,6 +47,14 @@ export async function sendPushToUser(userId: string, payload: {
   /** The known contact this push is about (contact_return): counted for the
    *  one-per-contact-per-day cap and written to push_log.lead_id. */
   leadId?: string | null;
+  /**
+   * The slug of the card this is about. For an account with 2+ cards the push
+   * then SAYS which card ("Card: Work") — see pushCardTag. Every producer that
+   * knows the card passes it; account-level news (billing) has none.
+   */
+  cardOwner?: string | null;
+  /** The 8am catch-up only — see PolicyInput.catchup. */
+  catchup?: boolean;
 }) {
   const admin = getAdminSupabase();
 
@@ -138,6 +147,7 @@ export async function sendPushToUser(userId: string, payload: {
   const verdict = decidePush({
     category: payload.category, prefs, cappedSentToday, lastViewPushAt, lastViewUpdateAt,
     contactReturnSentToday, sameContactSentToday,
+    catchup: payload.catchup === true,
   });
   if (!verdict.send) {
     await log(verdict.reason);
@@ -189,22 +199,52 @@ export async function sendPushToUser(userId: string, payload: {
     ...(isUpdate ? { tag: VIEW_ROLLUP_TAG, silent: true } : {}),
   };
 
+  // WHICH CARD. One extra read, and only once we know a device will receive
+  // this. Best-effort: a failed lookup sends the notification untagged rather
+  // than not at all.
+  let cardLine: string | null = null;
+  if (payload.cardOwner) {
+    try {
+      const { data: cards } = await admin
+        .from("cards")
+        .select("username, label, name, company")
+        .eq("user_id", userId);
+      const tag = pushCardTag((cards ?? []) as PushCardRow[], payload.cardOwner);
+      cardLine = tag ? cardTagLine(tag) : null;
+    } catch { /* untagged */ }
+  }
+  // iOS has a real line for it (aps.alert.subtitle, between title and body). A
+  // browser notification has only title + body, so there it leads the body on a
+  // line of its own — never the title, which the OS truncates first.
+  const apnsPayload = { ...payload, ...(cardLine ? { subtitle: cardLine } : {}) };
+  const webPayload = cardLine ? { ...payload, body: `${cardLine}\n${payload.body}` } : payload;
+
   // Native iOS devices register with an "apns:<token>" endpoint and go through
   // APNs; browser subscriptions keep going through web-push. Both prune their
   // dead endpoints the same way.
   const apnsSubs = subs.filter((s) => isApnsEndpoint(s.endpoint));
   const webSubs = subs.filter((s) => !isApnsEndpoint(s.endpoint));
 
-  const sends: Promise<unknown>[] = [];
+  // Every send resolves to whether it REACHED a device. The old accounting
+  // counted any settled promise as delivered, so an APNs rejection — including
+  // the one that deleted the subscription — was logged as "sent": the log said
+  // pushes were going out for a week in which not one arrived.
+  const sends: Promise<boolean>[] = [];
+  const failures: string[] = [];
 
   for (const sub of apnsSubs) {
     sends.push(
-      sendApnsNotification(sub.endpoint, payload).then(async (result) => {
-        if (result === "gone") {
+      sendApnsDetailed(sub.endpoint, apnsPayload).then(async (r) => {
+        if (r.result === "sent") return true;
+        if (r.result === "gone") {
+          // Both Apple environments disowned it, or Apple said Unregistered.
+          // An uninstalled app is ordinary life, not a fault — prune and move on.
           await admin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+          return false;
         }
-        return result;
-      })
+        failures.push(`apns ${r.result} ${r.status} ${r.reason}`.trim());
+        return false;
+      }).catch((e) => { failures.push(`apns threw ${e instanceof Error ? e.message : String(e)}`); return false; })
     );
   }
 
@@ -214,20 +254,27 @@ export async function sendPushToUser(userId: string, payload: {
       process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
       process.env.VAPID_PRIVATE_KEY
     );
-    const payloadStr = JSON.stringify(payload);
+    const payloadStr = JSON.stringify(webPayload);
     for (const sub of webSubs) {
       sends.push(
-        endpointIsSafeToSend(sub.endpoint).then((safe): Promise<unknown> => {
-          if (!safe) return Promise.resolve("blocked-endpoint");
-          return webpush.sendNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            payloadStr
-          ).catch(async (err) => {
-            if (err.statusCode === 404 || err.statusCode === 410) {
+        endpointIsSafeToSend(sub.endpoint).then(async (safe): Promise<boolean> => {
+          if (!safe) { failures.push("web blocked-endpoint"); return false; }
+          try {
+            await webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              payloadStr
+            );
+            return true;
+          } catch (err) {
+            const code = (err as { statusCode?: number })?.statusCode;
+            if (code === 404 || code === 410) {
+              // Expired browser subscription: prune, not a fault.
               await admin.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+              return false;
             }
-            throw err;
-          });
+            failures.push(`web ${code ?? "error"}`);
+            return false;
+          }
         })
       );
     }
@@ -235,7 +282,13 @@ export async function sendPushToUser(userId: string, payload: {
 
   if (!sends.length) { await log("no_deliverable_endpoint"); return; }
   const results = await Promise.allSettled(sends);
-  const delivered = results.filter((r) => r.status === "fulfilled" && r.value !== "blocked-endpoint").length;
+  const delivered = results.filter((r) => r.status === "fulfilled" && r.value === true).length;
+  // A push nobody received is invisible by nature — the owner just stops hearing
+  // from the product. Put Apple's / the browser's own reason where the uptime
+  // and nightly checks already look (error_events), once per failed send.
+  if (failures.length) {
+    await reportServerError("push.delivery", new Error(`push not delivered (${payload.category}): ${[...new Set(failures)].join(" | ")}`), { userId }).catch(() => {});
+  }
   // "rollup" is its own outcome and NOT "sent", deliberately: `sent` is what
   // opens and closes the one-alert-an-hour window and what the daily cap counts,
   // and a silent update must do neither — otherwise a busy afternoon would slide

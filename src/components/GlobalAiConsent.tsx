@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import AiConsentGate from "@/components/AiConsentGate";
 import { useIsNativeApp } from "@/lib/platform";
 import { aiConsentAskAllowedOn, type AiConsent } from "@/lib/ai-consent";
+import { reportAiAsk } from "@/lib/ai-consent-sequence";
 
 type ConsentState = {
   consent: AiConsent;
@@ -13,6 +14,17 @@ type ConsentState = {
   provider: string | null;
   copy: { title: string; what: string[]; who: string; control: string };
 };
+
+/**
+ * The query string, read from `window` rather than useSearchParams: this sits in
+ * the ROOT layout, where useSearchParams would need a Suspense boundary around
+ * the whole app. Only read on the client, after the native check has passed.
+ * Needed for the one setup step that shares an ordinary path — an invited
+ * member's /cards/[id]/edit?joined=1 (see aiConsentAskAllowedOn).
+ */
+function currentSearch(): string {
+  return typeof window === "undefined" ? "" : window.location.search;
+}
 
 /**
  * Mounts the AI-consent ask GLOBALLY (root layout), so it appears on the first
@@ -55,11 +67,16 @@ export default function GlobalAiConsent() {
     // the console on every sign-in screen (the pathname dependency re-runs
     // this the moment they land on a signed-in route).
     // Setup steps too: nothing is asked there, so there is nothing to fetch.
-    if (!aiConsentAskAllowedOn(pathname)) return;
+    if (!aiConsentAskAllowedOn(pathname, currentSearch())) return;
     // Decision (or lack of one) already known. A not-yet-ready answer is NOT
     // final — it is re-read on the next screen, which is how the ask appears
     // on the dashboard right after "Your card is live!" without a cold launch.
     if (state && !signedOut && state.ready !== false) return;
+    // The tour waits while this is read (lib/ai-consent-sequence). Reset here,
+    // not left at whatever an earlier screen reported: a "settled" from a held
+    // gate on /dashboard?claim=1 must not release the tour on the real
+    // dashboard before this answer arrives and the sheet opens.
+    reportAiAsk("pending");
     let cancelled = false;
     (async () => {
       try {
@@ -67,13 +84,17 @@ export default function GlobalAiConsent() {
         if (cancelled) return;
         if (res.status === 401) {
           setSignedOut(true);
+          reportAiAsk("settled");
           return;
         }
-        if (!res.ok) return;
+        // Nothing can be asked on a failed read, so nothing may wait on it.
+        if (!res.ok) { reportAiAsk("settled"); return; }
         setSignedOut(false);
+        // From here the gate reports: "asking" if it opens, "settled" if not.
         setState(await res.json());
       } catch {
         /* transient — the server-side guard holds regardless */
+        if (!cancelled) reportAiAsk("settled");
       }
     })();
     return () => {
@@ -90,7 +111,7 @@ export default function GlobalAiConsent() {
   // came back. `ready !== false`: a response without the field (an older
   // deployment answering during a rollout) keeps the old behaviour rather than
   // hiding the ask for good.
-  const hold = state.ready === false || !aiConsentAskAllowedOn(pathname);
+  const hold = state.ready === false || !aiConsentAskAllowedOn(pathname, currentSearch());
 
   return (
     <AiConsentGate

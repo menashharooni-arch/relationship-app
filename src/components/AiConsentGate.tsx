@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useIsNativeApp } from "@/lib/platform";
 import type { AiConsent } from "@/lib/ai-consent";
+import { reportAiAsk } from "@/lib/ai-consent-sequence";
 
 /**
  * Asks permission before any of the user's data reaches the AI provider.
@@ -52,6 +53,20 @@ export default function AiConsentGate({
   }, [consent]);
 
   const open = native && !!provider && !decided && !dismissedThisSession && !hold;
+
+  // The guided tour waits on this (lib/ai-consent-sequence, owner 2026-09-18):
+  // "asking" while the sheet is up, "settled" the moment it is not — answered
+  // either way, already decided, no provider, or held on this screen. Only
+  // once `native` is known: its first render is always false (hydration-safe
+  // hook), and reporting "settled" from that render would release the tour
+  // before the sheet had a chance to open.
+  // After EVERY render, not on [open]: GlobalAiConsent resets the phase to
+  // "pending" before each re-read, and a re-read that leaves the sheet closed
+  // (closed before, closed after) would never change `open` — the tour would
+  // sit waiting on an answer that had already arrived. Repeats are no-ops.
+  useEffect(() => {
+    if (native) reportAiAsk(open ? "asking" : "settled");
+  });
 
   async function choose(decision: "accepted" | "declined") {
     setSaving(true);

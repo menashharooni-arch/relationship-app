@@ -354,11 +354,22 @@ export async function POST(req: NextRequest) {
       const body = locked
         ? `${name} shared their info — open to unlock.`
         : `${name} shared their info with you${sourceStr}.`;
+      // THE SAME PERSON THE VIEW TRACKER SAW. /api/card-events keys a visit on
+      // resolveVisitIdentity — the httpOnly sc_vid cookie first, the page's own
+      // id second. This route keyed it on the raw body id alone, so whenever
+      // the two differed (a browser that lost localStorage between opening the
+      // card and sending the form; an id the server had to mint) the lead
+      // opened a SECOND visit instead of upgrading the view's row: two bell
+      // rows and two buzzes for one person, the second in an uncapped category.
+      // A minted id matches nothing by definition, so that case keeps the old
+      // value and falls back to the IP exactly as before.
+      const seen = resolveVisitIdentity(req, typeof visitor_id === "string" ? visitor_id : null);
+      const visitVisitorId = seen.minted ? visitor_id : seen.visitorId;
       after(
         notifyVisit({
           userId: ownerProfile.id,
           cardOwner: card_owner,
-          visitorId: visitor_id,
+          visitorId: visitVisitorId,
           ip,
           notice: {
             type: "new_lead",

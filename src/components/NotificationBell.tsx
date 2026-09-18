@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import NotificationBody from "@/components/NotificationBody";
+import PushAskCallout, { usePushAsk } from "@/components/PushAskCallout";
+import { pickAskCandidate } from "@/lib/push-ask";
 
 type Notification = {
   id: string;
@@ -55,6 +57,12 @@ export default function NotificationBell({
 
   const unread = notifications.filter((n) => !n.read).length;
   const readCount = notifications.filter((n) => n.read).length;
+
+  // "Get notifications like this on your phone" — under ONE row at most (the
+  // newest unread new contact / reply / contact download), only while the
+  // dropdown is open, and only when the rules in lib/push-ask.ts allow it.
+  const askId = pickAskCandidate(notifications);
+  const ask = usePushAsk("bell", askId, open);
 
   useEffect(() => {
     const poll = async () => {
@@ -278,7 +286,10 @@ export default function NotificationBell({
                 </div>
               ) : (
                 notifications.map((n) => (
-                  <div key={n.id} className={`group px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950"}`}>
+                  <Fragment key={n.id}>
+                  {/* border-b-0 when the reminder hangs under this row: the
+                      list's divider would otherwise cut the row from it. */}
+                  <div className={`group px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950"} ${n.id === askId && ask.show ? "border-b-0" : ""}`}>
                     <div className="flex items-start gap-3">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
                       <div className="min-w-0 flex-1">
@@ -327,6 +338,8 @@ export default function NotificationBell({
                       </button>
                     </div>
                   </div>
+                  {n.id === askId && <PushAskCallout ask={ask} />}
+                  </Fragment>
                 ))
               )}
             </div>

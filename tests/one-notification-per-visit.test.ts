@@ -156,7 +156,13 @@ describe("every notifier goes through the visit ledger", () => {
   it("a new lead upgrades the same visit instead of buzzing a third time", () => {
     const src = leads();
     expect(src).toMatch(/notifyVisit\(\{/);
-    expect(src).toMatch(/cardOwner: card_owner,\s*\n\s*visitorId: visitor_id,\s*\n\s*ip,/);
+    // The visitor is identified the way /api/card-events identifies them (the
+    // sc_vid cookie first) — keyed on the raw body id, a browser that lost its
+    // localStorage between the view and the form opened a SECOND visit: two
+    // bell rows and two buzzes for one person.
+    expect(src).toMatch(/cardOwner: card_owner,\s*\n\s*visitorId: visitVisitorId,\s*\n\s*ip,/);
+    expect(src).toMatch(/const seen = resolveVisitIdentity\(req, /);
+    expect(src).toMatch(/seen\.minted \? visitor_id : seen\.visitorId/);
     expect(src).not.toMatch(/sendPushToUser/);
   });
 
