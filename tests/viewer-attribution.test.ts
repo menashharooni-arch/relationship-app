@@ -52,7 +52,7 @@ describe("authoritativeEventIdentity — the session always outranks the cached 
 
   it("(6) the owner's notification then names Mina, never Pyramid", () => {
     const id = authoritativeEventIdentity(mina, cachedPyramid);
-    const n = cardEventNotice({ eventType: "viewed_card", visitorName: id.visitor_name });
+    const n = cardEventNotice({ eventType: "viewed_card", visitorName: id.visitor_name, nameConfirmed: true });
     expect(n!.body).toBe("Mina R viewed your card.");
   });
 
@@ -67,7 +67,7 @@ describe("authoritativeEventIdentity — the session always outranks the cached 
     const id = authoritativeEventIdentity(anonymousMina, cachedPyramid);
     expect(id.visitor_name).toBeNull();
     expect(id.visitor_email).toBeNull();
-    const n = cardEventNotice({ eventType: "viewed_card", visitorName: id.visitor_name });
+    const n = cardEventNotice({ eventType: "viewed_card", visitorName: id.visitor_name, nameConfirmed: true });
     expect(n!.body).toBe("Someone viewed your card.");
   });
 
@@ -134,7 +134,11 @@ describe("wiring — the ingest route actually enforces this server-side", () =>
     expect(route).toMatch(/const ownerId = await resolveOwnerId\(admin, card_owner_username\)/);
     const selfTraffic = read("src/lib/self-traffic.ts");
     expect(selfTraffic).toMatch(/isSelfTraffic\(ownerId, sessionUserId\)/);
-    expect(selfTraffic).toMatch(/isSelfTraffic\(ownerId, await deviceOwnerId\(admin\)\)/);
+    // The device signal is now a SET of recent claimants, not "the most recent
+    // one": one browser is routinely signed into two of the same person's
+    // accounts, and taking only the freshest row named the wrong account and
+    // counted the owner as a stranger (owner report, 2026-09-18).
+    expect(selfTraffic).toMatch(/claimsOwner\(await deviceClaimants\(admin\), ownerId\)/);
     // Still never an IP.
     expect(selfTraffic).not.toMatch(/\bip\b\s*[:=]/);
   });

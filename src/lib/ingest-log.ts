@@ -49,6 +49,9 @@ export type IngestReason =
   | "rate_limited"
   /** Refused before anything else: unknown event type, missing slug. */
   | "rejected"
+  /** Arrived at /api/views, which no longer records anything (see that route).
+   *  Its own reason so a client still calling it is visible, not silent. */
+  | "retired_endpoint"
   /** The write failed. The visitor is unaffected; the row is simply lost. */
   | "error";
 

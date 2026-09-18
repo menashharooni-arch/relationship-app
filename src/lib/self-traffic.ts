@@ -34,6 +34,24 @@ export function isSelfTraffic(
   return !!ownerId && !!viewerId && ownerId === viewerId;
 }
 
+/**
+ * How long a browser keeps counting as "signed in as this account" for the
+ * purpose of suppressing the owner's own views. Long enough to cover how people
+ * actually reach their own card (the share sheet, a QR, the app, a laptop they
+ * signed into last month); short enough that a device handed on or resold stops
+ * suppressing the previous owner's analytics.
+ */
+export const DEVICE_CLAIM_MS = 90 * 24 * 60 * 60 * 1000;
+
+/**
+ * Pure set form of {@link isSelfTraffic}: does ANY account that has claimed this
+ * browser own the slug? An empty list or a missing owner never matches, so a
+ * signed-out visitor on an unknown browser is always counted.
+ */
+export function claimsOwner(claimantIds: readonly string[], ownerId: string | null | undefined): boolean {
+  return !!ownerId && claimantIds.some((id) => !!id && id === ownerId);
+}
+
 type Admin = ReturnType<typeof getAdminSupabase>;
 
 // Resolve the user id that owns a slug: the cards table first (multi-card
@@ -85,28 +103,34 @@ export async function resolveOwnerId(admin: Admin, slug: string): Promise<string
 // STILL NOT IP-BASED, and still per-identity: a visitor who shares the owner's
 // network, or borrows their phone while signed out of a DIFFERENT browser, has
 // no sc_device of the owner's and counts normally.
-async function deviceOwnerId(admin: Admin): Promise<string | null> {
+async function deviceClaimants(admin: Admin): Promise<string[]> {
   try {
     const deviceId = (await cookies()).get(DEVICE_COOKIE)?.value;
-    if (!isDeviceId(deviceId)) return null;
-    // MOST RECENT claimant only. One device legitimately maps to several rows
-    // over its life (a shared laptop, a QA account, an owner who signed out and
-    // someone else signed in); "who is signed in on this browser now" is the
-    // only one of those that may suppress a view. Ordering by last_seen means a
-    // device that has moved on to another account stops suppressing the old
-    // one's views immediately.
+    if (!isDeviceId(deviceId)) return [];
+    // EVERY account that has claimed this browser recently, not just the most
+    // recent one (owner report, 2026-09-18).
+    //
+    // "Most recent claimant" was wrong for the commonest case there is: one
+    // person with two SwiftCard accounts on one device. Production proved it —
+    // the owner's two accounts have each claimed the same two device ids, and
+    // last_seen only moves when THAT account loads a protected page. So he
+    // opened his own /swiftcard while the other account's row happened to be
+    // fresher, this check named the wrong account, and his own visit was
+    // recorded as a stranger and pushed to his own phone.
+    //
+    // A set, bounded by DEVICE_CLAIM_MS, keeps the honest half of the old rule
+    // (a device really handed on ages out) and drops the half that could never
+    // be right (one browser, one account, ever).
     const { data } = await admin
       .from("user_devices")
       .select("user_id")
       .eq("device_id", deviceId)
-      .order("last_seen", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    return (data?.user_id as string | undefined) ?? null;
+      .gte("last_seen", new Date(Date.now() - DEVICE_CLAIM_MS).toISOString());
+    return (data ?? []).map((r) => r.user_id as string).filter(Boolean);
   } catch {
     // Table not migrated, cookie store unavailable outside a request, Supabase
     // unreachable — fail towards COUNTING, exactly like the session check.
-    return null;
+    return [];
   }
 }
 
@@ -127,7 +151,7 @@ export async function isOwnerRequest(admin: Admin, slug: string): Promise<boolea
       // exactly the outage/expiry case it exists for.
     }
 
-    return isSelfTraffic(ownerId, await deviceOwnerId(admin));
+    return claimsOwner(await deviceClaimants(admin), ownerId);
   } catch {
     // No request context available (e.g. invoked from a script) — treat as a
     // visitor; never let a lookup failure drop a legitimate event.
@@ -147,5 +171,5 @@ export async function isOwnerActivity(
 ): Promise<boolean> {
   if (!ownerId) return false;
   if (isSelfTraffic(ownerId, sessionUserId)) return true;
-  return isSelfTraffic(ownerId, await deviceOwnerId(admin));
+  return claimsOwner(await deviceClaimants(admin), ownerId);
 }

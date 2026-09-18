@@ -174,12 +174,26 @@ export function groupAccuracy(
   accuracies: Iterable<GeoAccuracy | null | undefined>,
 ): GeoAccuracy | null {
   let worst = -1;
+  let sawUnknown = false;
+  let sawKnown = false;
   for (const a of accuracies) {
-    if (!a) continue;
+    if (!a) { sawUnknown = true; continue; }
+    sawKnown = true;
     const rank = LADDER.indexOf(a);
     if (rank > worst) worst = rank;
   }
-  return worst < 0 ? null : LADDER[worst];
+  if (worst < 0) return null;
+  // A MIXED group may never inherit the confident row's precision (owner
+  // report, 2026-09-18). "Ithaca, US" ×8 with no accuracy folded together with
+  // one two-source "Ithaca, NY" used to render as a flat, confirmed "Ithaca,
+  // NY" — nine visits presented as a confirmed town when one earned it.
+  // An unknown row is, at best, one source's guess at a town, so the group
+  // cannot read better than that.
+  if (sawUnknown && sawKnown) {
+    const floor = LADDER.indexOf("city_approx");
+    return LADDER[Math.max(worst, floor)];
+  }
+  return LADDER[worst];
 }
 
 // Country names for the codes that actually appear in, or plausibly will appear

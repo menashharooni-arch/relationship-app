@@ -53,8 +53,13 @@ describe("one shared visit window", () => {
 
 describe("the views route validates what it stores", () => {
   it("visitorId and source must be strings, and are length-capped", () => {
-    expect(viewsRoute).toMatch(/typeof body\?\.visitorId === "string"[\s\S]{0,120}slice\(0, 64\)/);
-    expect(viewsRoute).toMatch(/typeof body\?\.source === "string"[\s\S]{0,120}slice\(0, 48\)/);
+    // Asserted on the RECORDING route: /api/views was retired 2026-09-18 and no
+    // longer reads a body at all (it records nothing — see view-identity).
+    // One shared `str(value, max)` guard: a non-string or unbounded payload
+    // degrades to absent rather than becoming a permanent row value.
+    expect(eventsRoute).toMatch(/typeof v === "string" && v\.trim\(\) \? v\.trim\(\)\.slice\(0, max\) : null/);
+    expect(eventsRoute).toMatch(/str\(body\?\.visitor_id, 64\)/);
+    expect(eventsRoute).toMatch(/str\(body\?\.source, 48\)/);
   });
 
   it("a visitor with no id still can't loop the endpoint — one counted view per IP per window", () => {
@@ -73,10 +78,9 @@ describe("the views route validates what it stores", () => {
   });
 
   it("announced prefetch/prerender/preview loads are not people", () => {
-    expect(viewsRoute).toMatch(/sec-purpose/);
-    expect(viewsRoute).toMatch(/\/prefetch\|prerender\|preview\//);
-    // Same guard on the sibling ingest route, so the two tables agree.
+    // One recording route since /api/views was retired, so one guard to pin.
     expect(eventsRoute).toMatch(/sec-purpose/);
+    expect(eventsRoute).toMatch(/\/prefetch\|prerender\|preview\//);
   });
 });
 

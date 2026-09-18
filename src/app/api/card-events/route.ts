@@ -199,6 +199,9 @@ export async function POST(req: NextRequest) {
         deviceKey: deviceKeyFor({
           ip, userAgent: req.headers.get("user-agent"), username: viewsKey,
         }),
+        // Only a browser that could keep no identity at all may be deduped on
+        // the (shared-by-design) device key — see record-view.ts.
+        identityMinted: visitIdentity.minted,
         source,
         ip,
       });
@@ -420,6 +423,9 @@ export async function POST(req: NextRequest) {
           // only ever meant "somewhere in New York State" (lib/location-display).
           geoAccuracy: geo.accuracy,
           firstEver,
+          // A session is proof of who this is; a remembered name is not, and
+          // the copy now says which it has (lib/card-event-notify.ts).
+          nameConfirmed: !!sessionViewer,
         });
 
         // Flood backstop: the dedup keys on the client-supplied visitor_id, so

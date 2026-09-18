@@ -127,18 +127,38 @@ describe("cardEventNotice — surface + location copy", () => {
     stripLocationMarks(cardEventNotice(input)!.body);
 
   it("names the location when the event has one, honestly coarse", () => {
-    expect(body({ eventType: "viewed_card", visitorName: "Mina R", location: "Austin, US" }))
+    expect(body({ eventType: "viewed_card", visitorName: "Mina R", nameConfirmed: true, location: "Austin, US" }))
       .toBe("Mina R viewed your card near Austin, US.");
   });
 
+  // WHO, at the confidence actually held (owner report, 2026-09-18). A signed-in
+  // viewer is proof. A name remembered from that visitor's own earlier share
+  // lives in a DEVICE-global store, so on a shared iPad, a kiosk or a demo phone
+  // the next person's view arrives under the last person's name — an
+  // identification the product cannot stand behind, and it used to state it
+  // flatly either way.
+  it("states a name only when a session proves it, and hedges when it is a memory", () => {
+    expect(body({ eventType: "viewed_card", visitorName: "Mina R", nameConfirmed: true }))
+      .toBe("Mina R viewed your card.");
+    expect(body({ eventType: "viewed_card", visitorName: "Mina R" }))
+      .toBe("Looks like Mina R viewed your card.");
+    expect(body({ eventType: "viewed_card", visitorName: "Mina R", nameConfirmed: false }))
+      .toBe("Looks like Mina R viewed your card.");
+    // No name at all is still the plain, honest sentence.
+    expect(body({ eventType: "viewed_card" })).toBe("Someone viewed your card.");
+    // The same rule on a download, which is the other notice this builds.
+    expect(body({ eventType: "downloaded_vcard", visitorName: "Mina R" }))
+      .toBe("Looks like Mina R downloaded your contact card.");
+  });
+
   it("marks that location so a Free account never reads it", () => {
-    const raw = cardEventNotice({ eventType: "viewed_card", visitorName: "Mina R", location: "Austin, US" })!.body;
+    const raw = cardEventNotice({ eventType: "viewed_card", visitorName: "Mina R", nameConfirmed: true, location: "Austin, US" })!.body;
     expect(raw).not.toBe(stripLocationMarks(raw));
     expect(withoutLocation(raw)).toBe("Mina R viewed your card.");
   });
 
   it("omits it entirely when unknown — never a placeholder", () => {
-    expect(body({ eventType: "viewed_card", visitorName: "Mina R", location: null }))
+    expect(body({ eventType: "viewed_card", visitorName: "Mina R", nameConfirmed: true, location: null }))
       .toBe("Mina R viewed your card.");
     expect(body({ eventType: "viewed_card", location: "  " }))
       .toBe("Someone viewed your card.");
@@ -155,7 +175,7 @@ describe("cardEventNotice — surface + location copy", () => {
     // "saved your contact card" was a claim we cannot make — the save happens in
     // the OS "Add to Contacts" sheet and no API reports the outcome back. The
     // download is the part SwiftCard performed, so that is what it says.
-    expect(body({ eventType: "downloaded_vcard", visitorName: "Mina R", source: "qr_code", location: "Austin, US" }))
+    expect(body({ eventType: "downloaded_vcard", visitorName: "Mina R", nameConfirmed: true, source: "qr_code", location: "Austin, US" }))
       .toMatch(/^Mina R downloaded your contact card from .+ near Austin, US\.$/);
     // The TYPE is unchanged: it is the VISIT_RANK key, the push category and the
     // CRM event name, and renaming it would break five consumers for nothing.

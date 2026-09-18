@@ -35,6 +35,10 @@ export async function recordView(opts: {
   /** Last-resort dedupe key for a browser whose storage cannot hold an
    *  identity at all (lib/visit-identity.ts). Null when there is no usable IP. */
   deviceKey?: string | null;
+  /** True when this request arrived with NO durable identity and one had to be
+   *  minted — the only case where the (shared-by-design) device key may dedupe.
+   *  Defaults false: a caller that does not know must never drop a real visit. */
+  identityMinted?: boolean;
   source: string | null;
   ip: string;
 }): Promise<{
@@ -45,7 +49,7 @@ export async function recordView(opts: {
   geo?: GeoResult | null;
   milestone?: MilestoneNotice | null;
 }> {
-  const { req, visitorId, deviceKey = null, source, ip } = opts;
+  const { req, visitorId, deviceKey = null, identityMinted = false, source, ip } = opts;
   const username = opts.username.toLowerCase();
 
   // Only record views for cards that actually serve. Blocks spam inflation of
@@ -110,7 +114,14 @@ export async function recordView(opts: {
   };
 
   let recent = visitorId ? await recentBy("visitor_id", visitorId) : null;
-  if (!recent && deviceKey) recent = await recentBy("device_key", deviceKey);
+  // The device key is sha256(slug + ip + user-agent), and on iOS that is NOT
+  // unique per person: two iPhones on the same iOS build behind one Wi-Fi send
+  // byte-identical user agents, so they share a key. Consulting it for a
+  // visitor who HAS a durable identity deleted the second person's visit — at
+  // exactly the moment this product is for, a QR code passed around a room.
+  // So it is consulted only for a browser that could keep no identity at all,
+  // which is the case it was built for (visit-identity's "minted").
+  if (!recent && deviceKey && identityMinted) recent = await recentBy("device_key", deviceKey);
 
   if (recent) {
     // Same visit, more specific source (a QR scan after a plain open):
