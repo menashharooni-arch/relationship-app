@@ -284,8 +284,36 @@ describe("the panel itself", () => {
   const src = read("src/components/FreeDesignChoice.tsx");
 
   it("offers a real way out, not just a way forward", () => {
-    expect(src).toContain("Continue with Free");
     expect(src).toContain("onContinueFree");
+  });
+
+  it("names what Free means for this card (owner, 2026-09-18)", () => {
+    expect(src).toContain('"Continue with Free and redesign using free features only"');
+  });
+});
+
+describe("no way back once Free is picked on a Pro-design card (owner, 2026-09-18)", () => {
+  // Two ways on and only two: keep the card exactly as built (the trial), or
+  // continue with Free and redesign with free features.
+  it("/welcome renders no Back under the panel", () => {
+    const welcome = read("src/components/WelcomePlan.tsx");
+    const panel = welcome.slice(welcome.indexOf(") : pendingFreeConfirm ? ("), welcome.indexOf("THE plan step"));
+    expect(panel).toContain("<FreeDesignChoice");
+    expect(panel).not.toMatch(/Back</);
+    expect(panel).not.toContain("setPendingFreeConfirm(false)");
+  });
+
+  it("the builder's plan gate hides its Back button while the panel is up", () => {
+    const wizard = read("src/app/cards/new/NewCardWizard.tsx");
+    expect(wizard).not.toContain("Back to plans");
+    expect(wizard).toMatch(/\{!pendingFreeConfirm && \(\s*<button\s+onClick=\{\(\) => setShowPlan\(false\)\}/);
+  });
+});
+
+describe("the panel itself, continued", () => {
+  const src = read("src/components/FreeDesignChoice.tsx");
+  it("keeps its reassurance line under the Free button", () => {
+    expect(src).toContain("You keep your card, your link, your QR code and everything you typed.");
   });
 
   it("discloses the trial's billing terms wherever it offers the trial", () => {

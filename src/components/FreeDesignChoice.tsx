@@ -115,12 +115,18 @@ export default function FreeDesignChoice({
         </>
       )}
 
+      {/* Says what Free MEANS for this card (owner, 2026-09-18): the design
+          goes back to free features, and they redesign it from the editor.
+          It is one of exactly two ways off this panel — there is no Back
+          (neither caller renders one): keep the card as built, or this.
+          Long enough to wrap on a phone, so it is padded and line-spaced for
+          two lines rather than squeezed onto one. */}
       <button
         onClick={onContinueFree}
         disabled={busy}
-        className={`w-full py-3 rounded-full text-sm font-semibold border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 disabled:opacity-50 transition-colors ${native && !onIapPurchased ? "mt-4" : "mt-3"}`}
+        className={`w-full py-3 px-5 rounded-full text-sm leading-snug font-semibold border border-gray-700 text-gray-300 hover:text-white hover:border-gray-500 disabled:opacity-50 transition-colors ${native && !onIapPurchased ? "mt-4" : "mt-3"}`}
       >
-        {busy ? "Saving…" : "Continue with Free"}
+        {busy ? "Saving…" : "Continue with Free and redesign using free features only"}
       </button>
       {/* The reassurance under the exit. Whatever makes Free feel safe has to
           be as readable as what makes Pro attractive, or the choice is only

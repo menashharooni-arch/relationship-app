@@ -314,13 +314,10 @@ export default function WelcomePlan({
               onIapPurchased={goFree}
               busy={loading !== null}
             />
-            <button
-              onClick={() => setPendingFreeConfirm(false)}
-              disabled={loading !== null}
-              className="mt-4 w-full text-gray-500 hover:text-gray-300 text-xs transition-colors disabled:opacity-50"
-            >
-              ← Back
-            </button>
+            {/* No "← Back" (owner, 2026-09-18). Once Free is picked on a card
+                that uses Pro design there are two ways on, and only two: keep
+                the card exactly as built (the trial), or continue with Free
+                and redesign with free features. */}
           </div>
         ) : (
           // THE plan step. Every account passes through here exactly once, with

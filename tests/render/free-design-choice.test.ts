@@ -144,7 +144,7 @@ describe("the Free design choice panel", () => {
       const text = await page.evaluate(() => document.body.innerText);
       expect(text).toContain("Your card uses Pro design");
       expect(text).toContain("Your Brushed finish becomes Flat");
-      expect(text).toContain("Continue with Free");
+      expect(text).toContain("Continue with Free and redesign using free features only");
     } finally { await page.close(); }
   });
 });
