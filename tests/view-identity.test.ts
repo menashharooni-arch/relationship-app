@@ -163,6 +163,7 @@ async function view(opts: {
   ua?: string;
   source?: string | null;
   at?: number;
+  fromCookie?: boolean;
 }) {
   const ip = opts.ip ?? "203.0.113.7";
   const ua = opts.ua ?? "Mozilla/5.0 (iPhone; CPU iPhone OS 26_4 like Mac OS X) Safari/605.1.15";
@@ -181,6 +182,7 @@ async function view(opts: {
       deviceKey: deviceKeyFor({ ip, userAgent: ua, username: SLUG }),
       source: opts.source ?? "direct_link",
       ip,
+      identityFromCookie: opts.fromCookie ?? false,
     });
   } finally {
     if (opts.at != null) vi.useRealTimers();
@@ -289,6 +291,21 @@ describe("one page visit that fires several tracking calls", () => {
     expect((await view({ visitorId: null })).outcome).toBe("recorded");
     expect((await view({ visitorId: null })).outcome).toBe("deduped");
     expect(viewRows()).toHaveLength(1);
+  });
+
+  // Warm-lead plan H7. Two people in one room, same Wi-Fi, same iOS build:
+  // byte-identical device keys. With their cookies they are two proven
+  // identities, and the database index must not merge them.
+  it("two cookie-bearing visitors on one Wi-Fi with identical phones are two views", async () => {
+    expect((await view({ visitorId: "cookie-person-a", fromCookie: true })).outcome).toBe("recorded");
+    expect((await view({ visitorId: "cookie-person-b", fromCookie: true })).outcome).toBe("recorded");
+    expect(viewRows()).toHaveLength(2);
+    expect(viewRows().every((r) => r.device_key == null)).toBe(true);
+  });
+
+  it("a cookie-less browser still carries the device key, so its fresh-id reloads stay one visit", async () => {
+    await view({ visitorId: "fresh-aaaa" });
+    expect(viewRows()[0].device_key).toMatch(/^[0-9a-f]{32}$/);
   });
 
   it("upgrades the source in place rather than adding a row, when the scan arrives second", async () => {
@@ -538,6 +555,8 @@ describe("the pipeline is wired the way the tests assume", () => {
     expect(recordSrc).toMatch(/if \(!recent && deviceKey && identityMinted\) recent = await recentBy\("device_key", deviceKey\);/);
     expect(recordSrc).toMatch(/identityMinted = false/);
     expect(eventsSrc).toMatch(/identityMinted: visitIdentity\.minted/);
+    expect(eventsSrc).toMatch(/identityFromCookie: !visitIdentity\.setCookie/);
+    expect(recordSrc).toMatch(/device_key: identityFromCookie \? null : deviceKey/);
   });
 
   it("owner exclusion has two signals and neither of them is an IP", () => {
