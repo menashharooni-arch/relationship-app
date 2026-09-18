@@ -5,8 +5,9 @@ import { reportError as reportServerError } from "@/lib/report-error";
 import { assertSafeUrl } from "@/lib/safe-fetch";
 import { isPaidPlan } from "@/lib/plan";
 import { stripLocationMarks, withoutLocation } from "@/lib/location-privacy";
+import { genericNames, stripNameMarks } from "@/lib/contact-privacy";
 import {
-  decidePush, fitBody, readPushPrefs, pushCardTag, cardTagLine, MAX_TITLE_CHARS, UNCAPPED, VIEW_ROLLUP_TAG,
+  decidePush, fitBody, readPushPrefs, pushCardTag, cardTagLine, MAX_TITLE_CHARS, OWN_CAP, UNCAPPED, VIEW_ROLLUP_TAG,
   type PushCategory, type PushCardRow,
 } from "@/lib/push-policy";
 
@@ -43,6 +44,9 @@ export async function sendPushToUser(userId: string, payload: {
   /** Set by the policy, never by a caller: no sound, no screen — see PushMode. */
   silent?: boolean;
   category: PushCategory;
+  /** The known contact this push is about (contact_return): counted for the
+   *  one-per-contact-per-day cap and written to push_log.lead_id. */
+  leadId?: string | null;
   /**
    * The slug of the card this is about. For an account with 2+ cards the push
    * then SAYS which card ("Card: Work") — see pushCardTag. Every producer that
@@ -67,13 +71,19 @@ export async function sendPushToUser(userId: string, payload: {
 
   const log = async (outcome: string, endpointCount = 0) => {
     try {
-      await admin.from("push_log").insert({
+      const row: Record<string, unknown> = {
         user_id: userId,
         category: payload.category,
         plan,
         outcome,
         endpoints: endpointCount,
-      });
+      };
+      const { error } = await admin.from("push_log").insert(payload.leadId ? { ...row, lead_id: payload.leadId } : row);
+      // lead_id arrives with supabase/warm-lead-alerts.sql; before that, the
+      // row is still worth having without it.
+      if (error && payload.leadId && (error.code === "42703" || error.code === "PGRST204")) {
+        await admin.from("push_log").insert(row);
+      }
     } catch { /* a logging failure must never stop a notification */ }
   };
 
@@ -81,6 +91,8 @@ export async function sendPushToUser(userId: string, payload: {
   let cappedSentToday = 0;
   let lastViewPushAt: number | null = null;
   let lastViewUpdateAt: number | null = null;
+  let contactReturnSentToday = 0;
+  let sameContactSentToday = 0;
   // Every view that reached this function since the hour's alert: the alert
   // itself, the silent updates after it, and the ones the update throttle held
   // back. That total is what the running-count banner says, so it must count
@@ -104,7 +116,8 @@ export async function sendPushToUser(userId: string, payload: {
       const at = Date.parse(row.created_at as string);
       // The cap counts real interruptions only — never a silent update, never
       // something that was suppressed.
-      if (outcome === "sent" && !UNCAPPED.includes(cat)) cappedSentToday++;
+      if (outcome === "sent" && !UNCAPPED.includes(cat) && !OWN_CAP.includes(cat)) cappedSentToday++;
+      if (outcome === "sent" && cat === "contact_return") contactReturnSentToday++;
       if (cat !== "card_view") continue;
       if (outcome === "sent" && (!lastViewPushAt || at > lastViewPushAt)) lastViewPushAt = at;
       if (outcome === "rollup" && (!lastViewUpdateAt || at > lastViewUpdateAt)) lastViewUpdateAt = at;
@@ -116,8 +129,24 @@ export async function sendPushToUser(userId: string, payload: {
     // dropping every notification in the product.
   }
 
+  // One push per contact per day (decision D4). Asked separately and only for
+  // this category: push_log.lead_id may not be migrated yet, and a failed
+  // filter must never take the whole cap history down with it.
+  if (payload.category === "contact_return" && payload.leadId) {
+    const { count, error } = await admin
+      .from("push_log")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("category", "contact_return")
+      .eq("outcome", "sent")
+      .eq("lead_id", payload.leadId)
+      .gte("created_at", since);
+    if (!error) sameContactSentToday = count ?? 0;
+  }
+
   const verdict = decidePush({
     category: payload.category, prefs, cappedSentToday, lastViewPushAt, lastViewUpdateAt,
+    contactReturnSentToday, sameContactSentToday,
     catchup: payload.catchup === true,
   });
   if (!verdict.send) {
@@ -158,7 +187,11 @@ export async function sendPushToUser(userId: string, payload: {
   // whole fragment comes out and the sentence closes up ("Sam viewed your
   // Swift Links."). A paid account keeps it, with the invisible marks removed.
   // Every push in the product goes through here, so no producer can forget.
-  const plainBody = (s: string) => (paid ? stripLocationMarks(s) : withoutLocation(s));
+  //
+  // The same rule for a KNOWN CONTACT'S NAME (lib/contact-privacy.ts): a Free
+  // lock screen says "A contact re-opened your card", a paid one says "Priya".
+  const plainBody = (s: string) =>
+    paid ? stripNameMarks(stripLocationMarks(s)) : withoutLocation(genericNames(s));
   payload = {
     ...payload,
     title: fitBody(isUpdate ? `${viewsThisHour} views in the last hour` : plainBody(payload.title), MAX_TITLE_CHARS),

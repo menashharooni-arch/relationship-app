@@ -141,7 +141,11 @@ describe("every notifier goes through the visit ledger", () => {
   it("card views and contact saves notify via notifyVisit", () => {
     const src = cardEvents();
     expect(src).toMatch(/await notifyVisit\(\{/);
-    expect(src).toMatch(/cardOwner: card_owner_username,\s*\n\s*visitorId: visitor_id,\s*\n\s*ip,/);
+    // Keyed on the browser — or, for a contact the owner already knows, on the
+    // CONTACT, so their phone and laptop in one half hour are one visit
+    // (warm-lead plan §2.4).
+    expect(src).toMatch(/cardOwner: card_owner_username,\s*\n\s*visitorId: visitWho,\s*\n\s*ip,/);
+    expect(src).toMatch(/const visitWho = returning \? `lead:\$\{returning\.leadId\}` : visitor_id;/);
   });
 
   it("card-events no longer pushes on its own", () => {
@@ -204,7 +208,9 @@ describe("a milestone is a bell row and a headline, never a push of its own", ()
     const src = cardEvents();
     // Passed on the VIEW notice, which is the one already carrying
     // pushCategory "card_view"...
-    expect(src).toMatch(/\.\.\.\(milestone \? \{ pushTitle: milestone\.title \} : \{\}\)/);
+    // (Not over a returning contact's own headline — the milestone still
+    // lands in the bell row.)
+    expect(src).toMatch(/\.\.\.\(milestone && !returning \? \{ pushTitle: milestone\.title \} : \{\}\)/);
     // ...while the milestone's OWN notifyVisit call still has no pushCategory,
     // so it can do nothing but write the bell row.
     const milestoneCall = src.slice(src.indexOf("if (milestone) {"));
@@ -275,7 +281,11 @@ describe("a milestone is a bell row and a headline, never a push of its own", ()
     // And it takes the TITLE only. The body stays "Someone viewed your card
     // near Austin" — the number is already in the headline, and who was on the
     // card is the half a bare statistic would have thrown away.
-    expect(src).not.toMatch(/pushBody/);
+    // The only lock-screen body the route ever sets is a returning contact's
+    // own (lib/contact-return-notify.ts) — never one derived from a milestone.
+    expect(src).not.toMatch(/pushBody: milestone/);
+    expect(src.match(/pushBody/g) ?? []).toHaveLength(3); // the one spread: key, guard, value
+    expect(src).toMatch(/\.\.\.\(returnNotice\?\.pushBody \? \{ pushBody: returnNotice\.pushBody \} : \{\}\)/);
   });
 
   it("does not overwrite the bell row's own type, so the milestone ledger holds", () => {
@@ -291,7 +301,7 @@ describe("a milestone is a bell row and a headline, never a push of its own", ()
     const src = cardEvents();
     // The body is stripped of the invisible location marks on the way out — a
     // customer's CRM record is not the place for them (lib/location-privacy.ts).
-    expect(src).toMatch(/type: "conversation\.notification",\s*\n\s*event: isView \? "card_viewed" : "contact_saved",\s*\n\s*title: notice\.title,[\s\S]{0,600}?body: stripLocationMarks\(notice\.body\),/);
+    expect(src).toMatch(/type: "conversation\.notification",\s*\n\s*event: isView \? "card_viewed" : "contact_saved",\s*\n\s*title: stripNameMarks\(notice\.title\),[\s\S]{0,600}?body: stripNameMarks\(stripLocationMarks\(notice\.body\)\),/);
   });
 });
 

@@ -293,7 +293,7 @@ export default function NotificationBell({
                     <div className="flex items-start gap-3">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-white text-xs font-semibold truncate">{n.title}</p>
+                        <p className="text-white text-xs font-semibold truncate"><NotificationBody text={n.title} /></p>
                         {/* Same renderer as the dashboard list: on a Free
                             account the place a view came from arrives blocked
                             out from the server, and this blurs what is left. */}

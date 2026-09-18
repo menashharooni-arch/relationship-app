@@ -104,7 +104,7 @@ export default function SocialIcons({
     // route as views and downloads — and as a beacon, because the app-scheme
     // handoff below replaces this document and an ordinary fetch would be
     // cancelled with it (lib/track-link-click.ts).
-    trackLinkClick({ username: trackFor, surface: trackSurface, url: s.href, source: trackSource, suppress: suppressTracking });
+    trackLinkClick({ username: trackFor, surface: trackSurface, url: s.href, source: trackSource, label: s.label, suppress: suppressTracking });
     triggerSignupNudge("link_button");
     if (!isMobile) return; // desktop: normal new-tab behavior
     const scheme = appScheme(s.label, s.href);

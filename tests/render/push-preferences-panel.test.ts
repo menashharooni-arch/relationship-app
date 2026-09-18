@@ -35,8 +35,9 @@ describe("the notification preferences panel", () => {
       const page = await render(browser, width);
       try {
         const switches = await page.$$('[role="switch"]');
-        // Five live categories plus quiet hours.
-        expect(switches.length).toBe(6);
+        // Six live categories (Returning contacts joined in the warm-lead
+        // work), "Only Hot contacts" under it while it is on, and quiet hours.
+        expect(switches.length).toBe(8);
 
         const viewport = width;
         for (const el of switches) {

@@ -85,13 +85,22 @@ describe("a contact is always linked to its own activity", () => {
     expect(src).not.toMatch(/if \(!lead\.visitor_id\) return;/);
   });
 
-  it("a view carries who it was, once that is known", async () => {
-    // Views used to send only the browser id, which is why they could never be
-    // attributed to a person or named in a notification.
+  it("a view never carries the browser's own claim of who it is", async () => {
+    // It used to send the swiftcard_visitor blob, which names someone to every
+    // card they open after sharing with ANY one (warm-lead plan H4, owner
+    // decision 2026-09-18). Who a visitor is to this owner is now decided on
+    // the server from the owner's own contact record — tests/known-contact.
     const src = await read("src/components/CardEventTracker.tsx");
-    expect(src).toMatch(/getVisitorInfo/);
-    expect(src).toMatch(/visitor_name:/);
-    expect(src).toMatch(/visitor_email:/);
+    expect(src).not.toMatch(/getVisitorInfo/);
+    expect(src).not.toMatch(/visitor_name:/);
+    expect(src).not.toMatch(/visitor_email:/);
+    expect(src).not.toMatch(/visitor_phone:/);
+  });
+
+  it("the server names an anonymous visitor only from this owner's own record of them", async () => {
+    const route = await read("src/app/api/card-events/route.ts");
+    expect(route).toMatch(/const ownersOwnContact = contact\.kind === "known" && contact\.confidence !== "forwarded" \? contact : null;/);
+    expect(route).toMatch(/visitor_name: ownersOwnContact \? ownersOwnContact\.name \|\| null : null,\s*\n\s*visitor_email: null,\s*\n\s*visitor_phone: null,/);
   });
 });
 

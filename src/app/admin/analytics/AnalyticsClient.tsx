@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getSignupSourceLabel, getSourceLabel } from "@/lib/source-labels";
 import Link from "next/link";
+import type { WarmLeadMetrics } from "@/lib/warm-lead-metrics";
 
 type Funnel = {
   available: boolean;
@@ -29,6 +30,8 @@ type Analytics = {
     relay7: number;
     recentDeclines: { at: string; entity: string; event: string; reason: string; classification: string | null }[];
   };
+  /** Returning-contact alerts (lib/warm-lead-metrics.ts). */
+  warmLead?: WarmLeadMetrics;
   accounts: { total: number; today: number; d7: number; d30: number; series: { date: string; count: number }[]; recent: { name: string; email: string; username: string; plan: string; created_at: string }[] };
   plans: { free: number; pro: number; office: number; paid: number; conversion: number; estMrr: number; compedPaidPlans?: number };
   acquisition: { source: string; signups: number; d30: number; paid: number; paidRate: number }[];
@@ -447,6 +450,38 @@ export default function AnalyticsClient() {
                 </div>
               )}
             </div>
+
+            {/* ── Returning-contact alerts ────────────────────────────────────
+                The warm-lead feature's own scorecard (docs/plans/
+                warm-lead-alerts.md §2.9). "Wrong person" is the number that
+                decides whether it stays on: above 2% of named alerts, the
+                recognition is not good enough to name people. */}
+            {a.warmLead && (
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+                <p className="text-white font-semibold text-sm">Returning-contact alerts · last 30 days</p>
+                <p className="text-gray-600 text-[0.6875rem] mt-0.5 mb-4">
+                  Named alerts, what owners did with them, and how often we named the wrong person (target under 2%).
+                </p>
+                {!a.warmLead.available ? (
+                  <p className="text-amber-400/80 text-xs">
+                    Not recording yet — run <span className="font-mono">supabase/warm-lead-alerts.sql</span> in the Supabase SQL editor.
+                  </p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+                      <Kpi label="Named alerts" value={a.warmLead.named} sub={`${a.warmLead.pushes} reached a phone`} />
+                      <Kpi label="Opened" value={a.warmLead.opened} sub={a.warmLead.named ? `${Math.round((a.warmLead.opened / a.warmLead.named) * 100)}%` : "—"} accent="#60a5fa" />
+                      <Kpi label="Followed up in 24h" value={a.warmLead.followedUp} sub={a.warmLead.named ? `${Math.round((a.warmLead.followedUp / a.warmLead.named) * 100)}%` : "—"} accent="#4ade80" />
+                      <Kpi label="Wrong person" value={a.warmLead.wrong} sub={`${a.warmLead.wrongRate}% of named`} accent={a.warmLead.wrongRate > 2 ? "#f87171" : "#4ade80"} />
+                      <Kpi label="Recognised devices" value={a.warmLead.bindings.reduce((n, [, c]) => n + c, 0)} />
+                    </div>
+                    {a.warmLead.bindings.length > 0 && (
+                      <Bars rows={a.warmLead.bindings} labeler={(k) => ({ form: "Shared their details", link: "Opened a personal link", account: "Signed-in SwiftCard user" } as Record<string, string>)[k] ?? k} />
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
             {/* ── Ingest decisions ────────────────────────────────────────────
                 Not a customer number and never summed into one: card_views is

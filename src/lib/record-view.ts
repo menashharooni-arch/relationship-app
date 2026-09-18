@@ -39,6 +39,13 @@ export async function recordView(opts: {
    *  minted — the only case where the (shared-by-design) device key may dedupe.
    *  Defaults false: a caller that does not know must never drop a real visit. */
   identityMinted?: boolean;
+  /** True when the request carried a valid sc_vid cookie (visit-identity's
+   *  setCookie === false). Such a row is never given a device key, so the
+   *  device-bucket unique index can't merge it with a different person. */
+  identityFromCookie?: boolean;
+  /** The known contact this browser is bound to (lib/known-contact.ts), or
+   *  null. Stamped as card_views.lead_id — never inferred here. */
+  leadId?: string | null;
   source: string | null;
   ip: string;
 }): Promise<{
@@ -49,7 +56,7 @@ export async function recordView(opts: {
   geo?: GeoResult | null;
   milestone?: MilestoneNotice | null;
 }> {
-  const { req, visitorId, deviceKey = null, identityMinted = false, source, ip } = opts;
+  const { req, visitorId, deviceKey = null, identityMinted = false, identityFromCookie = false, leadId = null, source, ip } = opts;
   const username = opts.username.toLowerCase();
 
   // Only record views for cards that actually serve. Blocks spam inflation of
@@ -158,15 +165,36 @@ export async function recordView(opts: {
     // identity, never displayed. Added by supabase/view-identity-hardening.sql
     // so the dedupe above has something to match on when the visitor's browser
     // cannot keep an id of its own.
-    device_key: deviceKey,
+    //
+    // NOT STORED WHEN THE BROWSER BROUGHT ITS sc_vid COOKIE. The key's unique
+    // index (uq_card_views_device_bucket) is enforced on every row that carries
+    // one, and it is what collapses a cookie-less browser's fresh-id reloads
+    // into one visit. But a browser that PROVED its identity with the cookie
+    // needs no backstop, and writing the key for it let the database merge two
+    // different people: two iPhones on one Wi-Fi with the same iOS build share
+    // the key, so the second insert hit 23505 and was counted as a duplicate.
+    // For a known contact (who always carries the cookie after sharing their
+    // details) that swallowed the very visit a re-engagement alert is about.
+    device_key: identityFromCookie ? null : deviceKey,
+    // Added by supabase/warm-lead-alerts.sql. Only present when the owner
+    // knows who this is, so the anonymous common path never depends on it.
+    ...(leadId ? { lead_id: leadId } : {}),
   };
   let { error: insertErr } = await supabase.from("card_views").insert(viewRow);
+  if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204") && "lead_id" in viewRow) {
+    // Only the contact stamp is missing (warm-lead-alerts.sql unapplied):
+    // keep the geo and device columns, drop the stamp.
+    const { lead_id: _lid, ...withoutLead } = viewRow as typeof viewRow & { lead_id?: string };
+    void _lid;
+    ({ error: insertErr } = await supabase.from("card_views").insert(withoutLead));
+  }
   if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
     // Confidence/device columns not migrated yet — record the view without them
     // rather than losing it. Same degrade-and-carry-on pattern as
     // card_events.location and notifications.visit_key.
-    const { geo_accuracy: _ga, geo_source: _gs, device_key: _dk, ...legacyRow } = viewRow;
-    void _ga; void _gs; void _dk;
+    const { geo_accuracy: _ga, geo_source: _gs, device_key: _dk, lead_id: _li, ...legacyRow } =
+      viewRow as typeof viewRow & { lead_id?: string };
+    void _ga; void _gs; void _dk; void _li;
     ({ error: insertErr } = await supabase.from("card_views").insert(legacyRow));
   }
   if (insertErr) {

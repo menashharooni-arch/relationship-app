@@ -318,7 +318,7 @@ export default function SwiftLinkButtons({
               onClick={() => {
                 // No preventDefault anywhere near this: the navigation is the
                 // browser's, and the event is a beacon that cannot delay it.
-                trackLinkClick({ username: trackFor, surface: "links", url: href, source: trackSource, suppress: suppressTracking });
+                trackLinkClick({ username: trackFor, surface: "links", url: href, source: trackSource, label: link.label, suppress: suppressTracking });
                 triggerSignupNudge("link_button");
               }}
               className={`w-full mb-2.5 flex items-center gap-3 rounded-[14px] px-3.5 py-3 transition-transform active:scale-[0.98] ${rowClass}`}
@@ -501,7 +501,7 @@ export default function SwiftLinkButtons({
               onClick={() => {
                 // Playing an embedded video IS the engagement with that link —
                 // it just happens in place instead of in a new tab.
-                trackLinkClick({ username: trackFor, surface: "links", url: link.url, source: trackSource, suppress: suppressTracking });
+                trackLinkClick({ username: trackFor, surface: "links", url: link.url, source: trackSource, label: link.label, suppress: suppressTracking });
                 triggerSignupNudge("link_button");
                 setPlaying(i);
               }}
@@ -519,7 +519,7 @@ export default function SwiftLinkButtons({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => {
-              trackLinkClick({ username: trackFor, surface: "links", url: href, source: trackSource, suppress: suppressTracking });
+              trackLinkClick({ username: trackFor, surface: "links", url: href, source: trackSource, label: link.label, suppress: suppressTracking });
               triggerSignupNudge("link_button");
             }}
             className={tileClasses}

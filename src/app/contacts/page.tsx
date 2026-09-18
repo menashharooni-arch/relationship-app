@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import ContactsClient from "@/components/ContactsClient";
@@ -11,6 +12,7 @@ import GrowLinkButton from "@/components/GrowLinkButton";
 import SettingsLinkButton from "@/components/SettingsLinkButton";
 import { isPaidPlan, LOCKED_LEAD_TAG, PLAN_LIMITS } from "@/lib/plan";
 import { redactPlaceLabel } from "@/lib/location-privacy";
+import { loadIntent } from "@/lib/intent-load";
 import UpgradeButton from "@/components/UpgradeButton";
 import { canViewOfficeAdmin, getOfficeSubUserContext } from "@/lib/office-roles";
 import Link from "next/link";
@@ -61,6 +63,23 @@ export default async function ContactsPage({
   ]);
   if (!user) redirect("/login");
   const { card: cardParam, lead: selectedLeadParam } = params;
+  // THE FIRST STEP OF THE FUNNEL (warm-lead plan §2.9: alert → opened →
+  // follow-up → meeting). Opening a contact — from the push or the bell —
+  // stamps the alerts about them as opened. Only the first open counts, it is
+  // the owner's own rows, and it never holds up the page.
+  if (selectedLeadParam && /^[0-9a-f-]{36}$/i.test(selectedLeadParam)) {
+    const ownerId = user.id;
+    after(async () => {
+      try {
+        await getAdminSupabase()
+          .from("notifications")
+          .update({ opened_at: new Date().toISOString() })
+          .eq("user_id", ownerId)
+          .eq("lead_id", selectedLeadParam)
+          .is("opened_at", null);
+      } catch { /* measurement only */ }
+    });
+  }
   const cookieCard = cookieStore.get(ACTIVE_CARD_COOKIE)?.value ?? null;
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
@@ -133,6 +152,23 @@ export default async function ContactsPage({
   // single highest-intent upsell moment there is: these are real people who
   // already asked to be contacted.
   const lockedCount = paid ? 0 : (rawLeads ?? []).length - (leads ?? []).length;
+
+  // ── Who to follow up with first (lib/intent-score.ts) ───────────────────
+  // Computed here, at read time, for the contacts this page is showing. Scores
+  // are Pro: a Pro account gets each contact's tier and reason; a Free account
+  // gets only HOW MANY are warming up — never which ones, never why — and the
+  // page says so without a word about Pro (the location-blur rule).
+  const intentMap = await loadIntent(
+    admin,
+    (leads ?? []).map((l) => ({ id: l.id as string, created_at: l.created_at as string })),
+  );
+  const intents: Record<string, { tier: string; reason: string | null; lastEngagedAt: string | null }> = {};
+  let warmingCount = 0;
+  for (const [id, r] of intentMap) {
+    if (r.tier === "cold") continue;
+    warmingCount++;
+    if (paid) intents[id] = { tier: r.tier, reason: r.reason, lastEngagedAt: r.lastEngagedAt };
+  }
 
   // showOfficeAdmin resolved in the batch above — the same gate the
   // /office/admin page itself applies, kept for the app-shell "Admin" item.
@@ -323,6 +359,8 @@ export default async function ContactsPage({
           // for a Free account (it pauses the sequence and says so); without
           // this the panel still let them build one that would never go out.
           isPro={paid}
+          intents={intents}
+          warmingCount={paid ? 0 : warmingCount}
           initialCardFilter={selectedCardParam ?? null}
           initialSelectedId={selectedLeadParam ?? null}
           userCards={cardList.map((c) => ({ username: c.username, name: c.label || c.name || c.username }))}

@@ -11,6 +11,8 @@ import type { GeoAccuracy } from "@/lib/request-geo";
 import { CRON_HOUR_UTC } from "@/lib/cron-schedule";
 import AddContactModal from "@/components/AddContactModal";
 import ShareMyInfoButton, { type CardSigner } from "@/components/ShareMyInfoButton";
+import CopyPersonalLinkButton from "@/components/CopyPersonalLinkButton";
+import ContactAlertsToggle from "@/components/ContactAlertsToggle";
 import { PlanGate } from "@/components/PlanGate";
 import { AiDraftTag } from "@/components/AiConsentGate";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
@@ -50,6 +52,12 @@ type CardEvent = {
   surface?: string | null;
   /** For clicked_link: the destination host the visitor tapped. */
   target?: string | null;
+  /** How the visitor was recognised (lib/known-contact.ts). "forwarded" is a
+   *  browser that opened a link sent to this contact after another browser
+   *  already had: shown as the link, never as the person. */
+  lead_confidence?: string | null;
+  /** For clicked_link: the link's own name ("Listings"), when recorded. */
+  target_label?: string | null;
   source: string | null;
   visitor_name: string | null;
   visitor_email: string | null;
@@ -92,10 +100,13 @@ function eventLabel(e: { event_type: string; surface?: string | null }): { label
   return EVENT_LABELS[e.event_type] ?? { label: e.event_type, icon: "·" };
 }
 
-function activityPhrase(e: { event_type: string; surface?: string | null; target?: string | null }): string | undefined {
+function activityPhrase(e: { event_type: string; surface?: string | null; target?: string | null; target_label?: string | null }): string | undefined {
   if (e.event_type === "viewed_card" && e.surface === "links") return "viewed your Swift Links";
   // Name the link when the row knows which one — "tapped your calendly.com
   // link" is the answer a Swift Links owner is actually looking for.
+  // The owner's own name for the link beats its host: two zillow.com links
+  // are "Listings" and "Open house", not the same thing twice.
+  if (e.event_type === "clicked_link" && e.target_label) return `tapped your ${e.target_label} link`;
   if (e.event_type === "clicked_link" && e.target) return `tapped your ${e.target} link`;
   return ACTIVITY_PHRASES[e.event_type];
 }
@@ -166,6 +177,18 @@ function formatDateOnly(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Hot / Warm (lib/intent-score.ts). Cold shows nothing: a label telling the
+// owner a contact has gone quiet is negative analytics, and the absence of a
+// badge already says it. Colours are classes the light theme remaps.
+function IntentBadge({ tier }: { tier?: string | null }) {
+  if (tier !== "hot" && tier !== "warm") return null;
+  return (
+    <span className={`shrink-0 text-[0.625rem] font-bold px-2 py-0.5 rounded-full ${tier === "hot" ? "bg-red-950/60 text-red-300" : "bg-amber-950/60 text-amber-300"}`}>
+      {tier === "hot" ? "Hot" : "Warm"}
+    </span>
+  );
+}
+
 function SourceBadge({ source }: { source: string | null }) {
   if (!source || source === "direct_link") return null;
   return (
@@ -225,8 +248,15 @@ export default function ContactsClient({
   initialCardFilter = null,
   initialSelectedId = null,
   isPro = false,
+  intents = {},
+  warmingCount = 0,
 }: {
   leads: Lead[];
+  /** Pro only: each warming contact's tier and reason (lib/intent-score.ts).
+   *  Cold contacts are absent. */
+  intents?: Record<string, { tier: string; reason: string | null; lastEngagedAt: string | null }>;
+  /** Free only: how many contacts are warming up — never which ones. */
+  warmingCount?: number;
   primaryUsername?: string;
   /** Paid account? Follow-up automations are Pro-only (see the channel cards). */
   isPro?: boolean;
@@ -346,7 +376,9 @@ export default function ContactsClient({
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [seqSaving, setSeqSaving] = useState<"idle" | "saving" | "saved">("idle");
-  const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity">("alpha");
+  const [sortBy, setSortBy] = useState<"alpha" | "recent" | "activity" | "followup">("alpha");
+  // Hot / Warm filter chips (Pro): null shows everyone.
+  const [tierFilter, setTierFilter] = useState<"hot" | "warm" | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [detailTab, setDetailTab] = useState<"conversation" | "info">("conversation");
@@ -774,7 +806,15 @@ export default function ContactsClient({
         (l.company ?? "").toLowerCase().includes(q)
       );
     })
+    .filter((l) => !tierFilter || intents[l.id]?.tier === tierFilter)
     .sort((a, b) => {
+      if (sortBy === "followup") {
+        // Hot, then Warm, then everyone else; most recently engaged first
+        // within a tier (lib/intent-score.ts compareIntent, on what we have).
+        const rank = (id: string) => ({ hot: 2, warm: 1 } as Record<string, number>)[intents[id]?.tier ?? ""] ?? 0;
+        const last = (id: string) => Date.parse(intents[id]?.lastEngagedAt ?? "") || 0;
+        return rank(b.id) - rank(a.id) || last(b.id) - last(a.id) || a.name.localeCompare(b.name);
+      }
       if (sortBy === "recent") {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
@@ -929,6 +969,7 @@ export default function ContactsClient({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className={`text-sm truncate ${unread ? "text-white font-bold" : "text-gray-100 font-semibold"}`}>{lead.name}</p>
+              <IntentBadge tier={intents[lead.id]?.tier} />
               <SourceBadge source={lead.source} />
             </div>
             {lead.company && <p className="text-gray-400 text-xs truncate">{lead.company}</p>}
@@ -1017,8 +1058,32 @@ export default function ContactsClient({
           >
             <option value="alpha">Alphabetical</option>
             <option value="recent">Recently Added</option>
-            <option value="activity">Recent Activity</option>
+            {/* It has always sorted by follow-up date, whatever its old label said. */}
+            <option value="activity">Follow-up Date</option>
+            {isPro && <option value="followup">Follow Up First</option>}
           </select>
+          {isPro && Object.keys(intents).length > 0 && (
+            <div className="flex items-center gap-2 pl-1">
+              {(["hot", "warm"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  aria-pressed={tierFilter === t}
+                  onClick={() => setTierFilter((cur) => (cur === t ? null : t))}
+                  className={`text-[0.6875rem] font-semibold px-2.5 py-1 rounded-full border transition-colors ${tierFilter === t ? "border-blue-500 text-blue-300 bg-blue-950/40" : "border-gray-700 text-gray-400 hover:text-gray-200"}`}
+                >
+                  {t === "hot" ? "Hot" : "Warm"}
+                </button>
+              ))}
+            </div>
+          )}
+          {!isPro && warmingCount > 0 && (
+            // Free: the fact, not the names and not a sales line (the same rule
+            // as a blurred location).
+            <p className="text-xs text-gray-400 pl-1">
+              {warmingCount === 1 ? "1 contact is" : `${warmingCount} contacts are`} warming up
+            </p>
+          )}
           <p className="text-gray-600 text-xs pl-1">{filtered.length} contact{filtered.length !== 1 ? "s" : ""}</p>
         </div>
 
@@ -1115,7 +1180,13 @@ export default function ContactsClient({
                     </span>
                   )}
                   <FlowBadge sequence={selected.follow_up_sequence} />
+                  <IntentBadge tier={intents[selected.id]?.tier} />
                 </div>
+                {intents[selected.id]?.reason && (
+                  // Why this contact is warm, in counts of real things
+                  // ("viewed 3× this week, tapped Calendly") — never a score.
+                  <p className="text-xs text-gray-400 mt-1.5 first-letter:uppercase">{intents[selected.id]!.reason}</p>
+                )}
               </div>
               <button
                 type="button"
@@ -1186,6 +1257,11 @@ export default function ContactsClient({
                 <span className="hidden sm:inline">Save to phone</span>
               </button>
             </div>
+
+            {/* This contact's own card link — opening it is how SwiftCard
+                recognises them when they come back (lib/contact-links.ts). */}
+            <CopyPersonalLinkButton leadId={selected.id} firstName={(selected.name || "them").split(" ")[0]} />
+            <ContactAlertsToggle key={selected.id} leadId={selected.id} initiallyMuted={(selected.tags ?? []).includes("alerts-muted")} />
 
             {/* Tab switcher */}
             <div className="flex bg-gray-900 rounded-xl p-1 gap-1 mb-6">
@@ -1701,7 +1777,7 @@ export default function ContactsClient({
                   // (same tap) — we stopped emitting it, and we hide the historical
                   // ones so old conversations show one "saved your contact" line too.
                   if (ev.event_type === "clicked_save_contact") continue;
-                  items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: eventLabel(ev).icon, text: `${fname} ${activityPhrase(ev) ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
+                  items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: eventLabel(ev).icon, text: ev.lead_confidence === "forwarded" ? `Your link to ${fname} was opened on another device` : `${fname} ${activityPhrase(ev) ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
                 }
                 items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✓", text: `${fname} shared their info with you`, source: selected.source });
                 if (selected.message) items.push({ at: selected.created_at, key: "note", kind: "in", body: selected.message });
