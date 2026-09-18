@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { getVisitorId, getVisitorInfo } from "@/lib/visitor";
+import { getVisitorId } from "@/lib/visitor";
 import { whenIdentityReconciled } from "@/lib/account-state";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 import { waitForHuman } from "@/lib/human-gate";
@@ -85,13 +85,12 @@ export default function CardEventTracker({
       lastFired.set(viewsKey, Date.now());
 
       const visitorId = getVisitorId();
-      // Who is viewing, when we already know. A view used to carry ONLY the
-      // browser id, which made it the one event that could never say who it was:
-      // the owner's notification had to read "Someone viewed your card" even for
-      // a contact they had already met, and the contact's own conversation could
-      // only match it by that id. Once a visitor has shared their details with
-      // anyone, every later view is attributable.
-      const info = getVisitorInfo();
+      // NO NAME, EMAIL OR PHONE ON A VIEW. They used to ride along from the
+      // swiftcard_visitor blob, which is written when someone shares with ANY
+      // card — so every other card that browser opened was told who they were.
+      // Who a visitor is to THIS owner is decided on the server now, from the
+      // owner's own record of them (lib/known-contact.ts); the browser's claim
+      // is not evidence and is no longer sent.
       fetch("/api/card-events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -104,9 +103,6 @@ export default function CardEventTracker({
           // "your Swift Links", and source alone no longer encodes it now that
           // the links page forwards real ?source= attribution (QR/NFC scans).
           surface: viewSurface,
-          visitor_name: info?.name || null,
-          visitor_email: info?.email || null,
-          visitor_phone: info?.phone || null,
           referrer_url: document.referrer || null,
           device_info: navigator.userAgent.slice(0, 250),
           // Only ever sent from here, AFTER waitForHuman: a link scanner or
