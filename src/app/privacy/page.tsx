@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 // match the code. Update LAST_UPDATED whenever the policy meaningfully changes
 // (CalOPPA requires an effective date).
 
-const LAST_UPDATED = "September 16, 2026";
+const LAST_UPDATED = "September 18, 2026";
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="text-[1.25rem] font-bold tracking-[-0.01em] text-slate-900 mt-12 mb-3">{children}</h2>;
@@ -95,9 +95,11 @@ export default function PrivacyPage() {
         <H2>Information collected automatically</H2>
         <ul className="mb-3">
           <LI><strong>View analytics</strong> — when someone opens a card or Swift Links page, we record the view with an approximate location (city/country derived from IP address by our hosting provider), the source (QR code, link, etc.), and basic device info. We do not store visitors&apos; IP addresses with these views.</LI>
+          <LI><strong>A visitor cookie</strong> — opening a card or Swift Links page sets a first-party cookie (used only by SwiftCard, lasting up to two years) so that one visit is counted once. On its own it identifies no one.</LI>
+          <LI><strong>Return visits by people who shared their details</strong> — if you share your details through someone&apos;s card, or open a personal link a SwiftCard user sent you, we connect that browser&apos;s visitor cookie to the details you gave that person. When you open their card again, they can see that it was you, when, how often, and which of their links you tapped, and they may get a notification about it. We only connect a visit to you for the card owner you shared your details with or who sent you the link, never for anyone else. People who have never shared their details stay anonymous. (One exception you control: if you are signed in to your own SwiftCard account when you open someone&apos;s card, they see the name on your card.)</LI>
           <LI><strong>Product analytics</strong> — we record which parts of the app get used (for example: a card was started, a plan was chosen, an upgrade button was clicked) so we can improve it. These records are kept in our own systems, are not tied to your name or email, and are deleted after 90 days. We may also use PostHog for the same purpose. Product improvement only, never third-party advertising.</LI>
           <LI><strong>Fraud-prevention signals</strong> — when you create an account we record your IP address and a coarse, non-unique device signature (derived from your browser type and language). If you subscribe, our payment processor (Stripe) also gives us a non-reversible fingerprint of your payment card — a one-way hash, never your card number. We use these solely to detect abuse of our referral program and free offers (for example, one person inviting themselves, or starting a second free trial from another account) and to rate-limit abuse. We do not use them for advertising.</LI>
-          <LI><strong>Usage basics</strong> — standard server logs and cookies needed to keep you signed in and keep the service secure. We don&apos;t run third-party advertising trackers, and we do not use your data for cross-context behavioral advertising.</LI>
+          <LI><strong>Usage basics</strong> — standard server logs and cookies needed to keep you signed in, keep the service secure, and count card visits accurately (the first-party visitor cookie described above). We don&apos;t run third-party advertising trackers, and we do not use your data for cross-context behavioral advertising.</LI>
         </ul>
 
         <H2>App privacy — what our app collects (Apple disclosure)</H2>
@@ -120,7 +122,7 @@ export default function PrivacyPage() {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {[
                 ["Contact info", "Name, email, phone number you add to your account or card", "Yes", "No"],
-                ["User content", "Card content, photos & logo, bio, the contacts you collect, messages to support", "Yes", "No"],
+                ["User content", "Card content, photos & logo, bio, the contacts you collect and their return visits to your card, messages to support", "Yes", "No"],
                 ["Identifiers", "Your account ID", "Yes", "No"],
                 ["Purchases", "Subscription/purchase history (payments handled by Stripe)", "Yes", "No"],
                 ["Usage data", "Pages visited and features used (product analytics)", "Yes", "No"],
@@ -142,7 +144,7 @@ export default function PrivacyPage() {
         <ul className="mb-3">
           <LI>To run the product: host your card, deliver your Swift Links page, store your contacts, and show you your analytics.</LI>
           <LI>To send messages you set up: follow-up emails (and, where enabled, texts) to your contacts, sent on your behalf with your name.</LI>
-          <LI>To notify you: new-contact alerts by in-app notification, and by push notification if you turn push on.</LI>
+          <LI>To notify you: new-contact alerts, and alerts when a contact you already have comes back to your card, by in-app notification and by push notification if you turn push on.</LI>
           <LI>To bill you (Stripe) and to send service emails like receipts. Marketing emails are optional — every one includes an unsubscribe link.</LI>
           <LI>To keep the Service secure, prevent fraud and abuse, and comply with law.</LI>
           <LI>We <strong>never sell your personal information</strong>, we don&apos;t &quot;share&quot; it for cross-context behavioral advertising (as those terms are defined in the California Consumer Privacy Act), and we never sell your contacts&apos; data. Your contact list is yours.</LI>
@@ -261,6 +263,16 @@ export default function PrivacyPage() {
           every automated email includes an unsubscribe link. See our{" "}
           <Link href="/sms-terms" className="text-brand underline">SMS &amp; Messaging Terms</Link> for the full
           messaging program.
+        </P>
+        <P>
+          After you share your details, that SwiftCard user can see when you come back to their card and which of their
+          links you tap (see &quot;Return visits&quot; above). Links they send you through SwiftCard carry a short code
+          that does the same for the browser you open them in; if you forward the message, visits from other devices are
+          shown to them as &quot;opened on another device&quot;, not under your name. This history is kept until they
+          delete you as a contact or close their account. To stop it: unsubscribing from their emails also stops their
+          links from recognising you, clearing your browser&apos;s cookies for swiftcard.me ends the connection on that
+          browser, and you can ask the SwiftCard user, or us at{" "}
+          <a href="mailto:hello@swiftcard.me" className="text-brand underline">hello@swiftcard.me</a>, to remove it.
         </P>
 
         <H2>Data retention &amp; deleting your account</H2>

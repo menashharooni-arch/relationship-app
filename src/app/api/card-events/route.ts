@@ -327,12 +327,22 @@ export async function POST(req: NextRequest) {
     // WHO viewed: the session decides when there is one. The client-supplied
     // fields come from a device-global localStorage blob that survives account
     // switches, which is how one user's views got recorded under another
-    // user's name (see lib/viewer-identity.ts). Anonymous visitors keep the
-    // client fields — being recognized after sharing once is a feature.
+    // user's name (see lib/viewer-identity.ts).
+    //
+    // AN ANONYMOUS VISITOR IS NAMED ONLY TO AN OWNER THEY GAVE THEIR DETAILS TO.
+    // The blob is written when someone shares with ANY card, and it used to be
+    // stamped on every card that browser opened afterwards — so an owner the
+    // person had never met was told "Looks like Priya viewed your card", with
+    // her email and phone stored on their events (owner decision 2026-09-18,
+    // warm-lead plan hazard H4). The browser's own claim is now never used:
+    // a visitor this owner knows (lib/known-contact.ts) is named from the
+    // owner's OWN record of them, and everyone else is "Someone".
+    const ownersOwnContact = contact.kind === "known" && contact.confidence !== "forwarded" ? contact : null;
+    void visitor_name; void visitor_email; void visitor_phone;
     const identity = authoritativeEventIdentity(sessionViewer, {
-      visitor_name,
-      visitor_email,
-      visitor_phone,
+      visitor_name: ownersOwnContact ? ownersOwnContact.name || null : null,
+      visitor_email: null,
+      visitor_phone: null,
     });
 
     // WHERE from: this request's own edge geo headers, cross-checked against a
