@@ -202,6 +202,9 @@ export async function POST(req: NextRequest) {
         // Only a browser that could keep no identity at all may be deduped on
         // the (shared-by-design) device key — see record-view.ts.
         identityMinted: visitIdentity.minted,
+        // The cookie arrived with the request: a proven identity, so its row
+        // carries no device key and can never be merged with someone else's.
+        identityFromCookie: !visitIdentity.setCookie,
         source,
         ip,
       });
