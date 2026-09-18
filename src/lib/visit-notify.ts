@@ -30,6 +30,12 @@ import { UNCAPPED, type PushCategory } from "@/lib/push-policy";
 /** How newsworthy an event is. A visit only ever moves up this list. */
 export const VISIT_RANK: Record<string, number> = {
   card_viewed: 1,
+  // A contact the owner already knows came back (lib/contact-return-notify.ts),
+  // then did something on the page. Both sit BELOW milestone so a milestone
+  // crossed by this very view can still upgrade the row and write its
+  // once-ever ledger — its copy keeps the contact's sentence in its body.
+  contact_returned: 1.5,
+  contact_engaged: 1.7,
   milestone: 2,
   contact_saved: 3,
   new_lead: 4,
@@ -123,6 +129,12 @@ export type VisitNotice = {
    * survives every later upgrade in the visit.
    */
   milestone?: string;
+  /**
+   * The known contact this row is about (notifications.lead_id). Opens their
+   * contact from the bell without matching on names, and deletes the row
+   * with them (decision D8). Also counted for the per-contact push cap.
+   */
+  leadId?: string | null;
 };
 
 function rankOf(type: string): number {
@@ -209,6 +221,7 @@ export async function notifyVisit(opts: {
       // Same tag for every notification in this visit → the messenger replaces
       // the banner instead of stacking a second one.
       tag,
+      ...(notice.leadId ? { leadId: notice.leadId } : {}),
     }).catch(() => { /* a dead subscription must never fail the event */ });
   };
 
@@ -220,6 +233,7 @@ export async function notifyVisit(opts: {
     body: notice.body,
     visit_key: key,
     ...(notice.milestone ? { milestone: notice.milestone } : {}),
+    ...(notice.leadId ? { lead_id: notice.leadId } : {}),
   };
 
   // Known open visit: upgrade it, or stay quiet. No second row, no second buzz.
@@ -240,8 +254,16 @@ export async function notifyVisit(opts: {
   // Tries dropping the NEWER column first (milestone, supabase/milestone-one-bell.sql)
   // so an environment that has visit_key but not milestone keeps its visit dedupe.
   if (code === "42703" || code === "PGRST204") {
-    const { milestone: _m, ...withoutMilestone } = row as typeof row & { milestone?: string };
-    void _m;
+    // Newest column first: lead_id (warm-lead-alerts.sql) — keep the visit
+    // dedupe and the milestone ledger when only the contact stamp is missing.
+    if ("lead_id" in row) {
+      const { lead_id: _lid, ...withoutLead } = row as typeof row & { lead_id?: string };
+      void _lid;
+      const { error: e0 } = await admin.from("notifications").insert(withoutLead);
+      if (!e0) { await push(); return "created"; }
+    }
+    const { milestone: _m, lead_id: _l2, ...withoutMilestone } = row as typeof row & { milestone?: string; lead_id?: string };
+    void _m; void _l2;
     if ("milestone" in row) {
       const { error: e1 } = await admin.from("notifications").insert(withoutMilestone);
       if (!e1) { await push(); return "created"; }
@@ -288,10 +310,19 @@ async function upgrade(
     // lead upgrades twice; the second upgrade must not wipe the ledger the
     // first one wrote, or the milestone announces itself again forever.
     ...(notice.milestone ? { milestone: notice.milestone } : {}),
+    // Set when the upgrade is about a known contact; never cleared by a later
+    // anonymous-shaped upgrade, for the same reason as the milestone.
+    ...(notice.leadId ? { lead_id: notice.leadId } : {}),
   };
   const { error } = await admin.from("notifications").update(patch).eq("id", id);
   if (!error) return true;
   const code = (error as { code?: string } | null)?.code;
+  if (notice.leadId && (code === "42703" || code === "PGRST204")) {
+    const { lead_id: _l, ...withoutLead } = patch as typeof patch & { lead_id?: string };
+    void _l;
+    const { error: e1 } = await admin.from("notifications").update(withoutLead).eq("id", id);
+    if (!e1) return true;
+  }
   if (notice.milestone && (code === "42703" || code === "PGRST204")) {
     const { milestone: _m, ...withoutMilestone } = patch;
     void _m;
