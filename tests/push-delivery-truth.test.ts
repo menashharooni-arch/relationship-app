@@ -253,3 +253,20 @@ describe("turning notifications on", () => {
     expect(read("capacitor.config.ts")).toMatch(/PushNotifications: \{\s*\n\s*presentationOptions: \["alert", "sound"\],/);
   });
 });
+
+describe("a broken push setup is visible, not silent", () => {
+  it("asks Apple about a fake token: BadDeviceToken back proves the credentials are good", async () => {
+    const { checkApnsCredentials } = await import("@/lib/apns");
+    const good = await checkApnsCredentials((async () => ({ result: "gone", status: 400, reason: "BadDeviceToken" })) as never);
+    expect(good).toEqual({ configured: true, ok: true, reason: "BadDeviceToken" });
+  });
+
+  it("the health endpoint reports it and the 15-minute uptime guard alerts on it", () => {
+    const health = read("src/app/api/health/route.ts");
+    expect(health).toMatch(/apns: await checkApnsCredentials\(\)/);
+    // Reported, never part of `ok`: a bad APNs key must not take the site down.
+    expect(health).toMatch(/\{ ok: db, db, dbMs: Date\.now\(\) - t0, push \}/);
+    const guard = read("scripts/health-check.mjs");
+    expect(guard).toMatch(/push\.apns\?\.configured === true && push\.apns\?\.ok === true && push\.webPush === true/);
+  });
+});
