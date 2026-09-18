@@ -140,8 +140,9 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
         <div className="space-y-4">
           {/* EXACTLY the Card design tab (owner, 2026-09-16: "the same order,
               the same everything"): the shared template gallery, then the
-              shared numbered design steps. Custom design is left out, as it is
-              for a website guest in the real builder. */}
+              shared numbered design steps. Custom design shows LOCKED with its
+              small PRO tag, exactly as for a guest in the real builder — it opens
+              only for a Pro or Office account (owner, 2026-09-18). */}
           <TemplatePicker template={sketch.template} onSelect={(id) => patch({ template: id })} data={data} customUnlocked={false} upsell={false} />
           <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} />
         </div>
