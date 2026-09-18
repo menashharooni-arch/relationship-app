@@ -58,20 +58,27 @@ describe("one geometry, two renderers", () => {
     expect(BAND_H / BAND_W).toBeCloseTo(432 / 1125, 6);
   });
 
-  it("the band's surface is a 180deg ramp ending exactly on the pass background", () => {
-    // The whole seam-free trick: pass.backgroundColor === palette.bottom.
+  it("a single-surface band is a 180deg ramp ending exactly on the pass background", () => {
+    // The seam-free trick for a one-colour card: pass.backgroundColor is the
+    // ramp's last stop. (A two-tone card's body is its details side instead —
+    // see wallet-strip.test.)
     const p = passPalette({
       name: "A", title: null, company: null, photoUrl: null, logoUrl: null,
       phone: null, email: null, website: null, address: null,
-      accentColor: null, template: "classic-pro", style: {}, custom: null,
+      accentColor: null, template: "modern-bold",
+      style: { bgColor: "linear-gradient(135deg, #111827 0%, #6d28d9 100%)" }, custom: null,
     });
     const bg = bandBackground(p);
-    if (p.top !== p.bottom) {
-      expect(bg).toContain("180deg");
-      expect(bg).toContain(p.bottom);
-    } else {
-      expect(bg).toBe(p.top);
-    }
+    expect(p.twoTone).toBe(false);
+    expect(bg).toContain("180deg");
+    expect(bg.trim().endsWith(`${p.body.background} 100%)`)).toBe(true);
+  });
+
+  it("both renderers paint the band from the same layer list", () => {
+    // Satori's strip and this preview must not be two interpretations of a
+    // texture: each maps surfaceLayers() to boxes, and neither draws its own.
+    expect(read("src/lib/wallet-strip.tsx")).toMatch(/surfaceLayers\(palette\.surface, W, H\)/);
+    expect(read("src/components/WalletPassFace.tsx")).toMatch(/surfaceLayers\(palette\.surface, width, bandH\)/);
   });
 
   it("both renderers agree on which lead the band takes", () => {

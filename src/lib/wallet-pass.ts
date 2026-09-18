@@ -70,6 +70,18 @@ export async function passInputs(username: string): Promise<PassInputs | null> {
 }
 
 /**
+ * Which DESIGN of the pass this code draws. Part of the fingerprint below, so
+ * bumping it makes every installed pass read as changed: the next sweep pushes
+ * each device holding one and it re-downloads the new look. A card's own data
+ * can't do that — a redesign changes the code, not the card.
+ *
+ * Bump it whenever the pass's appearance changes for cards that didn't.
+ *   2026-09-18 — the pass copies the card exactly: its textures, two-tone
+ *                details side, accent bar and label colours.
+ */
+export const PASS_DESIGN_VERSION = "card-look-2026-09-18";
+
+/**
  * A fingerprint of what this pass CONTAINS.
  *
  * The web service compares this, not a timestamp, to decide whether a pass has
@@ -85,6 +97,7 @@ export async function passInputs(username: string): Promise<PassInputs | null> {
 export function passContentHash(inputs: PassInputs): string {
   const { card, meta } = inputs;
   const material = JSON.stringify({
+    design: PASS_DESIGN_VERSION,
     card: {
       name: card.name, title: card.title, company: card.company,
       phone: card.phone, email: card.email, website: card.website, label: card.label ?? null,

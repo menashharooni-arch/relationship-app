@@ -112,6 +112,20 @@ describe("pass content fingerprint", () => {
     expect(passContentHash(inputs({}, { address: "1 Main St" }))).toBe(passContentHash(inputs()));
   });
 
+  it("moves for a finish — a Linen card's pass has to update when Linen is added", () => {
+    const base = passContentHash(inputs());
+    expect(passContentHash(inputs({}, { style: { finish: "linen" } }))).not.toBe(base);
+  });
+
+  it("carries the pass DESIGN version, so a redesign reaches passes already installed", async () => {
+    // A redesign changes the code, not any card — without the version in the
+    // fingerprint the sweep would call every installed pass unchanged and the
+    // new look would only ever reach people who re-add it.
+    const src = await (await import("node:fs/promises")).readFile("src/lib/wallet-pass.ts", "utf8");
+    expect(src).toMatch(/design: PASS_DESIGN_VERSION/);
+    expect(src).toMatch(/export const PASS_DESIGN_VERSION = "[\w-]+"/);
+  });
+
   it("survives a card with no resolvable design", () => {
     const bare: PassInputs = { card: inputs().card, meta: null };
     expect(passContentHash(bare)).toBe(passContentHash({ card: inputs().card, meta: null }));

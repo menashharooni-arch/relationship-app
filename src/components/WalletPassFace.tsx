@@ -1,10 +1,12 @@
+import type { CSSProperties } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { passPalette } from "@/lib/wallet-palette";
 import type { ResolvedCardMeta } from "@/lib/resolve-card";
+import type { TemplateStyle } from "@/lib/template-style";
 import {
-  BAND_ASPECT, PAD_LEFT, PAD_RIGHT, IMG, GAP,
+  BAND_ASPECT, PAD_LEFT, PAD_RIGHT, IMG, GAP, CONTENT_SCALE,
   NAME_BASE, TITLE_BASE, COMPANY_BASE,
-  bandPx, bandVariant, initialsOf, bandBackground,
+  bandPx, bandVariant, initialsOf, surfaceLayers,
 } from "@/lib/wallet-band";
 
 // ── The SwiftCard Apple Wallet pass, drawn in the DOM ───────────────────────
@@ -13,14 +15,15 @@ import {
 // shows someone what they get in Wallet, it shows this — so the promise and
 // the download are the same object.
 //
-// It is faithful because it is derived, not copied. The colours come from
-// passPalette(), the same function the pass generator calls; the band's
-// proportions come from lib/wallet-band.ts, the same constants Satori renders
-// the real strip at; and the three blocks below are what lib/wallet.ts
+// It is faithful because it is derived, not copied. The colours, textures and
+// type treatment come from passPalette(), the same function the pass
+// generator calls; the band's surface is painted from surfaceLayers(), the
+// same layer list Satori paints the real strip from; the band's proportions
+// come from lib/wallet-band.ts; and the blocks below are what lib/wallet.ts
 // actually puts in the pass:
 //
 //   1. the strip — the band, composed from the card's own parts
-//   2. two secondary fields — PHONE and EMAIL, on the colour the band ends on
+//   2. two secondary fields — PHONE and EMAIL, on the card's details colour
 //   3. the barcode — a QR of the card URL, altText "Scan to connect"
 //
 // What it deliberately does NOT do is show a shrunken picture of the business
@@ -44,6 +47,8 @@ export type WalletPassCard = {
   logoUrl?: string | null;
   accentColor?: string | null;
   template?: string | null;
+  /** The card's Pro style overrides (colours, finish), when a caller has them. */
+  style?: TemplateStyle;
   cardUrl: string;
 };
 
@@ -56,7 +61,9 @@ function metaFor(card: WalletPassCard): NonNullable<ResolvedCardMeta> {
     website: null, address: null,
     accentColor: card.accentColor ?? null,
     template: card.template ?? null,
-    style: {},
+    // The templates read the accent from the card's style, so that is where
+    // the pass reads it too.
+    style: { ...(card.accentColor ? { accentColor: card.accentColor } : {}), ...card.style },
     custom: null,
   };
 }
@@ -68,6 +75,8 @@ function metaFor(card: WalletPassCard): NonNullable<ResolvedCardMeta> {
 // strip. A mock whose strip touches the top edge is showing a pass Apple
 // never draws. ~40pt, expressed @3x like every other measurement here.
 const HEADER_H = 120;
+
+const ellipsis: CSSProperties = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" };
 
 export default function WalletPassFace({
   card,
@@ -88,11 +97,14 @@ export default function WalletPassFace({
   className?: string;
 }) {
   const palette = passPalette(metaFor(card));
-  const { ink, inkMuted, accent, voice } = palette;
+  const { ink, inkMuted, accent, title: titleInk, voice, rule, nameShadow, lead, body } = palette;
   const variant = bandVariant(palette.prefer, !!card.photoUrl, !!card.logoUrl);
   const px = (at3x: number) => bandPx(width, at3x);
+  /** A card design-px measurement drawn with the type (see CONTENT_SCALE). */
+  const cp = (design: number) => px(design * CONTENT_SCALE);
 
-  const lead = px(IMG);
+  const lead3 = px(IMG);
+  const bandH = Math.round(width * BAND_ASPECT);
   // Apple's barcode block: a ~150pt white square in a 375pt pass. The QR
   // inside it is that box minus its quiet zone.
   const qr = Math.round(width * 0.38);
@@ -100,7 +112,7 @@ export default function WalletPassFace({
   const field = (label: string, value: string) => (
     <div style={{ minWidth: 0, flex: 1 }}>
       <p style={{
-        margin: 0, fontSize: Math.max(6.5, px(26)), fontWeight: 600, color: accent,
+        margin: 0, fontSize: Math.max(6.5, px(26)), fontWeight: 600, color: body.label,
         letterSpacing: "0.06em", textTransform: "uppercase", lineHeight: 1.2,
       }}>{label}</p>
       {/* The 7.5px floor is what keeps this legible in a small marketing mock:
@@ -109,8 +121,8 @@ export default function WalletPassFace({
           mock scale — the tradeoff is deliberate, but it is also why the
           demo email has to be short enough to survive it without ellipsis. */}
       <p style={{
-        margin: `${px(6)}px 0 0`, fontSize: Math.max(7.5, px(30)), fontWeight: 500, color: ink,
-        lineHeight: 1.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        margin: `${px(6)}px 0 0`, fontSize: Math.max(7.5, px(30)), fontWeight: 500, color: body.value,
+        lineHeight: 1.25, ...ellipsis,
       }}>{value}</p>
     </div>
   );
@@ -121,7 +133,9 @@ export default function WalletPassFace({
       style={{
         width,
         ...(height ? { height, display: "flex", flexDirection: "column" } : {}),
-        background: palette.bottom,
+        // The pass colour — the card's details side. It is also what Apple
+        // paints the empty header row with, above the strip.
+        background: body.background,
         // ~10pt at pass scale. The old 0.055 was nearly twice Apple's radius
         // and read as a widget, not a pass.
         borderRadius: Math.round(width * 0.03),
@@ -131,69 +145,93 @@ export default function WalletPassFace({
       {/* 0 ── the empty header row Wallet always reserves (see HEADER_H) */}
       <div style={{ height: px(HEADER_H), flex: "none" }} />
 
-      {/* 1 ── the strip */}
-      <div style={{
-        height: Math.round(width * BAND_ASPECT), flex: "none", background: bandBackground(palette),
-        display: "flex", alignItems: "center",
-        padding: `0 ${px(PAD_RIGHT)}px 0 ${px(PAD_LEFT)}px`, overflow: "hidden",
-      }}>
-        {variant === "portrait" ? (
-          card.photoUrl ? (
+      {/* 1 ── the strip: the card's panel, then its identity */}
+      <div style={{ position: "relative", height: bandH, flex: "none", overflow: "hidden" }}>
+        {surfaceLayers(palette.surface, width, bandH).map((layer, i) =>
+          layer.kind === "media" ? (
             // eslint-disable-next-line @next/next/no-img-element -- fixed-size decorative preview
-            <img src={card.photoUrl} alt="" width={lead} height={lead}
-              style={{ width: lead, height: lead, borderRadius: lead, objectFit: "cover", border: `${px(6)}px solid ${accent}`, flex: "none" }} />
+            <img key={i} src={layer.url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
-            <div style={{
-              width: lead, height: lead, borderRadius: lead, border: `${px(6)}px solid ${accent}`,
-              flex: "none", background: "rgba(255,255,255,0.14)", display: "flex",
-              alignItems: "center", justifyContent: "center",
-              fontSize: px(86), fontWeight: 700, color: ink, letterSpacing: "0.01em",
-            }}>{initialsOf(card.name)}</div>
-          )
-        ) : (
-          <div style={{
-            width: lead, height: lead, borderRadius: px(28), flex: "none",
-            background: "rgba(255,255,255,0.12)", display: "flex",
-            alignItems: "center", justifyContent: "center", overflow: "hidden",
-          }}>
-            {card.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- fixed-size decorative preview
-              <img src={card.logoUrl} alt="" style={{ maxWidth: "78%", maxHeight: "78%", objectFit: "contain" }} />
-            ) : (
-              <span style={{ fontSize: px(88), fontWeight: 700, color: ink, letterSpacing: "0.04em" }}>
-                {initialsOf(card.company || card.name)}
-              </span>
-            )}
-          </div>
+            <div key={i} style={layer.style as CSSProperties} />
+          ),
         )}
 
-        <div style={{ width: px(GAP), flex: "none" }} />
+        <div style={{
+          position: "absolute", inset: 0, display: "flex", alignItems: "center",
+          padding: `0 ${px(PAD_RIGHT)}px 0 ${px(PAD_LEFT)}px`, overflow: "hidden",
+        }}>
+          {variant === "portrait" ? (
+            card.photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- fixed-size decorative preview
+              <img src={card.photoUrl} alt="" width={lead3} height={lead3}
+                style={{ width: lead3, height: lead3, borderRadius: lead3, objectFit: "cover", border: `${px(6)}px solid ${accent}`, flex: "none" }} />
+            ) : (
+              <div style={{
+                width: lead3, height: lead3, borderRadius: lead3, border: `${px(6)}px solid ${accent}`,
+                flex: "none", background: "rgba(255,255,255,0.14)", display: "flex",
+                alignItems: "center", justifyContent: "center",
+                fontSize: px(86), fontWeight: 700, color: ink, letterSpacing: "0.01em",
+              }}>{initialsOf(card.name)}</div>
+            )
+          ) : (
+            <div style={{
+              width: lead3, height: lead3, borderRadius: px(28), flex: "none",
+              background: card.logoUrl ? lead.tile : lead.monogram.background,
+              ...(lead.edge ? { border: `${px(3)}px solid ${lead.edge}` } : {}),
+              display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
+            }}>
+              {card.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- fixed-size decorative preview
+                <img src={card.logoUrl} alt="" style={{ maxWidth: "78%", maxHeight: "78%", objectFit: "contain" }} />
+              ) : (
+                <span style={{ fontSize: px(88), fontWeight: 700, color: lead.monogram.color, letterSpacing: "0.04em" }}>
+                  {initialsOf(card.company || card.name)}
+                </span>
+              )}
+            </div>
+          )}
 
-        <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1, overflow: "hidden" }}>
-          <p style={{
-            margin: 0, fontSize: px(NAME_BASE), fontWeight: voice.weight, color: ink,
-            lineHeight: 1.08, letterSpacing: `${voice.tracking}em`,
-            ...(voice.caps ? { textTransform: "uppercase" as const } : {}),
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          }}>{card.name || "SwiftCard"}</p>
+          <div style={{ width: px(GAP), flex: "none" }} />
 
-          {voice.rule ? (
-            <span style={{ width: px(104), height: px(7), borderRadius: px(7), background: accent, marginTop: px(16) }} />
-          ) : null}
+          <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1, overflow: "hidden" }}>
+            {rule?.at === "above-name" ? (
+              <span style={{
+                width: cp(rule.width), height: cp(rule.height), borderRadius: cp(rule.height),
+                background: rule.color, marginBottom: cp(4),
+              }} />
+            ) : null}
 
-          {card.title ? (
             <p style={{
-              margin: `${px(14)}px 0 0`, fontSize: px(TITLE_BASE), color: accent, fontWeight: 600,
-              lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>{card.title}</p>
-          ) : null}
+              margin: 0, fontSize: px(NAME_BASE), fontWeight: voice.weight, color: ink,
+              lineHeight: 1.08, letterSpacing: `${voice.tracking}em`,
+              ...(voice.caps ? { textTransform: "uppercase" as const } : {}),
+              ...(nameShadow ? { textShadow: `0 ${cp(nameShadow.y)}px ${cp(nameShadow.blur)}px ${nameShadow.color}` } : {}),
+              ...ellipsis,
+            }}>{card.name || "SwiftCard"}</p>
 
-          {card.company ? (
-            <p style={{
-              margin: `${px(6)}px 0 0`, fontSize: px(COMPANY_BASE), color: inkMuted, fontWeight: 600,
-              lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>{card.company}</p>
-          ) : null}
+            {card.title ? (
+              <div style={{ display: "flex", alignItems: "center", marginTop: px(14), minWidth: 0 }}>
+                {rule?.at === "before-title" ? (
+                  <span style={{ width: cp(rule.width), height: Math.max(1, cp(rule.height)), background: rule.color, marginRight: cp(6), flex: "none" }} />
+                ) : null}
+                <p style={{
+                  margin: 0, fontSize: px(TITLE_BASE), color: titleInk, fontWeight: 600,
+                  lineHeight: 1.2, letterSpacing: `${voice.titleTracking}em`,
+                  ...(voice.titleCaps ? { textTransform: "uppercase" as const } : {}),
+                  ...ellipsis,
+                }}>{card.title}</p>
+              </div>
+            ) : null}
+
+            {card.company ? (
+              <p style={{
+                margin: `${px(6)}px 0 0`, fontSize: px(COMPANY_BASE), color: inkMuted, fontWeight: 600,
+                lineHeight: 1.2, letterSpacing: `${voice.companyTracking}em`,
+                ...(voice.companyCaps ? { textTransform: "uppercase" as const } : {}),
+                ...ellipsis,
+              }}>{card.company}</p>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -210,8 +248,8 @@ export default function WalletPassFace({
           under the fields. This spacer is that fill (fixed-height mode only). */}
       {height ? <div style={{ flex: 1 }} /> : null}
 
-      {/* 3 ── the barcode block. Apple draws it on white, whatever the pass
-              colour, because a scanner needs the contrast. */}
+      {/* 3 ── the barcode block. Apple draws it black on white, whatever the
+              pass colour — there is no key to colour it. */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: `${px(16)}px 0 ${px(40)}px`, flex: "none" }}>
         <div style={{ background: "#fff", borderRadius: px(18), padding: px(18), lineHeight: 0 }}>
           {/* qrcode.react emits <svg role="img"> with no name, so VoiceOver
@@ -220,7 +258,7 @@ export default function WalletPassFace({
           <QRCodeSVG value={card.cardUrl} size={qr} bgColor="#ffffff" fgColor="#000000" level="M"
             title={`QR code that opens ${card.name || "this"} SwiftCard`} />
         </div>
-        <p style={{ margin: `${px(14)}px 0 0`, fontSize: Math.max(7, px(25)), color: inkMuted, letterSpacing: "0.01em" }}>
+        <p style={{ margin: `${px(14)}px 0 0`, fontSize: Math.max(7, px(25)), color: body.value, opacity: 0.75, letterSpacing: "0.01em" }}>
           Scan to connect
         </p>
       </div>

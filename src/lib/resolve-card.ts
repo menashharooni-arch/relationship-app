@@ -3,7 +3,7 @@ import { cardIsOffline, cardWithinPlanLimit } from "@/lib/card-active";
 import { cardHeadshot } from "@/lib/card-media";
 import { templateStyle, type TemplateStyle } from "@/lib/template-style";
 import { normalizeCustomLayout } from "@/lib/custom-layout";
-import { isPaidPlan } from "@/lib/plan";
+import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
 import type { CardCustomization } from "@/components/card-templates/types";
 
 /**
@@ -126,7 +126,14 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
       : null;
 
   return {
-    style: templateStyle({ customization: cust }),
+    // Through the same render-time plan filter the card page runs. A Free
+    // account can still have Pro colours, a finish or a panel photo SAVED (a
+    // downgraded Pro — see sanitizeCustomizationForPlan); the page hides them,
+    // so the Wallet pass copying this card must hide them too, or it shows a
+    // design the card itself no longer has.
+    style: templateStyle({
+      customization: sanitizeCustomizationForPlan(cust as Record<string, unknown>, isPaidPlan(plan), rawTemplate || "classic-pro"),
+    }),
     custom,
     name: str(src.name),
     title: str(src.title),
