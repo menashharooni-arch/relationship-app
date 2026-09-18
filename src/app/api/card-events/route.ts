@@ -62,6 +62,8 @@ export async function POST(req: NextRequest) {
     // (lib/track-link-click.ts) and re-bounded here like every other stored
     // field, because a client value is a client value.
     const target = str(body?.target, 120);
+    // The link's own label, for "tapped your Listings link". clicked_link only.
+    const target_label = event_type === "clicked_link" ? str(body?.target_label, 60) : null;
     // A per-contact link token (?ct=, lib/contact-links.ts). The tracker only
     // sends it AFTER the human gate, and only on a view.
     const contact_token = isContactToken(body?.contact_token) ? (body.contact_token as string) : null;
@@ -375,13 +377,16 @@ export async function POST(req: NextRequest) {
       // null — for everyone else, so an unapplied migration costs nothing on
       // the common anonymous path.
       ...(contact.kind === "known" ? { lead_id: contact.leadId, lead_confidence: contact.confidence } : {}),
+      // Also from warm-lead-alerts.sql, and dropped with the contact stamp.
+      ...(target_label ? { target_label } : {}),
     };
     let { error: insertErr } = await admin.from("card_events").insert(row);
-    if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204") && "lead_id" in row) {
+    if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204") && ("lead_id" in row || "target_label" in row)) {
       // warm-lead-alerts.sql not applied yet: keep everything else on the row
-      // and drop only the contact stamp. The newest columns go first.
-      const { lead_id: _l, lead_confidence: _lc, ...withoutLead } = row as typeof row & { lead_id?: string; lead_confidence?: string };
-      void _l; void _lc;
+      // and drop only its columns. The newest columns go first.
+      const { lead_id: _l, lead_confidence: _lc, target_label: _tl, ...withoutLead } =
+        row as typeof row & { lead_id?: string; lead_confidence?: string; target_label?: string };
+      void _l; void _lc; void _tl;
       ({ error: insertErr } = await admin.from("card_events").insert(withoutLead));
     }
     if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
@@ -389,9 +394,9 @@ export async function POST(req: NextRequest) {
       // the optional ones rather than dropping it. Ordered newest-first so the
       // retry is the widest row production can actually accept: location came
       // with view-visit-window.sql, surface/geo_* with analytics-accuracy.sql.
-      const { surface: _s, target: _t, geo_accuracy: _ga, geo_source: _gs, lead_id: _l2, lead_confidence: _lc2, ...withoutNew } =
-        row as typeof row & { lead_id?: string; lead_confidence?: string };
-      void _s; void _t; void _ga; void _gs; void _l2; void _lc2;
+      const { surface: _s, target: _t, geo_accuracy: _ga, geo_source: _gs, lead_id: _l2, lead_confidence: _lc2, target_label: _tl2, ...withoutNew } =
+        row as typeof row & { lead_id?: string; lead_confidence?: string; target_label?: string };
+      void _s; void _t; void _ga; void _gs; void _l2; void _lc2; void _tl2;
       ({ error: insertErr } = await admin.from("card_events").insert(withoutNew));
       if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
         const { location: _unused, ...withoutLocation } = withoutNew;
@@ -720,7 +725,7 @@ export async function GET(req: NextRequest) {
     // lead_confidence arrives with warm-lead-alerts.sql; probed the same way.
     if (cols !== WANT) {
       const probe = await admin.from("card_events").select("lead_confidence").limit(1);
-      if (!probe.error) cols = `${cols}, lead_confidence`;
+      if (!probe.error) cols = `${cols}, lead_confidence, target_label`;
     }
     // Every browser the contact is BOUND to (lib/known-contact.ts): the one
     // they shared from, plus any that opened a link the owner sent. Events

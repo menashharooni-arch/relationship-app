@@ -53,7 +53,7 @@ export default function CardActionLinks({
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => {
-            trackLinkClick({ username: trackFor, surface: "card", url: fullHref(l.url), source: trackSource, suppress: suppressTracking });
+            trackLinkClick({ username: trackFor, surface: "card", url: fullHref(l.url), source: trackSource, label: l.label, suppress: suppressTracking });
             triggerSignupNudge("link_button");
           }}
           // group: lets the chevron lean in on hover without its own listener.

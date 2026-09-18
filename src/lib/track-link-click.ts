@@ -69,6 +69,10 @@ export function trackLinkClick(opts: {
   surface: "card" | "links";
   url: string;
   source: string;
+  /** The link's own name as the owner wrote it ("Listings", "Book a call").
+   *  The host alone can't tell two zillow.com links apart, and "tapped your
+   *  Listings link" is what the owner actually wants to read. */
+  label?: string | null;
   /** True when the OWNER is looking at their own page — record nothing. */
   suppress?: boolean;
 }): void {
@@ -84,6 +88,7 @@ export function trackLinkClick(opts: {
     event_type: "clicked_link",
     surface: opts.surface,
     target,
+    ...(opts.label?.trim() ? { target_label: opts.label.trim().slice(0, 60) } : {}),
     source: opts.source,
   });
 

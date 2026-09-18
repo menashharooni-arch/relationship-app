@@ -55,6 +55,8 @@ type CardEvent = {
    *  browser that opened a link sent to this contact after another browser
    *  already had: shown as the link, never as the person. */
   lead_confidence?: string | null;
+  /** For clicked_link: the link's own name ("Listings"), when recorded. */
+  target_label?: string | null;
   source: string | null;
   visitor_name: string | null;
   visitor_email: string | null;
@@ -97,10 +99,13 @@ function eventLabel(e: { event_type: string; surface?: string | null }): { label
   return EVENT_LABELS[e.event_type] ?? { label: e.event_type, icon: "·" };
 }
 
-function activityPhrase(e: { event_type: string; surface?: string | null; target?: string | null }): string | undefined {
+function activityPhrase(e: { event_type: string; surface?: string | null; target?: string | null; target_label?: string | null }): string | undefined {
   if (e.event_type === "viewed_card" && e.surface === "links") return "viewed your Swift Links";
   // Name the link when the row knows which one — "tapped your calendly.com
   // link" is the answer a Swift Links owner is actually looking for.
+  // The owner's own name for the link beats its host: two zillow.com links
+  // are "Listings" and "Open house", not the same thing twice.
+  if (e.event_type === "clicked_link" && e.target_label) return `tapped your ${e.target_label} link`;
   if (e.event_type === "clicked_link" && e.target) return `tapped your ${e.target} link`;
   return ACTIVITY_PHRASES[e.event_type];
 }
