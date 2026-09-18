@@ -14,6 +14,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { startTour, tourCompleted, TOUR_END_EVENT, TOUR_START_EVENT } from "@/lib/tour";
+import { afterAiConsent } from "@/lib/ai-consent-sequence";
+import { detectNativeApp } from "@/lib/platform";
 
 export default function TourBanner() {
   const [show, setShow] = useState(false);
@@ -24,8 +26,21 @@ export default function TourBanner() {
     // Delayed: on these loads TourAutoStart opens the tour ~0.5s later, and a
     // banner that appears only to vanish is a flash. It shows only if the
     // tour did NOT start (the start event below cancels it).
+    // In the app the 1.5s only starts once the AI permission sheet is answered
+    // (lib/ai-consent-sequence): the tour waits for it, and without waiting too
+    // this invite would pop up behind the sheet, then vanish when the tour
+    // starts. Immediate on the web.
+    // Armed at the same 500ms point as TourAutoStart in the app: by then the
+    // root layout has reset the phase to "pending" for this screen, so a
+    // "settled" left over from an earlier screen cannot release it early.
     let pending: ReturnType<typeof setTimeout> | null = null;
-    if (firstRun && !tourCompleted()) pending = setTimeout(() => setShow(true), 1500);
+    let armT: ReturnType<typeof setTimeout> | null = null;
+    let cancelWait = () => {};
+    const arm = () => { cancelWait = afterAiConsent(() => { pending = setTimeout(() => setShow(true), 1500); }); };
+    if (firstRun && !tourCompleted()) {
+      if (detectNativeApp()) armT = setTimeout(arm, 500);
+      else arm();
+    }
     // If the tour finishes/skips elsewhere, hide the banner too.
     // …and the moment it STARTS: a new account's tour auto-starts, and a
     // "Take a quick tour" invite sitting under the running tour is noise.
@@ -33,6 +48,9 @@ export default function TourBanner() {
     window.addEventListener(TOUR_END_EVENT, onEnd);
     window.addEventListener(TOUR_START_EVENT, onEnd);
     return () => {
+      if (armT) clearTimeout(armT);
+      cancelWait();
+      if (pending) clearTimeout(pending);
       window.removeEventListener(TOUR_END_EVENT, onEnd);
       window.removeEventListener(TOUR_START_EVENT, onEnd);
     };

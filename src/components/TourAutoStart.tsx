@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { startTour, tourCompleted } from "@/lib/tour";
 import { appStoreReady } from "@/lib/app-store";
 import { detectNativeApp } from "@/lib/platform";
+import { afterAiConsent } from "@/lib/ai-consent-sequence";
 
 // Auto-starts the guided tour on the first dashboard load of a new account.
 //
@@ -50,8 +51,15 @@ export default function TourAutoStart() {
     } catch { /* storage blocked — treat as no popup */ }
 
     if (!popupPending) {
-      const t = setTimeout(() => startTour(), 500);
-      return () => clearTimeout(t);
+      // In the app the AI permission sheet comes FIRST (owner, 2026-09-18):
+      // they land on the dashboard, the sheet asks, they press Allow, and then
+      // the tour starts. afterAiConsent is immediate on the web and whenever
+      // there is nothing to ask. It is checked after the 500ms mount delay, by
+      // which time GlobalAiConsent (root layout, whose effects run after this
+      // page's) has started its read and reset the phase to "pending".
+      let cancelWait = () => {};
+      const t = setTimeout(() => { cancelWait = afterAiConsent(() => startTour()); }, 500);
+      return () => { clearTimeout(t); cancelWait(); };
     }
 
     // Start the tour once the app-store screen is dismissed.
