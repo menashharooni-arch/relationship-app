@@ -42,13 +42,18 @@ type Admin = ReturnType<typeof getAdminSupabase>;
 
 export type BindingSource = "form" | "link" | "account";
 
+/** How sure we are, for copy and scoring. "forwarded" is a browser reached
+ *  through a link the owner sent that had ALREADY been opened on another
+ *  browser: someone the contact passed it to, maybe. Never named (D3). */
+export type ContactConfidence = BindingSource | "forwarded";
+
 export type KnownContact = {
   kind: "known";
   leadId: string;
   name: string;
   /** The card slug the lead was captured on (leads.card_owner). */
   cardOwner: string;
-  confidence: BindingSource;
+  confidence: ContactConfidence;
   capturedAt: string;
   status: string | null;
   tags: string[];
@@ -60,7 +65,14 @@ export type ContactResolution = KnownContact | { kind: "anonymous" } | { kind: "
 const ANONYMOUS: ContactResolution = { kind: "anonymous" };
 
 /** The strongest evidence wins when one lead has several bindings to a browser. */
-const CONFIDENCE_ORDER: Record<BindingSource, number> = { form: 3, account: 2, link: 1 };
+const CONFIDENCE_ORDER: Record<ContactConfidence, number> = { form: 3, account: 2, link: 1, forwarded: 0 };
+
+type BindingRow = { lead_id: string; bound_via: BindingSource; link_device_index?: number | null };
+
+/** A link binding past the link's first browser is a forwarded link. */
+export function confidenceOf(b: BindingRow): ContactConfidence {
+  return b.bound_via === "link" && (b.link_device_index ?? 1) > 1 ? "forwarded" : b.bound_via;
+}
 
 export function normalizeEmail(v: unknown): string | null {
   if (typeof v !== "string") return null;
@@ -132,7 +144,7 @@ type LeadRow = {
  * Exported for tests; resolveKnownContact is the only production caller.
  */
 export function decideKnownContact(
-  bindings: { lead_id: string; bound_via: BindingSource }[],
+  bindings: BindingRow[],
   leads: LeadRow[],
   owner: PersonKeys,
 ): ContactResolution {
@@ -142,10 +154,11 @@ export function decideKnownContact(
   const newest = [...eligible].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
   if (eligible.some((l) => l.id !== newest.id && !sharesKey(l, newest))) return { kind: "ambiguous" };
 
-  let confidence: BindingSource | null = null;
+  let confidence: ContactConfidence | null = null;
   for (const b of bindings) {
     if (b.lead_id !== newest.id) continue;
-    if (!confidence || CONFIDENCE_ORDER[b.bound_via] > CONFIDENCE_ORDER[confidence]) confidence = b.bound_via;
+    const c = confidenceOf(b);
+    if (!confidence || CONFIDENCE_ORDER[c] > CONFIDENCE_ORDER[confidence]) confidence = c;
   }
   if (!confidence) return ANONYMOUS;
 
@@ -172,7 +185,7 @@ export async function resolveKnownContact(
   try {
     const { data: bindings, error } = await admin
       .from("contact_devices")
-      .select("lead_id, bound_via")
+      .select("lead_id, bound_via, link_device_index")
       .eq("owner_id", ownerId)
       .eq("visitor_id", visitorId)
       .is("superseded_at", null)
@@ -188,7 +201,7 @@ export async function resolveKnownContact(
 
     const owner = await ownerContactKeys(admin, ownerId);
     return decideKnownContact(
-      bindings as { lead_id: string; bound_via: BindingSource }[],
+      bindings as BindingRow[],
       leads as LeadRow[],
       owner,
     );

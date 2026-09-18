@@ -82,6 +82,19 @@ export const contactsDocs = defineDocs([
       "Text and email leave from your own number and mailbox, so they arrive from you — no \"via SwiftCard\" line, and nothing for a spam filter to object to. Those two don't appear in the contact's Conversation tab, because SwiftCard can't see whether you pressed send. \"Share by both\" does show up there, one entry for the text and one for the email, because we sent them: the text comes from the SwiftCard number and ends with \"Reply STOP to opt out\", and the email comes from your name with your card underneath. It works this way because a phone can only open one app per tap — the old version opened Messages and asked you to come back for the email, and the email half usually never got sent. \"Share by both\" is greyed out unless the contact has both a phone and an email; if you've switched texts off for someone, they get the email only and the button says so. Tapping twice can't send twice.",
   },
   {
+    id: "personal-link",
+    title: "Your personal link for a contact",
+    audience: ["user"],
+    triggers: [
+      "personal link", "copy personal link", "tracked link", "ct=", "why is there a code in my link",
+      "know when they come back", "recognise a contact", "returning contact",
+    ],
+    answer:
+      "Open a contact and tap \"Copy personal link\" under the Call / Share / Save buttons. It copies your card's address with a short code on the end that belongs to that one contact. Paste it into anything you send them yourself (WhatsApp, LinkedIn, your own email). When they open it, SwiftCard knows that phone or computer is theirs, so their later visits show up on their contact.",
+    detail:
+      "Texts and emails SwiftCard sends for you (follow-up automations, messages from the Conversation tab, \"Share by both\") already carry the contact's own link, so you don't need to add it. The code is removed from the address bar as soon as the page opens, so if they copy the address and send it on, the code doesn't go with it. If they forward your original message and up to two more devices open it, those visits are shown as \"your link was opened on another device\", never under the contact's name. Link-checking robots in email systems don't count, because nothing is recorded until a real person has had the card open for a couple of seconds. If someone unsubscribes from email, their links stop recognising anyone.",
+  },
+  {
     id: "follow-up-automations",
     title: "Automated follow-up sequences",
     audience: ["user"],
