@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { getVisitorId, getVisitorInfo } from "@/lib/visitor";
+import { getVisitorId } from "@/lib/visitor";
 import { whenIdentityReconciled } from "@/lib/account-state";
 import { VIEW_VISIT_WINDOW_MS } from "@/lib/view-window";
 import { waitForHuman } from "@/lib/human-gate";
@@ -16,6 +16,32 @@ import { waitForHuman } from "@/lib/human-gate";
 // overcount — it only stops pointless requests).
 const lastFired = new Map<string, number>();
 
+// ── The per-contact link token (?ct=, lib/contact-links.ts) ─────────────────
+// Read ONCE per page load and removed from the address bar immediately, before
+// the human gate even starts: a person who copies the URL to send it on must
+// not pass their identity along with it. Module-level so strict-mode's double
+// mount can't strip it on the first mount and find nothing on the second.
+// Kept in step with CONTACT_LINK_PARAM (pinned by tests/contact-links.test.ts);
+// not imported, because that module is server-only.
+const CONTACT_LINK_PARAM = "ct";
+let contactToken: string | null | undefined;
+function takeContactToken(): string | null {
+  if (contactToken !== undefined) return contactToken;
+  contactToken = null;
+  try {
+    const url = new URL(window.location.href);
+    const t = url.searchParams.get(CONTACT_LINK_PARAM);
+    if (t) {
+      url.searchParams.delete(CONTACT_LINK_PARAM);
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+      if (/^[A-Za-z0-9]{10}$/.test(t)) contactToken = t;
+    }
+  } catch {
+    /* no token */
+  }
+  return contactToken;
+}
+
 export default function CardEventTracker({
   username,
   source,
@@ -29,6 +55,7 @@ export default function CardEventTracker({
 }) {
   useEffect(() => {
     let cancelled = false;
+    const token = takeContactToken();
 
     const fire = async () => {
       // ── Human gate (owner order 2026-08-26: views "cannot have
@@ -58,13 +85,12 @@ export default function CardEventTracker({
       lastFired.set(viewsKey, Date.now());
 
       const visitorId = getVisitorId();
-      // Who is viewing, when we already know. A view used to carry ONLY the
-      // browser id, which made it the one event that could never say who it was:
-      // the owner's notification had to read "Someone viewed your card" even for
-      // a contact they had already met, and the contact's own conversation could
-      // only match it by that id. Once a visitor has shared their details with
-      // anyone, every later view is attributable.
-      const info = getVisitorInfo();
+      // NO NAME, EMAIL OR PHONE ON A VIEW. They used to ride along from the
+      // swiftcard_visitor blob, which is written when someone shares with ANY
+      // card — so every other card that browser opened was told who they were.
+      // Who a visitor is to THIS owner is decided on the server now, from the
+      // owner's own record of them (lib/known-contact.ts); the browser's claim
+      // is not evidence and is no longer sent.
       fetch("/api/card-events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,11 +103,11 @@ export default function CardEventTracker({
           // "your Swift Links", and source alone no longer encodes it now that
           // the links page forwards real ?source= attribution (QR/NFC scans).
           surface: viewSurface,
-          visitor_name: info?.name || null,
-          visitor_email: info?.email || null,
-          visitor_phone: info?.phone || null,
           referrer_url: document.referrer || null,
           device_info: navigator.userAgent.slice(0, 250),
+          // Only ever sent from here, AFTER waitForHuman: a link scanner or
+          // preview that loads the page never gets this far.
+          ...(token ? { contact_token: token } : {}),
         }),
       }).catch(() => {});
 

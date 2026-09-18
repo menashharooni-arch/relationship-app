@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
-import { getOfficeLeads } from "@/lib/office-leads";
+import { getOfficeFollowUp, getOfficeLeads } from "@/lib/office-leads";
+import TeamFollowUp from "./TeamFollowUp";
 import { PageHead } from "@/components/office/OfficeUI";
 import LeadsTable from "./LeadsTable";
 
@@ -13,7 +14,11 @@ export default async function OfficeLeadsPage() {
   // Server-scoped to THIS office (current team + leads stamped at removal time
   // for people who've left) — includes the slug → person-name mapping so the
   // table never shows a raw card URL.
-  const page = await getOfficeLeads(officeId).catch(() => ({ leads: [], total: 0, hasMore: false }));
+  const [page, followUp] = await Promise.all([
+    getOfficeLeads(officeId).catch(() => ({ leads: [], total: 0, hasMore: false })),
+    // The team's Hot / Warm contacts (owner decision D6). Never blocks the table.
+    getOfficeFollowUp(officeId).catch(() => []),
+  ]);
 
   return (
     <div>
@@ -25,6 +30,7 @@ export default async function OfficeLeadsPage() {
         // way to reconcile them.
         desc={`Everyone who shared their info with your team${page.total ? ` — ${page.total.toLocaleString()} so far` : ""}.`}
       />
+      <TeamFollowUp items={followUp} />
       <div data-tour="admin-leads-table">
         <LeadsTable leads={page.leads} total={page.total} hasMore={page.hasMore} />
       </div>

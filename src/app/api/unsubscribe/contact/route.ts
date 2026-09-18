@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyContactUnsubToken, addOptOut } from "@/lib/messaging";
+import { getAdminSupabase } from "@/lib/supabase-admin";
+import { revokeContactLinksForEmail } from "@/lib/contact-links";
 
 // Contact-level unsubscribe: for people who RECEIVED a follow-up from a
 // SwiftCard user (they are leads, not account holders). The signed token
@@ -17,6 +19,7 @@ export async function GET(req: NextRequest) {
   if (!(await addOptOut("email", email))) {
     return NextResponse.redirect(new URL("/unsubscribe?error=failed", req.url));
   }
+  await revokeContactLinksForEmail(getAdminSupabase(), email);
   // scope=contact so the confirmation page describes what actually happened —
   // a platform-wide email opt-out — and hides the dashboard CTAs, which a lead
   // or invitee has no account to reach.
@@ -33,5 +36,6 @@ export async function POST(req: NextRequest) {
   if (!(await addOptOut("email", email))) {
     return NextResponse.json({ error: "Could not record unsubscribe" }, { status: 500 });
   }
+  await revokeContactLinksForEmail(getAdminSupabase(), email);
   return NextResponse.json({ success: true });
 }

@@ -35,6 +35,7 @@ export async function PATCH(req: NextRequest) {
       if (typeof body[cat] === "boolean") push[cat] = body[cat] as boolean;
     }
     if (typeof body.quietHours === "boolean") push.quietHours = body.quietHours;
+    if (typeof body.returningHotOnly === "boolean") push.returningHotOnly = body.returningHotOnly;
     // IANA zone, validated by asking the platform to use it. An invalid string
     // here would throw inside quiet-hours every time and silently fall back to
     // UTC — which is the wrong window for anyone outside London.

@@ -47,6 +47,11 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const CATEGORY_FOR_TYPE: Record<string, PushCategory> = {
   card_viewed: "card_view",
   contact_saved: "contact_saved",
+  // A known contact coming back (lib/contact-return-notify.ts). The row's
+  // title carries their name in a mark; sendPushToUser makes it "A contact"
+  // on a Free lock screen, exactly as the live push does.
+  contact_returned: "contact_return",
+  contact_engaged: "contact_return",
   new_lead: "new_lead",
   lead_reply: "lead_reply",
   payment_failed: "billing_problem",
@@ -57,6 +62,7 @@ const RANK: Record<PushCategory, number> = {
   billing_problem: 5,
   new_lead: 4,
   lead_reply: 4,
+  contact_return: 3.5,
   contact_saved: 3,
   card_view: 1,
   meeting_booked: 2,
@@ -67,7 +73,7 @@ function destinationFor(category: PushCategory, cardOwner: string | null): strin
   if (category === "billing_problem") return `${APP_URL}/settings/flows?billing=1`;
   // A contact who is waiting on a reply belongs in Contacts; a view belongs on
   // the dashboard that shows it. Both are the same screens the live pushes use.
-  if (category === "new_lead" || category === "lead_reply") return `${APP_URL}/contacts${card}`;
+  if (category === "new_lead" || category === "lead_reply" || category === "contact_return") return `${APP_URL}/contacts${card}`;
   return `${APP_URL}/dashboard${card}`;
 }
 

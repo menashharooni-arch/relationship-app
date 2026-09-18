@@ -6,6 +6,7 @@ import { isPaidPlan } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
 import { resolveCardMeta } from "@/lib/resolve-card";
 import { shareImageUrl, warmSharePreviewServer } from "@/lib/share-preview";
+import { contactCardUrl } from "@/lib/contact-links";
 import {
   sendSms,
   sendRawEmail,
@@ -149,7 +150,11 @@ export async function POST(req: NextRequest) {
   // (or a company row) greets by nothing rather than by a string of noise.
   const firstWord = ((lead.name as string) || "").trim().split(/\s+/)[0] ?? "";
   const contactFirst = /^[\p{L}'’-]{2,}$/u.test(firstWord) ? firstWord : "";
-  const cardUrl = `${APP_URL}/${lead.card_owner}?shared=1`;
+  // This contact's own link (lib/contact-links.ts): opening it is how the
+  // browser they open it in gets recognised as them. Shown to them as the
+  // plain address — the token is for the tap, not for reading.
+  const plainCardUrl = `${APP_URL}/${lead.card_owner}?shared=1`;
+  const cardUrl = await contactCardUrl(admin, { leadId: lead.id as string, cardSlug: lead.card_owner as string, channel: "share_card", base: plainCardUrl });
 
   // Heat the link preview BEFORE the message leaves, so the recipient's
   // messenger finds the card image already rendered instead of racing a cold
@@ -232,7 +237,7 @@ export async function POST(req: NextRequest) {
       const html = emailDocument(`<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;background-color:#ffffff;font-size:15px;line-height:1.7;max-width:560px;margin:0 auto;padding:24px 16px;">
   <p style="margin:0 0 16px;">${contactFirst ? `Hi ${esc(contactFirst)},` : "Hi,"}</p>
   <p style="margin:0 0 16px;">Save my contact information in the link below. It opens my digital business card, and you can add me to your phone with one tap.</p>
-  <p style="margin:0 0 20px;"><a href="${cardUrl}" style="color:#2563eb;font-weight:600;">${esc(cardUrl.replace(/^https?:\/\//, ""))}</a></p>
+  <p style="margin:0 0 20px;"><a href="${cardUrl}" style="color:#2563eb;font-weight:600;">${esc(plainCardUrl.replace(/^https?:\/\//, ""))}</a></p>
   ${preview}
   <div style="margin-top:20px;padding-top:14px;border-top:1px solid #e5e7eb;">${sigLines}</div>
   <p style="margin-top:24px;color:#9ca3af;font-size:11px;">You're receiving this because ${esc(ownerName)} shared their contact card with you.${paid ? "" : ` Sent with <a href="${APP_URL}/join?src=share_contact" style="color:#9ca3af;text-decoration:underline;">SwiftCard</a>.`} <a href="${contactUnsubUrl(lead.email as string)}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a></p>

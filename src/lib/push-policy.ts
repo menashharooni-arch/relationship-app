@@ -11,6 +11,8 @@
 //   lead_reply      a lead answered a follow-up           — a live conversation
 //   contact_saved   someone saved their contact card      — high intent
 //   card_view       one of their cards was opened         — batched, ≤1/hour
+//   contact_return  a contact they already know re-opened their card
+//                   — ≤1 per contact per day, ≤5 a day (its own caps, below)
 //   meeting_booked  a meeting was booked from their card
 //   billing_problem a payment failed and access is at risk
 //
@@ -48,6 +50,7 @@ export type PushCategory =
   | "lead_reply"
   | "contact_saved"
   | "card_view"
+  | "contact_return"
   | "meeting_booked"
   | "billing_problem";
 
@@ -56,6 +59,7 @@ export const PUSH_CATEGORIES: PushCategory[] = [
   "lead_reply",
   "contact_saved",
   "card_view",
+  "contact_return",
   "meeting_booked",
   "billing_problem",
 ];
@@ -74,6 +78,7 @@ export const LIVE_CATEGORIES: PushCategory[] = [
   "lead_reply",
   "contact_saved",
   "card_view",
+  "contact_return",
   "billing_problem",
 ];
 
@@ -86,6 +91,7 @@ export const PUSH_CATEGORY_COPY: Record<PushCategory, { label: string; hint: str
   // (lib/card-event-notify.ts); the settings label must not claim more.
   contact_saved: { label: "Contact downloads", hint: "Someone downloads your contact card" },
   card_view: { label: "Card views", hint: "Someone opens one of your cards — at most one an hour" },
+  contact_return: { label: "Returning contacts", hint: "A contact you've met opens your card again" },
   meeting_booked: { label: "Meetings booked", hint: "Someone books time with you from your card" },
   billing_problem: { label: "Billing problems", hint: "A payment failed and your plan is at risk" },
   // NOTE: quiet hours apply to this one too — see decidePush().
@@ -106,11 +112,25 @@ export const DEFAULT_PUSH_PREFS: Record<PushCategory, boolean> = {
   lead_reply: true,
   contact_saved: true,
   card_view: true,
+  contact_return: true,
   meeting_booked: true,
   billing_problem: true,
 };
 
-export const DAILY_CAP = 5;          // excludes UNCAPPED categories
+export const DAILY_CAP = 5;          // excludes UNCAPPED and OWN_CAP categories
+
+/**
+ * Categories with caps of their own, counted apart from DAILY_CAP.
+ *
+ * A known contact coming back is the news the warm-lead feature exists for
+ * (docs/plans/warm-lead-alerts.md), so it must not be crowded out by five card
+ * views earlier in the day, and five card views must not be crowded out by it.
+ * Owner decision D4 (2026-09-18): one push per contact per day, five a day in
+ * all. Everything past that still reaches the bell.
+ */
+export const OWN_CAP: PushCategory[] = ["contact_return"];
+export const CONTACT_RETURN_DAILY_CAP = 5;
+export const CONTACT_RETURN_PER_CONTACT_DAILY_CAP = 1;
 export const QUIET_START_HOUR = 22;  // 10pm local
 export const QUIET_END_HOUR = 8;     // 8am local
 /** How long quiet hours last, and therefore how far back the 8am catch-up looks. */
@@ -131,7 +151,13 @@ export const VIEW_UPDATE_MIN_GAP_MS = 5 * 60 * 1000;
 /** The collapse id every view-count update shares: ONE running counter, replaced in place. */
 export const VIEW_ROLLUP_TAG = "views-hour";
 
-export type PushPrefs = Record<PushCategory, boolean> & { quietHours?: boolean; timezone?: string | null };
+export type PushPrefs = Record<PushCategory, boolean> & {
+  quietHours?: boolean;
+  timezone?: string | null;
+  /** "Only Hot contacts": a returning contact who isn't Hot (lib/intent-score)
+   *  reaches the bell but not the phone. Off unless switched on. */
+  returningHotOnly?: boolean;
+};
 
 /** Read the per-category switches out of profiles.customization. */
 export function readPushPrefs(customization: unknown): PushPrefs {
@@ -144,6 +170,7 @@ export function readPushPrefs(customization: unknown): PushPrefs {
   // Quiet hours are ON unless deliberately switched off.
   out.quietHours = stored.quietHours !== false;
   out.timezone = typeof stored.timezone === "string" ? stored.timezone : null;
+  out.returningHotOnly = stored.returningHotOnly === true;
   return out;
 }
 
@@ -208,6 +235,10 @@ export type PolicyInput = {
   lastViewPushAt?: number | null;
   /** When the last silent view-count update went out, for its own throttle. */
   lastViewUpdateAt?: number | null;
+  /** contact_return pushes sent in the last 24h, all contacts. */
+  contactReturnSentToday?: number;
+  /** contact_return pushes sent in the last 24h about THIS contact. */
+  sameContactSentToday?: number;
   /**
    * THE 8AM CATCH-UP, and nothing else. It is one notification a morning,
    * already rationed by its own once-per-12h mark (api/push/catchup) — which it
@@ -235,7 +266,7 @@ export type PushMode = "alert" | "update";
 
 export type PolicyResult =
   | { send: true; mode: PushMode }
-  | { send: false; reason: "category_off" | "quiet_hours" | "daily_cap" | "batched" };
+  | { send: false; reason: "category_off" | "quiet_hours" | "daily_cap" | "batched" | "contact_cap" };
 
 /**
  * The whole decision, pure so every rule is testable without a database.
@@ -285,6 +316,17 @@ export function decidePush(input: PolicyInput): PolicyResult {
     // Deliberately ahead of the daily cap: the cap counts INTERRUPTIONS, and
     // this one cannot interrupt. It makes no sound and lights no screen.
     return { send: true, mode: "update" };
+  }
+
+  // A returning contact has its own caps and never counts against DAILY_CAP.
+  if (category === "contact_return") {
+    if ((input.sameContactSentToday ?? 0) >= CONTACT_RETURN_PER_CONTACT_DAILY_CAP) {
+      return { send: false, reason: "contact_cap" };
+    }
+    if ((input.contactReturnSentToday ?? 0) >= CONTACT_RETURN_DAILY_CAP) {
+      return { send: false, reason: "daily_cap" };
+    }
+    return { send: true, mode: "alert" };
   }
 
   if (!UNCAPPED.includes(category) && cappedSentToday >= DAILY_CAP) {

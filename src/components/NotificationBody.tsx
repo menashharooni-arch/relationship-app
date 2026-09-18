@@ -45,7 +45,7 @@ export function BlurredPlace({ text }: { text: string }) {
       <span aria-hidden className="select-none pointer-events-none blur-[3px] opacity-70 tracking-tight">
         {text}
       </span>
-      <span className="sr-only">location hidden</span>
+      <span className="sr-only">hidden</span>
     </span>
   );
 }
