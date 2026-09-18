@@ -37,6 +37,10 @@ describe("warm-lead schema", () => {
     expect(cascades).toHaveLength(2);
   });
 
+  it("a push records which contact it was about, for the per-contact cap (D4)", () => {
+    expect(sql).toMatch(/push_log ADD COLUMN IF NOT EXISTS lead_id uuid/);
+  });
+
   it("is safe to re-run", () => {
     expect(sql).not.toMatch(/CREATE TABLE (?!IF NOT EXISTS)/);
     expect(sql).not.toMatch(/CREATE (UNIQUE )?INDEX (?!IF NOT EXISTS)/);
