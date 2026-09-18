@@ -104,9 +104,16 @@ export function aiConsentPermits(consent: AiConsent, isShell: boolean): boolean 
 const NO_ASK_EXACT = ["/login", "/account-deleted", "/onboarding", "/upgrade"];
 const NO_ASK_PREFIXES = ["/auth/", "/cards/new", "/welcome", "/checkout", "/join/"];
 
-export function aiConsentAskAllowedOn(pathname: string | null | undefined): boolean {
+export function aiConsentAskAllowedOn(pathname: string | null | undefined, search?: string | null): boolean {
   if (!pathname) return false;
   if (NO_ASK_EXACT.includes(pathname)) return false;
+  // An invited Office member who had already built a card finishes setting up
+  // on its editor (/cards/[id]/edit?joined=1, sent there by JoinButton), and
+  // its only way on is "Go to my dashboard →" (/dashboard?tour=1). That is a
+  // setup step with an ordinary path, so it is named by its query: the ask
+  // waits for the dashboard, then the tour follows (owner, 2026-09-18 — every
+  // account, every plan, asked on landing in the dashboard).
+  if (search && new URLSearchParams(search).get("joined") === "1") return false;
   return !NO_ASK_PREFIXES.some((p) => pathname === p || pathname.startsWith(p.endsWith("/") ? p : `${p}/`));
 }
 
