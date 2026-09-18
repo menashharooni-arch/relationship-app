@@ -161,7 +161,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
               the same everything"): the shared template gallery, then the
               shared numbered design steps. Custom design is left out, as it is
               for a website guest in the real builder. */}
-          <TemplatePicker template={sketch.template} onSelect={(id) => patch({ template: id })} data={data} customUnlocked={false} hideCustom />
+          <TemplatePicker template={sketch.template} onSelect={(id) => patch({ template: id })} data={data} customUnlocked={false} upsell={false} />
           <TemplateStyleControls value={sketch.style} onChange={patchStyle} template={sketch.template} />
         </div>
       ),

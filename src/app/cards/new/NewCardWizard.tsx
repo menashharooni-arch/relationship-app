@@ -263,11 +263,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // (?plan=pro/office, presetPlan below) already has a fixed target plan, so it
   // skips this extra choice.
   const designUnlocked = isPro || guest || isFirstCard;
-  // …but the freeform Custom design canvas is not part of that preview for a
-  // guest (owner order 2026-09-15: "Through the website, when someone is
-  // creating their card they shouldn't have access to open custom design").
-  // Signed-in Add card keeps it; the card editor is unaffected.
-  const customDesignAvailable = designUnlocked && !guest;
+  // …but Custom design is NOT part of that preview, for anyone. It opens only
+  // for an account that pays — Pro or Office (owner, 2026-09-18: "The only
+  // time someone can ever access custom design is in the actual dashboard if
+  // they pay for the Pro or Office plan"). Everyone else — a guest in Get
+  // Started, a Free account's first card — sees the row, locked, with its
+  // small PRO tag. (Before this, a guest had no row at all and a Free first
+  // card could open the designer as a preview.)
+  const customDesignAvailable = isPro;
   const showAuthedFirstCardGate = !guest && isFirstCard && !isPro && !presetPlan;
 
   // Step 1 — card details. Managed fields start (and stay) on the org's values;
@@ -385,9 +388,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     // visitor already made on the marketing builder.
     if (p.links?.length) setLinks(p.links.map((l) => ({ ...l })));
     if (p.fax) setFax(p.fax);
-    // Never put a guest onto the Custom canvas — it is not offered to them, so
-    // they would be stranded on a design they cannot open or change.
-    if (p.template && !(guest && p.template === "custom")) setTemplate(p.template);
+    // Never put anyone onto a Custom design they cannot open — they would be
+    // stranded on a design they cannot see or change.
+    if (p.template && !(!customDesignAvailable && p.template === "custom")) setTemplate(p.template);
     if (p.logoShape === "circle") setLogoShape("circle");
     // Carry the WHOLE colour/font scheme, not just the accent — the homepage
     // builders expose the same TemplateStyleControls the editor does, so
@@ -812,7 +815,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       // A ?template= from "Apply this design" is an explicit choice made
       // seconds ago, so it beats whatever design a resumed draft happens to
       // carry. Everything else in the draft is still restored.
-      if (typeof p.template === "string" && !validPresetTemplate && !(guest && p.template === "custom")) setTemplate(p.template);
+      if (typeof p.template === "string" && !validPresetTemplate && !(!customDesignAvailable && p.template === "custom")) setTemplate(p.template);
       setBio(s(cust.bio));
       setFax(s(cust.fax));
       if (Array.isArray(cust.links)) setLinks(cust.links as CardLink[]);
@@ -1915,7 +1918,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 onSelect={setTemplate}
                 data={withoutSocials(previewData)}
                 customUnlocked={customDesignAvailable}
-                hideCustom={guest}
+                upsell={false}
               />
 
               {/* The designer comes AFTER the picker that selects it, and is

@@ -14,6 +14,15 @@
 // Custom design is a slim row UNDER the six rather than a banner above them:
 // an advanced Pro path, one option among seven.
 //
+// THE ROW IS ON EVERY CARD-DESIGN SCREEN, and it is only ever OPEN to a paying
+// account (owner, 2026-09-18: "I want custom design to be shown with a very
+// small pro tag but I want it to be locked. The only time someone can ever
+// access custom design is in the actual dashboard if they pay for the Pro or
+// Office plan."). So there is no longer a way to leave it out: Get Started, the
+// homepage builders, Add card, Edit card and Office Branding all draw the same
+// seven options. Locked, it carries the small PRO tag, reads "Locked" and does
+// nothing when tapped; the caller decides only whether it is open.
+//
 // Tile markup: the thumbnail is an inert picture and the BUTTON is a sibling
 // laid over it, never its ancestor. A template renders real <a> links, and an
 // <a> inside a <button> is invalid HTML (and a hydration warning), inert or not.
@@ -106,25 +115,26 @@ export default function TemplatePicker({
   data,
   customUnlocked,
   notice,
-  hideCustom = false,
+  upsell = true,
   proTags = false,
 }: {
   template: string;
   onSelect: (id: string) => void;
   /** The card's live preview data, socials already stripped for the presets. */
   data: CardData;
-  /** Whether the Custom tile can be chosen (Pro in the editor; also guests and first cards in the wizard). */
+  /** Whether the Custom row can be opened: a signed-in Pro or Office account only. */
   customUnlocked: boolean;
   /** Optional one-line note under the heading (the wizard's Free-preview notice). */
   notice?: React.ReactNode;
-  /** Leave the Custom design row out entirely. The website's card builder sets
-   *  this for a guest (owner order 2026-09-15: "when someone is creating their
-   *  card they shouldn't have access to open custom design"). Not greyed out,
-   *  not teased — a locked tile with no account behind it is a dead end, and
-   *  the designer's scan/upload paths need a session. The editor never sets it. */
-  hideCustom?: boolean;
-  /** Light-blue PRO tag on the Custom design row. A Free account's Edit card
-   *  only (owner, 2026-09-18), matching the tags in the design steps below. */
+  /** The "unlock the custom designer with Pro →" line under a LOCKED row. Only
+   *  where the reader is signed in and can leave for /upgrade without losing
+   *  anything — the card editor. Off in the card builder (the plan step comes
+   *  at its end, and a link away would drop the card being built), in the
+   *  homepage builders and on marketing pages. */
+  upsell?: boolean;
+  /** Light-blue PRO tags on the design steps of a Free account's Edit card
+   *  (owner, 2026-09-18). The Custom row carries its tag whenever it is locked,
+   *  with or without this. */
   proTags?: boolean;
 }) {
   // Seven real cards re-render on every colour tap. Deferring their data keeps
@@ -152,14 +162,12 @@ export default function TemplatePicker({
         ))}
         {/* Full width, one slim row: an option with no picture to show does
             not get a card-sized box of its own. */}
-        {!hideCustom && (
-          <Tile label="Custom design" selected={customSelected} disabled={!customUnlocked} showLabel={false} className="col-span-full" onSelect={() => onSelect("custom")}>
-            <CustomDesignTileFace selected={customSelected} unlocked={customUnlocked} proTag={proTags} />
-          </Tile>
-        )}
+        <Tile label={customUnlocked ? "Custom design" : "Custom design (Pro, locked)"} selected={customSelected} disabled={!customUnlocked} showLabel={false} className="col-span-full" onSelect={() => onSelect("custom")}>
+          <CustomDesignTileFace selected={customSelected} unlocked={customUnlocked} proTag={proTags || !customUnlocked} />
+        </Tile>
       </div>
       <p className="text-[0.6875rem] text-gray-500 leading-snug mt-3">{caption}</p>
-      {!customUnlocked && !hideCustom && <CustomDesignUpsell />}
+      {!customUnlocked && upsell && <CustomDesignUpsell />}
     </div>
   );
 }

@@ -165,12 +165,27 @@ describe("template gallery", () => {
     await page.context().close();
   });
 
-  it("locks Custom without Pro, and says so", async () => {
+  it("locks Custom without Pro, and says so — to the eye and to a screen reader", async () => {
     const page = await mount("picker", "unlocked=0");
-    const custom = await page.$("button[aria-label='Custom design']");
+    const custom = await page.$("button[aria-label='Custom design (Pro, locked)']");
     expect(await custom!.isDisabled()).toBe(true);
     expect(await page.textContent("body")).toContain("unlock the custom designer with Pro");
-    // No tag unless the Edit card of a Free account asks for it.
+    // Locked means tagged, on every screen (owner, 2026-09-18: "shown with a
+    // very small pro tag but I want it to be locked") — not only a Free Edit
+    // card any more.
+    const tag = await page.$("[data-ds='badge']");
+    expect(await tag!.textContent()).toBe("PRO");
+    expect(await tag!.isVisible()).toBe(true);
+    // Tapping it does nothing: the card stays on the template it had.
+    await page.click("button[aria-label='Custom design (Pro, locked)']", { force: true });
+    await page.waitForTimeout(100);
+    expect(await page.evaluate(() => (window as unknown as { __picked: string }).__picked)).toBe("classic-pro");
+    await page.context().close();
+  });
+
+  it("open for Pro: no tag, no lock", async () => {
+    const page = await mount("picker", "unlocked=1");
+    expect(await page.$("button[aria-label='Custom design']")).not.toBeNull();
     expect(await page.$$eval("[data-ds='badge']", (els) => els.length)).toBe(0);
     await page.context().close();
   });

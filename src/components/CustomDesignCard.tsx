@@ -34,10 +34,9 @@ export function CustomDesignTileFace({ selected, unlocked, proTag = false }: { s
         <span className="min-w-0 text-[0.8125rem] font-semibold text-gray-200 truncate">Custom design</span>
         {proTag && <ProTag />}
       </span>
-      {/* The PRO tag shows on a Free account's Edit card (owner, 2026-09-18),
-          like every other Pro choice there. Whether the designer can be opened
-          is unchanged — the row says "Locked" and the line under the gallery
-          explains why. */}
+      {/* The small PRO tag shows wherever the row is LOCKED — Get Started, the
+          homepage builders, a Free account's Add card and Edit card (owner,
+          2026-09-18: shown everywhere, locked, open only to Pro and Office). */}
       <span className={`text-[0.6875rem] font-semibold shrink-0 ${selected ? "text-blue-300" : "text-gray-400"}`}>
         {selected ? "Selected" : unlocked ? "Design →" : "Locked"}
       </span>

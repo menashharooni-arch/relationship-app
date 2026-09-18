@@ -837,7 +837,7 @@ function CardBranding() {
 
       <div className="@3xl:col-start-1 min-w-0 flex flex-col gap-4">
         <Section n={2} title="Card appearance" desc="The design your whole team inherits — template, colors and fonts.">
-          <TemplatePicker template={template} onSelect={setTemplate} data={previewData} customUnlocked={false} hideCustom />
+          <TemplatePicker template={template} onSelect={setTemplate} data={previewData} customUnlocked={false} upsell={false} />
           <div className="mt-4">
             <TemplateStyleControls value={design} onChange={(p) => setDesign((prev) => ({ ...prev, ...p }))} template={template} canUpload={false} />
           </div>
