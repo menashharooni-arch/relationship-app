@@ -56,6 +56,16 @@ export const dashboardDocs = defineDocs([
       "Opening the bell does not mark anything read — the badge only drops when you tap Read, Mark all read, or dismiss. The bell polls for new items; the dashboard panel is rendered with the page and only updates on reload. Both show the 20 most recent. \"Clear read\" removes read ones permanently. You'll get notifications for new contacts, card views, contact-card downloads, and view milestones (5, 10, 25, 50, 100 and up, counted per card). A milestone row ends with one suggestion of something to do next \u2014 where to put your card so it keeps working, or which number in the dashboard is worth a look. A download notification reads \"downloaded your contact card\", not \"saved\": the Add-to-Contacts screen belongs to the phone's operating system, so SwiftCard can tell you it handed the card over but never whether they then tapped Add. \"Someone viewed your card\" simply means that viewer has never shared their details through SwiftCard — it isn't a fault or a privacy setting. One person gets you ONE notification per visit: if they view your card and then save your contact or share their info back, the same notification updates to say the latest thing they did instead of arriving again. A view that crosses a milestone updates that same notification too — you get one row reading \"50 views — on fire!\" that still names who just viewed, not a separate milestone alert alongside it. A return visit more than 30 minutes later counts as new and notifies again.",
   },
   {
+    id: "follow-up-first",
+    title: "The \"Follow up first\" box",
+    audience: ["user"],
+    triggers: ["follow up first", "who to follow up", "warming up", "hot contacts on dashboard"],
+    answer:
+      "When contacts on the card you have selected have come back to your card recently, a \"Follow up first\" box appears at the top of Quick Contacts on the dashboard. On Pro it lists up to five of them, hottest first, each with a Hot or Warm badge and the reason (for example \"viewed 3× this week, tapped Calendly\"). Tap one to open that contact.",
+    detail:
+      "The box only appears when there is someone to list. It disappears when nobody has been active recently. On the Free plan it says how many contacts are warming up, without naming them. The badges and reasons are the same ones shown in Contacts; see \"Hot and Warm contacts\" for how they're worked out.",
+  },
+  {
     id: "event-tag",
     title: "Tagging the contacts you meet at an event",
     audience: ["user"],
