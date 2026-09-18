@@ -10,14 +10,53 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 // with the milestone unique index in place, the loser of a concurrent race gets
 // a 23505 here, and without a signal it would carry on and send a duplicate push
 // for a notification it never created.
+/** How long an identical notification counts as a redelivery of the same event. */
+export const DUPLICATE_WINDOW_MS = 10 * 60 * 1000;
+
 export async function insertNotification(row: {
   user_id: string;
   card_owner?: string | null;
   type: string;
   title: string;
   body: string;
-}): Promise<boolean> {
+}, opts: {
+  /** The caller has its OWN idempotency key and identical words can be real
+   *  news: a contact texting "Yes" twice is two replies. (Twilio inbound dedupes
+   *  on MessageSid.) Skips the identical-words check below. */
+  allowRepeat?: boolean;
+} = {}): Promise<boolean> {
   const admin = getAdminSupabase();
+
+  // THE SAME WORDS TWICE IN TEN MINUTES IS A RETRY, NOT NEWS.
+  //
+  // Everything that reaches this function is driven by something that
+  // redelivers: a Stripe webhook that 500s and is sent again, a Twilio webhook
+  // that timed out, a cron run overlapping the last one, two code paths that
+  // both notice Pro ended (Stripe + Apple). Each caller had its own idea of
+  // idempotency and several had none, so the bell could show the same sentence
+  // twice — and where a push rides on the row, the phone buzzed twice.
+  //
+  // Identical means identical: same person, same type, same title, same body,
+  // same card. Two different replies from one contact differ in body and both
+  // go through. Returns false like any other rejected duplicate, which is the
+  // signal callers already gate their push on. Best-effort: if the lookup fails
+  // the row is written, because a missing notification is worse than a rare
+  // double.
+  if (!opts.allowRepeat) try {
+    let q = admin
+      .from("notifications")
+      .select("id")
+      .eq("user_id", row.user_id)
+      .eq("type", row.type)
+      .eq("title", row.title)
+      .eq("body", row.body)
+      .gte("created_at", new Date(Date.now() - DUPLICATE_WINDOW_MS).toISOString())
+      .limit(1);
+    q = row.card_owner ? q.eq("card_owner", row.card_owner) : q.is("card_owner", null);
+    const { data: twin } = await q;
+    if (twin?.length) return false;
+  } catch { /* fall through and write it */ }
+
   const { error } = await admin.from("notifications").insert(row);
   if (!error) return true;
   // Missing column surfaces as 42703 (Postgres) or PGRST204 (PostgREST schema

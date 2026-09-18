@@ -113,6 +113,15 @@ const config: CapacitorConfig = {
     Preferences: {
       group: "group.me.swiftcard.app",
     },
+    // SHOW THE BANNER WHILE THE APP IS OPEN. Without presentationOptions iOS
+    // delivers a push to a FOREGROUND app silently — no banner, no sound — so
+    // "a contact replied" arriving while the owner has SwiftCard on screen
+    // simply never appeared (2026-09-18 notification audit). No "badge": the
+    // server sends no badge count, and a number nothing ever clears is worse
+    // than none. Takes effect on the NEXT native build (`npx cap sync ios`).
+    PushNotifications: {
+      presentationOptions: ["alert", "sound"],
+    },
   },
 };
 
