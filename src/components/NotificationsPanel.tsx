@@ -21,7 +21,13 @@ type Notification = {
   body: string | null;
   read: boolean;
   created_at: string;
+  /** The known contact this row is about (warm-lead-alerts.sql). */
+  lead_id?: string | null;
 };
+
+// Rows that NAME a contact the owner already knows (lib/contact-return-notify):
+// they carry a "Wrong person?" so a misidentification is one tap to undo.
+const NAMED_RETURN_TYPES = new Set(["contact_returned", "contact_engaged"]);
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -39,7 +45,7 @@ function timeAgo(iso: string) {
 // row names them and the useful destination is that person's conversation, not
 // a chart. When it is "Someone", the name match below finds nothing and the
 // row opens the contacts list, which is still the right place to look.
-const CONTACT_TYPES = new Set(["new_lead", "contact_saved", "card_viewed"]);
+const CONTACT_TYPES = new Set(["new_lead", "contact_saved", "card_viewed", "contact_returned", "contact_engaged"]);
 
 // Stamp the optimistic-op grace window. Lives at module scope so the React
 // compiler doesn't treat the Date.now() call as render-time impurity — it only
@@ -64,14 +70,20 @@ export default function NotificationsPanel({
   // the Contacts page. Notifications only store text, so match the lead by name
   // against the title/body (longest name wins, so "Ann" can't shadow "Ann Lee").
   // No match → the card's contacts list.
+  //
+  // A row that KNOWS its contact (lead_id, stamped by the server) opens them
+  // directly — the name match is only for rows written before that existed.
   function openContactFor(n: Notification) {
     const hay = `${n.title} ${n.body ?? ""}`.toLowerCase();
-    const match = leads
-      .filter((l) => l.name.trim() && hay.includes(l.name.trim().toLowerCase()))
-      .sort((a, b) => b.name.length - a.name.length)[0];
+    const match = n.lead_id
+      ? { id: n.lead_id }
+      : leads
+          .filter((l) => l.name.trim() && hay.includes(l.name.trim().toLowerCase()))
+          .sort((a, b) => b.name.length - a.name.length)[0];
     const base = card ? `/contacts?card=${encodeURIComponent(card)}` : "/contacts?";
     router.push(match ? `${base}${card ? "&" : ""}lead=${match.id}` : (card ? base : "/contacts"));
   }
+
   const [items, setItems] = useState<Notification[]>(initial);
   // The panel used to be a snapshot: rendered once from the server and never
   // updated, so a save that buzzed the phone didn't appear here until a full
@@ -84,12 +96,16 @@ export default function NotificationsPanel({
       // Grace window: an optimistic local change (read/dismiss) may still be
       // in flight — polling over it would resurrect the old state for a beat.
       if (Date.now() - lastOpRef.current < 8000) return;
+      // Nobody is looking: the visibility listener below polls on return.
+      if (document.visibilityState === "hidden") return;
       try {
         const res = await fetch(`/api/notifications${card ? `?card=${encodeURIComponent(card)}` : ""}`);
         if (!res.ok) return;
         const fresh: Notification[] = await res.json();
         setItems((prev) => {
-          const sig = (list: Notification[]) => list.map((n) => `${n.id}:${n.read ? 1 : 0}`).join(",");
+          // Title too: an upgrade in place ("…and tapped your Calendly link")
+          // keeps the id and the read flag, and must still show.
+          const sig = (list: Notification[]) => list.map((n) => `${n.id}:${n.read ? 1 : 0}:${n.title}`).join(",");
           return sig(fresh) === sig(prev) ? prev : fresh;
         });
       } catch { /* ignore */ }
@@ -98,13 +114,30 @@ export default function NotificationsPanel({
     const onVisible = () => { if (document.visibilityState === "visible") poll(); };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
-    const id = setInterval(poll, 30000);
+    // Every 10s while the panel is on screen — "Priya just re-opened your
+    // card" is worth seeing while it is still true. Hidden tabs skip (above).
+    const id = setInterval(poll, 10000);
     return () => {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
     };
   }, [card]);
+
+  // "Wrong person?" — unbinds the browser(s) from this contact and removes the
+  // alert (/api/leads/[id]/wrong-person). Optimistic, like dismiss.
+  const [wrongAsked, setWrongAsked] = useState<string | null>(null);
+  async function markWrongPerson(n: Notification) {
+    if (!n.lead_id) return;
+    stampOp(lastOpRef);
+    setItems((prev) => prev.filter((x) => x.id !== n.id));
+    setWrongAsked(null);
+    await fetch(`/api/leads/${n.lead_id}/wrong-person`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notificationId: n.id }),
+    }).catch(() => {});
+  }
 
   const [claiming, setClaiming] = useState<string | null>(null);
   const [claimResult, setClaimResult] = useState<Record<string, { ok: boolean; text: string }>>({});
@@ -214,7 +247,10 @@ export default function NotificationsPanel({
               onClick={CONTACT_TYPES.has(n.type) ? () => openContactFor(n) : undefined}
               role={CONTACT_TYPES.has(n.type) ? "button" : undefined}
             >
-              <p className={`text-sm ${n.read ? "text-gray-300 font-medium" : "text-white font-semibold"} ${CONTACT_TYPES.has(n.type) ? "hover:text-blue-300 transition-colors" : ""}`}>{n.title}</p>
+              {/* Through NotificationBody like the body: on a Free account a
+                  returning contact's name arrives blocked out from the server
+                  (lib/contact-privacy.ts) and is blurred here. */}
+              <p className={`text-sm ${n.read ? "text-gray-300 font-medium" : "text-white font-semibold"} ${CONTACT_TYPES.has(n.type) ? "hover:text-blue-300 transition-colors" : ""}`}><NotificationBody text={n.title} /></p>
               {(() => {
                 // Native-only: swap selling copy in stored bodies for a neutral
                 // string. Web (isNative false, incl. server + first paint) shows
@@ -239,6 +275,22 @@ export default function NotificationsPanel({
                     className="mt-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-full transition-colors"
                   >
                     {claiming === n.id ? "Activating…" : "Claim my free month of Pro"}
+                  </button>
+                )
+              )}
+              {NAMED_RETURN_TYPES.has(n.type) && n.lead_id && (
+                wrongAsked === n.id ? (
+                  <span className="flex items-center gap-2 mt-1.5 text-[0.6875rem]">
+                    <span className="text-gray-400">Not them? We&apos;ll stop recognising that device.</span>
+                    <button onClick={(e) => { e.stopPropagation(); markWrongPerson(n); }} className="font-semibold text-blue-400 hover:text-blue-300">Confirm</button>
+                    <button onClick={(e) => { e.stopPropagation(); setWrongAsked(null); }} className="text-gray-500 hover:text-gray-300">Cancel</button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setWrongAsked(n.id); }}
+                    className="mt-1.5 text-[0.6875rem] text-gray-500 hover:text-gray-300 underline underline-offset-2"
+                  >
+                    Wrong person?
                   </button>
                 )
               )}

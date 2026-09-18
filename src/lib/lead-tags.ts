@@ -9,7 +9,10 @@
 // `sms-ok` is the affirmative SMS-consent marker (TCPA opt-in): the cron sends
 // an automated text ONLY when it's present. It is server-owned so a client
 // can't forge consent by PATCHing it, and so it survives unrelated tag edits.
-export const RESERVED_LEAD_TAG = /^(sc-office-|sc-locked$|flow-|email-paused$|sms-paused$|sms-ok$|preset-)/;
+// `alerts-muted` is the per-contact "no lock-screen alerts" switch
+// (/api/leads/[id]/alerts): set only by its own route, never dropped by a tag
+// edit, never sent to a CRM.
+export const RESERVED_LEAD_TAG = /^(sc-office-|sc-locked$|flow-|email-paused$|sms-paused$|sms-ok$|preset-|alerts-muted$)/;
 
 // Merge a client-supplied tag array with the row's existing tags so that the
 // server-owned (reserved) tags are preserved exactly as they were and only

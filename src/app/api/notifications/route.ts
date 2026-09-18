@@ -11,20 +11,20 @@ export async function GET(req: NextRequest) {
   // un-tagged/account-level notifications (the dashboard panel).
   const card = (req.nextUrl.searchParams.get("card") || "").replace(/[^a-zA-Z0-9_-]/g, "");
 
-  let q = supabase
-    .from("notifications")
-    .select("id, type, title, body, read, created_at, card_owner")
-    .eq("user_id", user.id);
-  if (card) q = q.or(`card_owner.eq.${card},card_owner.is.null`);
-
-  // Unread first, then newest. With a plain created_at order, 20 recent READ
-  // rows pushed every older unread one out of the window — it vanished from
-  // the list AND from the badge, which only counts the rows it was handed.
-  const { data: scoped, error } = await q
-    .order("read", { ascending: true })
-    .order("created_at", { ascending: false })
-    .limit(20);
-  let data: Record<string, unknown>[] | null = scoped;
+  // lead_id (warm-lead-alerts.sql) lets a row about a known contact open THAT
+  // contact instead of guessing from the name. Asked for first; without the
+  // column the query below runs exactly as it always did.
+  const scopedQuery = (cols: string) => {
+    let q = supabase.from("notifications").select(cols).eq("user_id", user.id);
+    if (card) q = q.or(`card_owner.eq.${card},card_owner.is.null`);
+    // Unread first, then newest. With a plain created_at order, 20 recent READ
+    // rows pushed every older unread one out of the window — it vanished from
+    // the list AND from the badge, which only counts the rows it was handed.
+    return q.order("read", { ascending: true }).order("created_at", { ascending: false }).limit(20);
+  };
+  let { data: scoped, error } = await scopedQuery("id, type, title, body, read, created_at, card_owner, lead_id");
+  if (error) ({ data: scoped, error } = await scopedQuery("id, type, title, body, read, created_at, card_owner"));
+  let data: Record<string, unknown>[] | null = scoped as unknown as Record<string, unknown>[] | null;
 
   // If the card_owner column migration hasn't run yet, selecting/filtering on
   // it errors and the bell would show nothing — fall back to the plain query.

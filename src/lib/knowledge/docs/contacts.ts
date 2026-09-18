@@ -95,6 +95,19 @@ export const contactsDocs = defineDocs([
       "Texts and emails SwiftCard sends for you (follow-up automations, messages from the Conversation tab, \"Share by both\") already carry the contact's own link, so you don't need to add it. The code is removed from the address bar as soon as the page opens, so if they copy the address and send it on, the code doesn't go with it. If they forward your original message and up to two more devices open it, those visits are shown as \"your link was opened on another device\", never under the contact's name. Link-checking robots in email systems don't count, because nothing is recorded until a real person has had the card open for a couple of seconds. If someone unsubscribes from email, their links stop recognising anyone.",
   },
   {
+    id: "returning-contact-alerts",
+    title: "When a contact comes back to your card",
+    audience: ["user"],
+    triggers: [
+      "re-opened your card", "came back", "returning contact", "wrong person", "not them",
+      "stop alerts for a contact", "mute a contact", "alert me when they come back",
+    ],
+    answer:
+      "When someone you already have as a contact opens your card again, the notification names them (\"Priya re-opened your card\") and tapping it opens their contact. Each contact has an \"Alert me when they come back\" switch under the Call / Share / Save buttons; turning it off keeps their visits in the bell and in their history but stops the phone alert.",
+    detail:
+      "SwiftCard only recognises someone who shared their details with you from that phone or computer, or who opened a personal link you sent them. If a named notification was about the wrong person, tap \"Wrong person?\" on it in the dashboard's Notifications list, then Confirm: that device is no longer tied to the contact, those visits come off their history, and the notification is removed. If two different people have shared their details from the same device (a shared iPad, say), SwiftCard names neither of them. Contacts marked Not interested or Closed never set off a phone alert. On the Free plan the name is blurred and the alert says \"A contact re-opened your card\".",
+  },
+  {
     id: "follow-up-automations",
     title: "Automated follow-up sequences",
     audience: ["user"],
