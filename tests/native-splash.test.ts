@@ -160,3 +160,57 @@ describe("native splash", () => {
     expect(markup).toMatch(/prefers-reduced-motion:\s*reduce/);
   });
 });
+
+// v2 (owner, 2026-09-17): "that navy screen [should] just be the same exact
+// color as my logo … just the main part of my logo is in the center". The
+// whole screen is the icon's own gradient and only its mark sits in the
+// centre. It ships beside v1, chosen by the app build, because frame 0 must
+// match the launch image compiled into whichever build is installed.
+describe("native splash v2", () => {
+  const v2 = read("src/lib/splash/markup-v2.html");
+  const capacitor = read("capacitor.config.ts");
+
+  it("is served only to builds that carry the v2 launch image", () => {
+    expect(component).toMatch(/SPLASH_V2_TOKEN = "SwiftCardSplash\/2"/);
+    expect(component).toMatch(/\.includes\(SPLASH_V2_TOKEN\)/);
+    expect(component).toMatch(/src\/lib\/splash\/markup-v2\.html/);
+    // …and every build without the token keeps v1, whose launch image it has.
+    expect(component).toMatch(/src\/lib\/splash\/markup\.html/);
+    expect(capacitor).toMatch(/appendUserAgent: "SwiftCardApp SwiftCardSplash\/2"/);
+  });
+
+  it("paints the logo's gradient full screen, from the very first frame", () => {
+    expect(v2).not.toMatch(/1A2342/i);
+    const gradient = v2.match(/linear-gradient\(135deg,[^)]+\)/)?.[0];
+    expect(gradient).toBeTruthy();
+    // The hold frame (root) and the plane must be the SAME gradient, sized to
+    // the same 100vmax square the launch image aspect-fills, or the handoff
+    // from the static image shifts.
+    const fill = `background:${gradient} 50% 50% / 100vmax 100vmax no-repeat,#364278;`;
+    expect(v2).toContain(`html.sc-splash-hold #sc-splash-vfork{ ${fill} }`);
+    const plane = v2.slice(v2.indexOf(".vfk-plane{"));
+    expect(plane.slice(0, plane.indexOf("}"))).toContain(fill);
+    expect(v2).toMatch(/--vfk-mark: 20\.4978vmax/);
+  });
+
+  it("uses one smooth bolt mask, defined once", () => {
+    expect((v2.match(/--vfk-bolt: url\("data:image\/webp;base64,/g) ?? []).length).toBe(1);
+    expect((v2.match(/var\(--vfk-bolt\)/g) ?? []).length).toBe(4);
+    expect((v2.match(/src="data:image\/webp;base64,/g) ?? []).length).toBe(1);
+    const build = read("scripts/build-splash-v2.mjs");
+    expect(build).toMatch(/public\/icon-512\.png/);
+    // sharp widens a 1-channel buffer to 3 bands; reading it as 1 sheared the
+    // bolt into a striped sliver.
+    expect(build).toMatch(/\.extractChannel\(0\)/);
+  });
+
+  it("keeps every v1 guard", () => {
+    expect(v2).toMatch(/d\.classList\.add\("sc-splash-armed"\);d\.classList\.add\("sc-splash-hold"\)/);
+    expect(v2).toMatch(/html:not\(\.sc-splash-armed\) #sc-splash-vfork\{display:none!important\}/);
+    expect(v2).toMatch(/d\.classList\.remove\("sc-splash-armed"\)/);
+    expect(v2).toMatch(/document\.referrer\.indexOf\(location\.origin\)===0/);
+    expect(v2).toMatch(/animation:vfk-clear 1400ms linear both;/);
+    expect(v2).not.toMatch(/mask-mode:\s*luminance/);
+    expect(v2).toMatch(/prefers-reduced-motion:\s*reduce/);
+  });
+});

@@ -47,10 +47,24 @@ import { isNativeRequest } from "@/lib/native-request";
  * corner pixels are transparent in the copy used here (scripts/build-splash-assets.mjs).
  */
 
+// TWO VERSIONS, CHOSEN BY THE APP BUILD (owner, 2026-09-18).
+//
+// The animation's first frame has to be pixel-identical to the static launch
+// image compiled INTO the installed app — and that image changes only with a
+// new App Store build. v2 fills the whole screen with the logo's own gradient
+// and shows only the logo's mark (no square); v1 is the navy field with the
+// square icon. Builds that ship the v2 launch image add `SwiftCardSplash/2` to
+// their user-agent (capacitor.config.ts); every build without it keeps v1, so
+// no installed app ever sees a first frame that doesn't match its own launch
+// image. v2's assets come from scripts/build-splash-v2.mjs.
+export const SPLASH_V2_TOKEN = "SwiftCardSplash/2";
+
 // Read once per server process, not once per request: this is ~52KB of inlined
 // artwork and a synchronous disk read has no business in the request path.
 let cachedMarkup: string | null = null;
-function splashMarkup(): string {
+let cachedMarkupV2: string | null = null;
+function splashMarkup(v2: boolean): string {
+  if (v2) return (cachedMarkupV2 ??= readFileSync(join(process.cwd(), "src/lib/splash/markup-v2.html"), "utf8"));
   cachedMarkup ??= readFileSync(join(process.cwd(), "src/lib/splash/markup.html"), "utf8");
   return cachedMarkup;
 }
@@ -73,5 +87,6 @@ export default async function NativeSplash() {
   // armed it, so markup delivered any other way can never show. The cost of a
   // miss here is bandwidth (~52KB), never a replay.
 
-  return <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: splashMarkup() }} />;
+  const v2 = (h.get("user-agent") ?? "").includes(SPLASH_V2_TOKEN);
+  return <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: splashMarkup(v2) }} />;
 }

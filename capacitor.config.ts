@@ -60,7 +60,10 @@ const config: CapacitorConfig = {
     // redirect on (that check shipped before any build carried the token, so
     // it was inert; installed builds are covered by the sc_shell cookie the
     // boot script plants instead). Takes effect on the next native build.
-    appendUserAgent: "SwiftCardApp",
+    // "SwiftCardSplash/2" = this build carries the v2 launch image (the logo's
+    // gradient full screen, the mark alone in the centre). The server sends the
+    // matching v2 animation only to builds that say so — see NativeSplash.tsx.
+    appendUserAgent: "SwiftCardApp SwiftCardSplash/2",
     // The native canvas behind the webview — what rubber-band overscroll
     // reveals. White by default, which read as white bars at the top/bottom of
     // every scroll. globals.css also suppresses the bounce itself
@@ -93,7 +96,9 @@ const config: CapacitorConfig = {
       launchShowDuration: 15000,
       launchAutoHide: true,
       launchFadeOutDuration: 180,
-      backgroundColor: "#030712",
+      // The v2 launch image's mid-tone (its gradient is the whole screen), for
+      // any edge the plugin paints itself.
+      backgroundColor: "#364278",
       showSpinner: false,
       splashFullScreen: true,
       splashImmersive: true,
