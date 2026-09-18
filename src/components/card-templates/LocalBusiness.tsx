@@ -7,7 +7,7 @@ import { isDarkBg, panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, nameClass } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, nameClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const AMBER_DEFAULT  = "#b45309";
@@ -46,7 +46,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
   // The company sits in the cream BODY, with no logo beside it — the badge is
   // up in the stripe. So it gets the full body width: 460 minus 18px padding
   // either side, minus the QR column on its right.
-  const companyFit = fitCompany(13, data.company, 22, 460 - 36 - 96, 0.02, false);
+  const companyFit = fitCompany(13, data.company, 22, 460 - 36 - 96, 0.02, false, f);
 
   return (
     <div
@@ -115,7 +115,8 @@ export default function LocalBusiness({ data }: { data: CardData }) {
             measured 13px of overlap at the ORIGINAL badge size, growing with it.
             Reserving the badge's own width (+ its pr-5, + a gap) means the name
             stops before the badge instead of sliding under it, at any width. */}
-        <div className="absolute bottom-0 left-0 px-5 pb-3" style={{ right: badgeReserve }}>
+        {/* titleBox: the job title sizes itself to THIS column (shared.tsx). */}
+        <div className="absolute bottom-0 left-0 px-5 pb-3" style={{ right: badgeReserve, ...titleBox }}>
           <h2
             className={`font-extrabold leading-tight ${nameClass(style)}`}
             style={{ fontSize: fitName(20 * heroGrow(f), data.name, 18), overflowWrap: "anywhere", minWidth: 0, lineHeight: 1.15, textShadow: "0 1px 4px rgba(0,0,0,0.2)", color: style.textColor }}
@@ -123,7 +124,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
             {data.name}
           </h2>
           {data.title && (
-            <p style={{ fontSize: fitTitle(8.5, data.title), color: "rgba(254,243,199,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginTop: 2 }}>
+            <p style={{ ...fitTitleFluid(8.5, data.title, { tracking: 0.12, f }), color: "rgba(254,243,199,0.9)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginTop: 2 }}>
               {data.title}
             </p>
           )}

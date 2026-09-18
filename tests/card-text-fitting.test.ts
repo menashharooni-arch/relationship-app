@@ -99,7 +99,12 @@ describe("every text field on a card goes through a fitter", () => {
     it(`${t} fits its name, title and company`, () => {
       const src = read(`src/components/card-templates/${t}.tsx`);
       expect(src, `${t}: name not fitted`).toMatch(/fitName\(/);
-      expect(src, `${t}: title not fitted — this is exactly how titles got cut off`).toMatch(/fitTitle\(/);
+      expect(src, `${t}: title not fitted — this is exactly how titles got cut off`).toMatch(/fitTitle(Fluid)?\(/);
+      // …and it is the FLUID one: a short title has to grow into the room it
+      // has (owner, 2026-09-17: "my title, which says CEO, is tiny"), measured
+      // against the column its parent declares with titleBox.
+      expect(src, `${t}: the title does not grow into its column`).toMatch(/fitTitleFluid\(/);
+      expect(src, `${t}: the title has no container to measure against`).toMatch(/titleBox/);
       // fitCompany, not fitPx. Length-based fitting sizes text by how MANY
       // characters there are and knows nothing about the longest word, so a
       // company name next to a logo was still being split in the middle
