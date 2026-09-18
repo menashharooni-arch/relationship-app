@@ -303,6 +303,16 @@ describe("no way back once Free is picked on a Pro-design card (owner, 2026-09-1
     expect(panel).not.toContain("setPendingFreeConfirm(false)");
   });
 
+  it("/welcome draws the panel even for someone who picked Pro before signing up", () => {
+    // "Actually, start on the free plan instead" runs chooseFree, which sets
+    // pendingFreeConfirm. The paid-intent screen used to be checked first, so
+    // on a Pro-design card the panel was set but never drawn — a dead link.
+    const welcome = read("src/components/WelcomePlan.tsx");
+    expect(welcome).toContain(") : paidIntent && !pendingFreeConfirm ? (");
+    expect(welcome.indexOf("Actually, start on the free plan instead")).toBeGreaterThan(-1);
+    expect(welcome).toMatch(/<button onClick=\{chooseFree\}[^>]*>\s*Actually, start on the free plan instead/);
+  });
+
   it("the builder's plan gate hides its Back button while the panel is up", () => {
     const wizard = read("src/app/cards/new/NewCardWizard.tsx");
     expect(wizard).not.toContain("Back to plans");

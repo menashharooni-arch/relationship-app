@@ -332,12 +332,14 @@ function FinishPicker({
                       style={{ background: composePanelBackground(base, f.id) }}
                       aria-hidden
                     />
-                    {/* On the swatch's corner, not beside the name: four to a
-                        row on a phone, a tag there would cut "Brushed" short. */}
-                    {proTags && !f.free && <span className="absolute top-1.5 right-1.5"><ProTag /></span>}
                     <span className="mt-1 flex items-center gap-1 min-w-0">
                       <span className={`text-[0.6875rem] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-400"}`}>{f.name}</span>
                     </span>
+                    {/* On the swatch's corner, not beside the name: four to a
+                        row on a phone, a tag there would cut "Brushed" short.
+                        After the name in the markup, so the button reads
+                        "Brushed PRO", not "PRO Brushed". */}
+                    {proTags && !f.free && <span className="absolute top-1.5 right-1.5"><ProTag /></span>}
                   </button>
                 );
               })}

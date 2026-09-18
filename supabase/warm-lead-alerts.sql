@@ -1,5 +1,6 @@
 -- ── Warm-lead re-engagement: who a returning visitor IS ──────────────────────
--- NOT YET APPLIED. Idempotent (IF NOT EXISTS throughout), safe to re-run.
+-- APPLIED TO PRODUCTION 2026-09-18 (Supabase MCP, project grxmovpmlgmjncnyiyrt).
+-- Idempotent (IF NOT EXISTS throughout), safe to re-run.
 -- Plan: docs/plans/warm-lead-alerts.md (PR A3). The owner applies it in the
 -- SQL editor; nothing in the app requires it until PR A4, and A4 degrades on
 -- 42703/PGRST204 exactly like record-view.ts does for device_key.

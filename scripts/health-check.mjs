@@ -108,6 +108,27 @@ const CHECKS = [
     },
   },
   {
+    // For a week in 2026-09 not one notification reached a phone and nothing
+    // anywhere said so: a push that fails is silent by nature. /api/health asks
+    // Apple about a fake device token — BadDeviceToken back means the APNs key,
+    // team id and connection are all good; a 403 means they are not.
+    name: "push notifications can be delivered (APNs credentials valid, web push configured)",
+    run: async () => {
+      const res = await get("/api/health");
+      let push = null;
+      try { push = (await res.json()).push; } catch { /* reported below */ }
+      if (!push) return { ok: false, detail: `no push block in /api/health (status ${res.status})` };
+      const ok = push.apns?.configured === true && push.apns?.ok === true && push.webPush === true;
+      return {
+        ok,
+        detail: ok
+          ? `apns ok (${push.apns.reason}), web push configured`
+          : `apns configured=${push.apns?.configured} ok=${push.apns?.ok} reason=${push.apns?.reason}; webPush=${push.webPush}` +
+            " — check APPLE_TEAM_ID / APPLE_PUSH_KEY_ID / APPLE_PUSH_PRIVATE_KEY and the VAPID keys in Vercel.",
+      };
+    },
+  },
+  {
     name: "pricing page renders",
     run: async () => {
       const res = await get("/pricing");

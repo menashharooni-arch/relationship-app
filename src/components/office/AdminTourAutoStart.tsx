@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { claimAdminTourAutoStart, startAdminTour } from "@/lib/tour";
+import { afterAiConsent } from "@/lib/ai-consent-sequence";
 
 // Runs the Office admin tour automatically the FIRST time someone opens the
 // console. Until now the admin tour existed but was only reachable from the
@@ -18,8 +19,11 @@ import { claimAdminTourAutoStart, startAdminTour } from "@/lib/tour";
 export default function AdminTourAutoStart() {
   useEffect(() => {
     if (!claimAdminTourAutoStart()) return;
-    const t = setTimeout(() => startAdminTour(), 600);
-    return () => clearTimeout(t);
+    // In the app, after the AI permission sheet (owner, 2026-09-18) — the same
+    // order as the dashboard tour. Immediate on the web.
+    let cancelWait = () => {};
+    const t = setTimeout(() => { cancelWait = afterAiConsent(() => startAdminTour()); }, 600);
+    return () => { clearTimeout(t); cancelWait(); };
   }, []);
 
   return null;

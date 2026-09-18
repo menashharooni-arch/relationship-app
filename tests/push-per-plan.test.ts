@@ -76,9 +76,11 @@ vi.mock("@/lib/supabase-admin", () => ({
 
 vi.mock("@/lib/apns", () => ({
   isApnsEndpoint: (e: string) => e.startsWith("apns:"),
-  sendApnsNotification: async (endpoint: string, payload: Row) => {
+  // The sender push.ts actually calls: it reports what Apple said, so a
+  // rejection can no longer be logged as "sent" (see tests/push-delivery-truth).
+  sendApnsDetailed: async (endpoint: string, payload: Row) => {
     apnsSent.push({ endpoint, ...payload });
-    return "ok";
+    return { result: "sent", status: 200, reason: "", env: "production" };
   },
 }));
 

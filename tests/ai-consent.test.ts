@@ -186,7 +186,7 @@ describe("the ask waits until Get Started is finished", () => {
 
   it("GlobalAiConsent holds the dialog on both halves, and re-reads a not-ready answer", () => {
     const src = read("src/components/GlobalAiConsent.tsx");
-    expect(src).toMatch(/const hold = state\.ready === false \|\| !aiConsentAskAllowedOn\(pathname\)/);
+    expect(src).toMatch(/const hold = state\.ready === false \|\| !aiConsentAskAllowedOn\(pathname, currentSearch\(\)\)/);
     expect(src).toContain("hold={hold}");
     // Without the re-read the ask would wait for the next cold launch.
     expect(src).toMatch(/state\.ready !== false\) return;/);

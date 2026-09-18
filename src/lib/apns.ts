@@ -86,34 +86,60 @@ export type ApnsSendResult = "sent" | "not_configured" | "gone" | "error";
  * distinguishing a dead token from a misconfiguration — is the part that must
  * not be written twice.
  */
+export type ApnsEnv = "production" | "sandbox";
+const APNS_HOSTS: Record<ApnsEnv, string> = {
+  production: "https://api.push.apple.com",
+  sandbox: "https://api.sandbox.push.apple.com",
+};
+
+/** The environment this deployment talks to first (APPLE_PUSH_SANDBOX=1 → sandbox). */
+export function configuredApnsEnv(): ApnsEnv {
+  return process.env.APPLE_PUSH_SANDBOX === "1" ? "sandbox" : "production";
+}
+
+/** What one POST came back with. `reason` is Apple's own word for a failure. */
+export type ApnsPostDetail = { result: ApnsSendResult; status: number; reason: string };
+
 async function apnsPost(
   deviceToken: string,
   headers: Record<string, string>,
   body: string,
 ): Promise<ApnsSendResult> {
+  return (await apnsPostTo(configuredApnsEnv(), deviceToken, headers, body)).result;
+}
+
+async function apnsPostTo(
+  env: ApnsEnv,
+  deviceToken: string,
+  headers: Record<string, string>,
+  body: string,
+): Promise<ApnsPostDetail> {
   const teamId = process.env.APPLE_TEAM_ID;
   const keyId = process.env.APPLE_PUSH_KEY_ID;
   const privateKey = process.env.APPLE_PUSH_PRIVATE_KEY;
-  if (!teamId || !keyId || !privateKey) return "not_configured";
-  if (!deviceToken) return "error";
+  if (!teamId || !keyId || !privateKey) return { result: "not_configured", status: 0, reason: "not_configured" };
+  if (!deviceToken) return { result: "error", status: 0, reason: "no_token" };
 
-  const host = process.env.APPLE_PUSH_SANDBOX === "1"
-    ? "https://api.sandbox.push.apple.com"
-    : "https://api.push.apple.com";
+  const host = APNS_HOSTS[env];
 
   let jwt: string;
   try {
     jwt = getApnsJwt(teamId, keyId, privateKey);
   } catch {
-    return "error"; // malformed key — treat as unconfigured rather than throw
+    // malformed key — treat as unconfigured rather than throw
+    return { result: "error", status: 0, reason: "bad_signing_key" };
   }
 
-  return new Promise<ApnsSendResult>((resolve) => {
+  return new Promise<ApnsPostDetail>((resolve) => {
     let settled = false;
-    const done = (r: ApnsSendResult) => { if (!settled) { settled = true; resolve(r); } };
+    let status = 0;
+    let reason = "";
+    const done = (r: ApnsSendResult, why?: string) => {
+      if (!settled) { settled = true; resolve({ result: r, status, reason: why ?? reason }); }
+    };
 
     const client = http2.connect(host);
-    client.on("error", () => { done("error"); try { client.close(); } catch { /* ignore */ } });
+    client.on("error", () => { done("error", "connection_error"); try { client.close(); } catch { /* ignore */ } });
 
     const req = client.request({
       ":method": "POST",
@@ -124,9 +150,8 @@ async function apnsPost(
     });
 
     // Never hang a request path on APNs — pushes are best-effort.
-    req.setTimeout(10_000, () => { done("error"); try { req.close(); client.close(); } catch { /* ignore */ } });
+    req.setTimeout(10_000, () => { done("error", "timeout"); try { req.close(); client.close(); } catch { /* ignore */ } });
 
-    let status = 0;
     // APNs puts the actual cause in the RESPONSE BODY as { "reason": "..." },
     // and we never read it — so every 400 was treated as "this device token is
     // dead" and the caller permanently DELETED the push subscription. A 400 is
@@ -143,13 +168,18 @@ async function apnsPost(
       try { client.close(); } catch { /* ignore */ }
       if (status === 200) return done("sent");
 
-      let reason = "";
       try { reason = String((JSON.parse(raw) as { reason?: string }).reason ?? ""); } catch { /* body may be empty */ }
 
       // ONLY these two mean the token itself is finished. 410 is always
       // Unregistered; a 400 has to say so explicitly.
+      //
+      // BadDeviceToken is "gone" FOR THIS ENVIRONMENT ONLY. Apple returns the
+      // same reason for a perfectly good token sent to the wrong host — a
+      // sandbox token (any build installed from Xcode) at api.push.apple.com,
+      // or the reverse. sendApnsNotification therefore asks the OTHER host
+      // before anyone deletes anything; see the note there.
       if (reason === "Unregistered" || reason === "BadDeviceToken") return done("gone");
-      if (status === 410 && !reason) return done("gone");
+      if (status === 410 && !reason) return done("gone", "Unregistered");
 
       // Everything else is our problem, not the device's — log the reason so a
       // misconfigured topic or environment is visible instead of silently
@@ -159,7 +189,7 @@ async function apnsPost(
       }
       done("error");
     });
-    req.on("error", () => { done("error"); try { client.close(); } catch { /* ignore */ } });
+    req.on("error", () => { done("error", "request_error"); try { client.close(); } catch { /* ignore */ } });
 
     req.end(body);
   });
@@ -185,7 +215,16 @@ export async function sendWalletPassPush(pushToken: string): Promise<ApnsSendRes
  * Returns "gone" when Apple reports the token unregistered (caller should
  * delete the subscription row) — mirrors web-push's 404/410 handling.
  */
-export type ApnsAlertPayload = { title: string; body: string; url: string; tag?: string; silent?: boolean };
+export type ApnsAlertPayload = {
+  title: string;
+  body: string;
+  url: string;
+  tag?: string;
+  silent?: boolean;
+  /** WHICH CARD this is about ("Work card") — iOS renders it as its own line
+   *  between the title and the body. Only set for accounts with 2+ cards. */
+  subtitle?: string;
+};
 
 /**
  * The exact bytes and headers one alert becomes. Pure, and exported so the
@@ -218,7 +257,7 @@ export function buildApnsAlert(payload: ApnsAlertPayload, topic: string): {
 
   const body = JSON.stringify({
     aps: {
-      alert: { title: payload.title, body: payload.body },
+      alert: { title: payload.title, ...(payload.subtitle ? { subtitle: payload.subtitle } : {}), body: payload.body },
       ...(silent ? { "interruption-level": "passive" } : { sound: "default" }),
       "thread-id": payload.tag ?? "swiftcard",
     },
@@ -247,12 +286,87 @@ export function buildApnsAlert(payload: ApnsAlertPayload, topic: string): {
   };
 }
 
+// Which Apple environment each token turned out to live in. Warm-lambda memory
+// only: it saves the wasted first request on the next send, and losing it costs
+// exactly one extra request.
+const tokenEnv = new Map<string, ApnsEnv>();
+
+/**
+ * THE ORDER TO TRY THE TWO APPLE ENVIRONMENTS IN, and what the answers mean.
+ *
+ * A device token belongs to ONE environment, fixed by how the build was signed:
+ * App Store and TestFlight builds get production tokens, anything installed
+ * from Xcode gets sandbox tokens (App.entitlements vs AppRelease.entitlements).
+ * Sent to the wrong host, a perfectly good token comes back 400 BadDeviceToken —
+ * the same words Apple uses for a token that really is dead.
+ *
+ * We used to believe it. Production, 2026-09-10 → 09-17: an account went from
+ * two registered phones to one to none, losing one on every single send, each
+ * logged as "sent"; the owner's own phone registered on the 12th and was gone
+ * after its first push. From the app's side that is a switch which looks ON, a
+ * permission prompt iOS will never show again (it asks once per install), and
+ * no notification, ever.
+ *
+ * So BadDeviceToken from one host is a question for the other host, and a phone
+ * is only "gone" when BOTH reject it — or when Apple says Unregistered, which is
+ * unambiguous (the app was deleted).
+ */
+export async function sendApnsDetailed(
+  endpoint: string,
+  payload: ApnsAlertPayload,
+  post: typeof apnsPostTo = apnsPostTo,
+): Promise<ApnsPostDetail & { env: ApnsEnv }> {
+  const deviceToken = endpoint.slice(APNS_PREFIX.length);
+  const topic = process.env.APPLE_PUSH_TOPIC || APNS_TOPIC_DEFAULT;
+  const { headers, body } = buildApnsAlert(payload, topic);
+
+  const first: ApnsEnv = tokenEnv.get(deviceToken) ?? configuredApnsEnv();
+  const other: ApnsEnv = first === "production" ? "sandbox" : "production";
+
+  const a = await post(first, deviceToken, headers, body);
+  if (a.result === "sent") { tokenEnv.set(deviceToken, first); return { ...a, env: first }; }
+  if (a.reason !== "BadDeviceToken") return { ...a, env: first };
+
+  const b = await post(other, deviceToken, headers, body);
+  if (b.result === "sent") { tokenEnv.set(deviceToken, other); return { ...b, env: other }; }
+  tokenEnv.delete(deviceToken);
+  // Dead only if the second host ALSO disowns it. Anything else from the second
+  // host (a timeout, a 403, a 5xx) proves nothing about the token: keep the row.
+  if (b.result === "gone") return { ...b, env: other };
+  return { result: "error", status: b.status, reason: `BadDeviceToken@${first}; ${b.reason || "error"}@${other}`, env: other };
+}
+
 export async function sendApnsNotification(
   endpoint: string,
   payload: ApnsAlertPayload,
 ): Promise<ApnsSendResult> {
-  const deviceToken = endpoint.slice(APNS_PREFIX.length);
+  return (await sendApnsDetailed(endpoint, payload)).result;
+}
+
+// ── Are the push credentials actually good? ─────────────────────────────────
+//
+// An unconfigured or expired APNs key is silent by nature: every send fails,
+// nobody's phone buzzes, and nothing anywhere turns red. So ask Apple. A push
+// to a deliberately fake device token is answered 400 BadDeviceToken ONLY IF
+// the provider token was accepted first — a revoked key, a wrong team id or a
+// wrong key id all come back 403 (InvalidProviderToken / ExpiredProviderToken)
+// before Apple ever looks at the device. Nothing is delivered to anyone.
+// Cached for ten minutes so the 15-minute uptime probe cannot add up to load.
+export type ApnsHealth = { configured: boolean; ok: boolean; reason: string };
+let apnsHealthCache: { at: number; value: ApnsHealth } | null = null;
+const APNS_HEALTH_TTL_MS = 10 * 60 * 1000;
+
+export async function checkApnsCredentials(post: typeof apnsPostTo = apnsPostTo): Promise<ApnsHealth> {
+  if (apnsHealthCache && Date.now() - apnsHealthCache.at < APNS_HEALTH_TTL_MS) return apnsHealthCache.value;
   const topic = process.env.APPLE_PUSH_TOPIC || APNS_TOPIC_DEFAULT;
-  const { headers, body } = buildApnsAlert(payload, topic);
-  return apnsPost(deviceToken, headers, body);
+  const { headers, body } = buildApnsAlert({ title: "health", body: "health", url: "/" }, topic);
+  const r = await post(configuredApnsEnv(), "0".repeat(64), headers, body);
+  const value: ApnsHealth =
+    r.result === "not_configured" ? { configured: false, ok: false, reason: "not_configured" }
+    // "gone" here IS the success case: Apple authenticated us and then, as
+    // expected, did not recognise a token made of zeros.
+    : r.result === "gone" ? { configured: true, ok: true, reason: r.reason }
+    : { configured: true, ok: false, reason: r.reason || `status ${r.status}` };
+  apnsHealthCache = { at: Date.now(), value };
+  return value;
 }
