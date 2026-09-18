@@ -16,8 +16,7 @@ import NativeHidden from "@/components/NativeHidden";
 // NOT a client component — it has no interactivity, so server-rendered pages
 // (homepage, footer) keep shipping zero JS for it. The shine is pure CSS.
 
-type Tone = "black" | "glass";
-type Size = "sm" | "md" | "lg";
+type Size = "sm" | "lg";
 
 const SIZES: Record<Size, { pad: string; glyph: string; top: string; main: string; gap: string; radius: string }> = {
   // Desktop nav bar: renders 120×40, which fits the 64px bar beside Log in and
@@ -26,7 +25,6 @@ const SIZES: Record<Size, { pad: string; glyph: string; top: string; main: strin
   // already fill a 375px row), which is why the nav badge is inside a
   // `hidden lg:flex` cluster and there is no phone equivalent.
   sm: { pad: "px-3 py-1.5", glyph: "w-[17px] h-[17px]", top: "text-[0.5625rem]", main: "text-[0.78125rem]", gap: "gap-2", radius: "rounded-xl" },
-  md: { pad: "px-3.5 py-2", glyph: "w-[22px] h-[22px]", top: "text-[0.625rem]", main: "text-[0.875rem]", gap: "gap-2.5", radius: "rounded-xl" },
   // Hero: sits directly beside "See how it works" (.rd-btn + .rd-btn-lg), and
   // the height is not a guess — that button is padding 1rem + font-size 1rem at
   // line-height 1 + a 1px border = exactly 50px. This lands on 50 too:
@@ -48,33 +46,35 @@ const SIZES: Record<Size, { pad: string; glyph: string; top: string; main: strin
   lg: { pad: "px-3 sm:px-4 py-2.5", glyph: "w-[22px] h-[22px]", top: "text-[0.625rem]", main: "text-[0.875rem]", gap: "gap-2.5", radius: "rounded-xl" },
 };
 
-// Black on light surfaces, glass on dark ones — matching what the hero and the
-// footer each already used.
-const TONES: Record<Tone, { shell: string; top: string }> = {
-  black: { shell: "bg-slate-900 hover:bg-slate-800", top: "text-white/70" },
-  glass: { shell: "border border-white/15 bg-white/[0.06] hover:bg-white/10", top: "text-white/70" },
-};
+// ONE LOOK, everywhere (owner, 2026-09-18): the desktop header's. There used
+// to be a "black" and a "glass" tone, and on the cream app theme the black one
+// lost its "App Store" line entirely — the light theme remaps .text-white to
+// near-black, so it rendered black on black. The colours now live in
+// globals.css (.sc-appstore-badge), under class names no theme remap touches:
+// the pill is always the header's dark glass and its words are always white.
+// Size is the header's (`sm`, 120×40) everywhere except the phone hero, whose
+// `lg` exists only to match the 50px button beside it.
 
-export function AppleGlyph({ className }: { className?: string }) {
+export function AppleGlyph({ className, color = "#fff" }: { className?: string; color?: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={`${className ?? ""} shrink-0`} fill="#fff">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={`${className ?? ""} shrink-0`} fill={color}>
       <path d="M16.365 1.43c0 1.14-.417 2.2-1.11 2.98-.75.84-1.98 1.49-3.02 1.4-.13-1.09.42-2.24 1.09-2.98.76-.85 2.07-1.47 3.04-1.4zM20.5 17.02c-.55 1.27-.82 1.84-1.53 2.96-.99 1.57-2.39 3.52-4.12 3.53-1.54.01-1.93-1-4.02-.99-2.09.01-2.52 1.01-4.06.99-1.73-.02-3.06-1.78-4.05-3.35-2.77-4.38-3.06-9.52-1.35-12.25 1.21-1.94 3.13-3.08 4.94-3.08 1.84 0 3 1.01 4.52 1.01 1.48 0 2.38-1.01 4.51-1.01 1.61 0 3.32.88 4.54 2.39-3.99 2.19-3.34 7.88.1 9.25z" />
     </svg>
   );
 }
 
 export default function AppStoreBadge({
-  tone = "black",
-  size = "md",
+  size = "sm",
   className = "",
+  onClick,
 }: {
-  tone?: Tone;
   size?: Size;
   className?: string;
+  /** Extra work on tap (the post-signup popup closes itself). Client callers only. */
+  onClick?: () => void;
 }) {
   if (!APP_STORE_URL) return null;
   const s = SIZES[size];
-  const t = TONES[tone];
 
   return (
     <a
@@ -82,15 +82,16 @@ export default function AppStoreBadge({
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Download on the App Store"
+      onClick={onClick}
       // overflow-hidden clips the shine to the pill; relative is what it anchors
       // to. Both are load-bearing — without them the sweep runs across whatever
       // sits next to the badge.
-      className={`relative overflow-hidden inline-flex items-center ${s.gap} ${s.radius} ${s.pad} ${t.shell} transition-colors ${className}`}
+      className={`sc-appstore-badge relative overflow-hidden inline-flex items-center ${s.gap} ${s.radius} ${s.pad} transition-colors ${className}`}
     >
       <AppleGlyph className={s.glyph} />
       <span className="leading-tight">
-        <span className={`block ${t.top} ${s.top}`}>Download on the{" "}</span>
-        <span className={`block text-white font-semibold ${s.main} tracking-tight`}>App&nbsp;Store</span>
+        <span className={`sc-asb-top block ${s.top}`}>Download on the{" "}</span>
+        <span className={`sc-asb-main block font-semibold ${s.main} tracking-tight`}>App&nbsp;Store</span>
       </span>
       <span className="rd-appstore-shine" aria-hidden="true" />
     </a>
@@ -124,10 +125,10 @@ export function GetTheAppCard({ className = "" }: { className?: string }) {
           Share your card with a tap, keep it in Apple Wallet, and see who viewed it — right from your phone.
         </p>
         <div className="mt-3.5 flex justify-center">
-          {/* Black, not glass: this card shows on LIGHT screens too (/welcome,
-              the builder), where the glass badge's white "Download on the"
-              line was invisible. A black badge reads on both themes. */}
-          <AppStoreBadge tone="black" size="md" />
+          {/* The header's badge, like every other one. Its colours are fixed
+              (globals.css .sc-appstore-badge), so it reads on this card's
+              light AND dark screens (/welcome, the builder). */}
+          <AppStoreBadge />
         </div>
       </div>
     </NativeHidden>

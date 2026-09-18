@@ -16,6 +16,7 @@ import HelpWidget from "@/components/HelpWidget";
 import TakeTourButton from "@/components/TakeTourButton";
 import NativeHidden from "@/components/NativeHidden";
 import { APP_STORE_URL } from "@/lib/app-store";
+import AppStoreBadge from "@/components/AppStoreBadge";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import DashboardLink from "@/components/DashboardLink";
 import GrowLinkButton from "@/components/GrowLinkButton";
@@ -427,14 +428,9 @@ export default async function FlowSettingsPage({
                   <p className="text-white text-sm font-semibold">Get the iPhone app</p>
                   <p className="text-gray-500 text-xs mt-0.5">Your card, QR code and new contacts — right in your pocket.</p>
                 </div>
-                <a
-                  href={APP_STORE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-full px-4 py-2 transition-colors shrink-0"
-                >
-                  App Store
-                </a>
+                {/* The shared badge — the header's look (owner, 2026-09-18),
+                    not the blue "App Store" chip that stood here. */}
+                <AppStoreBadge className="shrink-0" />
               </div>
             </NativeHidden>
           )}
