@@ -47,10 +47,15 @@ describe("card views and Swift Link views never mix", () => {
 
 describe("a recorded view is a real visit", () => {
   // The recording itself lives in lib/record-view.ts (shared with /api/card-events).
-  const route = read("src/app/api/views/[username]/route.ts") + "\n" + read("src/lib/record-view.ts");
+  // The recording path since /api/views was retired (2026-09-18): the events
+  // route, plus the shared recorder it calls.
+  const route = read("src/app/api/card-events/route.ts") + "\n" + read("src/lib/record-view.ts");
 
   it("drops bot traffic", () => {
-    expect(route).toMatch(/isLikelyBot\(req\.headers\.get\("user-agent"\)\)/);
+    // Checked against the REAL request header, never the client-supplied
+    // device_info (the events route reads it into `ua` one line above).
+    expect(route).toMatch(/const ua = req\.headers\.get\("user-agent"\)/);
+    expect(route).toMatch(/if \(isLikelyBot\(ua\)\)/);
   });
 
   it("never counts the owner looking at their own card", () => {
@@ -62,7 +67,7 @@ describe("a recorded view is a real visit", () => {
   });
 
   it("rate-limits per IP and card", () => {
-    expect(route).toMatch(/isRateLimited\(`views:\$\{ip\}:\$\{username\}`/);
+    expect(route).toMatch(/isRateLimited\(`card-events:\$\{ip\}:\$\{card_owner_username\}`/);
   });
 
   it("counts one visitor once per VISIT window, and survives the race", () => {

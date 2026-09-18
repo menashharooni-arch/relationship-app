@@ -9,7 +9,7 @@ import { cardEventNotice } from "@/lib/card-event-notify";
 
 describe("what the owner is told", () => {
   it("announces a view, which used to be silent by design", () => {
-    const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Aaron Lavi" });
+    const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Aaron Lavi", nameConfirmed: true });
     expect(n).not.toBeNull();
     expect(n!.type).toBe("card_viewed");
     expect(n!.body).toBe("Aaron Lavi viewed your card.");
@@ -17,20 +17,20 @@ describe("what the owner is told", () => {
 
   it("says Someone when the visitor is genuinely unknown, rather than guessing", () => {
     for (const name of [null, undefined, "", "   "]) {
-      expect(cardEventNotice({ eventType: "viewed_card", visitorName: name })!.body)
+      expect(cardEventNotice({ eventType: "viewed_card", visitorName: name, nameConfirmed: true })!.body)
         .toBe("Someone viewed your card.");
     }
   });
 
   it("distinguishes a Swift Links view from a card view", () => {
-    expect(cardEventNotice({ eventType: "viewed_card", visitorName: "Aaron", source: "swift_links" })!.body)
+    expect(cardEventNotice({ eventType: "viewed_card", visitorName: "Aaron", nameConfirmed: true, source: "swift_links" })!.body)
       .toBe("Aaron viewed your Swift Links.");
-    expect(cardEventNotice({ eventType: "viewed_card", visitorName: "Aaron", source: "qr_code" })!.body)
+    expect(cardEventNotice({ eventType: "viewed_card", visitorName: "Aaron", nameConfirmed: true, source: "qr_code" })!.body)
       .toBe("Aaron viewed your card.");
   });
 
   it("keeps the save notification, and names the source only there", () => {
-    const saved = cardEventNotice({ eventType: "downloaded_vcard", visitorName: "Aaron", source: "qr_code" });
+    const saved = cardEventNotice({ eventType: "downloaded_vcard", visitorName: "Aaron", nameConfirmed: true, source: "qr_code" });
     // Type unchanged (VISIT_RANK / push category / CRM event name); WORDING
     // changed, because a download is all SwiftCard can actually prove — the
     // "Add to Contacts" sheet belongs to the operating system and never reports
@@ -40,11 +40,11 @@ describe("what the owner is told", () => {
     expect(saved!.body).not.toMatch(/\bsaved\b/);
 
     // A view's source is noise on the most frequent notification an owner gets.
-    expect(cardEventNotice({ eventType: "viewed_card", visitorName: "Aaron", source: "qr_code" })!.body)
+    expect(cardEventNotice({ eventType: "viewed_card", visitorName: "Aaron", nameConfirmed: true, source: "qr_code" })!.body)
       .not.toMatch(/from/);
 
     // direct_link is the default and reads as clutter.
-    expect(cardEventNotice({ eventType: "downloaded_vcard", visitorName: "Aaron", source: "direct_link" })!.body)
+    expect(cardEventNotice({ eventType: "downloaded_vcard", visitorName: "Aaron", nameConfirmed: true, source: "direct_link" })!.body)
       .toBe("Aaron downloaded your contact card.");
   });
 

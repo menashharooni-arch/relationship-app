@@ -46,9 +46,23 @@ export function cardEventNotice(input: {
    * and is the single most encouraging true sentence we can put on a screen.
    */
   firstEver?: boolean;
+  /**
+   * Is the NAME proof, or a memory?
+   *
+   * A signed-in viewer is proof. A name that came from the visitor's own
+   * earlier share is an association: it lives in a device-global store, so on a
+   * shared iPad, a kiosk or a demo phone the next person's view arrives under
+   * the last person's name. The route already records that difference as
+   * `identityLevel` and used to show it as certainty either way (owner report,
+   * 2026-09-18) — an identification we cannot stand behind.
+   */
+  nameConfirmed?: boolean;
 }): CardEventNotice | null {
   const { eventType } = input;
   const name = (input.visitorName ?? "").trim();
+  // Hedged when the name is only an association, so the sentence claims exactly
+  // what is known. "Someone" remains the wording when there is no name at all.
+  const who = !name ? "Someone" : input.nameConfirmed ? name : `Looks like ${name}`;
   const source = input.source ?? null;
   // Coarse context makes the notification concrete ("near the conference you're
   // at") — but only at the precision actually held. "near New York, US" was
@@ -78,7 +92,7 @@ export function cardEventNotice(input: {
       title: input.firstEver ? firstTitle : isLinks ? "Swift Links viewed" : "Card viewed",
       // "Someone" when we genuinely don't know. A visitor is only named once
       // they have shared their details, so this never guesses at an identity.
-      body: `${name || "Someone"} viewed ${surfaceLabel}${near}.`,
+      body: `${who} viewed ${surfaceLabel}${near}.`,
     };
   }
 
@@ -100,7 +114,7 @@ export function cardEventNotice(input: {
       // owner a stranger is now in that person's address book, which we do not
       // know. A download we DO know, so that is what it says.
       title: "Contact downloaded",
-      body: `${name || "Someone"} downloaded your contact card${from}${near}.`,
+      body: `${who} downloaded your contact card${from}${near}.`,
     };
   }
 

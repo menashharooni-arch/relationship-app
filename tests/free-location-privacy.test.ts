@@ -27,7 +27,7 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 describe("the sentence marks where its location is", () => {
   it("wraps the fragment and the place name, invisibly", () => {
     const n = cardEventNotice({
-      eventType: "viewed_card", surface: "links", visitorName: "Sam",
+      eventType: "viewed_card", surface: "links", visitorName: "Sam", nameConfirmed: true,
       location: "New York, US", geoAccuracy: "region",
     })!;
     expect(n.body).toContain(PLACE_MARK);
@@ -45,7 +45,7 @@ describe("the sentence marks where its location is", () => {
   });
 
   it("says nothing at all when there is no location", () => {
-    const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Sam" })!;
+    const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Sam", nameConfirmed: true })!;
     expect(n.body).toBe("Sam viewed your card.");
     expect(n.body).not.toContain(PLACE_MARK);
   });
@@ -53,7 +53,7 @@ describe("the sentence marks where its location is", () => {
 
 describe("what a Free account is actually sent", () => {
   const notice = cardEventNotice({
-    eventType: "viewed_card", surface: "links", visitorName: "Sam",
+    eventType: "viewed_card", surface: "links", visitorName: "Sam", nameConfirmed: true,
     location: "Roslyn, NY", geoAccuracy: "city",
   })!;
 
@@ -107,14 +107,14 @@ describe("what a Free account is actually sent", () => {
 describe("the lock screen, where nothing can be blurred", () => {
   it("drops the location fragment whole and closes the sentence up", () => {
     const n = cardEventNotice({
-      eventType: "viewed_card", visitorName: "Sam", location: "Roslyn, NY", geoAccuracy: "city",
+      eventType: "viewed_card", visitorName: "Sam", nameConfirmed: true, location: "Roslyn, NY", geoAccuracy: "city",
     })!;
     expect(withoutLocation(n.body)).toBe("Sam viewed your card.");
   });
 
   it("does the same for every shape the composer can produce", () => {
     for (const [loc, acc] of [["Roslyn, NY", "city"], ["Great Neck, NY", "city_approx"], ["New York, US", "region"], ["US", "country"]] as const) {
-      const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Sam", location: loc, geoAccuracy: acc })!;
+      const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Sam", nameConfirmed: true, location: loc, geoAccuracy: acc })!;
       expect(withoutLocation(n.body), `${loc}/${acc}`).toBe("Sam viewed your card.");
     }
   });
@@ -147,7 +147,7 @@ describe("nothing else has to remember", () => {
 
   it("redacting is idempotent — a second pass cannot eat the blocks", () => {
     const once = redactPlaces(cardEventNotice({
-      eventType: "viewed_card", visitorName: "Sam", location: "Roslyn, NY", geoAccuracy: "city",
+      eventType: "viewed_card", visitorName: "Sam", nameConfirmed: true, location: "Roslyn, NY", geoAccuracy: "city",
     })!.body);
     expect(redactPlaces(once)).toBe(once);
     expect(redactLegacyPlace("Someone viewed your card near █████.")).toContain("█");

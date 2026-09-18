@@ -173,9 +173,15 @@ describe("the words a person reads", () => {
     expect(groupAccuracy(["city", "city_approx"])).toBe("city_approx");
     expect(groupAccuracy(["city_approx", "region"])).toBe("region");
     expect(groupAccuracy(["region", "country"])).toBe("country");
-    // Nulls are IGNORED, not treated as the floor: counting legacy rows as
-    // weakest would mute the qualifier forever on any label with history.
-    expect(groupAccuracy([null, "city"])).toBe("city");
+    // A MIXED group may not inherit the confident row's precision (owner
+    // report, 2026-09-18). "Ithaca, US" ×8 with no accuracy, folded together
+    // with one two-source "Ithaca, NY", used to render as a flat, confirmed
+    // "Ithaca, NY" — nine visits presented as a confirmed town when one earned
+    // it. An unknown row is at best one source's guess at a town, so the group
+    // can read no better than that.
+    expect(groupAccuracy([null, "city"])).toBe("city_approx");
+    // A weaker known value still wins over the unknown floor.
+    expect(groupAccuracy([null, "region"])).toBe("region");
     expect(groupAccuracy([null, undefined])).toBe(null);
     expect(groupAccuracy([])).toBe(null);
   });
@@ -266,7 +272,7 @@ describe("contact saves say only what happened", () => {
   it("the notification and activity copy report a download, not a save", () => {
     // Asserted on the OUTPUT, not the source: the source deliberately explains
     // in a comment what the old wording claimed and why it was wrong.
-    const n = cardEventNotice({ eventType: "downloaded_vcard", visitorName: "Mina R" })!;
+    const n = cardEventNotice({ eventType: "downloaded_vcard", visitorName: "Mina R", nameConfirmed: true })!;
     expect(n.title).toBe("Contact downloaded");
     expect(n.body).toBe("Mina R downloaded your contact card.");
     expect(cardEventNotice({ eventType: "downloaded_vcard" })!.body)
@@ -419,7 +425,7 @@ describe("outbound link taps are finally counted — and counted honestly", () =
   });
 
   it("never notifies — eight links is eight taps and none of them is news", () => {
-    expect(cardEventNotice({ eventType: "clicked_link", visitorName: "Mina R" })).toBeNull();
+    expect(cardEventNotice({ eventType: "clicked_link", visitorName: "Mina R", nameConfirmed: true })).toBeNull();
   });
 
   it("is deduped per LINK, not per visit — two links is two events", () => {

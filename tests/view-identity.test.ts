@@ -220,13 +220,29 @@ describe("an owner viewing their own card", () => {
     expect(viewRows()).toHaveLength(0);
   });
 
-  it("reads the CURRENT claimant of a shared device, not every account that ever used it", async () => {
-    // A device that has since been signed into someone else's account must stop
-    // suppressing the previous owner's views immediately.
-    sessionUserId = null;
+  // ONE BROWSER, TWO OF THE OWNER'S OWN ACCOUNTS. This replaces a test that
+  // pinned "most recent claimant only" (owner report, 2026-09-18): production
+  // showed both of his accounts claiming the same two devices, `last_seen`
+  // moving only when THAT account loads a protected page, and his own view of
+  // his own card recorded as a stranger and pushed to his phone because the
+  // other account's row happened to be fresher.
+  it("suppresses the owner when ANY recent claimant of the device is the owner", async () => {
+    sessionUserId = null; // signed in as his OTHER account, which this card doesn't own
     deviceCookie = "b".repeat(32);
-    db.user_devices.push({ device_id: "b".repeat(32), user_id: OWNER, last_seen: "2026-09-01T10:00:00Z" });
-    db.user_devices.push({ device_id: "b".repeat(32), user_id: "someone-else", last_seen: "2026-09-14T10:00:00Z" });
+    const fresh = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const older = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString();
+    db.user_devices.push({ device_id: "b".repeat(32), user_id: OWNER, last_seen: older });
+    db.user_devices.push({ device_id: "b".repeat(32), user_id: "his-other-account", last_seen: fresh });
+
+    expect((await view({})).outcome).toBe("self");
+  });
+
+  it("a claim older than the window stops suppressing — a device handed on ages out", async () => {
+    sessionUserId = null;
+    deviceCookie = "d".repeat(32);
+    const ancient = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString();
+    db.user_devices.push({ device_id: "d".repeat(32), user_id: OWNER, last_seen: ancient });
+    db.user_devices.push({ device_id: "d".repeat(32), user_id: "someone-else", last_seen: new Date().toISOString() });
 
     expect((await view({})).outcome).toBe("recorded");
   });
@@ -482,12 +498,20 @@ describe("the pipeline is wired the way the tests assume", () => {
   const viewsSrc = read("src/app/api/views/[username]/route.ts");
   const identitySrc = read("src/lib/visit-identity.ts");
 
-  it("both public ingest routes resolve the identity server-side and set the cookie", () => {
-    for (const src of [eventsSrc, viewsSrc]) {
-      expect(src).toMatch(/resolveVisitIdentity\(req,/);
-      expect(src).toMatch(/attachVisitIdentity\(/);
-      expect(src).toMatch(/deviceKeyFor\(/);
-    }
+  it("the ingest route that records resolves the identity server-side and sets the cookie", () => {
+    expect(eventsSrc).toMatch(/resolveVisitIdentity\(req,/);
+    expect(eventsSrc).toMatch(/attachVisitIdentity\(/);
+    expect(eventsSrc).toMatch(/deviceKeyFor\(/);
+  });
+
+  // /api/views was retired 2026-09-18. It was public and unauthenticated, wrote
+  // card_views + CRM events + milestones, and logged NOTHING — an audit blind
+  // spot and a way to fabricate views at any public slug (the browser-side
+  // human gate cannot apply to a direct POST). It must stay inert.
+  it("the retired /api/views records nothing and logs that it was called", () => {
+    expect(viewsSrc).not.toMatch(/recordView\(/);
+    expect(viewsSrc).toMatch(/logIngest\(/);
+    expect(viewsSrc).toMatch(/retired_endpoint/);
   });
 
   it("the card-events route keys its rows on the RESOLVED id, never the body's", () => {
@@ -505,15 +529,26 @@ describe("the pipeline is wired the way the tests assume", () => {
     expect(VISITOR_COOKIE).toBe("sc_vid");
   });
 
-  it("the device backstop is consulted whenever the identity found nothing — never in an `else`", () => {
-    expect(recordSrc).toMatch(/if \(!recent && deviceKey\) recent = await recentBy\("device_key", deviceKey\);/);
+  // The backstop still may not hide in an `else` (that was the four-views bug),
+  // but it is now reached ONLY for a browser that could keep no identity at
+  // all. The key is sha256(slug + ip + user-agent), and two iPhones on one
+  // Wi-Fi share it byte for byte, which silently deleted the second person's
+  // visit — at a QR code passed around a room (owner report, 2026-09-18).
+  it("the device backstop is consulted only for an identity-less browser, never in an `else`", () => {
+    expect(recordSrc).toMatch(/if \(!recent && deviceKey && identityMinted\) recent = await recentBy\("device_key", deviceKey\);/);
+    expect(recordSrc).toMatch(/identityMinted = false/);
+    expect(eventsSrc).toMatch(/identityMinted: visitIdentity\.minted/);
   });
 
   it("owner exclusion has two signals and neither of them is an IP", () => {
     const selfSrc = read("src/lib/self-traffic.ts");
     expect(selfSrc).toMatch(/auth\.getUser\(\)/);
     expect(selfSrc).toMatch(/DEVICE_COOKIE/);
-    expect(selfSrc).toMatch(/order\("last_seen", \{ ascending: false \}\)/);
+    // Bounded by recency, and EVERY recent claimant counts: one browser can be
+    // signed into two of the same person's accounts, and "most recent wins"
+    // then named the wrong one (owner report, 2026-09-18).
+    expect(selfSrc).toMatch(/DEVICE_CLAIM_MS/);
+    expect(selfSrc).toMatch(/claimsOwner\(/);
     expect(selfSrc).not.toMatch(/\bclientIp\b/);
   });
 
