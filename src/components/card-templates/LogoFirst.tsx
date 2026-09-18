@@ -12,6 +12,7 @@ import type { CardData } from "./types";
 import { cardLogoShape,
   cardAspect, ContactRows, contactScale, fitFactor, fitName, fitTitle, fitTitleFluid, titleBox, fitCompany, heroGrow,
   qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom,
+  DetailsGap, QR_PINNED,
 } from "./shared";
 import PanelVideo from "./PanelVideo";
 
@@ -287,16 +288,18 @@ export default function LogoFirst({ data }: { data: CardData }) {
       {/* ── Hairline rule ──────────────────────────────────────────────────── */}
       <div className="self-stretch shrink-0" style={{ width: 1, margin: "20px 0", background: ruleColor }} />
 
-      {/* ── Right: identity, details, QR — spread top to bottom ──────────────
-          `justify-between`, the same as every other template, so the card uses
-          its full height instead of pooling everything in the middle.
+      {/* ── Right: identity, then details, QR pinned to the bottom ───────────
+          Details start directly under the identity block and fill DOWNWARD
+          (DetailsGap, shared.tsx). This was `justify-between`, which floated a
+          lone phone number into the middle of the column; the QR keeps the
+          bottom through its own auto margin, so the card still uses its height.
 
           The QR sits in its OWN bottom row rather than beside the contact rows.
           That is not cosmetic: sharing a row with the QR left the contact column
           ~176px on a 460px card, which split "Board.LevLev@gmai / l.com" across
           two lines and let a phone's "MOBILE" label slide underneath the code.
           On its own row the block gets the full column and both defects go. */}
-      <div className="flex-1 min-w-0 flex flex-col justify-between" style={{ padding: "16px 16px 14px 15px" }}>
+      <div className="flex-1 min-w-0 flex flex-col justify-start" style={{ padding: "16px 16px 14px 15px" }}>
         {/* titleBox: the job title sizes itself to THIS column (shared.tsx). */}
         <div className="min-w-0" style={titleBox}>
           <h2
@@ -357,6 +360,7 @@ export default function LogoFirst({ data }: { data: CardData }) {
           ) : null}
         </div>
 
+        <DetailsGap f={f} />
         <div className="min-w-0">
           <ContactRows data={data} f={f} scale={contactScale(data)} palette={{ accent, ...infoPal, phoneWeight: 700 }} />
         </div>
@@ -364,7 +368,7 @@ export default function LogoFirst({ data }: { data: CardData }) {
         {/* Same shape, size and corner as every other template's QR: its own
             bottom-right row at the shared qrSize, tinted to the card's palette
             rather than left a stark white sticker. */}
-        <div className="flex items-end justify-end">
+        <div className="flex items-end justify-end" style={QR_PINNED}>
           <div className="flex flex-col items-end gap-1">
             <QR size={qrSize(f)} bg={qrBg} fg={qrFg} url={data.cardUrl} />
           </div>

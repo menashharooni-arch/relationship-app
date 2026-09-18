@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, DetailsGap, QR_PINNED, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const GOLD_DEFAULT  = "#b08d57";
@@ -142,7 +142,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
 
       {/* ── Right panel: contact details ───────────────── */}
       <div
-        className="flex-1 flex flex-col justify-between"
+        className="flex-1 flex flex-col justify-start"
         style={{ padding: "18px 18px 17px 16px" }}
       >
         {/* Tagline */}
@@ -150,11 +150,14 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           — Private Contact —
         </p>
 
+        {/* Details start directly under the tagline and fill DOWNWARD; the QR
+            is pinned to the bottom by its own auto margin (see DetailsGap). */}
+        <DetailsGap f={f} />
         {/* Contact rows — shared block, auto-fits; lighter phone weight keeps the refined feel */}
         <ContactRows data={data} f={f} scale={contactScale(data)} palette={{ accent: GOLD, ...infoPal, phoneWeight: 600 }} />
 
         {/* QR — always on the card; gives up a little room when dense */}
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-end gap-1" style={QR_PINNED}>
           <QR size={qrSize(f)} bg="#f5f0e8" fg={GOLD} url={data.cardUrl} />
         </div>
       </div>

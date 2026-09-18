@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn, nameClass } from "./shared";
+import { cardAspect, ContactRows, DetailsGap, QR_PINNED, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn, nameClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const ACCENT_DEFAULT = "#6d28d9";
@@ -124,7 +124,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
 
       {/* ── Right: info panel — background follows bgColor ──────────── */}
       <div
-        className="relative flex-1 flex flex-col justify-between"
+        className="relative flex-1 flex flex-col justify-start"
         style={{ padding: "15px 17px 13px", background: infoBg,
           // Isolate so PanelVideo's z-index:-1 sits above this background
           // and below the panel's own content, instead of escaping upward.
@@ -147,6 +147,9 @@ export default function PhotoFirst({ data }: { data: CardData }) {
           <div className="w-10 h-[2px] rounded-full" style={{ background: `linear-gradient(90deg, ${ACCENT}, #a78bfa)` }} />
         </div>
 
+        {/* Details start directly under the company and fill DOWNWARD; the QR
+            is pinned to the bottom by its own auto margin (see DetailsGap). */}
+        <DetailsGap f={f} />
         {/* Contact rows — shared block, auto-fits to the amount of info */}
         <div className="flex flex-col" style={{ gap: Math.round(5 * f) }}>
           <ContactRows data={data} f={f} scale={contactScale(data)} palette={{ accent: ACCENT, ...rowPal }} />
@@ -158,7 +161,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         </div>
 
         {/* QR + scan label — always on the card; gives up a little room when dense */}
-        <div className="flex items-end justify-end">
+        <div className="flex items-end justify-end" style={QR_PINNED}>
           <div className="flex flex-col items-end gap-1">
             <QR size={qrSize(f)} bg={infoPalette.qrBg} fg={darkInfo ? "#1e1b4b" : ACCENT} url={data.cardUrl} />
           </div>
