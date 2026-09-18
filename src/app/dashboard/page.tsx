@@ -59,6 +59,8 @@ import { backfillCardPhotos } from "@/lib/card-media";
 import { buildCardData } from "@/lib/card-data";
 import AddCardButton from "@/components/AddCardButton";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
+import EventTagChip from "@/components/EventTagChip";
+import { activeEvent } from "@/lib/event-tag";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -754,6 +756,9 @@ export default async function DashboardPage({
           ownCard
         />
         <MoreShareOptions url={cardUrl} walletUsername={walletEnabled ? activeUsername : undefined} />
+        {/* "At an event?" — stamps today's new contacts with where you met
+            them (lib/event-tag.ts). */}
+        <EventTagChip initial={activeEvent(profile.customization)} />
       </div>
     </CardCaptureProvider>
   );
