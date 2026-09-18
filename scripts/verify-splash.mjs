@@ -20,12 +20,14 @@
  *     different slice of it on every launch.
  *
  * Usage: node scripts/verify-splash.mjs [baseUrl]     (default http://127.0.0.1:3111)
+ *        SPLASH_V2=1 node scripts/verify-splash.mjs   (as a build carrying the v2 launch image)
  */
 import { chromium } from "playwright";
 
 const BASE = process.argv[2] || "http://127.0.0.1:3111";
 const UA =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) SwiftCardApp";
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) SwiftCardApp" +
+  (process.env.SPLASH_V2 ? " SwiftCardSplash/2" : "");
 
 // Every device the app ships to, plus one landscape case. `expect` is what the
 // static launch image renders the mark at, which is what the overlay's first
@@ -95,7 +97,7 @@ const probe = (page) =>
     return {
       held: document.documentElement.classList.contains("sc-splash-hold"),
       play: cs.animationPlayState, name: cs.animationName,
-      visibility: cs.visibility, opacity: +cs.opacity, pointerEvents: cs.pointerEvents,
+      visibility: cs.visibility, opacity: +cs.opacity, pointerEvents: cs.pointerEvents, display: cs.display,
       mark: +icon.width.toFixed(1),
       cx: +(icon.left + icon.width / 2).toFixed(1), cy: +(icon.top + icon.height / 2).toFixed(1),
       rootW: Math.round(root.width), rootH: Math.round(root.height),
@@ -147,17 +149,26 @@ console.log("\nHandoff — the sequence starts when the screen is actually ours"
   // is the only thing standing between the user and a black frame.
   const heldBg = await page.evaluate(
     () => getComputedStyle(document.getElementById("sc-splash-vfork")).backgroundColor);
-  check("held frame paints navy even before any image decodes",
-    heldBg === "rgb(26, 35, 66)", `background=${heldBg}`);
+  const heldImg = await page.evaluate(
+    () => getComputedStyle(document.getElementById("sc-splash-vfork")).backgroundImage);
+  // v1: flat navy. v2: the logo's gradient (a CSS gradient needs no decode) over its mid-tone.
+  check("held frame paints the launch image's ground even before any image decodes",
+    process.env.SPLASH_V2
+      ? heldBg === "rgb(54, 66, 120)" && heldImg.startsWith("linear-gradient(135deg")
+      : heldBg === "rgb(26, 35, 66)",
+    `background=${heldBg} ${heldImg.slice(0, 40)}`);
   await page.waitForTimeout(180);
   const go = await probe(page);
   check("hands off from the overlay itself, not from hydration", go.hideCalls === 1, `hide() calls=${go.hideCalls}`);
   check("released, and starts at its first frame", !go.held && go.clock < 150, `clock=${go.clock}ms`);
   await page.waitForTimeout(1500);
   const end = await probe(page);
+  // Once the sequence ends the overlay disarms to display:none, which also
+  // drops the animation's fill — so visibility/opacity read their base values
+  // there, and display is what says it is gone.
   check("ends inert — hidden, transparent, untappable",
-    end.visibility === "hidden" && end.opacity === 0 && end.pointerEvents === "none",
-    `visibility=${end.visibility} opacity=${end.opacity} pointer-events=${end.pointerEvents}`);
+    end.display === "none" || (end.visibility === "hidden" && end.opacity === 0 && end.pointerEvents === "none"),
+    `display=${end.display} visibility=${end.visibility} opacity=${end.opacity} pointer-events=${end.pointerEvents}`);
   check("a tap at centre screen reaches the app",
     await page.evaluate(() => {
       const el = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
@@ -234,7 +245,7 @@ console.log("\nConditions");
   await page.waitForTimeout(900);
   const b = await probe(page);
   check("reduced motion swaps to a plain fade and still ends inert",
-    a.name === "vfk-reduced" && b.visibility === "hidden", `${a.name} -> ${b.visibility}`);
+    a.name === "vfk-reduced" && (b.display === "none" || b.visibility === "hidden"), `${a.name} -> ${b.display}/${b.visibility}`);
   await context.close();
 }
 
