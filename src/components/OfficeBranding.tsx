@@ -10,8 +10,9 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
 import CustomCard from "@/components/card-templates/CustomCard";
-import { normalizeCustomLayout } from "@/lib/custom-layout";
-import { withoutSocials } from "@/components/card-templates/types";
+import { DEFAULT_PRESET, buildPreset, normalizeCustomLayout, withoutFaceImage } from "@/lib/custom-layout";
+import { withoutSocials, type CustomLayout } from "@/components/card-templates/types";
+import CustomCardDesigner from "@/components/CustomCardDesigner";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
@@ -95,6 +96,16 @@ export default function OfficeBranding({ office }: { office: Brand }) {
   const [company, setCompany] = useState(office.brand_company ?? "");
   const [website, setWebsite] = useState(office.brand_website ?? "");
   const [template, setTemplate] = useState(office.brand_template ?? "classic-pro");
+  // The team's CUSTOM design (owner, 2026-09-18: admins may set one as the look
+  // everyone inherits). Seeded from the saved brand, never with a face image —
+  // that is one person's card with their details baked in, and on a team it
+  // would put the admin's details on every member's card (teamCustomLayout).
+  const [customLayout, setCustomLayout] = useState<CustomLayout>(() =>
+    office.brand_custom_layout
+      ? withoutFaceImage(normalizeCustomLayout(office.brand_custom_layout))
+      : buildPreset(DEFAULT_PRESET),
+  );
+  const customSelected = template === "custom";
   // The team look — the same keys the card editor writes, and it must stay that
   // way: this page renders the card editor's OWN TemplateStyleControls, so any
   // control added there appears here automatically. A key missing from this
@@ -158,7 +169,11 @@ export default function OfficeBranding({ office }: { office: Brand }) {
       const res = await fetch("/api/office/brand", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logoUrl, company, website, template, design: { ...design, logoShape }, phone, fax, address, lockTemplate }),
+        body: JSON.stringify({
+          logoUrl, company, website, template, design: { ...design, logoShape }, phone, fax, address, lockTemplate,
+          // Only with the Custom template — the server ignores it otherwise.
+          ...(customSelected ? { customLayout } : {}),
+        }),
       });
       setStatus(res.ok ? "saved" : "error");
       if (res.ok) setTimeout(() => setStatus("idle"), 2500);
@@ -184,14 +199,12 @@ export default function OfficeBranding({ office }: { office: Brand }) {
     initials: "DL",
     logoUrl,
     cardUrl: "swiftcard.me/dana",
-    // The brand's own saved layout, so the "custom" preview shows the design
-    // the team actually has rather than a default one. normalizeCustomLayout
-    // is what CustomCard would apply anyway, and it turns whatever shape the
-    // column happens to hold into something renderable.
+    // The layout being designed right now, so the preview follows every change
+    // in the designer before it is saved.
     customization: {
       ...design,
       logoShape,
-      customLayout: office.brand_custom_layout ? normalizeCustomLayout(office.brand_custom_layout) : undefined,
+      customLayout,
     },
   });
 
@@ -332,14 +345,19 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         {/* 2 ── Card appearance ─────────────────────────────────────────── */}
         <Section n={2} title="Card appearance" desc="The design your whole team inherits — template, colors and fonts.">
           {/* The same template gallery as Card design — every template drawn
-              with the company's details. Custom design is not offered here: a
-              brand can't be designed on this page (the designer lives in the
-              card editor). */}
-          <TemplatePicker template={template} onSelect={setTemplate} data={previewData} customUnlocked={false} hideCustom />
+              with the company's details, and the Custom design row OPEN: an
+              admin here is on the Office plan (owner, 2026-09-18). */}
+          <TemplatePicker template={template} onSelect={setTemplate} data={previewData} customUnlocked upsell={false} />
           <div className="mt-4">
-            {/* The exact colour/font control the card editor uses — one look
-                system everywhere. Writes offices.brand_design on save. */}
-            <TemplateStyleControls value={design} onChange={patchDesign} template={template} />
+            {customSelected ? (
+              // The card editor's own designer, in team mode: a photo copies
+              // the LAYOUT only, never an image with someone's details baked in.
+              <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan teamBrand />
+            ) : (
+              // The exact colour/font control the card editor uses — one look
+              // system everywhere. Writes offices.brand_design on save.
+              <TemplateStyleControls value={design} onChange={patchDesign} template={template} />
+            )}
           </div>
           <p className="text-[0.6875rem] text-gray-600 mt-3">
             Use the lock below to decide whether every team card must match this design.

@@ -2,6 +2,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isApplePaid } from "@/lib/iap-entitlement";
 import { PRO_CUSTOMIZATION_KEYS } from "@/lib/plan";
 import { OFFICE_LINK_DESIGN_KEYS } from "@/lib/office-link-design";
+import { withoutFaceImage } from "@/lib/custom-layout";
 
 export type OfficeAddress = { street?: string; unit?: string; city?: string; state?: string; zip?: string };
 
@@ -262,7 +263,9 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
     company: (office.brand_company as string) ?? null,
     website: (office.brand_website as string) ?? null,
     template: (office.brand_template as string) ?? null,
-    customLayout: office.brand_custom_layout ?? null,
+    // Never a face image on a TEAM brand (lib/custom-layout withoutFaceImage):
+    // it is one person's card with their details baked in.
+    customLayout: withoutFaceImage(office.brand_custom_layout ?? null),
     design: hasDesign ? design : null,
     phone: (office.brand_phone as string) ?? null,
     fax: (office.brand_fax as string) ?? null,
@@ -636,7 +639,7 @@ export async function seedBrandFromOwnersFirstCard(officeId: string, ownerId: st
     brand_company: (card.company as string | null) || null,
     brand_website: (card.website as string | null) || null,
     brand_template: (card.template as string | null) || null,
-    brand_custom_layout: cust.customLayout ?? null,
+    brand_custom_layout: withoutFaceImage(cust.customLayout ?? null),
     brand_design: extractDesign(cust),
   };
 

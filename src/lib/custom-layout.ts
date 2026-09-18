@@ -1044,3 +1044,25 @@ export const SKELETONS: { key: CardSkeleton; label: string }[] = [
   { key: "mirror", label: "Right" },
   { key: "stacked", label: "Across the top" },
 ];
+
+// ── A custom design for a WHOLE TEAM ─────────────────────────────────────────
+//
+// Office Branding can set a custom design as the look every member inherits
+// (owner, 2026-09-18). A team layout is blocks — live text each member's card
+// fills with THEIR details — and never a face image: the exact-copy image is one
+// person's card with their name, number and email baked into the pixels, and
+// applied to a team it would put the admin's details on every member's card.
+
+/** Drop a face image from any layout-shaped value, leaving everything else as stored. */
+export function withoutFaceImage<T>(raw: T): T {
+  if (!raw || typeof raw !== "object" || !("faceImage" in (raw as object))) return raw;
+  const { faceImage: _face, ...rest } = raw as Record<string, unknown>;
+  void _face;
+  return rest as T;
+}
+
+/** A submitted team layout, made safe to store: validated like any layout, never a face image. */
+export function teamCustomLayout(raw: unknown): CustomLayout | null {
+  if (!raw || typeof raw !== "object") return null;
+  return withoutFaceImage(normalizeCustomLayout(raw));
+}

@@ -6,6 +6,7 @@ import { overlayOfficeContact, stripOfficeContact, propagateBrandToOfficeCards, 
 import { writeAudit } from "@/lib/audit";
 import { normalizeSocial } from "@/lib/social-url";
 import { requireOfficeCapability } from "@/lib/office-roles";
+import { teamCustomLayout } from "@/lib/custom-layout";
 
 // Office admin sets the uniform brand (logo / company / website / template /
 // colors & fonts). This page is THE brand source — there is no primary card.
@@ -161,6 +162,13 @@ export async function PATCH(req: NextRequest) {
     brand_company: "company" in body ? (str(body.company) || null) : ((office.brand_company as string | null) ?? null),
     brand_website: "website" in body ? (str(body.website) || null) : ((office.brand_website as string | null) ?? null),
     brand_template: template,
+    // The team's custom design, from the designer on the Branding page. Only
+    // with the Custom template, validated like every layout, and never a face
+    // image (teamCustomLayout) — that would put one person's details on every
+    // member's card. Omitted, the stored layout is kept.
+    ...(template === "custom" && "customLayout" in body && body.customLayout && typeof body.customLayout === "object"
+      ? { brand_custom_layout: teamCustomLayout(body.customLayout) }
+      : {}),
     brand_phone: "phone" in body ? (typeof body.phone === "string" ? body.phone.trim() || null : null) : ((office.brand_phone as string | null) ?? null),
     brand_fax: "fax" in body ? (typeof body.fax === "string" ? body.fax.trim() || null : null) : ((office.brand_fax as string | null) ?? null),
     brand_address: "address" in body ? (hasAddr ? cleanAddr : null) : ((office.brand_address as typeof cleanAddr) ?? null),

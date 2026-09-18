@@ -135,11 +135,19 @@ export default function CustomCardDesigner({
   // photo and fail again. So the caller says whether scanning is actually
   // available and the button teaches rather than breaks.
   canScan = true,
+  teamBrand = false,
 }: {
   layout: CustomLayout;
   data: CardData;
   onChange: (layout: CustomLayout) => void;
   canScan?: boolean;
+  /**
+   * Designing the look a WHOLE TEAM inherits (Office Branding). A photo then
+   * copies only the LAYOUT, as editable blocks each member's card fills with
+   * their own details — never the exact-copy image, which is one person's card
+   * with their details baked in (lib/custom-layout teamCustomLayout).
+   */
+  teamBrand?: boolean;
 }) {
   const history = useRef<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -362,7 +370,9 @@ export default function CustomCardDesigner({
       if (fileRef.current) fileRef.current.value = "";
       return;
     }
-    await transferDesign(prepared);
+    // A team brand never gets the exact-copy image — see teamBrand.
+    if (teamBrand) await scanLayoutOnly(prepared.b64);
+    else await transferDesign(prepared);
   }
 
   // Hovering a look shows it on the card without committing, so you can try all
@@ -489,7 +499,7 @@ export default function CustomCardDesigner({
                 </span>
                 <span className="min-w-0">
                   <span className={`block text-[0.84375rem] font-semibold ${canScan ? "text-white" : "text-gray-400"}`}>
-                    {scanning ? "Rebuilding it with your details…" : "Copy a card or template you like"}
+                    {scanning ? (teamBrand ? "Copying the layout…" : "Rebuilding it with your details…") : "Copy a card or template you like"}
                     {canScan && !scanning && (
                       <span className="ml-1.5 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 text-white align-middle tracking-wide">✨ MAGIC</span>
                     )}
@@ -498,7 +508,9 @@ export default function CustomCardDesigner({
                     )}
                   </span>
                   <span className="block text-[0.6875rem] text-gray-400 leading-snug mt-0.5">
-                    {canScan
+                    {teamBrand
+                      ? "Upload a card design you like. We copy its layout as editable blocks, and every teammate's card fills it with their own details."
+                      : canScan
                       ? "Upload a card design you like. We rebuild it exactly — same colors, fonts and layout — with YOUR details on it. You approve a preview before anything changes."
                       : "On Pro, upload a card design you like and we'll rebuild it exactly, with your details on it."}
                   </span>
@@ -551,7 +563,7 @@ export default function CustomCardDesigner({
         {/* Exact design active: the card is the approved image, so the block
             controls below are dormant — say so where the owner is looking,
             with the way out right next to the statement. */}
-        {layout.faceImage && (
+        {layout.faceImage && !teamBrand && (
           <div className="rounded-lg border border-blue-500/40 bg-blue-950/30 px-3 py-2.5 flex items-center gap-3">
             <p className="text-[0.6875rem] text-blue-200 leading-snug flex-1">
               Exact design is on — your card shows the approved image. Looks and Style below won&apos;t change it.
@@ -655,7 +667,7 @@ export default function CustomCardDesigner({
                   did nothing (report 2026-08-26); the design only appeared on
                   the live card page. The live renderer (CustomCard) makes the
                   same face-first choice. */}
-              {shown.faceImage ? <FaceCard data={previewData} src={shown.faceImage} /> : <CustomBlockCard data={previewData} placeholder />}
+              {shown.faceImage && !teamBrand ? <FaceCard data={previewData} src={shown.faceImage} /> : <CustomBlockCard data={previewData} placeholder />}
             </CardScaler>
           </div>
         </div>

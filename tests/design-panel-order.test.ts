@@ -127,42 +127,97 @@ describe("every social box asks for the same thing", () => {
   });
 });
 
-// ── The website's card builder is not where you meet the freeform canvas ────
+// ── Custom design: on every card-design screen, open only to a paying account ─
 //
-// Owner order 2026-09-15: "Through the website, when someone is creating their
-// card they shouldn't have access to open custom design." A guest has no
-// account, and the designer's own scan/upload paths need a session.
-describe("a guest never reaches the custom designer", () => {
+// Owner, 2026-09-15: "when someone is creating their card they shouldn't have
+// access to open custom design" — and then, 2026-09-18, on finding the row gone
+// from Get Started: "I want custom design to be shown with a very small pro tag
+// but I want it to be locked. The only time someone can ever access custom
+// design is in the actual dashboard if they pay for the Pro or Office plan."
+// So: the row is everywhere, and it opens only for Pro and Office.
+describe("Custom design is shown everywhere and opens only for Pro and Office", () => {
   const src = read(WIZARD);
+  const picker = read("src/components/card-templates/TemplatePicker.tsx");
 
-  it("gates the tile on a separate flag, not on designUnlocked", () => {
-    expect(src).toMatch(/const customDesignAvailable = designUnlocked && !guest;/);
-    // The picker leaves the row out for a guest (shared TemplatePicker since
-    // the Card design tab rebuild), and the canvas, docked preview and step-2
-    // canvas mode all read the new flag.
-    expect(src).toMatch(/hideCustom=\{guest\}/);
+  it("the builder opens it only for a paying account — not a guest, not a Free first card", () => {
+    expect(src).toMatch(/const customDesignAvailable = isPro;/);
     expect(src).toMatch(/customUnlocked=\{customDesignAvailable\}/);
+    // The canvas, docked preview and step-2 canvas mode all read the same flag.
     expect(src).toMatch(/customSelected && customDesignAvailable \?/);
     expect(src).toMatch(/designerIsCanvas = step === 2 && customSelected && customDesignAvailable/);
   });
 
-  it("the picker hides the row only when asked, so the card editor keeps it", () => {
-    const picker = read("src/components/card-templates/TemplatePicker.tsx");
-    expect(picker).toMatch(/hideCustom = false/);
-    expect(picker).toMatch(/\{!hideCustom && \(/);
-    expect(read(EDITOR)).not.toMatch(/hideCustom/);
+  it("the row can no longer be left out of any gallery", () => {
+    expect(picker).not.toMatch(/hideCustom/);
+    for (const f of [
+      WIZARD, EDITOR, "src/components/OfficeBranding.tsx", "src/components/site/CardMiniBuilder.tsx",
+      "src/components/site/SignatureMiniBuilder.tsx", "src/components/site/TeamsDashboard.tsx",
+    ]) {
+      expect(read(f), f).not.toMatch(/hideCustom/);
+      expect(read(f), f).toMatch(/<TemplatePicker/);
+    }
   });
 
-  it("never restores a guest onto the custom template", () => {
+  it("locked, it carries the small PRO tag and cannot be opened", () => {
+    expect(picker).toMatch(/proTag=\{proTags \|\| !customUnlocked\}/);
+    expect(picker).toMatch(/disabled=\{!customUnlocked\}/);
+  });
+
+  it("the upgrade link under a locked row only where leaving costs nothing — the card editor", () => {
+    expect(picker).toMatch(/\{!customUnlocked && upsell && <CustomDesignUpsell \/>\}/);
+    expect(src).toMatch(/customUnlocked=\{customDesignAvailable\}\s*\n\s*upsell=\{false\}/);
+    for (const f of ["src/components/site/CardMiniBuilder.tsx", "src/components/site/SignatureMiniBuilder.tsx", "src/components/site/TeamsDashboard.tsx"]) {
+      expect(read(f), f).toMatch(/customUnlocked=\{false\} upsell=\{false\}/);
+    }
+    expect(read(EDITOR)).toMatch(/customUnlocked=\{isPro\}/);
+  });
+
+  it("never restores anyone onto a Custom design they cannot open", () => {
     // A resumed draft or a prefill could otherwise strand them on a design
     // they can no longer open or change.
-    const guards = src.match(/guest && p\.template === "custom"/g) ?? [];
+    const guards = src.match(/!\(!customDesignAvailable && p\.template === "custom"\)/g) ?? [];
     expect(guards.length, "both restore paths must be guarded").toBe(2);
   });
 
-  it("still lets a guest try colours and fonts", () => {
-    // The plan preview is the point of the guest flow; only the canvas is held
+  it("still lets a guest and a Free first card try colours and fonts", () => {
+    // The plan preview is the point of those flows; only Custom design is held
     // back, so designUnlocked must survive.
     expect(src).toMatch(/const designUnlocked = isPro \|\| guest \|\| isFirstCard;/);
+  });
+});
+
+describe("Office Branding: a custom design for the whole team", () => {
+  const office = read("src/components/OfficeBranding.tsx");
+
+  it("offers the row open, with the card editor's own designer", () => {
+    expect(office).toMatch(/<TemplatePicker template=\{template\} onSelect=\{setTemplate\} data=\{previewData\} customUnlocked upsell=\{false\} \/>/);
+    expect(office).toMatch(/<CustomCardDesigner layout=\{customLayout\} data=\{previewData\} onChange=\{setCustomLayout\} canScan teamBrand \/>/);
+    // …and saves it with the brand.
+    expect(office).toMatch(/\.\.\.\(customSelected \? \{ customLayout \} : \{\}\)/);
+  });
+
+  it("never an image with one person's details baked in — in the designer, the page, the API or the brand read", () => {
+    const designer = read("src/components/CustomCardDesigner.tsx");
+    expect(designer).toMatch(/if \(teamBrand\) await scanLayoutOnly\(prepared\.b64\);/);
+    expect(designer).toMatch(/shown\.faceImage && !teamBrand \?/);
+    expect(office).toMatch(/withoutFaceImage\(normalizeCustomLayout\(office\.brand_custom_layout\)\)/);
+    expect(read("src/app/api/office/brand/route.ts")).toMatch(/brand_custom_layout: teamCustomLayout\(body\.customLayout\)/);
+    const brand = read("src/lib/office-brand.ts");
+    expect(brand).toMatch(/customLayout: withoutFaceImage\(office\.brand_custom_layout \?\? null\)/);
+    expect(brand).toMatch(/brand_custom_layout: withoutFaceImage\(cust\.customLayout \?\? null\)/);
+  });
+});
+
+describe("a team layout is safe to store", () => {
+  it("drops the face image and validates everything else", async () => {
+    const { teamCustomLayout, withoutFaceImage } = await import("@/lib/custom-layout");
+    const withFace = { background: "#000000", textColor: "#ffffff", fontFamily: "Inter", faceImage: "https://example.com/x.png", blocks: [] };
+    const team = teamCustomLayout(withFace);
+    expect(team).not.toBeNull();
+    expect("faceImage" in (team as object)).toBe(false);
+    expect(teamCustomLayout(null)).toBeNull();
+    expect(teamCustomLayout("not a layout")).toBeNull();
+    expect(withoutFaceImage({ a: 1, faceImage: "x" })).toEqual({ a: 1 });
+    expect(withoutFaceImage(null)).toBeNull();
   });
 });
