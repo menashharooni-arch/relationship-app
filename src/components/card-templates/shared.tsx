@@ -136,6 +136,17 @@ export function contactScale(data: CardData): number {
 
 // Cap used for HERO text (names/companies) — they grow with sparseness but a
 // touch less than rows so the layout stays balanced.
+/**
+ * How much of a text element's allowed GROWTH the card can actually afford,
+ * from the same density factor everything else reads (0 on a busy card, 1 on a
+ * sparse one). A bigger title and company name add height, and on a packed card
+ * that height pushed the QR off the edge — caught by card-detail-fit on Logo
+ * First with a long unbroken address. Growth is a reward for spare room.
+ */
+export function roomGrow(f: number): number {
+  return Math.min(1, Math.max(0, (f - 0.92) / 0.22));
+}
+
 export function heroGrow(f: number): number {
   return Math.min(f, 1.14);
 }
@@ -220,6 +231,9 @@ const FIT_FLOOR = 0.38;
 /** Company names and job titles wrap onto a second line rather than shrink
  *  past this share of their design size (~8px on every template). */
 const COMPANY_FLOOR = 0.62;
+/** How much bigger than its design size a SHORT company name may grow to use
+ *  the width beside the logo. Kept modest so it never rivals the name. */
+const COMPANY_GROW = 1.3;
 const TITLE_FLOOR = 0.78;
 
 // ── Company names must not break mid-word ───────────────────────────────────
@@ -382,6 +396,8 @@ export function fitCompany(
   availPx: number,
   trackingEm = 0,
   uppercase = false,
+  /** Density (fitFactor): a short name only grows where there is room. */
+  f = 1,
 ): { fontSize: number; letterSpacing: string } {
   const s = (text ?? "").trim();
   // Start from the existing length-based size so short names are untouched and
@@ -410,6 +426,18 @@ export function fitCompany(
     //    genuinely wider than the space it has and breaking is correct.
     size = Math.max(base * COMPANY_FLOOR, availPx / ((glyphs + n * tracking) * SAFETY));
   }
+
+  // GROW A SHORT NAME INTO THE SPACE IT HAS (owner, 2026-09-17: name, title and
+  // company should all use the room on the card). "Remax" beside a logo sat at
+  // its design size with half the column empty. The WHOLE string has to fit on
+  // ONE line at the grown size — a name that would wrap is left where it is,
+  // because two bigger lines is not an improvement — and the cap keeps the
+  // company subordinate to the name above it.
+  const lineEm = wordEm(s, uppercase);
+  const oneLineMax = availPx / ((lineEm + s.length * tracking) * SAFETY);
+  const grow = 1 + (COMPANY_GROW - 1) * roomGrow(f);
+  if (oneLineMax > size) size = Math.max(size, Math.min(base * grow, oneLineMax));
+
   return { fontSize: size, letterSpacing: `${Number(tracking.toFixed(3))}em` };
 }
 
@@ -497,6 +525,55 @@ export function fitName(base: number, name: string | null | undefined, comfyTota
  * looking harmless in the source. Shares TITLE_COMFY with the density
  * calculation so the two can't drift apart.
  */
+/**
+ * THE JOB TITLE, SIZED BY THE COLUMN IT SITS IN — not by a fixed number.
+ *
+ * fitTitle below only ever SHRINKS, so every title rendered at its template's
+ * base size (8–9.5px on a 460px card). A short one like "CEO" therefore sat at
+ * 9px in a column with room for three times that — too small to read (owner,
+ * 2026-09-17). This is the mechanism the contact rows already use: a CSS
+ * container query measures the column, so the title is as large as fits on one
+ * line, capped so it stays subordinate to the name, and floored at exactly the
+ * old fitted size so a long title still wraps onto the line titleLoad reserves.
+ *
+ * The PARENT must set containerType: "inline-size" — `titleBox` below.
+ *
+ * `tracking` is the letter-spacing in em. Uppercase titles carry 0.12–0.2em,
+ * which is a fifth of the width again; ignoring it is what made titles overflow
+ * while looking harmless in the source.
+ */
+export function fitTitleFluid(
+  base: number,
+  title: string | null | undefined,
+  opts: { tracking?: number; grow?: number; pad?: number; uppercase?: boolean; min?: number; f?: number } = {},
+): React.CSSProperties {
+  const s = (title ?? "").trim();
+  if (!s) return { fontSize: base };
+  const tracking = opts.tracking ?? 0;
+  // Scaled by the room the card has (roomGrow): a packed card keeps today's size.
+  const grow = 1 + ((opts.grow ?? 1.7) - 1) * (opts.f === undefined ? 1 : roomGrow(opts.f));
+  const pad = opts.pad ?? 4;
+  // Uppercase semibold sans runs ~0.62em per glyph; sentence case is narrower.
+  const perChar = (opts.uppercase === false ? 0.52 : 0.62) + tracking;
+  const max = base * grow;
+  // `min` lets a template keep its own floor (Logo First clamps unbroken
+  // titles harder than fitTitle does).
+  const min = Math.min(opts.min ?? fitTitle(base, s), max);
+  const budget = (s.length * perChar).toFixed(2);
+  // HEIGHT-NEUTRAL: the line box stays the size the old fixed title had, so a
+  // grown title cannot push anything below it — Logo First stacks its QR under
+  // this text in normal flow, and three extra pixels put the QR off the card
+  // (caught by card-detail-fit). Uppercase titles have no descenders, so larger
+  // glyphs sit comfortably in the same box.
+  return {
+    fontSize: `clamp(${min.toFixed(2)}px, calc((100cqw - ${pad}px) / ${budget}), ${max.toFixed(2)}px)`,
+    lineHeight: `${(min * 1.3).toFixed(2)}px`,
+  };
+}
+
+/** The wrapper a fluid title (or company name) measures itself against. */
+export const titleBox: React.CSSProperties = { containerType: "inline-size" };
+
 export function fitTitle(base: number, title: string | null | undefined): number {
   // Two lines allowed (titleLoad already reserves the room), with a readable
   // floor: "SENIOR VICE PRESIDENT, COMMERCIAL LEASING" rendered at ~5px.

@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn, nameClass } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn, nameClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const ACCENT_DEFAULT = "#6d28d9";
@@ -40,7 +40,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
     row: 242, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.52, minLogo: 60,
     company: data.company, targetPx: 12, trackingEm: 0, uppercase: false,
   });
-  const companyFit = fitCompany(13.5, data.company, 20, companyPx, 0, false);
+  const companyFit = fitCompany(13.5, data.company, 20, companyPx, 0, false, f);
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#c084fc" },
     data.twitter   && { icon: <IcoX />,        color: "#64748b" },
@@ -106,7 +106,8 @@ export default function PhotoFirst({ data }: { data: CardData }) {
         />
 
         {/* Name + title over photo */}
-        <div className="relative px-3.5 pb-3">
+        {/* titleBox: the job title sizes itself to THIS column (shared.tsx). */}
+        <div className="relative px-3.5 pb-3" style={titleBox}>
           <h2
             className={`font-extrabold leading-tight ${nameClass(style)}`}
             style={{ fontSize: fitName(18 * heroGrow(f), data.name, 16), overflowWrap: "anywhere", minWidth: 0, textShadow: "0 1px 4px rgba(0,0,0,0.4)", color: style.textColor }}
@@ -114,7 +115,7 @@ export default function PhotoFirst({ data }: { data: CardData }) {
             {data.name}
           </h2>
           <p
-            style={{ fontSize: fitTitle(8, data.title), color: "rgba(221,214,254,0.9)", letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 2 }}
+            style={{ ...fitTitleFluid(8, data.title, { tracking: 0.14, f }), color: "rgba(221,214,254,0.9)", letterSpacing: "0.14em", textTransform: "uppercase", marginTop: 2 }}
           >
             {data.title}
           </p>

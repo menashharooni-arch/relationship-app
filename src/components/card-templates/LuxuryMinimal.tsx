@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const GOLD_DEFAULT  = "#b08d57";
@@ -39,7 +39,7 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
     row: 170.4, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.48, minLogo: 46,
     company: data.company, targetPx: 9, trackingEm: 0.22, uppercase: true,
   });
-  const companyFit = fitCompany(10.5, data.company, 18, companyPx, 0.22, true);
+  const companyFit = fitCompany(10.5, data.company, 18, companyPx, 0.22, true, f);
 
   return (
     <div
@@ -119,10 +119,11 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
           >
             {data.name}
           </h2>
-          <div className="flex items-center gap-1.5 mt-2">
+        {/* titleBox: the job title sizes itself to THIS column (shared.tsx). */}
+          <div className="flex items-center gap-1.5 mt-2" style={titleBox}>
             <div className="h-px flex-1" style={{ maxWidth: 20, background: GOLD }} />
             <p
-              style={{ fontSize: fitTitle(8.5, data.title), letterSpacing: "0.2em", color: GOLD, fontWeight: 600, textTransform: "uppercase" }}
+              style={{ ...fitTitleFluid(8.5, data.title, { tracking: 0.2, f }), letterSpacing: "0.2em", color: GOLD, fontWeight: 600, textTransform: "uppercase" }}
             >
               {data.title}
             </p>

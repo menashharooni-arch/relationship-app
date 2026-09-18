@@ -10,7 +10,7 @@ import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import { cardLogoShape,
-  cardAspect, ContactRows, contactScale, fitFactor, fitName, fitTitle, fitCompany, heroGrow,
+  cardAspect, ContactRows, contactScale, fitFactor, fitName, fitTitle, fitTitleFluid, titleBox, fitCompany, heroGrow,
   qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom,
 } from "./shared";
 import PanelVideo from "./PanelVideo";
@@ -146,7 +146,7 @@ export default function LogoFirst({ data }: { data: CardData }) {
   // 5.1px — a 55-character company name rendered present and unreadable. The
   // line is `truncate`, so past the floor it ends in an ellipsis instead, which
   // says "there is more of this" rather than pretending to show all of it.
-  const rawCompanyFit = fitCompany(11, data.company, 26, 210, 0, false);
+  const rawCompanyFit = fitCompany(11, data.company, 26, 210, 0, false, f);
   const companyFit = { ...rawCompanyFit, fontSize: Math.max(6.5, rawCompanyFit.fontSize) };
 
   // The tile's edge. It is the only thing separating a logo whose own background
@@ -297,7 +297,8 @@ export default function LogoFirst({ data }: { data: CardData }) {
           two lines and let a phone's "MOBILE" label slide underneath the code.
           On its own row the block gets the full column and both defects go. */}
       <div className="flex-1 min-w-0 flex flex-col justify-between" style={{ padding: "16px 16px 14px 15px" }}>
-        <div className="min-w-0">
+        {/* titleBox: the job title sizes itself to THIS column (shared.tsx). */}
+        <div className="min-w-0" style={titleBox}>
           <h2
             className="leading-tight min-w-0"
             style={{
@@ -332,7 +333,9 @@ export default function LogoFirst({ data }: { data: CardData }) {
                 // technically un-clipped, and completely unreadable. It has
                 // `overflowWrap: anywhere` below, so past the floor it wraps to
                 // a second line instead, which is what a printer would do.
-                fontSize: Math.max(6.5, fitUnbroken(fitTitle(9, data.title), data.title, 0.86)),
+                // Grows to fill this column when the title is short ("CEO"),
+                // with the floor above as its minimum.
+                ...fitTitleFluid(9, data.title, { tracking: 0.14, f, min: Math.max(6.5, fitUnbroken(fitTitle(9, data.title), data.title, 0.86)) }),
                 color: accent,
                 fontWeight: 600,
                 letterSpacing: "0.14em",

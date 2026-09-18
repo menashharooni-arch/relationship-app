@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const BG           = "#070d1c";
@@ -35,7 +35,7 @@ export default function ModernBold({ data }: { data: CardData }) {
     row: 170.4, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.48, minLogo: 46,
     company: data.company, targetPx: 10, trackingEm: 0.16, uppercase: true,
   });
-  const companyFit = fitCompany(12, data.company, 18, companyPx, 0.16, true);
+  const companyFit = fitCompany(12, data.company, 18, companyPx, 0.16, true, f);
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#a78bfa" },
     data.twitter   && { icon: <IcoX />,        color: "#94a3b8" },
@@ -98,7 +98,8 @@ export default function ModernBold({ data }: { data: CardData }) {
         </div>
 
         {/* Name — the hero */}
-        <div>
+        {/* titleBox: the job title sizes itself to THIS column (shared.tsx). */}
+        <div style={titleBox}>
           <div className="w-5 h-[2px] mb-2" style={{ background: BLUE }} />
           <h2
             className={`font-black leading-tight ${nameClass(style)}`}
@@ -107,7 +108,7 @@ export default function ModernBold({ data }: { data: CardData }) {
             {data.name}
           </h2>
           <p
-            style={{ fontSize: fitTitle(9.5, data.title), color: BLUE, letterSpacing: "0.18em", fontWeight: 700, marginTop: 6, textTransform: "uppercase" }}
+            style={{ ...fitTitleFluid(9.5, data.title, { tracking: 0.18, f }), color: BLUE, letterSpacing: "0.18em", fontWeight: 700, marginTop: 6, textTransform: "uppercase" }}
           >
             {data.title}
           </p>

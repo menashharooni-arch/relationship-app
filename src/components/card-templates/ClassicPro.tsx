@@ -6,7 +6,7 @@
 import { isDarkBg, panelBackground } from "@/lib/template-style";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitle, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const NAVY = "#0e1b35";
@@ -33,7 +33,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
     row: 152, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.48, minLogo: 46,
     company: data.company, targetPx: 11, trackingEm: 0.03, uppercase: false,
   });
-  const companyFit = fitCompany(13.5, data.company, 18, companyPx, 0.03, false);
+  const companyFit = fitCompany(13.5, data.company, 18, companyPx, 0.03, false, f);
   const socials = [
     data.linkedin  && { icon: <IcoLinkedIn />, handle: data.linkedin, color: "#60a5fa" },
     data.instagram && { icon: <IcoInsta />,    handle: data.instagram, color: "#c084fc" },
@@ -109,7 +109,8 @@ export default function ClassicPro({ data }: { data: CardData }) {
         </div>
 
         {/* Name + title — hero */}
-        <div className="relative">
+        {/* titleBox: the job title sizes itself to THIS column (shared.tsx). */}
+        <div className="relative" style={titleBox}>
           <div className="w-8 h-[2px] mb-2.5 rounded-full" style={{ background: BLUE }} />
           <h2
             className={`font-extrabold leading-tight ${nameClass(style)}`}
@@ -119,7 +120,7 @@ export default function ClassicPro({ data }: { data: CardData }) {
           </h2>
           <p
             className="text-blue-300 font-semibold mt-1.5"
-            style={{ fontSize: fitTitle(9.5, data.title), letterSpacing: "0.16em", textTransform: "uppercase" }}
+            style={{ ...fitTitleFluid(9.5, data.title, { tracking: 0.16, f }), letterSpacing: "0.16em", textTransform: "uppercase" }}
           >
             {data.title}
           </p>
