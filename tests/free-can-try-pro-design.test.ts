@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import TemplateStyleControls from "@/components/card-templates/TemplateStyleControls";
 import { proFeaturesInUse } from "@/lib/plan";
+import { META } from "@/lib/template-style-presets";
+import { isFreeFinish } from "@/lib/card-finishes";
 
 // ── A Free account can try every Pro design control, and is stopped at Save ───
 //
@@ -17,13 +19,16 @@ import { proFeaturesInUse } from "@/lib/plan";
 // single one they could not look at. These pin the whole contract, both halves:
 // nothing in the panel is dead, and nothing gets past the save.
 
-const markup = (locked: boolean) =>
+const markup = (locked: boolean, proTags = false) =>
   renderToStaticMarkup(createElement(TemplateStyleControls, {
     value: {},
     onChange: () => {},
     template: "classic-pro",
     locked,
+    proTags,
   }));
+
+const proTagCount = (html: string) => (html.match(/>PRO</g) ?? []).length;
 
 describe("the design panel on a Free account", () => {
   const free = markup(true);
@@ -42,13 +47,25 @@ describe("the design panel on a Free account", () => {
     expect(free).not.toContain('aria-disabled="true"');
   });
 
-  it("carries no PRO labels on either plan — Pro is named at Save", () => {
-    // Owner, 2026-09-16: the Card Design tab shows no Pro badges. The
-    // disclosure moved entirely to Save Changes, where ProRequiredDialog names
-    // exactly what was used (pinned in pro-required-on-save.test.ts) — so a
-    // Free account still cannot keep a Pro choice without being told.
-    expect(free).not.toContain(">PRO<");
-    expect(pro).not.toContain(">PRO<");
+  it("tags every Pro choice on a Free account's Edit card (owner, 2026-09-18)", () => {
+    // "How do these users know which features are pro features?" Save Changes
+    // still stops them (ProRequiredDialog, pinned in pro-required-on-save);
+    // the tags only say beforehand which choices it will name.
+    const tagged = markup(true, true);
+    const colourInputs = (tagged.match(/<input[^>]*type="color"[^>]*>/g) ?? []).length;
+    const proFinishes = 5; // Frosted, Brushed, Carbon, Linen, Gilt edge
+    const proFinishLooks = META["classic-pro"].looks.filter((l) => l.finish && !isFreeFinish(l.finish)).length;
+    // any color × each colour step, Photo or video, the Pro finishes, the Looks built on them.
+    expect(proTagCount(tagged)).toBe(colourInputs + 1 + proFinishes + proFinishLooks);
+    // Tagging changes nothing else: same controls, still all live.
+    expect(tagged.match(/<button[^>]*\sdisabled(=|\s|>)/g)).toBeNull();
+    expect(tagged.replace(/<span[^>]*>PRO<\/span>/g, "").replace(/<span class="absolute[^"]*"><\/span>/g, ""))
+      .toBe(free);
+  });
+
+  it("shows no PRO tag unless the Edit card asks for them — Pro accounts and every other caller", () => {
+    expect(proTagCount(free)).toBe(0); // `locked` alone (the build wizard) draws nothing
+    expect(proTagCount(pro)).toBe(0);
   });
 
   it("keeps every finish and Look tappable — the preview IS the demo", () => {

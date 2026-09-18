@@ -13,8 +13,11 @@
 // template with no second surface simply has one step fewer. Nothing is behind
 // a tab or a "More" fold any more: those hid half the panel from the people
 // who most needed to be led through it.
-// No PRO labels anywhere in the panel (owner, 2026-09-16): every control works
-// and previews on every plan; the Save dialog names what needs Pro.
+// Every control works and previews on every plan; the Save dialog names what
+// needs Pro. On a Free account's Edit card (`proTags`), each Pro choice carries
+// a light-blue PRO tag so they know in advance which ones that dialog will
+// name (owner, 2026-09-18) — any color, Photo or video, the Pro finishes and
+// the Looks built on them.
 // The template's name and blurb are NOT repeated here: the editors' template
 // gallery (TemplatePicker) already shows them beside a live thumbnail.
 // The control vocabulary (headings, fields, tap targets, what "selected" looks
@@ -29,9 +32,9 @@ import { CARD_FONT_OPTIONS, isDarkBg } from "./shared";
 import type { TemplateStyle } from "./shared";
 import { META, FALLBACK_META, type Look, type StyleField } from "@/lib/template-style-presets";
 import { useRef, useState } from "react";
-import { DesignSteps, type DesignStep } from "@/components/ui/DesignControls";
+import { DesignSteps, ProTag, type DesignStep } from "@/components/ui/DesignControls";
 import {
-  CARD_FINISHES, FINISH_FAMILIES, getFinish,
+  CARD_FINISHES, FINISH_FAMILIES, getFinish, isFreeFinish,
   composePanelBackground, PANEL_DIM_DEFAULT,
 } from "@/lib/card-finishes";
 import { isAllowedMedia, uploadMedia, uploadErrorMessage, WRONG_TYPE_MESSAGE, IMAGE_TYPES, VIDEO_TYPES } from "@/lib/upload-media";
@@ -76,6 +79,7 @@ function LooksGallery({
   onPick,
   original,
   onOriginal,
+  proTags = false,
 }: {
   looks: Look[];
   value: TemplateStyle;
@@ -83,6 +87,8 @@ function LooksGallery({
   /** The template's own baked-in scheme, painted on the "Original" tile. */
   original: { bg: string; text: string };
   onOriginal: () => void;
+  /** Tag the Looks built on a Pro finish (Free account, Edit card). */
+  proTags?: boolean;
 }) {
   const originalActive = isOriginal(value);
   return (
@@ -116,9 +122,9 @@ function LooksGallery({
       {looks.map((look) => {
         const active = looksActive(value, look);
         // A Look built on a Pro finish SHOWS its finish here and applies on tap,
-        // so the card previews exactly as it would. No PRO label on the tile
-        // (owner, 2026-09-16): what needs Pro is named once, at Save Changes,
-        // by the Pro-required dialog (lib/plan.ts proFeaturesInUse).
+        // so the card previews exactly as it would. Save Changes names it
+        // (lib/plan.ts proFeaturesInUse); the PRO tag says so beforehand.
+        const needsPro = proTags && !!look.finish && !isFreeFinish(look.finish);
         return (
           <button
             key={look.name}
@@ -129,7 +135,7 @@ function LooksGallery({
             title={look.finish ? `${look.name} — ${getFinish(look.finish).name.toLowerCase()} finish` : look.name}
           >
             <div
-              className="h-11 rounded-lg flex items-center px-2.5 transition-transform group-hover:scale-[1.03]"
+              className="relative h-11 rounded-lg flex items-center px-2.5 transition-transform group-hover:scale-[1.03]"
               style={{
                 // The FINISH, not just the colour. A Look whose whole point is
                 // the material rendered as a flat chip identical to the plain
@@ -146,6 +152,9 @@ function LooksGallery({
             >
               {/* Aa uses a legible color for the picker even on light themes */}
               <span data-ds="specimen" className="text-sm font-bold leading-none" style={{ color: isDarkBg(look.bg) ? look.text : "#111827", fontFamily: look.font }}>Aa</span>
+              {/* In the swatch's corner, not beside the name: three to a row on
+                  a phone, a tag there would cut "Executive Navy" to "Exe…". */}
+              {needsPro && <span className="absolute top-1 right-1"><ProTag /></span>}
             </div>
             <span className="mt-1 flex items-center gap-1 min-w-0">
               <span className={`text-[0.6875rem] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-400"}`}>{look.name}</span>
@@ -162,11 +171,14 @@ function Swatches({
   value,
   fallbackHex,
   onPick,
+  proTag = false,
 }: {
   presets: string[];
   value?: string;
   fallbackHex: string;
   onPick: (v: string | undefined) => void;
+  /** Tag the free-hand picker — the one Pro part of a colour step. */
+  proTag?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -209,9 +221,10 @@ function Swatches({
             server snaps colours to Free presets on write regardless
             (sanitizeCustomizationForPlan).
 
-            No PRO label here any more (owner, 2026-09-16): the Card Design
-            tab carries no Pro badges; the Save dialog is where Pro is named. */}
-        any color
+            On a Free account's Edit card it carries the PRO tag (owner,
+            2026-09-18), on "any color" only — the swatches beside it are
+            every plan. */}
+        any color{proTag && <ProTag />}
         <input
           type="color"
           value={isHex(value) ? value : fallbackHex}
@@ -274,10 +287,13 @@ function FinishPicker({
   value,
   bgFallback,
   onChange,
+  proTags = false,
 }: {
   value: TemplateStyle;
   bgFallback: string;
   onChange: (patch: Partial<TemplateStyle>) => void;
+  /** Tag the Pro finishes (Free account, Edit card). */
+  proTags?: boolean;
 }) {
   const base = value.bgColor ?? bgFallback;
   const current = getFinish(value.finish);
@@ -294,7 +310,7 @@ function FinishPicker({
                 const active = current.id === f.id;
                 // Every finish is tappable on every plan so the card can be previewed
                 // with it. The save path strips a Pro finish on Free (lib/plan.ts)
-                // and the Save dialog names it — no PRO label on the tile.
+                // and the Save dialog names it; the PRO tag says so beforehand.
                 return (
                   <button
                     key={f.id}
@@ -307,7 +323,7 @@ function FinishPicker({
                     // would paint over the material being chosen. Controls
                     // whose face is a LABEL (font pills, segments, Default)
                     // take the fill. See components/ui/DesignControls.
-                    className={`group sc-tap rounded-lg border p-1 text-left transition-colors ${
+                    className={`group sc-tap relative rounded-lg border p-1 text-left transition-colors ${
                       active ? "border-blue-500 ring-2 ring-blue-500 ring-offset-2 ring-offset-gray-900" : "border-gray-700 hover:border-gray-500"
                     }`}
                   >
@@ -316,6 +332,9 @@ function FinishPicker({
                       style={{ background: composePanelBackground(base, f.id) }}
                       aria-hidden
                     />
+                    {/* On the swatch's corner, not beside the name: four to a
+                        row on a phone, a tag there would cut "Brushed" short. */}
+                    {proTags && !f.free && <span className="absolute top-1.5 right-1.5"><ProTag /></span>}
                     <span className="mt-1 flex items-center gap-1 min-w-0">
                       <span className={`text-[0.6875rem] leading-tight truncate ${active ? "text-blue-300 font-semibold" : "text-gray-400"}`}>{f.name}</span>
                     </span>
@@ -492,17 +511,25 @@ export default function TemplateStyleControls({
   onChange,
   template,
   canUpload = true,
+  proTags = false,
 }: {
   value: TemplateStyle;
   onChange: (patch: Partial<TemplateStyle>) => void;
   template?: string;
   /**
    * The account can't keep Pro choices (Free). Still accepted from every caller
-   * but no longer drawn: the Card Design tab carries no PRO labels (owner,
-   * 2026-09-16). Every control stays usable and previews; the Pro-required
-   * dialog at Save names what needs Pro, and the server enforces it.
+   * but draws nothing: every control stays usable and previews; the
+   * Pro-required dialog at Save names what needs Pro, and the server enforces
+   * it. The PRO tags are `proTags`, not this.
    */
   locked?: boolean;
+  /**
+   * Show the light-blue PRO tags on the Pro choices. Only a Free account's
+   * Edit card screen sets it (owner, 2026-09-18), so they can see which of
+   * their choices Save Changes will stop at. Nothing else about the panel
+   * changes.
+   */
+  proTags?: boolean;
   /** False where there is no account to upload against (a website guest, the
    *  homepage builders): every upload route answers 401 there. The step stays
    *  in its place in the numbered path, saying when it becomes available. */
@@ -530,7 +557,7 @@ export default function TemplateStyleControls({
     f: StyleField,
     current: string | undefined,
     key: "bgColor" | "surfaceColor" | "textColor" | "accentColor" | "infoColor",
-  ) => <Swatches presets={f.presets} value={current} fallbackHex={f.fallback} onPick={(v) => onChange({ [key]: v })} />;
+  ) => <Swatches presets={f.presets} value={current} fallbackHex={f.fallback} onPick={(v) => onChange({ [key]: v })} proTag={proTags} />;
 
   // The path, in build order. Base first — the whole look, the main surface and
   // what goes behind it, the second surface — then the type and colour details,
@@ -547,6 +574,7 @@ export default function TemplateStyleControls({
           onPick={applyLook}
           original={{ bg: meta.bg.fallback, text: meta.text.fallback }}
           onOriginal={applyOriginal}
+          proTags={proTags}
         />
       ),
     },
@@ -555,6 +583,7 @@ export default function TemplateStyleControls({
       key: "media",
       label: "Photo or video",
       help: `Optional — goes behind your ${meta.bg.label.toLowerCase()}.`,
+      trailing: proTags ? <ProTag /> : undefined,
       body: canUpload
         ? <PanelMediaControl value={value} onChange={onChange} />
         : <p className="text-[0.6875rem] text-gray-500 leading-snug">You can add a photo or video here once your account is created.</p>,
@@ -577,7 +606,7 @@ export default function TemplateStyleControls({
       key: "finish",
       label: "Finish",
       help: `The material over your ${meta.bg.label.toLowerCase()}. Strongest on deeper colours.`,
-      body: <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} />,
+      body: <FinishPicker value={value} bgFallback={meta.bg.fallback} onChange={onChange} proTags={proTags} />,
     },
   ];
 

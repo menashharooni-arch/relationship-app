@@ -943,6 +943,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 onSelect={setTemplate}
                 data={withoutSocials(previewData)}
                 customUnlocked={isPro}
+                proTags={!isPro}
               />
 
               {/* The designer comes AFTER the picker that selects it, and brings
@@ -954,11 +955,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
               {/* Restyle the chosen preset, one numbered step at a time. Looks,
                   swatches, fonts and three finishes are EVERY plan; only "any
-                  colour", the material finishes and a panel photo/video are Pro
-                  — and each of those carries its own PRO tag inside the panel.
-                  The wall is Save Changes, where the full offer opens. */}
+                  colour", the Pro finishes (and the Looks built on them) and a
+                  panel photo/video are Pro — and on Free each of those carries
+                  a light-blue PRO tag (proTags). The wall is Save Changes,
+                  where the full offer opens. */}
               {!customSelected && (
-                <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} />
+                <TemplateStyleControls value={templateStyleState} onChange={patchTemplateStyle} template={template} locked={!isPro} proTags={!isPro} />
               )}
             </div>
             )}

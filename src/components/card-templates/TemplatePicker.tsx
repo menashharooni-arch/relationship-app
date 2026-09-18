@@ -107,6 +107,7 @@ export default function TemplatePicker({
   customUnlocked,
   notice,
   hideCustom = false,
+  proTags = false,
 }: {
   template: string;
   onSelect: (id: string) => void;
@@ -122,6 +123,9 @@ export default function TemplatePicker({
    *  not teased — a locked tile with no account behind it is a dead end, and
    *  the designer's scan/upload paths need a session. The editor never sets it. */
   hideCustom?: boolean;
+  /** Light-blue PRO tag on the Custom design row. A Free account's Edit card
+   *  only (owner, 2026-09-18), matching the tags in the design steps below. */
+  proTags?: boolean;
 }) {
   // Seven real cards re-render on every colour tap. Deferring their data keeps
   // the main preview — the one the owner is actually watching — instant, while
@@ -150,7 +154,7 @@ export default function TemplatePicker({
             not get a card-sized box of its own. */}
         {!hideCustom && (
           <Tile label="Custom design" selected={customSelected} disabled={!customUnlocked} showLabel={false} className="col-span-full" onSelect={() => onSelect("custom")}>
-            <CustomDesignTileFace selected={customSelected} unlocked={customUnlocked} />
+            <CustomDesignTileFace selected={customSelected} unlocked={customUnlocked} proTag={proTags} />
           </Tile>
         )}
       </div>
