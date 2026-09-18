@@ -36,9 +36,11 @@ async function loadAsset(name: string): Promise<Buffer> {
 // so the Apple certificate env vars are guaranteed present.
 //
 // With `design` (the normal path): a storeCard whose band is composed from the
-// card's own colours and parts, and whose chrome is coloured to continue that
-// band without a seam. Without it: the original fixed navy generic pass, kept
-// as the degrade path so a strip-render failure still ships a pass.
+// card's own colours, textures and parts, and whose chrome is the card's
+// details side — one continuous surface on a single-colour card, the card's
+// second colour on a two-tone one (wallet-palette). Without it: the original
+// fixed navy generic pass, kept as the degrade path so a strip-render failure
+// still ships a pass.
 /**
  * Days until the Pass Type ID certificate expires (null if unreadable).
  * Apple issues these for about a year; an expired one turns every "Add to

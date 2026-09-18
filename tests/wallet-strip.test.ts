@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ResolvedCardMeta } from "@/lib/resolve-card";
 import { bandVariant, passThemeFrom, renderPassStrips, sampleSurface } from "@/lib/wallet-strip";
 import { passPalette, yiq, hexStops } from "@/lib/wallet-palette";
+import { getFinish } from "@/lib/card-finishes";
 import { fitLine, textEm, wrapLines } from "@/lib/wallet-fit";
 
 // The Wallet band has to hold every card the product can produce — six preset
@@ -250,6 +251,62 @@ describe("wallet-palette", () => {
     expect(p.bottom).toBe("#3b82f6");
   });
 
+  it("a two-tone card's pass body is the card's details side", () => {
+    // Owner's choice, 2026-09-18: Classic Pro is a navy panel beside a white
+    // details side, so the pass is a navy band over a white body with the
+    // phone and email in the card's navy and the labels in its blue.
+    const p = passPalette(meta({ template: "classic-pro" }));
+    expect(p.twoTone).toBe(true);
+    expect(p.body).toEqual({ background: "#ffffff", value: "#0e1b35", label: "#2563eb" });
+    expect(p.surface.base).toBe("linear-gradient(160deg, #0e1b35 0%, #162947 100%)");
+    const theme = passThemeFrom(p);
+    expect(theme.backgroundColor).toBe("rgb(255, 255, 255)");
+    expect(theme.foregroundColor).toBe("rgb(14, 27, 53)");
+  });
+
+  it("a single-surface card's band ends on exactly the colour of the body — no seam", () => {
+    for (const t of ["modern-bold", "luxury-minimal", "logo-first"]) {
+      const p = passPalette(meta({ template: t, style: { bgColor: "linear-gradient(135deg, #111827 0%, #6d28d9 100%)" } }));
+      expect(p.twoTone, t).toBe(false);
+      expect(p.surface.base, t).toBe("linear-gradient(180deg, #111827 0%, #6d28d9 100%)");
+      expect(p.body.background, t).toBe("#6d28d9");
+      expect(p.surface.fadeTo, t).toBe("#6d28d9");
+    }
+  });
+
+  it("one accent colour reaches every accent on the pass", () => {
+    // "If the QR code on the actual card is pink ..." — Modern Bold draws its
+    // title, rule, contact icons and QR in the accent. Apple's QR can't be
+    // coloured; everything else the card draws pink, the pass draws pink.
+    const pink = "#ec4899";
+    const p = passPalette(meta({ template: "modern-bold", style: { accentColor: pink } }));
+    expect(p.title).toBe(pink);
+    expect(p.accent).toBe(pink);
+    expect(p.rule?.color).toBe(pink);
+    expect(p.body.label).toBe(pink);
+  });
+
+  it("lays the card's finish over the band, and the template's own texture over that", () => {
+    const linen = getFinish("linen").layers;
+    const p = passPalette(meta({ template: "classic-pro", style: { finish: "linen" } }));
+    const images = p.surface.layers.map((l) => l.image);
+    for (const layer of linen) expect(images).toContain(layer);
+    // The dot grid is Classic Pro's texture div, drawn above the panel.
+    expect(images[images.length - 1]).toMatch(/radial-gradient/);
+    // A card with no finish carries only its template texture.
+    expect(passPalette(meta({ template: "classic-pro" })).surface.layers).toHaveLength(1);
+  });
+
+  it("Photo First's finish belongs to its details panel, which the band is not", () => {
+    // On this template bgColor — and so the finish and panel photo — paints
+    // the INFO panel; surfaceColor paints the photo panel the band copies.
+    const p = passPalette(meta({ template: "photo-first", style: { finish: "linen", bgColor: "#0a0a0a", surfaceColor: "#064e3b" } }));
+    expect(p.surface.base).toBe("#064e3b");
+    expect(p.surface.layers.map((l) => l.image)).not.toContain(getFinish("linen").layers[0]);
+    expect(p.body.background).toBe("#0a0a0a");
+    expect(p.body.value).toBe("#ffffff");
+  });
+
   it("chrome colours are the rgb() form pass.json requires", () => {
     const theme = passThemeFrom(passPalette(meta({ template: "modern-bold" })));
     for (const v of [theme.backgroundColor, theme.foregroundColor, theme.labelColor]) {
@@ -303,65 +360,71 @@ describe("wallet-palette", () => {
 /**
  * Does any content touch the outer margin?
  *
- * The band pads 60px (@3x) on each side and centres its content vertically
- * with at least 64px of air, so a healthy render has uniform surface colour in
- * those gutters. Anything else — a clipped name, an oversized logo, a photo
- * that didn't respect its box — shows up as variation there. This is a direct
- * pixel check rather than a proxy for one, because the failure this replaces
- * was invisible to every other kind of test.
+ * The band pads 108px (@3x) on the left and 72px on the right and centres its
+ * content vertically with room to spare, so in a healthy render the margins
+ * hold nothing but the card's own surface. Anything else — a clipped name, an
+ * oversized logo, a photo that didn't respect its box — shows up there.
+ *
+ * "The surface" is not one colour any more: a Linen or Carbon finish, a dot
+ * grid, a foil edge and an accent bar are all part of the card's panel. So the
+ * reference is the SAME band rendered with its surface alone (surfaceOnly),
+ * and any pixel in the margins that differs from it is content. This is a
+ * direct pixel check rather than a proxy for one, because the failure it
+ * guards was invisible to every other kind of test.
  */
-async function gutterIsClean(png: Buffer, w: number, h: number): Promise<{ ok: boolean; where?: string }> {
+async function gutterIsClean(png: Buffer, surface: Buffer): Promise<{ ok: boolean; where?: string }> {
   const sharp = (await import("sharp")).default;
-  const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
-  const ch = info.channels;
-  const at = (x: number, y: number) => {
-    const i = (y * info.width + x) * ch;
-    return [data[i], data[i + 1], data[i + 2]] as const;
+  const a = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+  const b = await sharp(surface).raw().toBuffer({ resolveWithObject: true });
+  const { width: w, height: h, channels: ch } = a.info;
+  const differs = (x: number, y: number) => {
+    const i = (y * w + x) * ch;
+    return Math.abs(a.data[i] - b.data[i]) > TOL || Math.abs(a.data[i + 1] - b.data[i + 1]) > TOL || Math.abs(a.data[i + 2] - b.data[i + 2]) > TOL;
   };
-  // The surface is a vertical ramp, so compare each pixel against the leftmost
-  // pixel of ITS OWN row — a horizontal difference is content, a vertical one
-  // is just the gradient.
-  //
   // The LEFT margin is checked harder than the right. Wallet masks the strip
   // to the pass's rounded corners and scales it to the device's pass width,
   // and the leading edge is where that costs something — the headshot, logo
   // and monogram all live there, and they were reported cut off on device at
-  // the old 20pt lead-in. 84px of the 108px pad must be clear background.
+  // the old 20pt lead-in. 84px of the 108px pad must be clear.
   const MARGIN_L = Math.round(w * 0.075); // 84px of the 108px left pad, @3x
   const MARGIN_R = Math.round(w * 0.042); // 48px of the 72px right pad, @3x
   // Vertically, the margin has to cover the OTHER reading of the slot: if a
   // renderer ever treats a storeCard strip as 123pt tall, our 144pt image is
   // cropped 10.5pt (31.5px @3x) off the top and bottom. Requiring 37px of
-  // clear background at each end means content survives either way.
+  // clear surface at each end means content survives either way.
   const MARGIN_Y = Math.round(h * 0.085); // 37px — covers a 31.5px vertical crop
-  const TOL = 6;
 
-  for (let y = 0; y < info.height; y++) {
-    const ref = at(0, y);
-    for (const x of [...range(0, MARGIN_L), ...range(info.width - MARGIN_R, info.width)]) {
-      const p = at(x, y);
-      if (Math.abs(p[0] - ref[0]) > TOL || Math.abs(p[1] - ref[1]) > TOL || Math.abs(p[2] - ref[2]) > TOL) {
-        return { ok: false, where: `side gutter at ${x},${y}` };
-      }
+  for (let y = 0; y < h; y++) {
+    for (const x of [...range(0, MARGIN_L), ...range(w - MARGIN_R, w)]) {
+      if (differs(x, y)) return { ok: false, where: `side gutter at ${x},${y}` };
     }
   }
-  for (const y of [...range(0, MARGIN_Y), ...range(info.height - MARGIN_Y, info.height)]) {
-    const ref = at(0, y);
-    for (let x = 0; x < info.width; x++) {
-      const p = at(x, y);
-      if (Math.abs(p[0] - ref[0]) > TOL || Math.abs(p[1] - ref[1]) > TOL || Math.abs(p[2] - ref[2]) > TOL) {
-        return { ok: false, where: `top/bottom gutter at ${x},${y}` };
-      }
+  for (const y of [...range(0, MARGIN_Y), ...range(h - MARGIN_Y, h)]) {
+    for (let x = 0; x < w; x++) {
+      if (differs(x, y)) return { ok: false, where: `top/bottom gutter at ${x},${y}` };
     }
   }
   return { ok: true };
 }
+
+const TOL = 6;
 
 function range(a: number, b: number): number[] {
   const out: number[] = [];
   for (let i = Math.max(0, a); i < b; i++) out.push(i);
   return out;
 }
+
+// Textured and restyled cards — the ones whose surface is not a flat colour.
+const FINISHED: [string, Meta][] = [
+  ["classic-pro+linen", meta({ template: "classic-pro", style: { finish: "linen" } })],
+  ["modern-bold+carbon+pink", meta({ template: "modern-bold", style: { finish: "carbon", accentColor: "#ec4899" } })],
+  ["local-business+brushed", meta({ template: "local-business", style: { finish: "brushed" } })],
+  ["luxury-minimal+gilt", meta({ template: "luxury-minimal", style: { finish: "gilt" } })],
+  ["logo-first+frosted", meta({ template: "logo-first", style: { finish: "frosted" } })],
+  ["photo-first+halo", meta({ template: "photo-first", style: { finish: "halo" } })],
+  ["modern-bold+sheen+light", meta({ template: "modern-bold", style: { finish: "sheen", bgColor: "#f8fafc", textColor: "#0f172a" } })],
+];
 
 describe("wallet pass band renders", () => {
   it("renders every template at exactly the sizes Apple expects", async () => {
@@ -387,14 +450,36 @@ describe("wallet pass band renders", () => {
     const designs: [string, Meta][] = [
       ...TEMPLATES.map((t) => [String(t), meta({ template: t })] as [string, Meta]),
       ...Object.entries(CUSTOM).map(([k, c]) => [k, meta({ template: "custom", custom: c })] as [string, Meta]),
+      ...FINISHED,
     ];
     for (const [label, design] of designs) {
+      const surface = (await renderPassStrips(design, passPalette(design), { surfaceOnly: true })).x3;
       for (const [cname, content] of Object.entries(CONTENT)) {
         const m = { ...design, ...content };
         const strips = await renderPassStrips(m, passPalette(m));
-        const res = await gutterIsClean(strips.x3, 1125, 432);
+        const res = await gutterIsClean(strips.x3, surface);
         expect(res.ok, `${label} / ${cname}: ${res.where}`).toBe(true);
       }
     }
-  }, 600_000);
+  }, 900_000);
+
+  it("draws the card's texture — a Linen card's band is not a flat colour", async () => {
+    // The owner's words: "if the background of the card is textured, like
+    // linen, then you do the same thing to the pass." Measured, not trusted:
+    // the linen band's surface must vary pixel to pixel where the flat one is
+    // uniform, in a patch well away from any content.
+    const sharp = (await import("sharp")).default;
+    const spread = async (m: Meta) => {
+      const png = (await renderPassStrips(m, passPalette(m), { surfaceOnly: true })).x3;
+      const { data, info } = await sharp(png).extract({ left: 1000, top: 40, width: 60, height: 60 }).raw().toBuffer({ resolveWithObject: true });
+      let lo = 255, hi = 0;
+      for (let i = 0; i < data.length; i += info.channels) { lo = Math.min(lo, data[i + 2]); hi = Math.max(hi, data[i + 2]); }
+      return hi - lo;
+    };
+    // Modern Bold's own grid is 2% white — present, but under the threshold.
+    const flat = await spread(meta({ template: "luxury-minimal" }));
+    const linen = await spread(meta({ template: "luxury-minimal", style: { finish: "linen", bgColor: "#1c1612" } }));
+    expect(flat).toBeLessThanOrEqual(2);
+    expect(linen).toBeGreaterThanOrEqual(4);
+  }, 60_000);
 });

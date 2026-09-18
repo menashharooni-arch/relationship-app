@@ -7,7 +7,7 @@ import { fitLine } from "@/lib/wallet-fit";
 import {
   BAND_W, BAND_H, PAD_LEFT, PAD_RIGHT, IMG, GAP,
   NAME_BASE, NAME_MIN, TITLE_BASE, TITLE_MIN, COMPANY_BASE, COMPANY_MIN,
-  IDENTITY_W, bandVariant, initialsOf, bandBackground,
+  IDENTITY_W, CONTENT_SCALE, bandVariant, initialsOf, surfaceLayers,
 } from "@/lib/wallet-band";
 
 // Re-exported: this module was the original home of the band's shape, and
@@ -23,8 +23,12 @@ export { bandVariant } from "@/lib/wallet-band";
 // it is what made the pass look empty: a 1.75:1 card scaled to fit a 3.05:1
 // band is 57% of the width, so the rest of the band was grey ground, and the
 // pass body below it was blank. The band now runs edge to edge and is composed
-// from the card's PARTS — its colours, its mark or headshot, its name, title
-// and company — sized for this shape rather than shrunk into it.
+// from the card's PARTS — its panel exactly as the card paints it (colour,
+// finish such as Linen, panel photo, the template's own texture and accent
+// bar), its mark or headshot, and its name, title and company in the colours
+// and case the template sets them in — sized for this shape rather than
+// shrunk into it. What "the card's panel" means per template is decided once,
+// in wallet-palette.
 //
 // Two rules make it work for every card the product can produce:
 //
@@ -34,11 +38,12 @@ export { bandVariant } from "@/lib/wallet-band";
 //      bespoke per-template layouts each had their own overflow edges, and a
 //      custom card fitted none of them. What survives at this size is colour
 //      and typographic voice, which arrive from wallet-palette as data.
-//   2. Nothing is positioned absolutely, and every string goes through
-//      fitLine(), which VERIFIES its layout rather than estimating it — the
-//      size it returns is one the text has actually been wrapped at. A long
-//      company name cannot reach the edge, and a long name cannot take a third
-//      line, no matter what else is on the band.
+//   2. No CONTENT is positioned absolutely (only the painted surface layers
+//      under it are), and every string goes through fitLine(), which VERIFIES
+//      its layout rather than estimating it — the size it returns is one the
+//      text has actually been wrapped at. A long company name cannot reach the
+//      edge, and a long name cannot take a third line, no matter what else is
+//      on the band.
 //
 // Geometry: rendered once at @3x (1125×432) with Satori, downscaled with sharp
 // for @2x/@1x — the same next/og + Node-runtime combination the per-card OG
@@ -205,6 +210,22 @@ async function prepareLogo(
 }
 
 /**
+ * The card's panel photo, cover-cropped to the band by sharp — the same
+ * `center / cover` the card's CSS asks for, done before Satori sees it for
+ * the reason preparePhoto gives.
+ */
+async function prepareMedia(url: string | null, w: number, h: number): Promise<string | null> {
+  const buf = await loadBuffer(url);
+  if (!buf) return null;
+  try {
+    const sharp = (await import("sharp")).default;
+    return dataUri(await sharp(buf).resize(w, h, { fit: "cover", position: "centre" }).png().toBuffer());
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The surface colour of a design-transfer card, read off the card itself.
  *
  * A face-image card has no colour fields to copy — the design only exists as
@@ -229,10 +250,39 @@ export async function sampleSurface(buf: Buffer): Promise<SampledSurface | null>
 
 type Logo = { src: string; w: number; h: number };
 
-function Band({ meta, palette, photo, logo }: {
-  meta: Meta; palette: PassPalette; photo: string | null; logo: Logo | null;
+/** A card design-px measurement drawn with the type, at @3x. */
+const cpx = (designPx: number) => Math.round(designPx * CONTENT_SCALE * 100) / 100;
+
+/**
+ * The card's panel, painted from the one layer list both renderers share
+ * (wallet-band surfaceLayers). Every box is absolutely positioned and they are
+ * drawn in order, so the stack is the card's: colour, photo, scrim, finish,
+ * template texture, then the template's own details.
+ */
+function Surface({ palette, media }: { palette: PassPalette; media: string | null }) {
+  return (
+    <>
+      {surfaceLayers(palette.surface, W, H).map((layer, i) =>
+        layer.kind === "media" ? (
+          media ? (
+            // Pre-cropped to exactly W×H by sharp — nothing for Satori to fit.
+            // eslint-disable-next-line @next/next/no-img-element -- Satori, not the DOM
+            <img key={i} src={media} alt="" width={W} height={H} style={{ position: "absolute", left: 0, top: 0 }} />
+          ) : null
+        ) : (
+          <div key={i} style={layer.style} />
+        ),
+      )}
+    </>
+  );
+}
+
+function Band({ meta, palette, photo, logo, media, surfaceOnly = false }: {
+  meta: Meta; palette: PassPalette; photo: string | null; logo: Logo | null; media: string | null;
+  /** Paint the surface alone — the tests' reference for "what is background". */
+  surfaceOnly?: boolean;
 }) {
-  const { ink, inkMuted, accent, voice } = palette;
+  const { ink, inkMuted, accent, title: titleInk, voice, rule, nameShadow } = palette;
   const variant = bandVariant(palette.prefer, !!photo, !!logo);
 
   // One box on every pass: the lead square is always the same width, so a name
@@ -246,52 +296,83 @@ function Band({ meta, palette, photo, logo }: {
     box, base: NAME_BASE, min: NAME_MIN, uppercase: voice.caps, tracking: voice.tracking,
     maxLines: 2,
   });
-  const title = fitLine(meta.title, { box, base: TITLE_BASE, min: TITLE_MIN });
-  const company = fitLine(meta.company, { box, base: COMPANY_BASE, min: COMPANY_MIN });
+  // A rule set before the title shares its line, so the title is measured
+  // against what is left of the column.
+  const titleRule = rule?.at === "before-title" ? cpx(rule.width) + cpx(6) : 0;
+  const title = fitLine(meta.title, {
+    box: box - titleRule, base: TITLE_BASE, min: TITLE_MIN,
+    uppercase: voice.titleCaps, tracking: voice.titleTracking,
+  });
+  const company = fitLine(meta.company, {
+    box, base: COMPANY_BASE, min: COMPANY_MIN,
+    uppercase: voice.companyCaps, tracking: voice.companyTracking,
+  });
 
-  const background = bandBackground(palette);
+  const shadow = nameShadow ? `0 ${cpx(nameShadow.y)}px ${cpx(nameShadow.blur)}px ${nameShadow.color}` : undefined;
 
   return (
-    <div style={{
-      width: "100%", height: "100%", display: "flex", alignItems: "center",
-      background, padding: `0 ${PAD_RIGHT}px 0 ${PAD_LEFT}px`, overflow: "hidden",
-    }}>
-      {variant === "portrait" ? (
-        <Portrait url={photo} name={meta.name} ink={ink} accent={accent} />
-      ) : (
-        <Mark logo={logo} label={meta.company || meta.name} ink={ink} />
-      )}
+    <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", overflow: "hidden" }}>
+      <Surface palette={palette} media={media} />
 
-      <div style={{ width: GAP, display: "flex", flex: "none" }} />
-
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, overflow: "hidden" }}>
+      {surfaceOnly ? null : (
         <div style={{
-          fontSize: name.fontSize, letterSpacing: name.letterSpacing, fontWeight: voice.weight,
-          color: ink, lineHeight: 1.08,
-          ...(voice.caps ? { textTransform: "uppercase" as const } : {}),
-        }}>{name.text}</div>
+          position: "absolute", left: 0, top: 0, width: W, height: H,
+          display: "flex", alignItems: "center",
+          padding: `0 ${PAD_RIGHT}px 0 ${PAD_LEFT}px`, overflow: "hidden",
+        }}>
+          {variant === "portrait" ? (
+            <Portrait url={photo} name={meta.name} ink={ink} accent={accent} />
+          ) : (
+            <Mark logo={logo} label={meta.company || meta.name} lead={palette.lead} />
+          )}
 
-        {/* The rule is decoration and it is the first thing to go when the name
-            takes a second line — keeping it there is what pushed a three-part
-            block past the band's usable height. */}
-        {voice.rule && name.lines < 2 ? (
-          <div style={{ width: 104, height: 7, borderRadius: 7, background: accent, marginTop: 16, display: "flex" }} />
-        ) : null}
+          <div style={{ width: GAP, display: "flex", flex: "none" }} />
 
-        {title.text ? (
-          <div style={{
-            fontSize: title.fontSize, color: accent, fontWeight: 600,
-            marginTop: 14, lineHeight: 1.2,
-          }}>{title.text}</div>
-        ) : null}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, overflow: "hidden" }}>
+            {/* The short accent rule the card sets over its name. Decoration,
+                so it is the first thing to go when the name takes a second
+                line — keeping it there is what pushed a three-part block past
+                the band's usable height. */}
+            {rule?.at === "above-name" && name.lines < 2 ? (
+              <div style={{
+                width: cpx(rule.width), height: cpx(rule.height), borderRadius: cpx(rule.height),
+                background: rule.color, marginBottom: cpx(4), display: "flex",
+              }} />
+            ) : null}
 
-        {company.text ? (
-          <div style={{
-            fontSize: company.fontSize, color: inkMuted, fontWeight: 600,
-            marginTop: 6, lineHeight: 1.2,
-          }}>{company.text}</div>
-        ) : null}
-      </div>
+            <div style={{
+              fontSize: name.fontSize, letterSpacing: name.letterSpacing, fontWeight: voice.weight,
+              color: ink, lineHeight: 1.08,
+              ...(voice.caps ? { textTransform: "uppercase" as const } : {}),
+              ...(shadow ? { textShadow: shadow } : {}),
+            }}>{name.text}</div>
+
+            {title.text ? (
+              <div style={{ display: "flex", alignItems: "center", marginTop: 14 }}>
+                {rule?.at === "before-title" ? (
+                  <div style={{
+                    width: cpx(rule.width), height: Math.max(2, cpx(rule.height)),
+                    background: rule.color, marginRight: cpx(6), display: "flex", flex: "none",
+                  }} />
+                ) : null}
+                <div style={{
+                  fontSize: title.fontSize, letterSpacing: title.letterSpacing, color: titleInk, fontWeight: 600,
+                  lineHeight: 1.2,
+                  ...(voice.titleCaps ? { textTransform: "uppercase" as const } : {}),
+                }}>{title.text}</div>
+              </div>
+            ) : null}
+
+            {company.text ? (
+              <div style={{
+                fontSize: company.fontSize, letterSpacing: company.letterSpacing, color: inkMuted, fontWeight: 600,
+                marginTop: 6, lineHeight: 1.2,
+                ...(voice.companyCaps ? { textTransform: "uppercase" as const } : {}),
+              }}>{company.text}</div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -313,10 +394,11 @@ function Portrait({ url, name, ink, accent }: { url: string | null; name: string
   );
 }
 
-function Mark({ logo, label, ink }: { logo: Logo | null; label: string | null; ink: string }) {
+function Mark({ logo, label, lead }: { logo: Logo | null; label: string | null; lead: PassPalette["lead"] }) {
   // A panel, not a bare logo: brand marks arrive on every ground imaginable
   // (white PNGs, dark PNGs, transparent) and a translucent tile keeps all of
-  // them legible without knowing which kind this one is.
+  // them legible without knowing which kind this one is. Its fill — or, on
+  // Logo First, the hairline it gets instead — is the card's own.
   //
   // The panel is a fixed square on every card so the text column starts at the
   // same x in every pass — a panel that resized to each logo made the whole
@@ -324,7 +406,9 @@ function Mark({ logo, label, ink }: { logo: Logo | null; label: string | null; i
   return (
     <div style={{
       width: IMG, height: IMG, borderRadius: 28, flex: "none",
-      background: withAlpha(ink, 0.1), display: "flex", alignItems: "center", justifyContent: "center",
+      background: logo ? lead.tile : lead.monogram.background,
+      ...(lead.edge ? { border: `3px solid ${lead.edge}` } : {}),
+      display: "flex", alignItems: "center", justifyContent: "center",
       overflow: "hidden",
     }}>
       {logo ? (
@@ -333,11 +417,11 @@ function Mark({ logo, label, ink }: { logo: Logo | null; label: string | null; i
         // eslint-disable-next-line @next/next/no-img-element -- Satori, not the DOM
         <img src={logo.src} alt="" width={logo.w} height={logo.h} />
       ) : (
-        // Ink, not the accent. The panel is a tint of the ink, so ink on it is
-        // guaranteed to separate; an accent can legitimately be a close
-        // neighbour of the ground (Luxury Minimal's gold on warm brown) and the
-        // monogram then reads as a smudge.
-        <div style={{ fontSize: 88, fontWeight: 700, color: ink, letterSpacing: "0.04em", display: "flex" }}>
+        // The card's own monogram colours (Classic Pro's pale blue on its
+        // accent tile, Local Business's amber on white). The default is ink on
+        // a tint of the ink, which is guaranteed to separate; an accent can
+        // legitimately be a close neighbour of the ground.
+        <div style={{ fontSize: 88, fontWeight: 700, color: lead.monogram.color, letterSpacing: "0.04em", display: "flex" }}>
           {initialsOf(label)}
         </div>
       )}
@@ -347,33 +431,43 @@ function Mark({ logo, label, ink }: { logo: Logo | null; label: string | null; i
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
+/**
+ * The pass chrome: the card's DETAILS side. backgroundColor is the surface the
+ * card sets its phone and email on, foregroundColor that text, labelColor the
+ * colour of its contact icons.
+ */
 export function passThemeFrom(palette: PassPalette): PassTheme {
   return {
-    backgroundColor: toAppleRgb(palette.bottom),
-    foregroundColor: toAppleRgb(palette.ink),
-    labelColor: toAppleRgb(palette.accent),
+    backgroundColor: toAppleRgb(palette.body.background),
+    foregroundColor: toAppleRgb(palette.body.value),
+    labelColor: toAppleRgb(palette.body.label),
   };
 }
 
 /** Render the band at @3x, then downscale for @2x/@1x with sharp. */
-export async function renderPassStrips(meta: Meta, palette: PassPalette): Promise<PassStrips & { degraded: boolean }> {
+export async function renderPassStrips(
+  meta: Meta, palette: PassPalette, opts: { surfaceOnly?: boolean } = {},
+): Promise<PassStrips & { degraded: boolean }> {
   const p: Meta = { ...meta };
   if (!(typeof p.name === "string" && p.name.trim())) p.name = "SwiftCard";
   // The mark is contained inside the panel's padded area; the headshot fills
-  // its circle. Both are sized here, by sharp, from the real files.
+  // its circle; the panel photo covers the band. All sized here, by sharp,
+  // from the real files.
   const before = imageFailures;
-  const [photo, logo] = await Promise.all([
+  const mediaUrl = palette.surface.media?.url ?? null;
+  const [photo, logo, media] = await Promise.all([
     preparePhoto(p.photoUrl, IMG),
     prepareLogo(p.logoUrl, IMG - 48, IMG - 48),
+    prepareMedia(mediaUrl, W, H),
   ]);
   // Only a REMOTE image that failed to load counts; a card with no image at
-  // all is drawn with initials by design and is final.
-  const degraded = imageFailures > before && (isRemote(p.photoUrl) || isRemote(p.logoUrl));
+  // all is drawn with initials (or its plain colour) by design and is final.
+  const degraded = imageFailures > before && (isRemote(p.photoUrl) || isRemote(p.logoUrl) || isRemote(mediaUrl));
 
   const x3 = Buffer.from(
     await new ImageResponse(
       <div style={{ width: "100%", height: "100%", display: "flex", fontFamily: "sans-serif" }}>
-        <Band meta={p} palette={palette} photo={photo} logo={logo} />
+        <Band meta={p} palette={palette} photo={photo} logo={logo} media={media} surfaceOnly={opts.surfaceOnly} />
       </div>,
       { width: W, height: H }
     ).arrayBuffer()
