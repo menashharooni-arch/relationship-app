@@ -17,12 +17,13 @@ import { clientIp } from "@/lib/client-ip";
 import { notifyVisit } from "@/lib/visit-notify";
 import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveGeo } from "@/lib/request-geo";
+import { attachVisitIdentity, resolveVisitIdentity } from "@/lib/visit-identity";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, phone, company, message, card_owner, tags, source, visitor_id, sms_consent } = await req.json();
+    const { name, email, phone, company, message, card_owner, tags, source, visitor_id: client_visitor_id, sms_consent } = await req.json();
 
     // This is a PUBLIC endpoint — require real strings, not just truthy values
     // (a JSON payload of {name: [], phone: {}} would otherwise pass and crash
@@ -30,6 +31,19 @@ export async function POST(req: NextRequest) {
     if (typeof name !== "string" || !name.trim() || typeof phone !== "string" || !phone.trim() || typeof card_owner !== "string" || !card_owner.trim()) {
       return NextResponse.json({ error: "Name and phone are required." }, { status: 400 });
     }
+
+    // ── The SAME visitor id the card's views are keyed on ─────────────────────
+    // /api/card-events keys every view, save and link tap on the sc_vid cookie
+    // (lib/visit-identity.ts). This route used to store the body's localStorage
+    // id instead, and the two drift apart the moment a browser loses its
+    // storage but keeps its cookie (ITP eviction, an account switch wiping
+    // kontact_vid, a private window). A lead whose visitor_id no longer matches
+    // its own later visits can never be recognised when they come back, and its
+    // "new contact" notification opens a different visit_key from the view it
+    // should have upgraded. Resolve it exactly the way card-events does, and
+    // hand the cookie back so a browser without one keeps this identity.
+    const visitIdentity = resolveVisitIdentity(req, typeof client_visitor_id === "string" ? client_visitor_id : null);
+    const visitor_id = visitIdentity.visitorId;
 
     // Visitors must not be able to inject system tags ("sc-locked" would hide
     // the lead behind the paywall, "email-paused" would kill its automations).
@@ -158,7 +172,10 @@ export async function POST(req: NextRequest) {
       .eq("phone", phone)
       .gte("created_at", dedupSince)
       .limit(1);
-    if (visitor_id) dupQuery = dupQuery.eq("visitor_id", visitor_id);
+    // A freshly MINTED id (no cookie, no client id) is unique to this request,
+    // so matching on it would stop a fast double-tap from deduping at all —
+    // fall back to phone alone exactly as a browser with no id always did.
+    if (!visitIdentity.minted) dupQuery = dupQuery.eq("visitor_id", visitor_id);
     const { data: recentDup } = await dupQuery;
     if (recentDup?.length) {
       // A deduped re-submit can still carry a CHANGED consent choice (they
@@ -177,7 +194,7 @@ export async function POST(req: NextRequest) {
           await admin.from("leads").update({ tags: nextTags }).eq("id", dup.id);
         }
       }
-      return NextResponse.json({ success: true, deduped: true });
+      return attachVisitIdentity(NextResponse.json({ success: true, deduped: true }), visitIdentity);
     }
 
     // Free plan: 5 new leads/month. We NEVER reject a visitor's info — over the
@@ -214,7 +231,7 @@ export async function POST(req: NextRequest) {
           ...(locked ? [LOCKED_LEAD_TAG] : []),
         ],
         source: source || null,
-        visitor_id: visitor_id || null,
+        visitor_id,
     };
     let { data: insertedLead, error } = await admin.from("leads").insert(leadRow).select("id").single();
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
@@ -361,7 +378,7 @@ export async function POST(req: NextRequest) {
       console.error("Lead post-insert side-effect error (lead saved):", sideErr instanceof Error ? sideErr.message : sideErr);
     }
 
-    return NextResponse.json({ success: true });
+    return attachVisitIdentity(NextResponse.json({ success: true }), visitIdentity);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("API route error:", message);

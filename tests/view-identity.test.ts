@@ -522,6 +522,28 @@ describe("the pipeline is wired the way the tests assume", () => {
     expect(eventsSrc).toMatch(/const visitor_id = visitIdentity\.visitorId;/);
   });
 
+  // A lead is the join key for "this contact came back". It must carry the id
+  // their later views are keyed on — the cookie — not the localStorage value
+  // the two used to drift on (warm-lead plan, H1).
+  it("the lead route stores the RESOLVED id, never the body's, and hands the cookie back", () => {
+    const leadsSrc = read("src/app/api/leads/route.ts");
+    expect(leadsSrc).toMatch(/visitor_id: client_visitor_id/);
+    const uses = leadsSrc.match(/client_visitor_id/g) ?? [];
+    expect(uses).toHaveLength(3); // the parse, the type guard, resolveVisitIdentity
+    expect(leadsSrc).toMatch(/resolveVisitIdentity\(req, typeof client_visitor_id === "string" \? client_visitor_id : null\)/);
+    expect(leadsSrc).toMatch(/const visitor_id = visitIdentity\.visitorId;/);
+    // Every success exit sets the cookie, including the deduped re-submit.
+    expect(leadsSrc).toMatch(/attachVisitIdentity\(NextResponse\.json\(\{ success: true \}\), visitIdentity\)/);
+    expect(leadsSrc).toMatch(/attachVisitIdentity\(NextResponse\.json\(\{ success: true, deduped: true \}\), visitIdentity\)/);
+    // A minted id is unique per request, so it must not narrow the double-submit dedupe.
+    expect(leadsSrc).toMatch(/if \(!visitIdentity\.minted\) dupQuery = dupQuery\.eq\("visitor_id", visitor_id\);/);
+  });
+
+  it("a lead submitted by a browser whose storage was wiped still lands on the cookie's id", () => {
+    // The drift case itself: cookie survived, localStorage minted a new id.
+    expect(decideVisitIdentity("cookie-id-123", "fresh-local-456").visitorId).toBe("cookie-id-123");
+  });
+
   it("the identity cookie is httpOnly and first-party, so page script cannot rotate it", () => {
     expect(identitySrc).toMatch(/httpOnly: true/);
     expect(identitySrc).toMatch(/sameSite: "lax"/);
