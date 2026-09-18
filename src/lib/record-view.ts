@@ -39,6 +39,10 @@ export async function recordView(opts: {
    *  minted — the only case where the (shared-by-design) device key may dedupe.
    *  Defaults false: a caller that does not know must never drop a real visit. */
   identityMinted?: boolean;
+  /** True when the request carried a valid sc_vid cookie (visit-identity's
+   *  setCookie === false). Such a row is never given a device key, so the
+   *  device-bucket unique index can't merge it with a different person. */
+  identityFromCookie?: boolean;
   source: string | null;
   ip: string;
 }): Promise<{
@@ -49,7 +53,7 @@ export async function recordView(opts: {
   geo?: GeoResult | null;
   milestone?: MilestoneNotice | null;
 }> {
-  const { req, visitorId, deviceKey = null, identityMinted = false, source, ip } = opts;
+  const { req, visitorId, deviceKey = null, identityMinted = false, identityFromCookie = false, source, ip } = opts;
   const username = opts.username.toLowerCase();
 
   // Only record views for cards that actually serve. Blocks spam inflation of
@@ -158,7 +162,17 @@ export async function recordView(opts: {
     // identity, never displayed. Added by supabase/view-identity-hardening.sql
     // so the dedupe above has something to match on when the visitor's browser
     // cannot keep an id of its own.
-    device_key: deviceKey,
+    //
+    // NOT STORED WHEN THE BROWSER BROUGHT ITS sc_vid COOKIE. The key's unique
+    // index (uq_card_views_device_bucket) is enforced on every row that carries
+    // one, and it is what collapses a cookie-less browser's fresh-id reloads
+    // into one visit. But a browser that PROVED its identity with the cookie
+    // needs no backstop, and writing the key for it let the database merge two
+    // different people: two iPhones on one Wi-Fi with the same iOS build share
+    // the key, so the second insert hit 23505 and was counted as a duplicate.
+    // For a known contact (who always carries the cookie after sharing their
+    // details) that swallowed the very visit a re-engagement alert is about.
+    device_key: identityFromCookie ? null : deviceKey,
   };
   let { error: insertErr } = await supabase.from("card_views").insert(viewRow);
   if (insertErr && (insertErr.code === "42703" || insertErr.code === "PGRST204")) {
