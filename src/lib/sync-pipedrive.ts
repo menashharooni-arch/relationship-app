@@ -4,7 +4,9 @@ import {
   connectionErrorMessage,
   resolveCrmOwnerId,
   describeCapture,
+  shouldAttachNote,
   type CrmLead,
+  type CrmSyncOptions,
 } from "./crm-connection";
 
 // ── Pipedrive ────────────────────────────────────────────────────────────────
@@ -52,27 +54,81 @@ export async function fetchPipedriveDomain(token: string): Promise<string | null
   }
 }
 
-export async function syncLeadToPipedrive(lead: CrmLead, capturedBy: string): Promise<void> {
+type PdContact = { value?: string; primary?: boolean; label?: string };
+type PdPerson = { id?: number; name?: string; emails?: PdContact[]; phones?: PdContact[]; org_id?: number | null };
+
+const digitsOf = (v: string | undefined | null) => (v ?? "").replace(/\D/g, "");
+
+/**
+ * The person already in Pipedrive with this email, or null.
+ *
+ * Without this every repeat capture minted a second Person — meet someone at
+ * two events and the pipeline has two of them, each with half the history.
+ * Exact match only, on the email field only. Any failure returns null and the
+ * caller creates: a search problem can cost a duplicate, never a lost lead.
+ */
+async function findPersonByEmail(host: string, token: string, email: string): Promise<PdPerson | null> {
+  try {
+    const found = await fetch(
+      `${host}/api/v2/persons/search?term=${encodeURIComponent(email)}&fields=email&exact_match=true&limit=1`,
+      { headers: { "x-api-token": token } },
+    );
+    if (!found.ok) return null;
+    const d = (await found.json()) as { data?: { items?: { item?: { id?: number } }[] } };
+    const id = d?.data?.items?.[0]?.item?.id;
+    if (!id) return null;
+    // The search hit carries bare strings; the update needs the full entries
+    // (labels, which one is primary) so nothing the salesperson set is lost.
+    const full = await fetch(`${host}/api/v2/persons/${id}`, { headers: { "x-api-token": token } });
+    if (!full.ok) return { id };
+    const p = (await full.json()) as { data?: PdPerson };
+    return p?.data?.id ? p.data : { id };
+  } catch {
+    return null;
+  }
+}
+
+export async function syncLeadToPipedrive(lead: CrmLead, capturedBy: string, opts?: CrmSyncOptions): Promise<void> {
   // An office sub-user with no connection of their own inherits the office
   // owner's, so a whole team's leads land in the agency's Pipedrive.
   const userId = await resolveCrmOwnerId("pipedrive", capturedBy);
   // No refresh config: personal API tokens don't expire, so expires_at is null
   // and the refresh branch never runs.
-  const conn = await getCrmConnection("pipedrive", LABEL, userId, lead.capturedByCardId);
+  const conn = await getCrmConnection("pipedrive", LABEL, userId, lead.capturedByCardId, capturedBy);
   if (!conn) return;
 
   const host = hostFor(conn.metadata);
+  const existing = lead.email ? await findPersonByEmail(host, conn.token, lead.email) : null;
 
   const person: Record<string, unknown> = { name: lead.name };
-  if (lead.email) person.emails = [{ value: lead.email, primary: true, label: "work" }];
-  if (lead.phone) person.phones = [{ value: lead.phone, primary: true, label: "mobile" }];
+  if (existing?.id) {
+    // v2 replaces a person's emails/phones LISTS wholesale, so send what they
+    // already have plus ours — a desk line someone added by hand survives.
+    const emails = [...(existing.emails ?? [])];
+    if (lead.email && !emails.some((e) => (e.value ?? "").toLowerCase() === lead.email!.toLowerCase())) {
+      emails.push({ value: lead.email, primary: emails.length === 0, label: "work" });
+    }
+    const phones = [...(existing.phones ?? [])];
+    if (lead.phone && !phones.some((p) => digitsOf(p.value) === digitsOf(lead.phone))) {
+      phones.push({ value: lead.phone, primary: phones.length === 0, label: "mobile" });
+    }
+    if (existing.emails) person.emails = emails;
+    else if (lead.email) person.emails = [{ value: lead.email, primary: true, label: "work" }];
+    if (existing.phones) person.phones = phones;
+    else if (lead.phone) person.phones = [{ value: lead.phone, primary: true, label: "mobile" }];
+  } else {
+    if (lead.email) person.emails = [{ value: lead.email, primary: true, label: "work" }];
+    if (lead.phone) person.phones = [{ value: lead.phone, primary: true, label: "mobile" }];
+  }
 
   // Link the company as a real Organization, not just a line in the note —
   // that is what makes the person filterable by company and lets deals attach
   // to the org. Find an exact-name match first so ten leads from Acme share
   // ONE org row; create it if this is the first. Best-effort throughout: a
-  // person without an org link is still a synced lead.
-  if (lead.company?.trim()) {
+  // person without an org link is still a synced lead. An existing person who
+  // is already linked to an org keeps it — a sales rep may have linked them
+  // to the parent company on purpose.
+  if (lead.company?.trim() && !existing?.org_id) {
     try {
       const orgName = lead.company.trim();
       let orgId: number | undefined;
@@ -101,18 +157,24 @@ export async function syncLeadToPipedrive(lead: CrmLead, capturedBy: string): Pr
     }
   }
 
-  const res = await fetch(`${host}/api/v2/persons`, {
-    method: "POST",
-    headers: { "x-api-token": conn.token, "Content-Type": "application/json" },
-    body: JSON.stringify(person),
-  });
+  const res = existing?.id
+    ? await fetch(`${host}/api/v2/persons/${existing.id}`, {
+        method: "PATCH",
+        headers: { "x-api-token": conn.token, "Content-Type": "application/json" },
+        body: JSON.stringify(person),
+      })
+    : await fetch(`${host}/api/v2/persons`, {
+        method: "POST",
+        headers: { "x-api-token": conn.token, "Content-Type": "application/json" },
+        body: JSON.stringify(person),
+      });
 
   if (!res.ok) {
     // 401/403 here usually means the token was regenerated (Pipedrive allows
     // only ONE active token per user, so creating a new one silently kills
     // ours) or an admin switched off API access for that permission set.
     const detail = await res.text().catch(() => "");
-    console.warn("[sync-pipedrive] createPerson failed:", res.status, detail);
+    console.warn("[sync-pipedrive] person write failed:", res.status, detail);
     await setSyncError("pipedrive", userId, connectionErrorMessage(LABEL, res.status));
     return;
   }
@@ -122,9 +184,9 @@ export async function syncLeadToPipedrive(lead: CrmLead, capturedBy: string): Pr
   // failed and sending someone to reconnect a connection that works.
   try {
     const body = (await res.json()) as { data?: { id?: number } };
-    const personId = body?.data?.id;
+    const personId = body?.data?.id ?? existing?.id;
     const note = describeCapture(lead);
-    if (personId && note) {
+    if (personId && note && shouldAttachNote(opts)) {
       await fetch(`${host}/v1/notes`, {
         method: "POST",
         headers: { "x-api-token": conn.token, "Content-Type": "application/json" },

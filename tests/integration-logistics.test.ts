@@ -11,10 +11,15 @@ describe("what each provider is sent", () => {
   it("the Zapier webhook carries company and capture method", () => {
     // Both were collected but never sent — a Zap could not route by company
     // or distinguish a QR scan from a shared link.
-    const src = read("src/app/api/leads/route.ts");
-    const zap = src.slice(src.indexOf('"lead.created"'), src.indexOf('"lead.created"') + 400);
-    expect(zap).toContain("company: company || null");
-    expect(zap).toContain("source: source ? getSourceLabel(source) : null");
+    // One payload builder serves the real send, manual adds and the Settings
+    // "Test" button — the test sample is what a Zap is built from.
+    const src = read("src/lib/crm-sync.ts");
+    const zap = src.slice(src.indexOf('"lead.created"'), src.indexOf('"lead.created"') + 900);
+    expect(zap).toContain("company: lead.company || null");
+    expect(zap).toContain("source: lead.source || null");
+    expect(zap).toContain("card_name:");
+    expect(read("src/app/api/leads/route.ts")).toContain("source: source ? getSourceLabel(source) : null");
+    expect(read("src/app/api/settings/zapier/route.ts")).toContain("zapierLeadPayload(");
   });
 
   it("the Zapier sample payload shown in Settings matches the real one", () => {

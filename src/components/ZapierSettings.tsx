@@ -137,15 +137,20 @@ export default function ZapierSettings({
               Sample payload sent on each new lead
             </summary>
             <pre className="mt-2 bg-slate-900 text-slate-300 rounded-xl p-3 text-xs overflow-x-auto leading-relaxed">{`{
+  "type": "lead.created",
   "name": "Jane Smith",
   "email": "jane@example.com",
   "phone": "555-0100",
   "company": "Acme Inc",
   "message": "Loved meeting you!",
+  "notes": null,
+  "where_met": null,
   "location": "New York, US",
   "source": "QR code",
-  "card_owner": "your-username",
-  "tags": [],
+  "card_owner": "your-card",
+  "card_name": "Your Name",
+  "card_url": "https://swiftcard.me/your-card",
+  "tags": null,
   "created_at": "2026-06-23T..."
 }`}</pre>
           </details>

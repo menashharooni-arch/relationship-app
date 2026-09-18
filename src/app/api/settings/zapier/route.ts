@@ -5,6 +5,7 @@ import { isPaidPlan } from "@/lib/plan";
 import { isZapierWebhookUrl } from "@/lib/safe-fetch";
 import { sanitizeCardScope } from "@/lib/crm-scope";
 import { scopeIsOwned } from "@/lib/crm-scope-server";
+import { zapierLeadPayload } from "@/lib/crm-sync";
 
 // PATCH — save webhook URL
 export async function PATCH(request: NextRequest) {
@@ -79,17 +80,24 @@ export async function POST(request: NextRequest) {
     const res = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      // The same builder the real send uses, so the sample a Zap is built
+      // from carries every field a real lead will — company and source were
+      // missing here, so they could not be mapped until a real lead arrived.
+      body: JSON.stringify(zapierLeadPayload({
         name: "Jane Smith",
         email: "jane@example.com",
         phone: "555-0100",
+        company: "Acme Inc",
         message: "Loved meeting you at the conference!",
+        notes: null,
+        whereMet: null,
         location: "New York, US",
-        card_owner: "your-username",
-        tags: [],
-        created_at: new Date().toISOString(),
-        _test: true,
-      }),
+        source: "QR code",
+        capturedByCard: "your-card",
+        capturedByName: "Your Name",
+        tags: null,
+        test: true,
+      })),
     });
     return NextResponse.json({ ok: res.ok, status: res.status });
   } catch {

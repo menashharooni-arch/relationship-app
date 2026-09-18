@@ -121,6 +121,7 @@ describe("every egress path applies the rule", () => {
     ["src/lib/sync-hubspot.ts", "hubspot"],
     ["src/lib/sync-pipedrive.ts", "pipedrive"],
     ["src/lib/sync-highlevel.ts", "highlevel"],
+    ["src/lib/sync-salesforce.ts", "salesforce"],
   ])("%s passes the capturing card into the gate", (file) => {
     const src = stripComments(read(file));
     expect(src, `${file} calls getCrmConnection without the card id`).toMatch(
@@ -135,17 +136,29 @@ describe("every egress path applies the rule", () => {
     expect(src, "the lead route stopped passing the capturing card's id").toMatch(
       /capturedByCardId:\s*\(cardRow\?\.id/,
     );
-    expect(src, "the Zapier lead webhook is no longer scope-gated").toMatch(/isCardInScope\(parseCardScope\(ownerProfile\.zapier_card_ids\)/);
+    // The Zapier gate lives in the one resolver every Zapier send goes through.
+    expect(src, "the lead route no longer sends through the gated Zapier sender").toMatch(/sendLeadToZapier\(leadData/);
+    const zap = stripComments(read("src/lib/crm-sync.ts"));
+    expect(zap, "the Zapier lead webhook is no longer scope-gated").toMatch(/isCardInScope\(parseCardScope\(own\.zapier_card_ids\)/);
+    expect(zap).toMatch(/resolveZapierTarget\(capturedBy, lead\.capturedByCardId\)/);
   });
 
   it("card view / notification events are gated too", () => {
     // Views and notifications describe one card's activity, so a webhook
     // pointed at one card's workflow must not receive another card's traffic.
     const src = stripComments(read("src/lib/crm-events.ts"));
-    expect(src, "dispatchCrmEvent no longer reads the scope").toMatch(/zapier_card_ids/);
-    expect(src, "dispatchCrmEvent no longer checks the scope").toMatch(/isCardInScope\(/);
+    expect(src, "dispatchCrmEvent no longer goes through the gated resolver").toMatch(/resolveZapierTarget\(userId, \(card\?\.id/);
     // It has to select the card id to have something to check.
     expect(src).toMatch(/from\("cards"\)\s*\.select\("id, user_id"\)/);
+  });
+
+  it("an INHERITED office connection is not filtered by the owner's own-card scope", () => {
+    // The owner's picker lists only the owner's cards, so applying that scope
+    // to a sub-user's lead dropped every team lead the moment the owner picked
+    // "only my work card". Own connections are still scoped exactly as before.
+    const src = stripComments(read("src/lib/crm-connection.ts"));
+    expect(src).toMatch(/const inherited = capturedBy !== userId;/);
+    expect(src).toMatch(/if \(!inherited && !isCardInScope\(/);
   });
 });
 

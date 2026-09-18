@@ -2,6 +2,7 @@ import { getAdminSupabase } from "./supabase-admin";
 import { encryptToken, decryptToken } from "./token-crypto";
 import { resolveOfficeContext } from "./office-roles";
 import { isCardInScope, parseCardScope } from "./crm-scope";
+import { isPaidPlan } from "./plan";
 
 // ── Shared plumbing for every CRM connection ─────────────────────────────────
 //
@@ -50,6 +51,12 @@ export type CrmLead = {
   message?: string | null;
   /** Card slug that captured it. In an Office this identifies the rep. */
   capturedByCard?: string | null;
+  /**
+   * The name on the capturing card — the rep, in an Office. A slug alone
+   * ("swiftcard.me/jsmith-2") makes a sales manager open a link to learn who
+   * met this person; the name answers it on the record itself.
+   */
+  capturedByName?: string | null;
   /** The contact's tags at sync time — CRM-visible segmentation. */
   tags?: string[] | null;
   /**
@@ -74,13 +81,44 @@ export function describeCapture(lead: CrmLead): string | null {
   const met = [lead.whereMet, lead.location].filter(Boolean).join(" · ");
   if (met) lines.push(`Met: ${met}`);
   if (lead.source) lines.push(`Captured via: ${lead.source}`);
-  if (lead.capturedByCard) lines.push(`Card: ${process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}/${lead.capturedByCard}`);
+  if (lead.capturedByCard) {
+    const url = `${process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me"}/${lead.capturedByCard}`;
+    const who = lead.capturedByName?.trim();
+    lines.push(`Card: ${url}${who ? ` (${who})` : ""}`);
+  }
   if (lead.tags?.length) lines.push(`Tags: ${lead.tags.join(", ")}`);
   if (lead.company) lines.push(`Company: ${lead.company}`);
   if (lead.message) lines.push(`They wrote: ${lead.message}`);
   if (lead.notes) lines.push(`Notes: ${lead.notes}`);
   if (!lines.length) return null;
-  return `${lines.join("\n")}\n\n— captured with SwiftCard`;
+  return `${lines.join("\n")}\n\n${CAPTURE_NOTE_SIGNATURE}`;
+}
+
+/**
+ * The last line of every note describeCapture writes. It is how a sync tells
+ * a field it wrote itself (safe to refresh) from one a salesperson typed into
+ * (never overwrite).
+ */
+export const CAPTURE_NOTE_SIGNATURE = "— captured with SwiftCard";
+
+/**
+ * Why a sync is running, which decides what it may write.
+ *
+ *   capture — a new contact. Create the record (or update the one that already
+ *             has this email) and attach the capture note.
+ *   update  — the owner edited a contact that was already sent. Update the
+ *             record in place. A note is added only when `attachNote` says the
+ *             edit changed something a note carries (their notes or message):
+ *             re-attaching the same note on every rename or tag change stacked
+ *             a fresh copy on the CRM timeline for each edit.
+ */
+export type CrmSyncOptions = {
+  mode?: "capture" | "update";
+  attachNote?: boolean;
+};
+
+export function shouldAttachNote(opts: CrmSyncOptions | undefined): boolean {
+  return (opts?.mode ?? "capture") === "capture" || opts?.attachNote === true;
 }
 
 export type CrmConnection = {
@@ -133,7 +171,14 @@ export async function resolveCrmOwnerId(
   if (own) return capturedByUserId;
 
   const ctx = await resolveOfficeContext(capturedByUserId);
-  if (ctx && !ctx.isOwner && ctx.ownerId) return ctx.ownerId;
+  if (ctx && !ctx.isOwner && ctx.ownerId) {
+    // Only while the office is really live. The offices row deliberately
+    // outlives a lapsed subscription (so re-subscribing restores the team) —
+    // the same reason requireOfficeCapability re-checks the owner's plan. A
+    // lapsed owner's own leads already stop syncing; their team's must too.
+    const { data: owner } = await admin.from("profiles").select("plan").eq("id", ctx.ownerId).maybeSingle();
+    if (isPaidPlan(owner?.plan as string | null)) return ctx.ownerId;
+  }
 
   return capturedByUserId;
 }
@@ -172,12 +217,22 @@ export async function setSyncError(
  *
  * `cardId` is required rather than optional so the compiler, not a reviewer,
  * is what stops a future call site from forgetting it.
+ *
+ * `capturedBy` is who captured the lead. When it differs from `userId` the
+ * connection is INHERITED — an Office sub-user's lead going to the owner's
+ * CRM — and the owner's card scope does not apply to it. That scope is the
+ * owner's answer to "which of MY cards feed this?": the picker only ever
+ * lists the owner's own cards, so no team card could be in it. Applying it
+ * anyway meant an owner who picked "only my work card" silently cut every
+ * agent's leads off from the agency CRM, while each agent's Settings said
+ * their contacts "go there automatically".
  */
 export async function getCrmConnection(
   provider: CrmProviderKey,
   label: string,
   userId: string,
   cardId: string | null | undefined,
+  capturedBy: string,
   refresh?: RefreshConfig,
 ): Promise<CrmConnection | null> {
   const admin = getAdminSupabase();
@@ -203,7 +258,8 @@ export async function getCrmConnection(
   // `card_ids` is absent (undefined) on a pre-migration database, which
   // parseCardScope reads as null — all cards — so this is a no-op until someone
   // actually sets a scope.
-  if (!isCardInScope(parseCardScope((data as { card_ids?: unknown }).card_ids), cardId)) return null;
+  const inherited = capturedBy !== userId;
+  if (!inherited && !isCardInScope(parseCardScope((data as { card_ids?: unknown }).card_ids), cardId)) return null;
 
   const now = Date.now();
   const accessToken = decryptToken(data.access_token);

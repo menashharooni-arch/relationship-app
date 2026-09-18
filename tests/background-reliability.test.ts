@@ -16,7 +16,7 @@ describe("a CRM webhook can never hold the view pipeline open", () => {
   // platform killed it: the view was recorded, the notification never sent.
   it("dispatchCrmEvent bounds the Zapier fetch", () => {
     const src = stripComments(read("src/lib/crm-events.ts"));
-    const fetchAt = src.indexOf("await fetch(p.zapier_webhook_url");
+    const fetchAt = src.indexOf("await fetch(target.url");
     expect(fetchAt, "the webhook fetch moved").toBeGreaterThan(-1);
     const call = src.slice(fetchAt, src.indexOf("});", fetchAt));
     expect(call).toMatch(/signal:\s*AbortSignal\.timeout\(CRM_WEBHOOK_TIMEOUT_MS\)/);
@@ -25,10 +25,11 @@ describe("a CRM webhook can never hold the view pipeline open", () => {
   it("the lead-capture Zap gets the same bound", () => {
     // after() keeps the function alive until this settles, so an unanswering
     // webhook pinned an instance for the full platform limit per lead.
-    const src = stripComments(read("src/app/api/leads/route.ts"));
-    const fetchAt = src.indexOf("fetch(ownerProfile.zapier_webhook_url");
+    // Sent from the shared CRM module, which every contact path calls.
+    const src = stripComments(read("src/lib/crm-sync.ts"));
+    const fetchAt = src.indexOf("await fetch(target.url");
     expect(fetchAt, "the lead Zap fetch moved").toBeGreaterThan(-1);
-    const call = src.slice(fetchAt, src.indexOf("}).catch", fetchAt));
+    const call = src.slice(fetchAt, src.indexOf("});", fetchAt));
     expect(call).toMatch(/signal:\s*AbortSignal\.timeout\(CRM_WEBHOOK_TIMEOUT_MS\)/);
   });
 

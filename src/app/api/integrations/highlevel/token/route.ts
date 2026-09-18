@@ -5,7 +5,7 @@ import { isPaidPlan } from "@/lib/plan";
 import { encryptToken } from "@/lib/token-crypto";
 import { sanitizeCardScope } from "@/lib/crm-scope";
 import { scopeIsOwned } from "@/lib/crm-scope-server";
-import { verifyHighLevelLocation } from "@/lib/sync-highlevel";
+import { checkHighLevelConnection } from "@/lib/sync-highlevel";
 
 // HighLevel connects with a Private Integration token the user creates in their
 // own account (Settings → Private Integrations), scoped to contacts.write.
@@ -38,9 +38,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!(await verifyHighLevelLocation(trimmed, locationId))) {
+  const check = await checkHighLevelConnection(trimmed, locationId);
+  if (check === "missing_scope") {
     return NextResponse.json(
-      { error: "invalid_token", message: "HighLevel didn't accept that pair. Check the token has the contacts.write scope, and that the Location ID is the sub-account you want leads to land in." },
+      { error: "missing_scope", message: "HighLevel accepted the token but won't let it read that sub-account. Edit the Private Integration, tick locations.readonly as well as contacts.write, and save it again." },
+      { status: 400 },
+    );
+  }
+  if (check !== "ok") {
+    return NextResponse.json(
+      { error: "invalid_token", message: "HighLevel didn't accept that pair. Check the token was copied in full, and that the Location ID is the sub-account you want leads to land in." },
       { status: 400 },
     );
   }

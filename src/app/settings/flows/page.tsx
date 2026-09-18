@@ -161,13 +161,19 @@ export default async function FlowSettingsPage({
   };
   let teamCrmNames: string[] = [];
   if (officeCtx && !officeCtx.isOwner && officeCtx.ownerId) {
-    const { data: ownerIntegrations } = await admin
-      .from("integrations")
-      .select("provider")
-      .eq("user_id", officeCtx.ownerId);
+    const [{ data: ownerIntegrations }, { data: ownerZap }] = await Promise.all([
+      admin
+        .from("integrations")
+        .select("provider")
+        .eq("user_id", officeCtx.ownerId),
+      // The owner's Zapier webhook is inherited the same way (resolveZapierTarget),
+      // so it belongs in the same sentence — unless this member saved their own.
+      admin.from("profiles").select("zapier_webhook_url").eq("id", officeCtx.ownerId).maybeSingle(),
+    ]);
     teamCrmNames = (ownerIntegrations ?? [])
       .map((i) => CRM_LABEL[i.provider as string])
       .filter(Boolean);
+    if (ownerZap?.zapier_webhook_url && !profile.zapier_webhook_url) teamCrmNames.push("Zapier");
   }
 
   const pipedriveIntegration = integrations?.find((i) => i.provider === "pipedrive");
@@ -346,6 +352,7 @@ export default async function FlowSettingsPage({
               highlevelSyncError={highlevelSyncError}
               salesforceSyncError={salesforceSyncError}
               teamCrmNames={teamCrmNames}
+              isOfficeOwner={!!officeCtx?.isOwner}
               isPro={isPro}
               cards={scopeCards}
               scopes={{

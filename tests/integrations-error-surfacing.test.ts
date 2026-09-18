@@ -204,7 +204,7 @@ describe("integrations are re-checked against the plan at send time", () => {
     // characters behind. The character-window version broke the moment a
     // comment was added between the gate and the call — a false failure that
     // says nothing about the gate, which is the worst kind of test.
-    const at = src.indexOf("syncLeadToGoogle(");
+    const at = src.indexOf("syncLeadToAllCrms(");
     expect(at).toBeGreaterThan(-1);
     const openIf = src.lastIndexOf("if (", at);
     expect(openIf).toBeGreaterThan(-1);
@@ -227,16 +227,40 @@ describe("integrations are re-checked against the plan at send time", () => {
     // "zapier_webhook_url && " on one line, so adding a third clause to the
     // condition (the per-card scope check) broke it while the plan gate it
     // actually tests was untouched — a failure that said nothing about the gate.
-    const at = src.indexOf("fetch(ownerProfile.zapier_webhook_url");
+    const at = src.indexOf("sendLeadToZapier(");
     expect(at).toBeGreaterThan(-1);
     const openIf = src.lastIndexOf("if (", at);
     expect(openIf).toBeGreaterThan(-1);
     expect(src.slice(openIf, at)).toMatch(/isPaidPlan\(ownerProfile\.plan\)/);
+    // And again inside the resolver, for the manual-add path and for an
+    // inherited office webhook (whose OWNER must be paid too).
+    const zap = stripComments(read("src/lib/crm-sync.ts"));
+    expect(zap).toMatch(/if \(!own \|\| !isPaidPlan\(own\.plan\)\) return null;/);
+    expect(zap).toMatch(/!isPaidPlan\(owner\.plan\)/);
   });
 
   it("the Zapier URL is still allowlisted before any PII leaves", () => {
-    // Unrelated to plan, but it shares the same condition — a refactor that
-    // drops it turns this into an open SSRF/exfiltration hole.
-    expect(src).toContain("isZapierWebhookUrl(ownerProfile.zapier_webhook_url)");
+    // A refactor that drops it turns this into an open SSRF/exfiltration hole
+    // — for the user's own webhook AND an inherited office one.
+    const zap = stripComments(read("src/lib/crm-sync.ts"));
+    expect(zap).toContain("isZapierWebhookUrl(own.zapier_webhook_url)");
+    expect(zap).toContain("isZapierWebhookUrl(owner.zapier_webhook_url)");
+  });
+
+  it("manual adds and scanned business cards reach the CRMs too, paid-gated", () => {
+    // "Add contact" is where a scanned paper card lands — the most CRM-bound
+    // contact there is. It used to be saved in SwiftCard only.
+    const manual = stripComments(read("src/app/api/leads/manual/route.ts"));
+    const at = manual.indexOf("syncLeadToAllCrms(");
+    expect(at).toBeGreaterThan(-1);
+    expect(manual).toContain("sendLeadToZapier(");
+    const openIf = manual.lastIndexOf("if (", at);
+    expect(manual.slice(openIf, at)).toMatch(/if \(paid\)/);
+    expect(manual).toMatch(/after\(\s*Promise\.allSettled\(/);
+  });
+
+  it("edits sync in UPDATE mode, so a CRM record is updated rather than re-noted", () => {
+    const edit = stripComments(read("src/app/api/leads/[id]/route.ts"));
+    expect(edit).toMatch(/syncLeadToAllCrms\(leadData, ownerProfile\.id, \{\s*mode: "update"/);
   });
 });

@@ -6,9 +6,10 @@ import { after } from "next/server";
 import { isPaidPlan } from "@/lib/plan";
 import { getSourceLabel } from "@/lib/source-labels";
 import { RESERVED_LEAD_TAG } from "@/lib/lead-tags";
-import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
-import { syncLeadToHighLevel } from "@/lib/sync-highlevel";
-import { syncLeadToSalesforce } from "@/lib/sync-salesforce";
+import { syncLeadToAllCrms } from "@/lib/crm-sync";
+
+// Edits fan out to every connected CRM in after() — same room as capture.
+export const maxDuration = 60;
 
 async function getOwnerUsernames(userId: string): Promise<string[]> {
   const admin = getAdminSupabase();
@@ -141,32 +142,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // ── CRM stays current with EDITS, not just captures (owner order
   // 2026-08-27, the Blinq-parity work). Editing a contact's details, notes or
-  // tags re-runs the same sync the capture ran: every provider upserts by
-  // email, so the existing CRM record is UPDATED in place. Only fields a CRM
-  // record shows trigger it — status/follow-up churn stays internal. Same
-  // paid gate and after() semantics as the capture path.
-  const CRM_VISIBLE = ["name", "email", "phone", "company", "notes", "tags", "message"];
+  // tags re-runs the same sync the capture ran, in UPDATE mode: every provider
+  // finds the existing record by email and updates it in place (Google and
+  // Pipedrive included — both now look before they create). Only fields a CRM
+  // record shows trigger it — status/follow-up churn stays internal. Same paid
+  // gate and after() semantics as the capture path.
+  const CRM_VISIBLE = ["name", "email", "phone", "company", "notes", "tags", "message", "where_met"];
   if (CRM_VISIBLE.some((k) => k in body)) {
     try {
       const { data: fresh } = await admin
         .from("leads")
-        .select("name, email, phone, company, notes, tags, message, location, source, card_owner")
+        .select("name, email, phone, company, notes, tags, message, location, source, card_owner, where_met")
         .eq("id", id)
         .in("card_owner", usernames)
         .maybeSingle();
       const { data: ownerProfile } = await admin.from("profiles").select("id, plan").eq("id", user.id).maybeSingle();
       if (fresh?.name && ownerProfile?.id && isPaidPlan(ownerProfile.plan)) {
-        const { data: cardRow } = await admin.from("cards").select("id").eq("username", fresh.card_owner as string).maybeSingle();
+        const { data: cardRow } = await admin.from("cards").select("id, name").eq("username", fresh.card_owner as string).maybeSingle();
         const leadData = {
           name: fresh.name as string,
           email: (fresh.email as string) || null,
           phone: (fresh.phone as string) || null,
           company: (fresh.company as string) || null,
           location: (fresh.location as string) || null,
+          whereMet: (fresh.where_met as string) || null,
           message: (fresh.message as string) || null,
           notes: (fresh.notes as string) || null,
           source: fresh.source ? getSourceLabel(fresh.source as string) : null,
           capturedByCard: fresh.card_owner as string,
+          capturedByName: (cardRow?.name as string | null) ?? null,
           capturedByCardId: (cardRow?.id as string | undefined) ?? null,
           // Stored tags mix the owner's labels with INTERNAL markers
           // (sc-locked, sms-paused, flow-* …). Only the owner's own tags may
@@ -176,19 +180,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             ? (fresh.tags as string[]).filter((t) => !RESERVED_LEAD_TAG.test(t))
             : null,
         };
-        // ONLY the providers that upsert by email run on edits — HubSpot
-        // (PATCH-by-email on 409), HighLevel (/contacts/upsert), Salesforce
-        // (SOQL find → PATCH). Google and Pipedrive CREATE on every call, so
-        // re-running them here would mint a duplicate contact per edit; they
-        // stay capture-only until they get a find-first path. Email is the
-        // dedup key everywhere, so no email → no edit-sync at all.
+        // Email is the dedup key everywhere, so no email → no edit-sync at
+        // all: with nothing to match on, an "update" could only create a
+        // second record. A fresh timeline note only when the edit changed
+        // what a note carries — renaming or tagging a contact five times must
+        // not stack five identical notes on their CRM record.
         if (leadData.email) {
           after(
-            Promise.allSettled([
-              syncLeadToHubSpot(leadData, ownerProfile.id).catch((e) => console.error("[lead-edit] HubSpot sync error:", e)),
-              syncLeadToHighLevel(leadData, ownerProfile.id).catch((e) => console.error("[lead-edit] HighLevel sync error:", e)),
-              syncLeadToSalesforce(leadData, ownerProfile.id).catch((e) => console.error("[lead-edit] Salesforce sync error:", e)),
-            ]),
+            syncLeadToAllCrms(leadData, ownerProfile.id, {
+              mode: "update",
+              attachNote: "notes" in body || "message" in body || "where_met" in body,
+            }),
           );
         }
       }
