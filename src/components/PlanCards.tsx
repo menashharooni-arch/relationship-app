@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useIsNativeApp } from "@/lib/platform";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import MobilePlanTabs, { type PlanTier } from "@/components/MobilePlanTabs";
@@ -9,6 +9,7 @@ import { PLAN_FEATURES, PLAN_DESCRIPTIONS, money } from "@/lib/plan-content";
 import ProTrialPrice from "@/components/ProTrialPrice";
 import IapSubscribeButton from "@/components/NativePaywall";
 import { useIapOffer } from "@/lib/use-iap-price";
+import { canOfferExternalPurchase, openExternalPurchase } from "@/lib/external-purchase";
 import { formatCents, formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 
 // The in-product plan chooser used during account creation — the card wizard's
@@ -49,7 +50,16 @@ export default function PlanCards({
   onIapPurchased,
   onCreateAccountForPro,
   trialEligible = true,
+  initialTier = "pro",
+  onLeftForOffice,
 }: {
+  /** Native only: the Office button really did open the default browser. The
+   *  caller uses it to re-check the plan when the person comes back. */
+  onLeftForOffice?: () => void;
+  /** Web, phone width: which plan tab is open first. "office" for someone the
+   *  app's Office card sent here (NATIVE_OFFICE_PATH) — they came for Office,
+   *  so they should not land on Pro and have to find the tab. */
+  initialTier?: PlanTier;
   /** Web: false for someone who already had a Pro trial; the Pro card then
    *  shows the plain price instead of promising "14 days free". */
   trialEligible?: boolean;
@@ -72,7 +82,7 @@ export default function PlanCards({
   const disabled = busy !== null;
   const native = useIsNativeApp();
   const isMobile = useIsMobile();
-  const [mobileTier, setMobileTier] = useState<PlanTier>("pro");
+  const [mobileTier, setMobileTier] = useState<PlanTier>(initialTier);
 
   // NATIVE (App Store 3.1.1): this is the shared selling widget — prices, paid
   // plans, checkout hand-off. None of that may render inside the Capacitor
@@ -87,9 +97,13 @@ export default function PlanCards({
     //   • Pro's price comes from StoreKit (NativePro reads the live package),
     //     never from PLAN_PRICES, so the app can never show a number that
     //     differs from the App Store's (3.1.2).
-    //   • Office is absent: it is per-seat and Stripe-billed, has no IAP
-    //     product, and rendering its price or a checkout hand-off inside the
-    //     app is the 3.1.1 rejection this build exists to answer.
+    //   • Office (NativeOffice, under Free — owner, 2026-09-18: "what if I
+    //     wanted to get an Office account?") is per-seat and Stripe-billed with
+    //     no IAP product, so the app can neither sell it nor quote it. Its card
+    //     carries NO price and NO checkout hand-off: the one button leaves the
+    //     app for the default browser, which is the remedy App Review itself
+    //     named for the US storefront (lib/external-purchase). Fails closed —
+    //     a shell that cannot leave the app renders no Office card at all.
     return (
       <div className="max-w-md mx-auto flex flex-col gap-4">
         <NativePro
@@ -110,6 +124,8 @@ export default function PlanCards({
             {busy === "free" ? "Setting up…" : freeLabel}
           </button>
         </div>
+
+        <NativeOffice features={PLAN_FEATURES.office} disabled={disabled} onLeft={onLeftForOffice} />
       </div>
     );
   }
@@ -290,6 +306,59 @@ function NativePro({
         </p>
       </div>
       <span className="rd-glisten-sweep" aria-hidden="true" />
+    </div>
+  );
+}
+
+/** Where the app's Office button lands, in the default browser: the same plan
+ *  step on the website, opened on its Office tab so the seat picker and
+ *  checkout are one tap away (welcome/page.tsx keeps `tier` through sign-in). */
+export const NATIVE_OFFICE_PATH = "/welcome?tier=office";
+
+/**
+ * The native Office card: the website's white Office card — same title, same
+ * feature list — with no price, no seat picker and no checkout, because none of
+ * those may exist inside the app (see the note in the native branch above).
+ *
+ * One button, and it LEAVES the app: Office is set up and billed on
+ * swiftcard.me, in the default browser. Same mechanism and same fail-closed
+ * rule as the Team tab's "Add a seat on swiftcard.me": when the shell cannot
+ * open the default browser the card is not rendered at all, since a plan card
+ * nobody can act on is the shape App Review rejected.
+ */
+function NativeOffice({ features, disabled, onLeft }: { features: readonly string[]; disabled: boolean; onLeft?: () => void }) {
+  // Read after mount: the plugin is window-only, so deciding during render
+  // would disagree with the server HTML.
+  const [canLinkOut, setCanLinkOut] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- window-only value, hydration-safe by design
+    setCanLinkOut(canOfferExternalPurchase());
+  }, []);
+  if (!canLinkOut) return null;
+
+  async function open() {
+    setFailed(false);
+    if (await openExternalPurchase(NATIVE_OFFICE_PATH)) onLeft?.();
+    else setFailed(true);
+  }
+
+  return (
+    <div className="rounded-[28px] p-7 flex flex-col bg-white border border-slate-200 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.5)]">
+      <p className="text-[1.35rem] font-extrabold tracking-tight text-slate-900 mb-3">Office</p>
+      <p className="text-blue-600 text-xs font-semibold">Minimum {OFFICE_MIN_SEATS} users</p>
+      <p className="text-slate-500 text-sm mb-6 mt-2">{PLAN_DESCRIPTIONS.office}</p>
+      <ul className="space-y-2.5 mb-7 flex-1">
+        {features.map((f) => (<li key={f} className="flex items-start gap-2.5 text-[0.8125rem] text-slate-600"><Check />{f}</li>))}
+      </ul>
+      <button onClick={() => { void open(); }} disabled={disabled} className="w-full font-bold py-3.5 px-3 rounded-full text-sm leading-tight bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition-colors break-words">
+        Get Office on swiftcard.me →
+      </button>
+      <p className="text-slate-500 text-[0.6875rem] text-center mt-2.5 leading-relaxed">
+        {failed
+          ? "Couldn't open your browser. Go to swiftcard.me and sign in to set up Office."
+          : "Opens swiftcard.me in your browser. Sign in with this account to set up your team — your card is saved either way."}
+      </p>
     </div>
   );
 }

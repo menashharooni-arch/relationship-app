@@ -92,17 +92,53 @@ describe("in-app signup and first-card flow", () => {
     expect(src).toContain("useIapOffer()");
     expect(src).toMatch(/<ProTrialPrice price=\{price\} period="month" \/>/);
     expect(src).toMatch(/Free <span className="text-slate-\d00">Forever<\/span>/);
-    // Office is Stripe-only with no IAP product: no Office CARD and no
-    // checkout hand-off may render natively (comments about it are fine).
+    // Office is Stripe-only with no IAP product, so natively it can be neither
+    // SOLD nor QUOTED. Owner, 2026-09-18: the app's plan step must still offer
+    // it ("what if I wanted to get an Office account?") — so the Office card
+    // renders (NativeOffice, under Free), and what stays forbidden is the
+    // selling: no checkout hand-off and no price constant anywhere native.
     // The native branch runs from `if (native) {` to where the WEB render
     // begins (the monthly/annual toggle) — not to the end of the file.
     const nativeBranch = src
       .slice(src.indexOf("if (native) {"), src.indexOf("{/* Monthly / annual toggle"))
       .replace(/\/\/.*$/gm, "");
-    expect(nativeBranch).not.toMatch(/Office/);
+    expect(nativeBranch).toMatch(/<NativeOffice /);
+    expect(nativeBranch.indexOf("<NativeOffice ")).toBeGreaterThan(nativeBranch.indexOf("Forever")); // under Free
     expect(nativeBranch).not.toMatch(/onPaid\(/);
+    expect(nativeBranch).not.toMatch(/PLAN_PRICES|formatUsd|formatCents|seatSubtotalCents/);
     // No price constant may reach the native card.
     expect(read2("src/lib/use-iap-price.ts")).toMatch(/getIapPackages/);
+  });
+
+  it("the native Office card only ever LEAVES the app, and fails closed", () => {
+    const src = read2("src/components/PlanCards.tsx");
+    const office = src.slice(src.indexOf("function NativeOffice("));
+    expect(office.length).toBeGreaterThan(200);
+    const code = office.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+    // The default browser, through the native plugin — the remedy App Review
+    // named for the US storefront. Never an <a>, window.open or a Browser sheet
+    // (all of which stay INSIDE the app: the 1.0.0 (7) rejection).
+    expect(code).toMatch(/openExternalPurchase\(NATIVE_OFFICE_PATH\)/);
+    expect(code).not.toMatch(/<a |href=|window\.open|Browser\.open|router\.push/);
+    // A shell that cannot leave the app renders NO Office card.
+    expect(code).toMatch(/if \(!canLinkOut\) return null;/);
+    expect(code).toMatch(/setCanLinkOut\(canOfferExternalPurchase\(\)\)/);
+    // No price, no seat maths, no Stripe, no web checkout hand-off.
+    expect(code).not.toMatch(/\$\d|PLAN_PRICES|formatUsd|formatCents|seatSubtotalCents|onPaid|stripe/i);
+  });
+
+  it("the Office link lands on the website's plan step, Office tab open, through sign-in", () => {
+    const cards = read2("src/components/PlanCards.tsx");
+    expect(cards).toContain('export const NATIVE_OFFICE_PATH = "/welcome?tier=office";');
+    expect(cards).toMatch(/useState<PlanTier>\(initialTier\)/);
+    const page = read2("src/app/welcome/page.tsx");
+    // Safari has no session: the tier must survive the /login hop.
+    expect(page).toMatch(/encodeURIComponent\("\/welcome\?tier=office"\)/);
+    expect(page).toMatch(/initialTier=\{officeTier \? "office" : "pro"\}/);
+    // Back in the app, the plan is re-checked — but only after the Office
+    // button was really used, so a StoreKit sheet can never trigger it.
+    const welcome = read2("src/components/WelcomePlan.tsx");
+    expect(welcome).toMatch(/leftForOffice\.current && document\.visibilityState === "visible"\) router\.refresh\(\)/);
   });
 });
 

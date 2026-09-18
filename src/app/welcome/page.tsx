@@ -19,12 +19,16 @@ export const dynamic = "force-dynamic";
 export default async function WelcomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ card?: string; designConverted?: string; plan?: string; interval?: string; seats?: string; promo?: string; step?: string; for?: string; canceled?: string }>;
+  searchParams: Promise<{ card?: string; designConverted?: string; plan?: string; interval?: string; seats?: string; promo?: string; step?: string; for?: string; canceled?: string; tier?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/welcome");
+  // tier=office: the iPhone app's Office card opens this page in the default
+  // browser (PlanCards NATIVE_OFFICE_PATH), where nobody is signed in yet. Keep
+  // it through sign-in so they come back to the Office tab they asked for.
+  const officeTier = sp.tier === "office";
+  if (!user) redirect(officeTier ? `/login?next=${encodeURIComponent("/welcome?tier=office")}` : "/login?next=/welcome");
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -110,6 +114,7 @@ export default async function WelcomePage({
       referralGift={referralGift}
       designConverted={sp.designConverted === "1"}
       proDesignChanges={proDesignChanges}
+      initialTier={officeTier ? "office" : "pro"}
     />
   );
 }
