@@ -63,6 +63,10 @@ CREATE TABLE IF NOT EXISTS public.contact_devices (
   visitor_id     text NOT NULL,
   bound_via      text NOT NULL CHECK (bound_via IN ('form', 'link', 'account')),
   link_id        uuid REFERENCES public.contact_links(id) ON DELETE SET NULL,
+  -- For a 'link' binding: which browser this was to open that link (1 = the
+  -- first). 2+ means the link was forwarded, and the visit is announced as
+  -- "your link to X was opened on another device", never as X (decision D3).
+  link_device_index smallint,
   bound_at       timestamptz NOT NULL DEFAULT now(),
   last_seen_at   timestamptz,
   -- A DIFFERENT person later submitted this owner's form on the same browser:
