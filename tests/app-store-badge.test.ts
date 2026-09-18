@@ -20,6 +20,8 @@ const CONSUMERS: [string, string][] = [
   ["src/components/site/SiteFooter.tsx", "footer"],
   ["src/components/WelcomePlan.tsx", "/welcome — card is live (new signup)"],
   ["src/app/cards/new/NewCardWizard.tsx", "wizard step 5 — card is live (signed in)"],
+  ["src/components/AppStorePopup.tsx", "post-signup \"Your account is ready!\" popup"],
+  ["src/app/settings/flows/page.tsx", "Settings → Flows, Get the iPhone app"],
 ];
 
 describe("one badge, rendered everywhere", () => {
@@ -34,6 +36,46 @@ describe("one badge, rendered everywhere", () => {
     const offenders = CONSUMERS.map(([f]) => f).filter((f) => read(f).includes(glyphStart));
     expect(offenders).toEqual([]);
     expect(read(BADGE)).toContain(glyphStart);
+  });
+});
+
+// ── One look, the header's, with white words on every theme ──────────────
+// Owner, 2026-09-18: "anywhere this Download on the App Store button pops up,
+// the text within the black box is white … all of them have to look exactly
+// like the one in the header of our website on the computer." The /welcome
+// badge had lost its "App Store" line: the light theme remaps .text-white to
+// near-black inside .sc-app, so it drew black on black.
+describe("one look, the header's", () => {
+  const src = read(BADGE);
+  const css = read("src/app/globals.css");
+
+  it("has no tones left to drift apart", () => {
+    expect(src).not.toMatch(/tones*[=?:]/);
+    expect(src).not.toMatch(/TONES/);
+    for (const [f] of CONSUMERS) expect(read(f), f).not.toMatch(/<AppStoreBadge[^>]*tone=/);
+  });
+
+  it("takes its colours from one CSS rule, never a Tailwind colour class a theme can remap", () => {
+    const badge = src.slice(src.indexOf("export default function AppStoreBadge"), src.indexOf("export function GetTheAppCard"));
+    expect(badge).toContain("sc-appstore-badge");
+    expect(badge).toContain("sc-asb-top");
+    expect(badge).toContain("sc-asb-main");
+    // No text-/bg-/border- colour utilities on the pill or its words.
+    expect(badge).not.toMatch(/(text-white|text-slate|text-gray|bg-slate|bg-white|bg-black|border-white)/);
+    // The header glass over the nav's #0A0B10, composited, and white words.
+    expect(css).toMatch(/.sc-appstore-badge { background-color: #191A1E; border: 1px solid #2F3034; color: #fff; }/);
+    expect(css).toMatch(/.sc-appstore-badge:hover { background-color: #232328; }/);
+    expect(css).toMatch(/.sc-appstore-badge .sc-asb-main { color: #fff; }/);
+    // And no light-theme rule reaches for it.
+    expect(css).not.toMatch(/data-sc-theme="light"][^{]*sc-a(ppstore-badge|sb-)/);
+  });
+
+  it("is the header's size everywhere but the phone hero", () => {
+    expect(src).not.toMatch(/md: {/);
+    for (const [f] of CONSUMERS) {
+      if (f === "src/app/page.tsx") continue;
+      expect(read(f), f).not.toMatch(/<AppStoreBadge[^>]*size="(md|lg)"/);
+    }
   });
 });
 

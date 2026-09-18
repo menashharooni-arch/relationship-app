@@ -197,10 +197,11 @@ export default function SiteNav() {
                 logo + Get started + menu trigger already fill a 375px row and
                 anything else either clips the trigger or forces the badge down
                 to a bare icon. Phones get the hero badge beside "See how it
-                works" instead. Glass tone for the dark bar; `sm` (120×40) to sit
+                works" instead. THE reference badge: every other one copies this
+                look (owner, 2026-09-18); `sm` (120×40) to sit
                 inside 64px. Ahead of Log in, behind Get started free — signing
                 up keeps the last and strongest slot. */}
-            <AppStoreBadge tone="glass" size="sm" />
+            <AppStoreBadge size="sm" />
             <Link href="/login" className="px-3.5 py-2 text-[0.875rem] font-medium text-white/75 hover:text-white transition-colors">Log in</Link>
             <Link href="/cards/new" className="rd-btn rd-btn-primary text-[0.875rem] px-4 py-2">Get started free</Link>
           </div>

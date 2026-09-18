@@ -98,7 +98,7 @@ export default function SiteFooter({ light = false }: { light?: boolean }) {
                 Deliberately NOT wrapped in NativeHidden's opposite: someone
                 reading the marketing site in a browser is exactly who should
                 see it, and the whole footer is already hidden in the shell. */}
-            <AppStoreBadge tone={light ? "black" : "glass"} size="md" className="mt-4" />
+            <AppStoreBadge size="sm" className="mt-4" />
           </div>
           {COLS.map((col) => (
             <div key={col.title}>
