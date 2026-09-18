@@ -19,6 +19,7 @@ import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveGeo } from "@/lib/request-geo";
 import { attachVisitIdentity, resolveVisitIdentity } from "@/lib/visit-identity";
 import { bindFormDevice } from "@/lib/known-contact";
+import { activeEvent } from "@/lib/event-tag";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -209,6 +210,7 @@ export async function POST(req: NextRequest) {
       await bumpUsage(admin, ownerProfile.id, ownerProfile.customization as Record<string, unknown> | null, "leads");
     }
 
+    const eventTag = activeEvent(ownerProfile?.customization);
     const leadRow = {
         name,
         email: email || null,
@@ -233,6 +235,9 @@ export async function POST(req: NextRequest) {
         ],
         source: source || null,
         visitor_id,
+        // "At an event?" (lib/event-tag.ts): the owner said where they are
+        // meeting people today, so this contact is saved as met there.
+        ...(eventTag ? { where_met: eventTag.label } : {}),
     };
     let { data: insertedLead, error } = await admin.from("leads").insert(leadRow).select("id").single();
     if (error && (error.code === "42703" || error.code === "PGRST204")) {
