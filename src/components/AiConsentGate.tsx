@@ -26,7 +26,12 @@ export default function AiConsentGate({
   consent,
   provider,
   copy,
+  hold = false,
 }: {
+  /** Keep the dialog closed for now — a Get Started step (building the card,
+   *  creating the account, choosing a plan) is on screen, or the account has
+   *  not finished it. The ask waits for the app proper; see GlobalAiConsent. */
+  hold?: boolean;
   consent: AiConsent;
   /** Live provider name; null when no AI is configured, which hides the gate. */
   provider: string | null;
@@ -46,7 +51,7 @@ export default function AiConsentGate({
     setDecided(consent === "accepted");
   }, [consent]);
 
-  const open = native && !!provider && !decided && !dismissedThisSession;
+  const open = native && !!provider && !decided && !dismissedThisSession && !hold;
 
   async function choose(decision: "accepted" | "declined") {
     setSaving(true);

@@ -80,6 +80,46 @@ export function aiConsentPermits(consent: AiConsent, isShell: boolean): boolean 
   return !isShell; // unset: web proceeds, the app must ask first
 }
 
+// ── WHEN the question is asked ──────────────────────────────────────────────
+//
+// Owner, 2026-09-18: a brand-new account going through Get Started (build a
+// card → create the account → choose a plan → "Your card is live!") was shown
+// the AI dialog in the middle of it, between creating the account and the plan
+// step — because the ask fired on the FIRST signed-in screen, and Get Started
+// made that screen part of onboarding. The ask belongs inside the app, once the
+// card is live, and never on a step of getting there.
+//
+// Two halves, and both must agree before the dialog opens:
+//   • aiConsentAskAllowedOn(pathname) — the SCREEN is not a setup/funnel step;
+//   • aiConsentAskReady(account)      — the ACCOUNT has finished setting up.
+// The account half is what covers the hops a path cannot name: the claim passes
+// through /dashboard?claim=1 and /cards/[id]/edit?claim=1, which are ordinary
+// app paths for everyone else.
+//
+// Deferring the QUESTION never defers the PROTECTION: aiConsentPermits still
+// blocks every AI request from the app while the answer is "unset", so nothing
+// reaches the provider unasked in the meantime (5.1.2(i) holds throughout).
+
+/** Setup and funnel screens. The dialog never opens on these. */
+const NO_ASK_EXACT = ["/login", "/account-deleted", "/onboarding", "/upgrade"];
+const NO_ASK_PREFIXES = ["/auth/", "/cards/new", "/welcome", "/checkout", "/join/"];
+
+export function aiConsentAskAllowedOn(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  if (NO_ASK_EXACT.includes(pathname)) return false;
+  return !NO_ASK_PREFIXES.some((p) => pathname === p || pathname.startsWith(p.endsWith("/") ? p : `${p}/`));
+}
+
+/**
+ * Has this account finished getting started? It has a card, and the plan step
+ * is behind it (`awaitingPlan` is lib/card-active awaitingPlanChoice — the same
+ * test that keeps the card dark and sends the dashboard to /welcome, so "your
+ * card is live" and "now we may ask" can never disagree).
+ */
+export function aiConsentAskReady(account: { hasCard: boolean; awaitingPlan: boolean }): boolean {
+  return account.hasCard && !account.awaitingPlan;
+}
+
 /**
  * The exact disclosure shown before anything is sent.
  *

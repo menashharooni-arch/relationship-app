@@ -243,8 +243,9 @@ export default function RootLayout({
             which made the console unreachable for a brand-new Office owner. */}
         <GuidedTour pausePathPrefix="/office/admin" />
         {/* Native-only AI-consent ask, mounted globally so it appears on the
-            FIRST signed-in screen — not just the pages that remembered to
-            mount it. Renders and fetches nothing on the web. */}
+            FIRST signed-in screen inside the app — not just the pages that
+            remembered to mount it, and never on a Get Started step (card →
+            account → plan). Renders and fetches nothing on the web. */}
         <GlobalAiConsent />
       </body>
     </html>
