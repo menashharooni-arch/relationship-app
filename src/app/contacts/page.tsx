@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import ContactsClient from "@/components/ContactsClient";
@@ -61,6 +62,23 @@ export default async function ContactsPage({
   ]);
   if (!user) redirect("/login");
   const { card: cardParam, lead: selectedLeadParam } = params;
+  // THE FIRST STEP OF THE FUNNEL (warm-lead plan §2.9: alert → opened →
+  // follow-up → meeting). Opening a contact — from the push or the bell —
+  // stamps the alerts about them as opened. Only the first open counts, it is
+  // the owner's own rows, and it never holds up the page.
+  if (selectedLeadParam && /^[0-9a-f-]{36}$/i.test(selectedLeadParam)) {
+    const ownerId = user.id;
+    after(async () => {
+      try {
+        await getAdminSupabase()
+          .from("notifications")
+          .update({ opened_at: new Date().toISOString() })
+          .eq("user_id", ownerId)
+          .eq("lead_id", selectedLeadParam)
+          .is("opened_at", null);
+      } catch { /* measurement only */ }
+    });
+  }
   const cookieCard = cookieStore.get(ACTIVE_CARD_COOKIE)?.value ?? null;
   if (!profile) redirect("/onboarding");
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) redirect("/account-deleted");
