@@ -94,8 +94,11 @@ describe("a captured lead always reaches the owner", () => {
 
   it("reports side-effect failures rather than swallowing them", () => {
     expect(src).toMatch(/reportError\("leads\.notify"/);
-    // Zapier was the one integration with no error surface at all.
-    expect(src).toMatch(/reportError\("leads\.zapier"/);
+    // Zapier was the one integration with no error surface at all. It is sent
+    // from the shared CRM module now (every contact path uses it), and the
+    // report lives there.
+    expect(src).toContain("sendLeadToZapier(");
+    expect(read("src/lib/crm-sync.ts")).toMatch(/reportError\("crm\.zapier"/);
   });
 
   it("gives the after() work room to finish", () => {

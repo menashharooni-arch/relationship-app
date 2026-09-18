@@ -1,8 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 import { readUsage, bumpUsage } from "@/lib/usage";
+import { getSourceLabel } from "@/lib/source-labels";
+import { syncLeadToAllCrms, sendLeadToZapier } from "@/lib/crm-sync";
+
+// The CRM fan-out below runs in after() — give it the same room as capture.
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -19,7 +24,7 @@ export async function POST(req: NextRequest) {
   // Attach the contact to the card the user currently has selected (validated to
   // belong to them), so it shows up in that card's scoped view. Falls back to the
   // profile's primary card if no/invalid card was passed.
-  const { data: ownCards } = await admin.from("cards").select("username").eq("user_id", user.id);
+  const { data: ownCards } = await admin.from("cards").select("id, username, name").eq("user_id", user.id);
   const ownUsernames = (ownCards ?? []).map((c) => c.username);
   const finalOwner =
     typeof requestedOwner === "string" && ownUsernames.includes(requestedOwner)
@@ -62,5 +67,34 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!paid) await bumpUsage(admin, user.id, profile.customization as Record<string, unknown> | null, "leads");
+
+  // ── To the CRM, like every other new contact ──────────────────────────────
+  // "Add contact" is also where a scanned paper business card lands, and that
+  // is the most CRM-bound contact there is: someone met at a trade show. This
+  // route used to save it in SwiftCard only, so the one lead a salesperson
+  // most expected to find in Salesforce never arrived. Same paid gate, same
+  // after() semantics and same destinations as the public share form.
+  if (paid) {
+    const card = (ownCards ?? []).find((c) => c.username === finalOwner);
+    const leadData = {
+      name: name.trim(),
+      email: email?.trim() || null,
+      phone: phone?.trim() || null,
+      company: company?.trim() || null,
+      notes: notes?.trim() || null,
+      whereMet: where_met?.trim() || null,
+      source: getSourceLabel("manual"),
+      capturedByCard: finalOwner as string,
+      capturedByName: (card?.name as string | null) ?? null,
+      capturedByCardId: (card?.id as string | undefined) ?? null,
+    };
+    after(
+      Promise.allSettled([
+        syncLeadToAllCrms(leadData, user.id),
+        sendLeadToZapier(leadData, user.id),
+      ]),
+    );
+  }
+
   return NextResponse.json({ lead: data });
 }

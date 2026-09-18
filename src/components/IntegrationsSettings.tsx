@@ -70,6 +70,12 @@ type Props = {
    * destination — see where it renders.
    */
   teamCrmNames?: string[];
+  /**
+   * The Office OWNER. Their connections also receive every team member's
+   * leads (unless a member connects their own), which the card picker — it
+   * lists only the owner's cards — can't show. One line says so.
+   */
+  isOfficeOwner?: boolean;
   isPro: boolean;
   /**
    * The account's cards, for the per-card scope picker. Integrations are
@@ -557,7 +563,7 @@ function CrmProCard() {
   );
 }
 
-export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, highlevelConnected, salesforceConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, highlevelSyncError, salesforceSyncError, teamCrmNames = [], isPro, cards = [], scopes = {} }: Props) {
+export default function IntegrationsSettings({ googleConnected, hubspotConnected, pipedriveConnected, highlevelConnected, salesforceConnected, googleSyncError, hubspotSyncError, pipedriveSyncError, highlevelSyncError, salesforceSyncError, teamCrmNames = [], isOfficeOwner = false, isPro, cards = [], scopes = {} }: Props) {
   const searchParams = useSearchParams();
   const [flashIntegration, setFlashIntegration] = useState<Integration | null>(null);
   const [flashStatus, setFlashStatus] = useState<string | null>(null);
@@ -612,6 +618,18 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         </div>
       )}
 
+      {/* The owner's side of the same rule. Their card picker below only lists
+          their own cards, so without this line an owner who picked "only my
+          work card" would reasonably assume their team's leads were excluded
+          too — they are not, and should not be: the agency CRM is the point. */}
+      {isOfficeOwner && isPro && (
+        <p className="text-slate-500 text-xs leading-relaxed px-1">
+          Your team&apos;s leads go to the CRMs and Zapier webhook you connect here too — each member&apos;s contacts
+          arrive with their name on them. A member who connects their own copy of a CRM sends
+          to theirs instead.
+        </p>
+      )}
+
       {!isPro && <CrmProCard />}
 
       <IntegrationCard
@@ -645,7 +663,8 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         help={
           <>
             In HighLevel: Settings → Private Integrations → Create new Integration → tick{" "}
-            <code className="text-slate-600">contacts.write</code> → copy the token. Your Location ID is
+            <code className="text-slate-600">contacts.write</code> and{" "}
+            <code className="text-slate-600">locations.readonly</code> → copy the token. Your Location ID is
             the long code in the browser address bar while you&apos;re inside that sub-account, right
             after <code className="text-slate-600">/location/</code>.
           </>

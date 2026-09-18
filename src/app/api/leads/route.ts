@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { syncLeadToGoogle } from "@/lib/sync-google";
-import { syncLeadToHubSpot } from "@/lib/sync-hubspot";
-import { syncLeadToPipedrive } from "@/lib/sync-pipedrive";
-import { syncLeadToHighLevel } from "@/lib/sync-highlevel";
-import { syncLeadToSalesforce } from "@/lib/sync-salesforce";
+import { syncLeadToAllCrms, sendLeadToZapier } from "@/lib/crm-sync";
 import { getSourceLabel } from "@/lib/source-labels";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
 import { readUsage, bumpUsage } from "@/lib/usage";
@@ -12,16 +8,13 @@ import { cardIsOffline, cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-a
 import { isRateLimited } from "@/lib/rate-limit";
 import { reportError } from "@/lib/report-error";
 
-// after() here runs four CRM providers — Pipedrive and HighLevel each make two
+// after() here runs five CRM providers — several make two or three
 // sequential calls — plus a Zapier webhook. Vercel's default cap can cut that
 // tail off with no error, no alert and no retry, which is the exact failure the
 // reminders route's own header documents. Give the side effects room.
 export const maxDuration = 60;
-import { isZapierWebhookUrl } from "@/lib/safe-fetch";
-import { isCardInScope, parseCardScope } from "@/lib/crm-scope";
 import { clientIp } from "@/lib/client-ip";
 import { notifyVisit } from "@/lib/visit-notify";
-import { CRM_WEBHOOK_TIMEOUT_MS } from "@/lib/crm-events";
 import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveGeo } from "@/lib/request-geo";
 
@@ -104,10 +97,7 @@ export async function POST(req: NextRequest) {
     // for multi-card accounts that is NOT the profile slug, so look the card up
     // first and fall back to the legacy profile-slug match. Without this,
     // notifications/emails silently skipped every non-primary card.
-    // zapier_card_ids: which cards may fire the webhook (null = all). Safe to
-    // name explicitly — the column ships with the crm_card_scope migration,
-    // which is applied before this code runs.
-    const ownerSelect = "id, plan, name, email, phone, company, zapier_webhook_url, zapier_card_ids, customization";
+    const ownerSelect = "id, plan, name, email, phone, company, customization";
     // select("*") so the is_offline kill-switch is actually present on the row —
     // an explicit column list would silently omit it (and would error outright on
     // a pre-migration schema), leaving lead capture open on an offline card.
@@ -248,8 +238,7 @@ export async function POST(req: NextRequest) {
     // must NEVER report failure back to the visitor (they'd see "something went
     // wrong" and re-submit a duplicate, even though we captured them fine).
     try {
-    // Sync to every connected CRM — Google Contacts, HubSpot, Pipedrive and
-    // GoHighLevel (non-blocking).
+    // Sync to every connected CRM and the Zapier webhook (non-blocking).
     // Plan is re-checked HERE, at send time, not just when the integration was
     // connected. A token survives a downgrade, so without this a lapsed account
     // keeps syncing to a Pro-only destination indefinitely. dispatchCrmEvent
@@ -260,8 +249,7 @@ export async function POST(req: NextRequest) {
       // The context below is what a CRM record can't get anywhere else: where
       // the meeting happened, how the card was tapped, and WHICH card captured
       // it — which in an Office identifies the rep. Providers that have nowhere
-      // to put a field ignore it (Google has no notes; HubSpot rejects writes to
-      // properties a portal hasn't defined), so this is additive for them.
+      // to put a field ignore it, so this is additive for them.
       const leadData = {
         name,
         email: email || null,
@@ -271,64 +259,32 @@ export async function POST(req: NextRequest) {
         message: message || null,
         source: source ? getSourceLabel(source) : null,
         capturedByCard: card_owner,
+        capturedByName: cardIdentity.name || null,
         // safeTags, NOT the raw client array: at capture time tags are
         // visitor-controlled, and they flow into HighLevel's first-class tags
         // field where a tag can fire the owner's workflows. Owner-chosen tags
         // reach the CRMs through the lead EDIT route instead.
         tags: safeTags.length ? safeTags : null,
         // The key per-card CRM scoping is checked against, inside
-        // getCrmConnection. Undefined for a legacy profile-card with no cards
-        // row, which is treated as out-of-scope whenever a scope is set —
-        // "can't prove it belongs" must not send someone's contacts onward.
+        // getCrmConnection and resolveZapierTarget. Undefined for a legacy
+        // profile-card with no cards row, which is treated as out-of-scope
+        // whenever a scope is set — "can't prove it belongs" must not send
+        // someone's contacts onward.
         capturedByCardId: (cardRow?.id as string | undefined) ?? null,
       };
       // after(): these were bare floating promises. Nothing awaited them, so on
       // a serverless host the function could return its response and be frozen
-      // with the CRM calls still in flight — the sync would simply never happen,
-      // and (before the sync_error work) would have looked like silence rather
-      // than a failure. after() keeps the invocation alive until they finish
-      // WITHOUT making the visitor wait: the form still returns immediately.
-      //
-      // The exposure grew with Pipedrive and HighLevel, which each make two
-      // sequential calls (create, then attach the note) rather than one.
-      //
-      // allSettled, not all: one provider being down must not cancel the others.
+      // with the CRM calls still in flight — the sync would simply never happen.
+      // after() keeps the invocation alive until they finish WITHOUT making the
+      // visitor wait: the form still returns immediately. allSettled inside
+      // syncLeadToAllCrms, so one provider being down can't cancel the others.
+      // The Zapier send validates its URL against the Zapier allowlist and the
+      // card scope at send time, and is bounded by CRM_WEBHOOK_TIMEOUT_MS.
       after(
         Promise.allSettled([
-          syncLeadToGoogle(leadData, ownerProfile.id).catch((e) => console.error("[leads] Google sync error:", e)),
-          syncLeadToHubSpot(leadData, ownerProfile.id).catch((e) => console.error("[leads] HubSpot sync error:", e)),
-          syncLeadToPipedrive(leadData, ownerProfile.id).catch((e) => console.error("[leads] Pipedrive sync error:", e)),
-          syncLeadToHighLevel(leadData, ownerProfile.id).catch((e) => console.error("[leads] HighLevel sync error:", e)),
-          syncLeadToSalesforce(leadData, ownerProfile.id).catch((e) => console.error("[leads] Salesforce sync error:", e)),
+          syncLeadToAllCrms(leadData, ownerProfile.id),
+          sendLeadToZapier(leadData, ownerProfile.id),
         ]),
-      );
-    }
-
-    // Fire Zapier webhook (non-blocking) — only to a validated Zapier host, so
-    // a URL stored before validation existed can't exfiltrate lead PII (SSRF).
-    // Per-card scope is checked here rather than in getCrmConnection because
-    // Zapier isn't an integrations row — the webhook lives on the profile. Same
-    // rule though: null = all cards, and a card we can't identify is out of
-    // scope once one is set.
-    if (
-      ownerProfile?.zapier_webhook_url &&
-      isPaidPlan(ownerProfile.plan) &&
-      isZapierWebhookUrl(ownerProfile.zapier_webhook_url) &&
-      isCardInScope(parseCardScope(ownerProfile.zapier_card_ids), (cardRow?.id as string | undefined) ?? null)
-    ) {
-      // after() for the same reason as the CRM syncs above: an unawaited fetch
-      // can be cut off when the function freezes after responding, so the Zap
-      // would silently never fire.
-      // Bounded, like dispatchCrmEvent: after() keeps the function alive until
-      // this settles, so an unanswering webhook would otherwise pin the
-      // instance for the platform's full limit on every captured lead.
-      after(
-        fetch(ownerProfile.zapier_webhook_url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "lead.created", name, email, phone: phone || null, company: company || null, message: message || null, location, source: source ? getSourceLabel(source) : null, card_owner, tags: safeTags.length ? safeTags : null, created_at: new Date().toISOString() }),
-          signal: AbortSignal.timeout(CRM_WEBHOOK_TIMEOUT_MS),
-        }).catch((e) => reportError("leads.zapier", e)),
       );
     }
 

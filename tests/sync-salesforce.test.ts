@@ -45,7 +45,7 @@ describe("SOQL escaping", () => {
     const soql = decodeURIComponent(q!.url.split("q=")[1]);
     // Every backslash and quote in the value arrives escaped: the literal closes
     // exactly where the template intends, so the payload stays inert data.
-    expect(soql).toContain("Email = 'a\\\\\\' OR Name!=\\'@x.co' LIMIT 1");
+    expect(soql).toContain("Email = 'a\\\\\\' OR Name!=\\'@x.co' ORDER BY");
   });
 });
 

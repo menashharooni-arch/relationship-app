@@ -4,7 +4,9 @@ import {
   connectionErrorMessage,
   resolveCrmOwnerId,
   describeCapture,
+  shouldAttachNote,
   type CrmLead,
+  type CrmSyncOptions,
 } from "./crm-connection";
 
 // ── HighLevel (GoHighLevel) ──────────────────────────────────────────────────
@@ -39,24 +41,42 @@ function headers(token: string): Record<string, string> {
   };
 }
 
+
+export type HighLevelCheck = "ok" | "missing_scope" | "rejected";
+
 /**
  * Confirm a token + location pair really work together, before storing them.
  *
  * Validating the PAIR matters: a valid token with someone else's location id
  * would otherwise be accepted here and then fail on every single lead.
+ *
+ * Private Integration scopes are independent — contacts.write does NOT grant
+ * any read — so no single call is guaranteed to be allowed. Reading the
+ * sub-account needs locations.readonly; listing one contact of it needs
+ * contacts.readonly. Either one proves the token reaches that location, so
+ * both are tried. When both are refused for SCOPE rather than for a bad token,
+ * the user is told exactly which box to tick instead of "check your token",
+ * which sent people round in circles with a token that was fine.
  */
-export async function verifyHighLevelLocation(token: string, locationId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${HL_BASE}/locations/${encodeURIComponent(locationId)}`, {
-      headers: headers(token),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
+export async function checkHighLevelConnection(token: string, locationId: string): Promise<HighLevelCheck> {
+  let scopeRefused = false;
+  const attempt = async (url: string): Promise<boolean> => {
+    try {
+      const res = await fetch(url, { headers: headers(token) });
+      if (res.ok) return true;
+      const text = await res.text().catch(() => "");
+      if ((res.status === 401 || res.status === 403) && /scope/i.test(text)) scopeRefused = true;
+      return false;
+    } catch {
+      return false;
+    }
+  };
+  if (await attempt(`${HL_BASE}/locations/${encodeURIComponent(locationId)}`)) return "ok";
+  if (await attempt(`${HL_BASE}/contacts/?locationId=${encodeURIComponent(locationId)}&limit=1`)) return "ok";
+  return scopeRefused ? "missing_scope" : "rejected";
 }
 
-export async function syncLeadToHighLevel(lead: CrmLead, capturedBy: string): Promise<void> {
+export async function syncLeadToHighLevel(lead: CrmLead, capturedBy: string, opts?: CrmSyncOptions): Promise<void> {
   // An office sub-user with no connection of their own inherits the office
   // owner's, so a whole agency's leads land in one HighLevel sub-account.
   const userId = await resolveCrmOwnerId("highlevel", capturedBy);
@@ -64,7 +84,7 @@ export async function syncLeadToHighLevel(lead: CrmLead, capturedBy: string): Pr
   // so expires_at is null and the refresh branch never runs. HighLevel does
   // recommend rotating them periodically, and a rotation looks exactly like a
   // revoked token here: the next lead 401s and the banner tells them to reconnect.
-  const conn = await getCrmConnection("highlevel", LABEL, userId, lead.capturedByCardId);
+  const conn = await getCrmConnection("highlevel", LABEL, userId, lead.capturedByCardId, capturedBy);
   if (!conn) return;
 
   const locationId = typeof conn.metadata.location_id === "string" ? conn.metadata.location_id : "";
@@ -73,7 +93,7 @@ export async function syncLeadToHighLevel(lead: CrmLead, capturedBy: string): Pr
     return;
   }
 
-  const [firstName, ...rest] = (lead.name || "").split(" ");
+  const [firstName, ...rest] = (lead.name || "").trim().split(/\s+/);
   const lastName = rest.join(" ") || undefined;
 
   // source and tags are FIRST-CLASS HighLevel fields, which is what makes this
@@ -89,6 +109,12 @@ export async function syncLeadToHighLevel(lead: CrmLead, capturedBy: string): Pr
     ...(lead.tags ?? []),
   ];
 
+  // NO tags in the upsert body. HighLevel documents that field as "will
+  // overwrite all current tags associated with the contact" — so meeting a
+  // known contact again, or editing one, wiped every tag the customer's own
+  // pipeline had put on them ("hot-lead", "appointment-set"…) and replaced
+  // them with ours. Tags go on afterwards through the Add Tags endpoint,
+  // which only ever adds.
   const body: Record<string, unknown> = {
     locationId,
     firstName,
@@ -97,7 +123,6 @@ export async function syncLeadToHighLevel(lead: CrmLead, capturedBy: string): Pr
     ...(lead.phone ? { phone: lead.phone } : {}),
     ...(lead.company ? { companyName: lead.company } : {}),
     ...(lead.source ? { source: `SwiftCard – ${lead.source}` } : { source: "SwiftCard" }),
-    tags,
   };
 
   const res = await fetch(`${HL_BASE}/contacts/upsert`, {
@@ -115,22 +140,36 @@ export async function syncLeadToHighLevel(lead: CrmLead, capturedBy: string): Pr
     return;
   }
 
-  // Attach the capture context as a note. Best-effort: the contact is already
-  // saved, and losing the note is far better than reporting a working
-  // connection as broken.
+  let contactId: string | undefined;
   try {
     const payload = (await res.json()) as { contact?: { id?: string }; id?: string };
-    const contactId = payload?.contact?.id ?? payload?.id;
+    contactId = payload?.contact?.id ?? payload?.id;
+  } catch { /* no id, no follow-ups — the contact itself is saved */ }
+
+  if (contactId) {
+    // Additive tagging. Not best-effort in spirit — a tag is what starts the
+    // customer's workflow — but a failure here must not report the saved
+    // contact as lost, so it is logged rather than bannered.
+    try {
+      const t = await fetch(`${HL_BASE}/contacts/${encodeURIComponent(contactId)}/tags`, {
+        method: "POST",
+        headers: headers(conn.token),
+        body: JSON.stringify({ tags }),
+      });
+      if (!t.ok) console.warn("[sync-highlevel] add tags failed:", t.status, await t.text().catch(() => ""));
+    } catch { /* logged above when it answers at all */ }
+
+    // Attach the capture context as a note. Best-effort: the contact is
+    // already saved, and losing the note is far better than reporting a
+    // working connection as broken.
     const note = describeCapture(lead);
-    if (contactId && note) {
+    if (note && shouldAttachNote(opts)) {
       await fetch(`${HL_BASE}/contacts/${encodeURIComponent(contactId)}/notes`, {
         method: "POST",
         headers: headers(conn.token),
         body: JSON.stringify({ body: note }),
-      });
+      }).catch(() => {});
     }
-  } catch {
-    /* note is a bonus, never a failure */
   }
 
   // Recovered — drop the banner, but only if one was actually showing.
