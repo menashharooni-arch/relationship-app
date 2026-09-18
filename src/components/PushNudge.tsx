@@ -21,6 +21,7 @@
 
 import { useEffect, useState } from "react";
 import EnablePushButton, { usePushState } from "@/components/EnablePushButton";
+import { askPushOn, askStopped, noteAskAccount, snoozeAsk, useAskSlot, useAskStore } from "@/lib/push-ask-client";
 
 // Stage of the ask this device has dismissed: "1" = the cold open, "2" = the
 // second ask after real activity. Absent = never dismissed.
@@ -41,6 +42,34 @@ export default function PushNudge({ viewCount = 0 }: { viewCount?: number }) {
 
   const hasActivity = viewCount > 0;
 
+  // THE ACCOUNT, not just this device (owner, 2026-09-18: remind a few times,
+  // then "if they really don't want push notifications on, they don't want it
+  // on"). A "Don't ask again" given under a notification — on any device — or
+  // push already reaching one of their devices retires this box too. Read only
+  // when the box would otherwise show; until the answer arrives nothing is
+  // drawn, so it can never flash up and vanish. A failed read keeps today's
+  // behaviour: the box shows.
+  const [account, setAccount] = useState<"loading" | "ask" | "done">("loading");
+  const wouldAsk = (stage === 0 || (stage === 1 && hasActivity)) && state === "idle";
+  useEffect(() => {
+    if (!wouldAsk || account !== "loading") return;
+    let live = true;
+    fetch("/api/push/ask")
+      .then(async (r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        const j = (await r.json()) as { pushOn?: boolean; stopped?: boolean; quietUntil?: string | null };
+        noteAskAccount(j);
+        // quietUntil: a reminder under a notification asked within the last
+        // few days — this box does not ask again on top of it.
+        const quiet = typeof j.quietUntil === "string" && Date.parse(j.quietUntil) > Date.now();
+        if (live) setAccount(j.pushOn || j.stopped || quiet ? "done" : "ask");
+      })
+      .catch(() => { if (live) setAccount("ask"); });
+    return () => { live = false; };
+  }, [wouldAsk, account]);
+  useAskStore();
+  const retired = account === "done" || askStopped() || askPushOn();
+
   function dismiss() {
     // Record which ask was turned down, so the activity ask still gets its turn
     // after the cold one — and nothing gets a third.
@@ -55,7 +84,11 @@ export default function PushNudge({ viewCount = 0 }: { viewCount?: number }) {
   // those can be fixed by this box, and Settings carries the right message for
   // each of them.
   const asking = stage === 0 || (stage === 1 && hasActivity);
-  if (!asking || state !== "idle") return null;
+  const visible = asking && state === "idle" && account === "ask" && !retired;
+  // While it shows, it is THE ask on this screen: the reminders under the
+  // bell's and the list's notifications stand down (lib/push-ask-client.ts).
+  useAskSlot("nudge", visible);
+  if (!asking || state !== "idle" || !visible) return null;
 
   return (
     <div
@@ -80,7 +113,9 @@ export default function PushNudge({ viewCount = 0 }: { viewCount?: number }) {
       </div>
       <button
         type="button"
-        onClick={dismiss}
+        // "Not now" here also rests the reminders under notifications for a
+        // few days (snoozeAsk) — otherwise the bell could ask again seconds later.
+        onClick={() => { dismiss(); snoozeAsk(); }}
         className="mt-3 text-xs font-medium text-blue-400/60 hover:text-blue-200"
       >
         Not now
