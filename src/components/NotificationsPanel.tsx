@@ -39,7 +39,9 @@ function timeAgo(iso: string) {
 // row names them and the useful destination is that person's conversation, not
 // a chart. When it is "Someone", the name match below finds nothing and the
 // row opens the contacts list, which is still the right place to look.
-const CONTACT_TYPES = new Set(["new_lead", "contact_saved", "card_viewed"]);
+// A reply too: "Dana replied" names the contact, and the conversation is the
+// only useful place that row can lead.
+const CONTACT_TYPES = new Set(["new_lead", "contact_saved", "card_viewed", "lead_reply"]);
 
 // Stamp the optimistic-op grace window. Lives at module scope so the React
 // compiler doesn't treat the Date.now() call as render-time impurity — it only

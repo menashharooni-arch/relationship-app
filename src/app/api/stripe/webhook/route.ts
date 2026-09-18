@@ -157,6 +157,23 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
   // the email has already gone, Stripe retries a decline over days, and a 3am
   // banner changes nothing. Never a sales message: it says what happened and
   // opens billing.
+  //
+  // A BELL ROW FIRST, and the push only if this call wrote it. Two reasons:
+  //   • A failed payment used to leave no trace inside the app at all, and the
+  //     8am catch-up is built from bell rows (type "payment_failed" is already
+  //     in its map) — so a card declining at 11pm was held by quiet hours and
+  //     then never mentioned again.
+  //   • This whole handler is retried by Stripe if anything later in the event
+  //     throws. insertNotification refuses identical words inside ten minutes,
+  //     so the redelivery finds the row, returns false, and the phone does not
+  //     buzz a second time for the same declined charge.
+  const wrote = await insertNotification({
+    user_id: profile.id as string,
+    type: "payment_failed",
+    title: "Payment failed",
+    body: `Your ${planName} payment didn't go through.`,
+  }).catch(() => false);
+  if (!wrote) return;
   await sendPushToUser(profile.id as string, {
     category: "billing_problem",
     title: "Payment failed",

@@ -75,6 +75,32 @@ function reportPushFailure(message: string) {
   } catch { /* ignore */ }
 }
 
+// ── A switch that shows ON must BE on ────────────────────────────────────────
+//
+// "Subscribed" is decided on the device: the OS permission plus a token (or a
+// browser subscription) we remember registering. The SERVER row is what
+// actually receives pushes, and it can vanish without the device ever hearing
+// about it — production lost every iPhone's row to an APNs environment mix-up
+// (lib/apns.ts sendApnsDetailed) while each of those phones went on showing the
+// switch green. So when the switch reads ON we re-present this device's
+// endpoint to the server: an idempotent upsert on a unique endpoint, once per
+// session, fire-and-forget. If the row is there nothing changes; if it is gone
+// it comes back, and the person never has to discover they were unsubscribed.
+const RECONFIRM_KEY = "swiftcard_push_reconfirmed";
+function reconfirmSubscription(body: { endpoint: string; p256dh: string; auth: string }) {
+  try {
+    if (sessionStorage.getItem(RECONFIRM_KEY) === body.endpoint) return;
+    sessionStorage.setItem(RECONFIRM_KEY, body.endpoint);
+  } catch { /* no session storage — reconfirm anyway; the route is rate limited */ }
+  fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...body, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+  }).then((r) => {
+    if (!r.ok && r.status !== 401 && r.status !== 429) reportPushFailure(`reconfirm returned ${r.status}`);
+  }).catch(() => { /* offline — next session retries */ });
+}
+
 function detectEnv() {
   if (typeof window === "undefined") return { supported: false, iosNeedsInstall: false, native: false };
   if (detectNativeApp()) return { supported: false, iosNeedsInstall: false, native: true };
@@ -117,7 +143,16 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
           if (perm.receive === "denied") { setState("denied"); return; }
           let stored: string | null = null;
           try { stored = localStorage.getItem(APNS_ENDPOINT_KEY); } catch { /* ignore */ }
-          setState(perm.receive === "granted" && stored ? "subscribed" : "idle");
+          const on = perm.receive === "granted" && !!stored;
+          setState(on ? "subscribed" : "idle");
+          // Only for the account that enabled push on this device — never bind
+          // a device to an account that did not ask (lib/push-device.ts).
+          if (on && stored) {
+            let owner: string | null = null;
+            try { owner = localStorage.getItem(PUSH_UID_KEY); } catch { /* ignore */ }
+            const uid = await sessionUid();
+            if (uid && owner === uid) reconfirmSubscription({ endpoint: stored, p256dh: "apns", auth: "apns" });
+          }
         } catch {
           setState("native");
         }
@@ -133,7 +168,16 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
     if (Notification.permission === "granted") {
       navigator.serviceWorker.ready
         .then((reg) => reg.pushManager.getSubscription())
-        .then((sub) => setState(sub ? "subscribed" : "idle"))
+        .then((sub) => {
+          setState(sub ? "subscribed" : "idle");
+          // Sign-out and account switches unsubscribe the browser itself
+          // (unbindDevicePush), so a live subscription here belongs to whoever
+          // is signed in now.
+          const j = sub?.toJSON();
+          if (j?.endpoint && j.keys?.p256dh && j.keys?.auth) {
+            reconfirmSubscription({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
+          }
+        })
         .catch(() => setState("idle"));
     } else {
       setState("idle");
@@ -149,8 +193,16 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
       let handles: { remove: () => void }[] = [];
       try {
         const { PushNotifications } = await import("@capacitor/push-notifications");
+        // iOS shows its "Allow / Don't Allow" sheet ONCE PER INSTALL. After
+        // that this resolves instantly with the remembered answer and no UI —
+        // "granted" simply switches push on, "denied" can only be changed in
+        // the Settings app (the denied state below links straight there).
         const perm = await PushNotifications.requestPermissions();
-        if (perm.receive !== "granted") { setState("denied"); return false; }
+        if (perm.receive === "denied") { setState("denied"); return false; }
+        // Anything else that is not "granted" means the sheet was put away
+        // without an answer. iOS will ask again, so stay tappable — this used
+        // to show the permanent "go to Settings" message for a swipe.
+        if (perm.receive !== "granted") { setState("idle"); return false; }
 
         // Both listeners must be ATTACHED before register() is called, and the
         // attach is asynchronous (it crosses the JS↔native bridge). The plugin
@@ -221,11 +273,25 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
     }
 
     try {
+      // PERMISSION FIRST — it must be the first awaited thing in this tap.
+      // Safari (Mac, and the iPhone home-screen app) and Firefox only show the
+      // prompt while the click's "user activation" is still live, and awaiting
+      // the service worker first spent it: the prompt never appeared, the
+      // promise resolved "default", and the page then claimed notifications
+      // were BLOCKED. Chrome is lenient, which is why this looked fine on a
+      // desktop and was broken on every Apple browser.
+      const perm = await Notification.requestPermission();
+      if (perm === "denied") { setState("denied"); return false; }
+      // "default" = the prompt was dismissed (or never shown). Nothing is
+      // blocked and the browser will ask again: stay tappable.
+      if (perm !== "granted") {
+        reportPushFailure(`web permission resolved "${perm}" without a grant`);
+        setState("idle");
+        return false;
+      }
+
       const reg = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
-
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") { setState("denied"); return false; }
 
       const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
       const sub = await reg.pushManager.subscribe({
@@ -234,17 +300,27 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
       });
 
       const json = sub.toJSON();
-      await fetch("/api/push/subscribe", {
+      const res = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint: json.endpoint, p256dh: json.keys?.p256dh, auth: json.keys?.auth, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       });
+      // CHECKED, like the native path. Unchecked, a 401/429/500 left the switch
+      // showing ON for a browser the server had never heard of.
+      if (!res.ok) {
+        reportPushFailure(`web subscribe returned ${res.status}`);
+        try { await sub.unsubscribe(); } catch { /* ignore */ }
+        setState("error");
+        return false;
+      }
 
       setState("subscribed");
       return true;
-    } catch {
+    } catch (e) {
       // Never fail silently — the button returning to "idle" with no message
-      // reads as broken. Show a retryable error state instead.
+      // reads as broken. Show a retryable error state instead, and say why
+      // where we can read it (the native path always did; this one never had).
+      reportPushFailure(`web enable threw: ${e instanceof Error ? e.message : String(e)}`);
       setState("error");
       return false;
     }
@@ -368,12 +444,26 @@ export default function EnablePushButton({
     // or on the hydrating first paint.
     if (detectNativeApp()) {
       return (
-        <p className="text-amber-400 text-xs text-center leading-relaxed">
-          Notifications are turned off for SwiftCard. Open the iPhone{" "}
-          <strong>Settings</strong> app → <strong>SwiftCard</strong> →{" "}
-          <strong>Notifications</strong>, switch <strong>Allow Notifications</strong> on,
-          then come back here.
-        </p>
+        <div className="text-center">
+          <p className="text-amber-400 text-xs leading-relaxed">
+            Notifications are turned off for SwiftCard. Open the iPhone{" "}
+            <strong>Settings</strong> app → <strong>SwiftCard</strong> →{" "}
+            <strong>Notifications</strong>, switch <strong>Allow Notifications</strong> on,
+            then come back here.
+          </p>
+          {/* iOS asks once per install and never again, so after a "Don't
+              Allow" this is the ONLY road back — make it one tap. app-settings:
+              is UIApplication.openSettingsURLString; it opens SwiftCard's own
+              page in Settings. If a shell build cannot follow it nothing
+              happens, and the written path above still stands. */}
+          <button
+            type="button"
+            onClick={() => { try { window.location.href = "app-settings:"; } catch { /* ignore */ } }}
+            className="mt-2 inline-flex items-center justify-center rounded-full bg-amber-500/15 border border-amber-500/30 px-4 py-2 text-xs font-semibold text-amber-300"
+          >
+            Open iPhone Settings
+          </button>
+        </div>
       );
     }
     return (

@@ -198,9 +198,15 @@ export async function GET(req: NextRequest) {
           ? `Plus ${extra} more while you were away.`
           : String(top.row.body ?? ""),
         url: destinationFor(top.category, (top.row.card_owner as string | null) ?? null),
+        // Name the card only when the whole night was about ONE card — "Card:
+        // Work" over "Plus 3 more" would be wrong if the others were elsewhere.
+        cardOwner: held.every((h) => (h.row.card_owner ?? null) === (top.row.card_owner ?? null))
+          ? ((top.row.card_owner as string | null) ?? null)
+          : null,
         // One collapse id: a retry replaces this morning's banner instead of
         // stacking a second one beside it.
         tag: "catchup",
+        catchup: true,
       });
       counts.sent++;
     } catch (e) {

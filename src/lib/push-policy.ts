@@ -208,6 +208,15 @@ export type PolicyInput = {
   lastViewPushAt?: number | null;
   /** When the last silent view-count update went out, for its own throttle. */
   lastViewUpdateAt?: number | null;
+  /**
+   * THE 8AM CATCH-UP, and nothing else. It is one notification a morning,
+   * already rationed by its own once-per-12h mark (api/push/catchup) — which it
+   * writes BEFORE sending. Run it through the rolling-24h cap and the hourly
+   * view batch as well and yesterday's busy afternoon silently eats this
+   * morning's news, with the mark already spent and no retry until tomorrow.
+   * The switches and quiet hours still apply.
+   */
+  catchup?: boolean;
   now?: number;
 };
 
@@ -267,6 +276,8 @@ export function decidePush(input: PolicyInput): PolicyResult {
   // silent update to the one running-count banner — no sound, no second buzz,
   // just a number that climbs while the card is being passed around. Held to
   // one update every VIEW_UPDATE_MIN_GAP_MS; past that it really is batched.
+  if (input.catchup) return { send: true, mode: "alert" };
+
   if (category === "card_view" && lastViewPushAt && now - lastViewPushAt < VIEW_BATCH_MS) {
     if (lastViewUpdateAt && now - lastViewUpdateAt < VIEW_UPDATE_MIN_GAP_MS) {
       return { send: false, reason: "batched" };
@@ -281,6 +292,57 @@ export function decidePush(input: PolicyInput): PolicyResult {
   }
 
   return { send: true, mode: "alert" };
+}
+
+// ── Which card is this about? ────────────────────────────────────────────────
+//
+// Owner, 2026-09-18: "Let's say I have a few cards and I get a notification on
+// my phone that someone saved my contact. How do I know which card that's from?
+// You have to put a little tag on those notifications that says which card."
+//
+// Resolved in ONE place — sendPushToUser — from the card's slug, so no producer
+// can forget it and none of them has to load the card to say it.
+
+export type PushCardRow = { username?: string | null; label?: string | null; name?: string | null; company?: string | null };
+
+/** Longest tag the lock screen shows whole beside "Card: ". */
+export const MAX_CARD_TAG_CHARS = 28;
+
+/**
+ * The words that tell this card apart from the account's others, or null when
+ * no tag is needed.
+ *
+ *   • ONE card → null. "Card: Alex Morgan" on every notification an account
+ *     with a single card receives is noise, not information.
+ *   • The card's nickname (cards.label, "Card nickname" in the editor) when it
+ *     has one — it is the name the owner chose for exactly this purpose, and
+ *     the one the dashboard's card switcher and the bell's chip already show.
+ *   • Otherwise the first of company / name that NO OTHER card of theirs
+ *     shares. Someone with two cards is usually the same person twice, so their
+ *     name tells them nothing; the company usually does.
+ *   • Otherwise the link itself, which is always unique.
+ *
+ * A Swift Links view is stored under "<slug>__links"; it belongs to that card.
+ */
+export function pushCardTag(cards: PushCardRow[], cardOwner: string | null | undefined): string | null {
+  if (!cardOwner || cards.length < 2) return null;
+  const slug = cardOwner.toLowerCase().replace(/__links$/, "");
+  const card = cards.find((c) => (c.username ?? "").toLowerCase() === slug);
+  if (!card) return null;
+  const clean = (s: string | null | undefined) => (s ?? "").replace(/\s+/g, " ").trim();
+  const fit = (s: string) => fitBody(s, MAX_CARD_TAG_CHARS);
+  const label = clean(card.label);
+  if (label) return fit(label);
+  for (const key of ["company", "name"] as const) {
+    const v = clean(card[key]);
+    if (v && !cards.some((o) => o !== card && clean(o[key]).toLowerCase() === v.toLowerCase())) return fit(v);
+  }
+  return fit(clean(card.username) || slug);
+}
+
+/** The tag as the notification shows it. */
+export function cardTagLine(tag: string): string {
+  return `Card: ${tag}`;
 }
 
 /**

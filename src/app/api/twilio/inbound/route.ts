@@ -121,8 +121,25 @@ export async function POST(req: NextRequest) {
           : null;
       }
 
+      // ONE TEXT, ONE NOTIFICATION. Twilio redelivers a webhook it did not get
+      // a timely 200 for, and this handler does a lead scan, an insert and an
+      // APNs round trip before it answers. Without this a redelivery wrote the
+      // reply into the thread twice and buzzed the owner twice for one message
+      // — in an UNCAPPED category, so nothing downstream would absorb it.
+      // MessageSid is Twilio's id for the message; it is identical on a retry.
+      const messageSid = (params.MessageSid || params.SmsSid || "").trim() || null;
+      if (target && messageSid) {
+        const { data: seen } = await admin
+          .from("lead_messages")
+          .select("id")
+          .eq("provider_sid", messageSid)
+          .eq("direction", "in")
+          .limit(1);
+        if (seen?.length) return twiml();
+      }
+
       if (target) {
-        await logMessage({ leadId: target.id, cardOwner: target.card_owner, direction: "in", channel: "sms", body: bodyText, status: "received" });
+        await logMessage({ leadId: target.id, cardOwner: target.card_owner, direction: "in", channel: "sms", body: bodyText, status: "received", providerSid: messageSid });
 
         // A lead answering a follow-up is a live conversation, and the reply is
         // worthless an hour late — this is the one inbound event in the product
@@ -140,7 +157,7 @@ export async function POST(req: NextRequest) {
             // reads no such param and would have dumped them on the dashboard.
             const base = (process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me").replace(/\/$/, "");
             const url = `${base}/contacts?card=${encodeURIComponent(target.card_owner)}&lead=${encodeURIComponent(target.id)}`;
-            await insertNotification({
+            const wrote = await insertNotification({
               user_id: owner.id as string,
               card_owner: target.card_owner,
               type: "lead_reply",
@@ -148,13 +165,16 @@ export async function POST(req: NextRequest) {
               // The message itself, trimmed by push-policy to the lock-screen
               // budget. Seeing the actual words is why this is worth a buzz.
               body: bodyText.replace(/\s+/g, " ").trim().slice(0, 300),
-            }).catch(() => {});
-            await sendPushToUser(owner.id as string, {
+            }, { allowRepeat: true }).catch(() => false);
+            // Never buzz for a row that was not written (notify.ts's contract):
+            // a rejected duplicate means someone already announced this reply.
+            if (wrote) await sendPushToUser(owner.id as string, {
               category: "lead_reply",
               title: `${who} replied`,
               body: bodyText,
               url,
               tag: `lead-reply-${target.id}`,
+              cardOwner: target.card_owner,
             }).catch(() => {});
           }
         }
