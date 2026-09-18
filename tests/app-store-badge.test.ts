@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
@@ -68,6 +68,17 @@ describe("one look, the header's", () => {
     expect(css).toMatch(/.sc-appstore-badge .sc-asb-main { color: #fff; }/);
     // And no light-theme rule reaches for it.
     expect(css).not.toMatch(/data-sc-theme="light"][^{]*sc-a(ppstore-badge|sb-)/);
+  });
+
+  it("the email badge (welcome email) is the header's badge too, written for email clients", () => {
+    const lib = read("src/lib/app-store.ts");
+    const block = lib.slice(lib.indexOf("export function appStoreEmailBlock"));
+    expect(block).toContain("background:#191A1E;border:1px solid #2F3034;border-radius:12px;");
+    expect(block).toMatch(/color:#BABABB;font-size:9px;[^"]*">Download on the</);
+    expect(block).toMatch(/color:#FFFFFF;font-size:12\.5px;font-weight:600;[^"]*">App&nbsp;Store</);
+    // The Apple mark, as a hosted PNG (no SVG in email) that actually ships.
+    expect(block).toContain("/email/apple-glyph-white.png");
+    expect(existsSync(join(root, "public/email/apple-glyph-white.png"))).toBe(true);
   });
 
   it("is the header's size everywhere but the phone hero", () => {

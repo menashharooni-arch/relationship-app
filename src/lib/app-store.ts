@@ -63,18 +63,32 @@ export const APP_STORE_WRITE_REVIEW_URL: string | null =
  * emails sent while the app is in review carry nothing, and the ones sent
  * after the listing goes live carry the badge with no second deploy.
  *
- * Inline styles and no SVG, because email clients; a black Apple-style pill
- * with the classic two-line label, preceded by one short line of context.
+ * The SAME badge as the website's desktop header (owner, 2026-09-18: every
+ * "Download on the App Store" button looks exactly like that one): its dark
+ * glass #191A1E with the #2F3034 hairline, 12px corners, the white Apple mark,
+ * a 70%-white "Download on the" over a white "App Store", at the header's
+ * sizes (components/AppStoreBadge `sm`, colours in globals.css
+ * .sc-appstore-badge). Written out inline because email clients take no
+ * stylesheet and no SVG — the mark is a hosted PNG rendered from the badge's
+ * own glyph (public/email/apple-glyph-white.png), and the text colours are
+ * solid hex so no client's dark mode can blend them away. The shine and the
+ * hover cannot exist in an email; everything else matches.
  * `lead` lets each email say why the app matters to ITS reader.
  */
 export function appStoreEmailBlock(lead: string): string {
   if (!APP_STORE_URL) return "";
+  const site = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
   return `
     <div style="margin:28px 0 0;padding:20px 0 0;border-top:1px solid #e5e7eb;">
       <p style="margin:0 0 12px;color:#475569;font-size:13px;line-height:1.5;">${lead}</p>
-      <a href="${APP_STORE_URL}" style="display:inline-block;background:#0f172a;border-radius:12px;padding:9px 18px;text-decoration:none;">
-        <span style="display:block;color:#cbd5e1;font-size:10px;line-height:1.2;">Download on the</span>
-        <span style="display:block;color:#ffffff;font-size:17px;font-weight:700;line-height:1.25;">App&nbsp;Store</span>
+      <a href="${APP_STORE_URL}" style="display:inline-block;background:#191A1E;border:1px solid #2F3034;border-radius:12px;padding:6px 12px;text-decoration:none;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>
+          <td style="vertical-align:middle;padding:0 8px 0 0;"><img src="${site}/email/apple-glyph-white.png" width="17" height="17" alt="" style="display:block;border:0;" /></td>
+          <td style="vertical-align:middle;">
+            <span style="display:block;color:#BABABB;font-size:9px;line-height:1.25;">Download on the</span>
+            <span style="display:block;color:#FFFFFF;font-size:12.5px;font-weight:600;line-height:1.25;letter-spacing:-0.01em;">App&nbsp;Store</span>
+          </td>
+        </tr></table>
       </a>
     </div>`;
 }
