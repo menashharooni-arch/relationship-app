@@ -441,8 +441,14 @@ export default function EnablePushButton({
     return (
       <div className="w-full rounded-2xl border border-blue-800/40 bg-blue-950/30 px-4 py-3 text-left">
         <p className="text-blue-200 text-sm font-semibold">Turn on notifications on iPhone</p>
+        {/* The APP first: on iPhone it is the one place push simply works
+            (it asks once), and most people already have it. The home-screen
+            route stays for anyone who would rather keep to the website. No
+            App Store button here — every screen this state shows on already
+            offers one (GetTheAppCard directly below it on both "Your card is
+            live!" screens; the "Get the iPhone app" card in Settings). */}
         <p className="text-blue-300/80 text-xs mt-1.5 leading-relaxed">
-          Tap the <strong>Share</strong> button, choose <strong>Add to Home Screen</strong>, then open SwiftCard from your home screen and switch notifications on here.
+          Notifications come through the <strong>SwiftCard app</strong> — open it and allow them. Staying on the website? Tap the <strong>Share</strong> button, choose <strong>Add to Home Screen</strong>, then open SwiftCard from your home screen and switch notifications on here.
         </p>
       </div>
     );

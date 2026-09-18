@@ -3,42 +3,48 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { mutateCustomization } from "@/lib/profile-customization";
 import { isRateLimited } from "@/lib/rate-limit";
+import { isShellRequest } from "@/lib/shell-request";
 import {
-  PUSH_ASK_KEY, PUSH_ASK_MAX_AGE_MS, decidePushAsk, isAskableType, laterPushAsk, pushAskQuietUntil, readPushAsk,
-  snoozePushAsk, stopPushAsk,
+  PUSH_ASK_KEY, PUSH_ASK_MAX_AGE_MS, decidePushAsk, isAskableType, laterPushAsk, pushAlreadyOn, pushAskQuietUntil,
+  readPushAsk, snoozePushAsk, stopPushAsk, type AskPlatform,
 } from "@/lib/push-ask";
 
 // The "turn on notifications" reminder under an important bell row — whether it
 // may show, and the record of every time it did. All the rules are in
 // lib/push-ask.ts; this route is the only thing that applies them, so a phone
-// and a laptop share one budget and one "Don't ask again".
+// and a laptop share one "Don't ask again", while the app keeps its own
+// reminders (the ones that matter most) apart from the website's.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function accountHasPush(userId: string): Promise<boolean> {
-  const { count, error } = await getAdminSupabase()
+/** App or website — from the request itself (user agent / shell cookie), never from the body. */
+const platformOf = (req: NextRequest): AskPlatform => (isShellRequest(req) ? "app" : "web");
+
+/** Already getting what this side would ask for? A failed read says yes: never nag on a guess. */
+async function alreadyOn(userId: string, platform: AskPlatform): Promise<boolean> {
+  const { data, error } = await getAdminSupabase()
     .from("push_subscriptions")
-    .select("id", { count: "exact", head: true })
+    .select("endpoint")
     .eq("user_id", userId);
-  // A failed count must not turn into a reminder for someone who may well
-  // already have push on — say "on", and ask another day.
   if (error) return true;
-  return (count ?? 0) > 0;
+  return pushAlreadyOn((data ?? []).map((r) => String(r.endpoint)), platform);
 }
 
-/** For the dashboard box: is there any point asking this account at all? */
-export async function GET() {
+/** For the dashboard box: is there any point asking this account, here, now? */
+export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const platform = platformOf(req);
   const { data } = await getAdminSupabase().from("profiles").select("customization").eq("id", user.id).maybeSingle();
   const ledger = readPushAsk(((data?.customization ?? {}) as Record<string, unknown>)[PUSH_ASK_KEY]);
-  const quiet = pushAskQuietUntil(ledger);
+  const quiet = pushAskQuietUntil(ledger, platform);
   return NextResponse.json({
-    pushOn: await accountHasPush(user.id),
+    pushOn: await alreadyOn(user.id, platform),
     stopped: ledger.stop,
-    // Something asked recently (the box or a reminder) — nothing else asks until then.
+    // Something asked recently on this side (the box or a reminder) — nothing
+    // else asks until then.
     quietUntil: quiet && quiet > Date.now() ? new Date(quiet).toISOString() : null,
   });
 }
@@ -58,29 +64,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
+  const platform = platformOf(req);
   const body = (await req.json().catch(() => ({}))) as { id?: unknown; action?: unknown };
   const id = typeof body.id === "string" && UUID.test(body.id) ? body.id : null;
-
-  if (body.action === "stop") {
-    const r = await mutateCustomization<unknown>(user.id, PUSH_ASK_KEY, (cur) => stopPushAsk(readPushAsk(cur)) ?? cur);
+  const save = async (mutate: (cur: unknown) => unknown) => {
+    const r = await mutateCustomization<unknown>(user.id, PUSH_ASK_KEY, mutate);
     return r.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Not saved" }, { status: 500 });
-  }
+  };
 
-  if (body.action === "snooze") {
-    const r = await mutateCustomization<unknown>(user.id, PUSH_ASK_KEY, (cur) => snoozePushAsk(readPushAsk(cur)) ?? cur);
-    return r.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Not saved" }, { status: 500 });
-  }
+  if (body.action === "stop") return save((cur) => stopPushAsk(readPushAsk(cur)) ?? cur);
+  if (body.action === "snooze") return save((cur) => snoozePushAsk(readPushAsk(cur), platform) ?? cur);
 
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-  if (body.action === "later") {
-    const r = await mutateCustomization<unknown>(user.id, PUSH_ASK_KEY, (cur) => laterPushAsk(readPushAsk(cur), id) ?? cur);
-    return r.ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Not saved" }, { status: 500 });
-  }
+  if (body.action === "later") return save((cur) => laterPushAsk(readPushAsk(cur), platform, id) ?? cur);
 
   // ── Claim ──────────────────────────────────────────────────────────────────
-  // Nothing to ask for if a device of theirs already receives pushes.
-  if (await accountHasPush(user.id)) return NextResponse.json({ show: false });
+  if (await alreadyOn(user.id, platform)) return NextResponse.json({ show: false });
 
   // The row must be THEIRS, unread, recent, and one of the kinds worth a buzz.
   // Checked here, not trusted from the client, so nothing can spend the budget
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
   // have — the loser re-decides against what the winner wrote.
   let show = false;
   const r = await mutateCustomization<unknown>(user.id, PUSH_ASK_KEY, (cur) => {
-    const d = decidePushAsk(readPushAsk(cur), id);
+    const d = decidePushAsk(readPushAsk(cur), platform, id);
     show = d.show;
     return d.next ?? cur;
   });
