@@ -13,9 +13,18 @@
 // which is the difference between "something was excluded" and an answerable
 // question about whether the classifier is right.
 
-/** Search engines, social unfurlers, messaging previews, AI crawlers. */
+/** Search engines, social unfurlers, messaging previews, AI crawlers.
+ *
+ *  NOT the bare words "instagram", "snapchat" or "pinterest". Those appear in
+ *  the IN-APP BROWSER of each app ("… Instagram 312.0.0.34.111 (iPhone…)",
+ *  "… Snapchat/12.95 …", "… Pinterest for iOS/…") — a real person who tapped
+ *  the link in a bio, i.e. the exact visitor a card exists for — and matching
+ *  them silently dropped every one of those views. Each company's actual
+ *  preview crawler is still caught: Pinterest's by "pinterest/0." and
+ *  "pinterestbot", Snap's by "snap url preview" (and its "bot;" token), and
+ *  Instagram's previews come from facebookexternalhit / meta-externalagent. */
 const CRAWLER =
-  "bot|crawl|spider|slurp|facebookexternalhit|slackbot|whatsapp|discordbot|telegrambot|twitterbot|bingpreview|linkedinbot|pinterest|redditbot|embedly|outbrain|vkshare|semrush|ahrefsbot|mj12bot|dotbot|petalbot|bytespider|skypeuripreview|google-inspectiontool|googleother|meta-externalagent|facebookcatalog|instagram|barkrowler|iframely|snapchat|applebot|amazonbot|claudebot|anthropic|gptbot|oai-searchbot|chatgpt-user|perplexitybot|youbot|cohere|ccbot|diffbot|dataforseo|serpapi|screaming frog|google-read-aloud|googleimageproxy|duckduckbot|yandex";
+  "bot|crawl|spider|slurp|facebookexternalhit|slackbot|whatsapp|discordbot|telegrambot|twitterbot|bingpreview|linkedinbot|pinterestbot|pinterest\\/0\\.|redditbot|embedly|outbrain|vkshare|semrush|ahrefsbot|mj12bot|dotbot|petalbot|bytespider|skypeuripreview|google-inspectiontool|googleother|meta-externalagent|facebookcatalog|barkrowler|iframely|snap url preview|applebot|amazonbot|claudebot|anthropic|gptbot|oai-searchbot|chatgpt-user|perplexitybot|youbot|cohere|ccbot|diffbot|dataforseo|serpapi|screaming frog|google-read-aloud|googleimageproxy|duckduckbot|yandex";
 
 /** Headless browsers and render farms — they execute JS, so only the UA shows. */
 const AUTOMATION = "headlesschrome|phantomjs|puppeteer|playwright|prerender|lighthouse|w3c_validator";
