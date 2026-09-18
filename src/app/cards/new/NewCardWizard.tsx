@@ -2128,17 +2128,19 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         <div className="min-h-full flex items-start justify-center px-5 pb-10 pt-[max(2.5rem,calc(env(safe-area-inset-top)+2.5rem))]">
           <div className="w-full max-w-6xl">
             <div className="text-center mb-6">
-              {/* From the design choice, Back returns to the PLAN CARDS rather
-                  than all the way out to the card. They opened this to pick a
-                  plan; sending them back to the editor would make them start
-                  the whole choice again to reach the other plans. */}
-              <button
-                onClick={() => { if (pendingFreeConfirm) { setPendingFreeConfirm(false); return; } setShowPlan(false); }}
-                className="text-gray-500 hover:text-white text-sm mb-4 inline-flex items-center gap-1.5"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                {pendingFreeConfirm ? "Back to plans" : "Back to your card"}
-              </button>
+              {/* "Back to your card" on the plan cards only. The design choice
+                  ("Before you go Free") has NO way back (owner, 2026-09-18):
+                  keep the card exactly as built, or continue with Free and
+                  redesign with free features — the same two as /welcome. */}
+              {!pendingFreeConfirm && (
+                <button
+                  onClick={() => setShowPlan(false)}
+                  className="text-gray-500 hover:text-white text-sm mb-4 inline-flex items-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                  Back to your card
+                </button>
+              )}
               <h2 className="text-white font-bold text-2xl">{pendingFreeConfirm ? "Before you go Free" : "Choose your plan"}</h2>
               <p className="text-gray-400 text-sm mt-1.5">
                 {pendingFreeConfirm
