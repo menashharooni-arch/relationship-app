@@ -342,3 +342,31 @@ export async function sendApnsNotification(
 ): Promise<ApnsSendResult> {
   return (await sendApnsDetailed(endpoint, payload)).result;
 }
+
+// ── Are the push credentials actually good? ─────────────────────────────────
+//
+// An unconfigured or expired APNs key is silent by nature: every send fails,
+// nobody's phone buzzes, and nothing anywhere turns red. So ask Apple. A push
+// to a deliberately fake device token is answered 400 BadDeviceToken ONLY IF
+// the provider token was accepted first — a revoked key, a wrong team id or a
+// wrong key id all come back 403 (InvalidProviderToken / ExpiredProviderToken)
+// before Apple ever looks at the device. Nothing is delivered to anyone.
+// Cached for ten minutes so the 15-minute uptime probe cannot add up to load.
+export type ApnsHealth = { configured: boolean; ok: boolean; reason: string };
+let apnsHealthCache: { at: number; value: ApnsHealth } | null = null;
+const APNS_HEALTH_TTL_MS = 10 * 60 * 1000;
+
+export async function checkApnsCredentials(post: typeof apnsPostTo = apnsPostTo): Promise<ApnsHealth> {
+  if (apnsHealthCache && Date.now() - apnsHealthCache.at < APNS_HEALTH_TTL_MS) return apnsHealthCache.value;
+  const topic = process.env.APPLE_PUSH_TOPIC || APNS_TOPIC_DEFAULT;
+  const { headers, body } = buildApnsAlert({ title: "health", body: "health", url: "/" }, topic);
+  const r = await post(configuredApnsEnv(), "0".repeat(64), headers, body);
+  const value: ApnsHealth =
+    r.result === "not_configured" ? { configured: false, ok: false, reason: "not_configured" }
+    // "gone" here IS the success case: Apple authenticated us and then, as
+    // expected, did not recognise a token made of zeros.
+    : r.result === "gone" ? { configured: true, ok: true, reason: r.reason }
+    : { configured: true, ok: false, reason: r.reason || `status ${r.status}` };
+  apnsHealthCache = { at: Date.now(), value };
+  return value;
+}
