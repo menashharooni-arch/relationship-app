@@ -19,6 +19,10 @@ describe("warm-lead schema", () => {
     expect(sql).toMatch(/bound_via IN \('form', 'link', 'account'\)/);
   });
 
+  it("records which browser a link binding was, so a forwarded link is never named (D3)", () => {
+    expect(sql).toMatch(/link_device_index smallint/);
+  });
+
   it("a deleted contact's visits become anonymous, not deleted", () => {
     expect(sql).toMatch(/card_events ADD COLUMN IF NOT EXISTS lead_id uuid REFERENCES public\.leads\(id\) ON DELETE SET NULL/);
     expect(sql).toMatch(/card_views ADD COLUMN IF NOT EXISTS lead_id uuid REFERENCES public\.leads\(id\) ON DELETE SET NULL/);
