@@ -453,7 +453,9 @@ describe("every view is a push candidate, and the throttles do the limiting", ()
     // decide whether the push happens.
     expect(src).not.toMatch(/if \(count === 1\) pushCategory/);
     expect(src).toMatch(/firstEver = count === 1/);
-    expect(src).toMatch(/pushCategory: PushCategory \| undefined = isView\s*\?\s*"card_view"/);
+    // A returning known contact carries its own category (contact_return, or
+    // none when the contact is muted or closed); every other view is card_view.
+    expect(src).toMatch(/pushCategory: PushCategory \| undefined = returnNotice\s*\?\s*returnNotice\.pushCategory\s*:\s*isView\s*\?\s*"card_view"/);
   });
 
   it("gives a downloaded contact card its own category", () => {

@@ -1,6 +1,7 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
 import { hasMarkedPlace, redactLegacyPlace, redactPlaces, stripLocationMarks } from "@/lib/location-privacy";
+import { redactNames, stripNameMarks } from "@/lib/contact-privacy";
 
 // The one place a notification row is prepared for a browser.
 //
@@ -13,7 +14,7 @@ import { hasMarkedPlace, redactLegacyPlace, redactPlaces, stripLocationMarks } f
 // A paid account gets the sentence exactly as it was written, with the
 // invisible marks taken out.
 
-export type NotificationRow = { body?: string | null; type?: string | null } & Record<string, unknown>;
+export type NotificationRow = { body?: string | null; title?: string | null; type?: string | null } & Record<string, unknown>;
 
 /**
  * The notification types whose body can end in a place — the only ones the
@@ -27,9 +28,16 @@ function canCarryLocation(type: string | null | undefined): boolean {
 }
 
 export function redactForPlan<T extends NotificationRow>(rows: T[], paid: boolean): T[] {
-  return rows.map((row) => {
-    const body = typeof row.body === "string" ? row.body : null;
-    if (!body) return row;
+  return rows.map((raw) => {
+    // A known contact's name (lib/contact-privacy.ts) can sit in the TITLE as
+    // well as the body: "Priya re-opened your card". Pro gets the name, Free
+    // gets blocks the app blurs — decided here, on read, so an upgrade reveals
+    // every name the account was already told about.
+    const title = typeof raw.title === "string" ? (paid ? stripNameMarks(raw.title) : redactNames(raw.title)) : raw.title;
+    const row = title === raw.title ? raw : { ...raw, title };
+    const rawBody = typeof row.body === "string" ? row.body : null;
+    if (!rawBody) return row;
+    const body = paid ? stripNameMarks(rawBody) : redactNames(rawBody);
     if (paid) return { ...row, body: stripLocationMarks(body) };
     // Rows written before the marks existed say the place in plain text, and a
     // Free account would go on reading those forever.

@@ -121,7 +121,10 @@ describe("the lock screen, where nothing can be blurred", () => {
 
   it("is applied in the one place every push goes through", () => {
     const push = read("src/lib/push.ts");
-    expect(push).toMatch(/paid \? stripLocationMarks\(s\) : withoutLocation\(s\)/);
+    // Known-contact names ride the same path (lib/contact-privacy.ts): paid
+    // strips the marks, Free turns the name into "a contact" before the
+    // location fragment is dropped.
+    expect(push).toMatch(/paid \? stripNameMarks\(stripLocationMarks\(s\)\) : withoutLocation\(genericNames\(s\)\)/);
     // Title as well as body — a producer could put a place in either.
     expect(push).toMatch(/plainBody\(payload\.title\)/);
     expect(push).toMatch(/fitBody\(plainBody\(payload\.body\)\)/);
@@ -130,7 +133,7 @@ describe("the lock screen, where nothing can be blurred", () => {
 
 describe("nothing else has to remember", () => {
   it("the CRM gets plain text, never the marks", () => {
-    expect(read("src/app/api/card-events/route.ts")).toMatch(/body: stripLocationMarks\(notice\.body\)/);
+    expect(read("src/app/api/card-events/route.ts")).toMatch(/body: stripNameMarks\(stripLocationMarks\(notice\.body\)\)/);
   });
 
   it("both endpoints that hand notifications to a browser redact by plan", () => {
