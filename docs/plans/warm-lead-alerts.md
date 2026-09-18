@@ -342,4 +342,19 @@ Migrations are separate files applied by Menash. Code must tolerate columns that
 | D7 | Retention of name-linked visit history | **Forever** (until the contact or account is deleted). |
 | D8 | Contact deleted | **Delete the notifications tied to that contact.** |
 | D9 | High-intent links | **Built-in host list** (booking and listing sites). |
-| D10 | Cross-owner "Looks like X" naming (H4) | **Keep for now.** Named re-engagement alerts never come from it. |
+| D10 | Cross-owner "Looks like X" naming (H4) | First "keep for now", then **reversed: fixed** (PR B4). The privacy policy could not truthfully say a visitor is named only to the owner they shared with while it stayed. |
+
+## Build notes (2026-09-18): where the build differs from the plan above
+
+| PR | What changed | Why |
+|---|---|---|
+| A2 | H7 was only half fixed. A row is given no device key when the request carried the `sc_vid` cookie. Cookie-less browsers keep the key. | The unique index is also what collapses a cookie-less browser's fresh-id reloads (the tests depend on it). Two *first-time* visitors on one Wi-Fi with identical phones still merge. That can't be told apart from one browser reloading. |
+| A3 | Added `contact_devices.link_device_index` and `push_log.lead_id`. | Forwarded-link devices (D3) and the per-contact push cap (D4) need them. |
+| B1 | A link tap upgrades the visit's bell row **silently**. It never re-pushes. | D4 is 1 push per contact per day, so a second push in the same visit would be capped anyway. |
+| B4 | H4 fixed: views no longer send the visitor blob, and the server names an anonymous visitor only from the owner's own contact record. | D10 reversed (see above). |
+| C1 | Warm threshold is **1.5**, not 3. | One return visit decays below 3 within a day. One return now stays Warm for about a week. |
+| C4 | Setting is **"Only Hot contacts"**, not "Only Hot & Warm". | A contact who has just come back always scores at least Warm, so "Hot & Warm" could never filter anything. |
+| B3 | The "At an event?" chip is on the dashboard's Share box, not `/share`. | `/share` is the Links page. The QR code people scan lives on the dashboard. |
+| A5 | `/api/scanner/send` still sends a plain card link. | It has no lead id at send time. |
+
+**PRs:** #48 (this plan), then A1 #49, A2 #50, A3 #51, A4 #52, A5 #53, A6 #54, B1 #55, B2 #56, B3 #57, B4 #58, C1 #59, C2 #60, C3 #61, C4 #62, C5 #63. Each one is stacked on the one before it, so merge them in order. **`supabase/warm-lead-alerts.sql` (#51) must be applied** before anything is recognised. Until then the code behaves as it does today.
