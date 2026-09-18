@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import AiConsentGate, { AiDraftTag } from "@/components/AiConsentGate";
-import { aiConsentCopy, aiConsentAllows, aiConsentPermits, readAiConsent } from "@/lib/ai-consent";
+import { aiConsentCopy, aiConsentAllows, aiConsentPermits, readAiConsent, aiConsentAskAllowedOn, aiConsentAskReady } from "@/lib/ai-consent";
 
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -141,6 +141,60 @@ describe("the ask is global, not per-page", () => {
   it("Settings carries the standing switch the 403 message points at", () => {
     expect(read("src/app/settings/flows/page.tsx")).toContain("<AiConsentSetting />");
     expect(read("src/components/AiConsentSetting.tsx")).toMatch(/role="switch"/);
+  });
+});
+
+// Owner, 2026-09-18: creating an account in the app (Get Started: build a card
+// → create the account → choose a plan) showed the AI dialog between the
+// account and the plan step. It is asked inside the app, once the card is live.
+describe("the ask waits until Get Started is finished", () => {
+  it.each([
+    "/login", "/auth/callback", "/auth/reset-password", "/account-deleted",
+    "/onboarding", "/cards/new", "/welcome", "/welcome/team",
+    "/checkout", "/checkout/success", "/join/abc123", "/upgrade",
+  ])("never opens on the setup step %s", (path) => {
+    expect(aiConsentAskAllowedOn(path)).toBe(false);
+  });
+
+  it.each(["/dashboard", "/contacts", "/share", "/grow", "/settings/flows", "/cards/abc/edit", "/office/admin"])(
+    "may open inside the app on %s",
+    (path) => {
+      expect(aiConsentAskAllowedOn(path)).toBe(true);
+    },
+  );
+
+  it("a prefix only matches a whole path segment", () => {
+    expect(aiConsentAskAllowedOn("/welcomed")).toBe(true);
+    expect(aiConsentAskAllowedOn("/cards/newest")).toBe(true);
+    expect(aiConsentAskAllowedOn(null)).toBe(false);
+  });
+
+  it("the account must have a card AND be past the plan step", () => {
+    expect(aiConsentAskReady({ hasCard: false, awaitingPlan: false })).toBe(false); // no card yet
+    expect(aiConsentAskReady({ hasCard: true, awaitingPlan: true })).toBe(false); // card saved, plan not chosen
+    expect(aiConsentAskReady({ hasCard: true, awaitingPlan: false })).toBe(true); // the card is live
+  });
+
+  it("the API answers `ready` from the same plan-step test that keeps the card dark", () => {
+    // The claim hops through /dashboard?claim=1 and /cards/[id]/edit?claim=1 —
+    // ordinary app paths — so the account half is what covers them.
+    const route = read("src/app/api/account/ai-consent/route.ts");
+    expect(route).toContain("awaitingPlanChoice(profile)");
+    expect(route).toMatch(/aiConsentAskReady\(/);
+    expect(route).toMatch(/\bready,/);
+  });
+
+  it("GlobalAiConsent holds the dialog on both halves, and re-reads a not-ready answer", () => {
+    const src = read("src/components/GlobalAiConsent.tsx");
+    expect(src).toMatch(/const hold = state\.ready === false \|\| !aiConsentAskAllowedOn\(pathname\)/);
+    expect(src).toContain("hold={hold}");
+    // Without the re-read the ask would wait for the next cold launch.
+    expect(src).toMatch(/state\.ready !== false\) return;/);
+    expect(read("src/components/AiConsentGate.tsx")).toMatch(/const open = [^;]*&& !hold;/);
+  });
+
+  it("waiting to ASK never loosens the block: unset still sends nothing from the app", () => {
+    expect(aiConsentPermits("unset", true)).toBe(false);
   });
 });
 

@@ -185,7 +185,7 @@ export const accountDocs = defineDocs([
     answer:
       "In the iPhone app, SwiftCard asks permission before any AI feature runs, and the standing switch lives at Settings \u2192 Notifications and preferences \u2192 \"AI features\". While it's off (or before you've answered), nothing is sent to the AI provider \u2014 the card scanner and AI drafts wait, and the in-app assistant answers from its built-in knowledge instead.",
     detail:
-      "What gets sent when AI is allowed: the photo you take when scanning a business card, a contact's name, company, where you met and your notes when AI writes a follow-up, and messages you type to the assistant \u2014 sent to the AI provider to produce the result and to no one else. Saying no turns AI features off without affecting anything else. A decline made in the app is honoured on the website too. The privacy details live at swiftcard.me/privacy.",
+      "What gets sent when AI is allowed: the photo you take when scanning a business card, a contact's name, company, where you met and your notes when AI writes a follow-up, and messages you type to the assistant \u2014 sent to the AI provider to produce the result and to no one else. The question is asked once, inside the app, after your card is live — it does not appear while you are building your first card, creating your account or choosing your plan, so a new account first sees it on the dashboard. Saying no turns AI features off without affecting anything else. A decline made in the app is honoured on the website too. The privacy details live at swiftcard.me/privacy.",
   },
   {
     id: "email-preference-center",

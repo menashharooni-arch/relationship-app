@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
-import { aiConsentCopy, readAiConsent } from "@/lib/ai-consent";
+import { aiConsentAskReady, aiConsentCopy, readAiConsent } from "@/lib/ai-consent";
+import { awaitingPlanChoice } from "@/lib/card-active";
 import { aiProviderName } from "@/lib/ai";
 
 // Stores the account's decision on sending data to the AI provider.
@@ -27,15 +28,30 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = getAdminSupabase();
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("customization")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, { count: cardCount, error: cardsError }] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("name, plan, customization, created_at, office_id")
+      .eq("id", user.id)
+      .single(),
+    admin.from("cards").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+  ]);
+
+  // `ready`: the account has finished Get Started (a card exists and the plan
+  // step is behind it), so the dialog may open — see aiConsentAskReady. A
+  // legacy card still stored on the profile counts as a card: the dashboard
+  // migrates it into `cards` on its first load, and this read can land first.
+  // A failed count reads as "has a card": the screen rule still keeps the
+  // dialog off every setup step, and an account must never go unasked forever
+  // over a blip. Either way nothing is SENT unasked — aiConsentPermits blocks.
+  const cust = (profile?.customization ?? {}) as { _migrated?: boolean };
+  const hasCard = cardsError ? true : (cardCount ?? 0) > 0 || (!cust._migrated && !!profile?.name);
+  const ready = aiConsentAskReady({ hasCard, awaitingPlan: awaitingPlanChoice(profile) });
 
   const provider = aiProviderName();
   return NextResponse.json({
     consent: readAiConsent(profile?.customization),
+    ready,
     provider,
     copy: aiConsentCopy(provider ?? "our AI provider"),
   });
