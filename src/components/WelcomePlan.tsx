@@ -267,7 +267,11 @@ export default function WelcomePlan({
         {/* Plan finalize / chooser */}
         {intent === undefined ? (
           <div className="flex justify-center py-8"><div className="h-7 w-7 animate-spin rounded-full border-2 border-gray-700 border-t-blue-500" /></div>
-        ) : paidIntent ? (
+        ) : paidIntent && !pendingFreeConfirm ? (
+          // `!pendingFreeConfirm`: "Actually, start on the free plan instead"
+          // below runs chooseFree, which opens "Before you go Free" when the
+          // card uses Pro design. This branch used to be checked first, so
+          // that panel was set but never drawn and the link did nothing.
           // They picked a paid plan before signing up → complete payment.
           <div className="max-w-md mx-auto text-center">
             <h2 className="text-white font-bold text-xl">Complete your {planName} subscription</h2>
