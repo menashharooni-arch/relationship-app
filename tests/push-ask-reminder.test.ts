@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   PUSH_ASK_GAP_MS, PUSH_ASK_MAX, PUSH_ASK_MAX_AGE_MS, PUSH_ASK_TYPES,
-  decidePushAsk, laterPushAsk, pickAskCandidate, pushAskCopy, pushAskQuietUntil, readPushAsk, snoozePushAsk, stopPushAsk,
+  decidePushAsk, laterPushAsk, pickAskCandidate, pushAlreadyOn, pushAskCopy, pushAskQuietUntil, readPushAsk,
+  snoozePushAsk, stopPushAsk, type AskPlatform,
 } from "@/lib/push-ask";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8").replace(/\r\n/g, "\n");
@@ -14,7 +15,9 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8").replace
 // important notification, the bell should offer push right there. But "not on
 // all their notifications, because it's going to be too spammy. After reminding
 // them a few times, if they really don't want push notifications on, they
-// don't want it on." These pin exactly that.
+// don't want it on." And then: "I'm talking about mainly for the app. Most
+// people will have the app downloaded" — with the website doing whatever makes
+// sense on a computer and on a phone. These pin exactly that.
 
 const NOW = Date.parse("2026-09-18T15:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -46,79 +49,120 @@ describe("which notification may carry the reminder", () => {
   });
 });
 
-describe("a few reminders, then never again", () => {
+describe.each(["app", "web"] as AskPlatform[])("a few reminders, then never again — %s", (platform) => {
   const empty = readPushAsk(undefined);
 
-  it("the first important notification gets a reminder, and it is recorded", () => {
-    const d = decidePushAsk(empty, "lead-1", NOW);
+  it("the first important notification gets a reminder, and it is recorded on this side", () => {
+    const d = decidePushAsk(empty, platform, "lead-1", NOW);
     expect(d.show).toBe(true);
-    expect(d.next).toEqual({ n: 1, at: new Date(NOW).toISOString(), id: "lead-1", later: false, stop: false });
+    expect(d.next![platform]).toEqual({ n: 1, at: new Date(NOW).toISOString(), id: "lead-1", later: false });
   });
 
   it("the SAME notification is one reminder however often the bell is opened", () => {
-    const after = decidePushAsk(empty, "lead-1", NOW).next!;
-    const again = decidePushAsk(after, "lead-1", NOW + 60_000);
-    expect(again).toEqual({ show: true, next: null }); // shows, counts nothing
+    const after = decidePushAsk(empty, platform, "lead-1", NOW).next!;
+    expect(decidePushAsk(after, platform, "lead-1", NOW + 60_000)).toEqual({ show: true, next: null });
   });
 
   it("'Not now' puts it away for good", () => {
-    const shown = decidePushAsk(empty, "lead-1", NOW).next!;
-    const later = laterPushAsk(shown, "lead-1")!;
-    expect(decidePushAsk(later, "lead-1", NOW + 1000).show).toBe(false);
-    // …and only the reminder actually showing can be put away.
-    expect(laterPushAsk(shown, "some-other-id")).toBeNull();
+    const shown = decidePushAsk(empty, platform, "lead-1", NOW).next!;
+    const later = laterPushAsk(shown, platform, "lead-1")!;
+    expect(decidePushAsk(later, platform, "lead-1", NOW + 1000).show).toBe(false);
+    expect(laterPushAsk(shown, platform, "some-other-id")).toBeNull();
   });
 
   it(`a second reminder waits at least ${PUSH_ASK_GAP_MS / DAY} days — three leads in an afternoon are ONE reminder`, () => {
-    const first = laterPushAsk(decidePushAsk(empty, "lead-1", NOW).next!, "lead-1")!;
-    expect(decidePushAsk(first, "lead-2", NOW + 2 * 60 * 60_000).show).toBe(false);
-    expect(decidePushAsk(first, "lead-2", NOW + PUSH_ASK_GAP_MS - 1000).show).toBe(false);
-    const second = decidePushAsk(first, "lead-2", NOW + PUSH_ASK_GAP_MS + 1000);
+    const first = laterPushAsk(decidePushAsk(empty, platform, "lead-1", NOW).next!, platform, "lead-1")!;
+    expect(decidePushAsk(first, platform, "lead-2", NOW + 2 * 60 * 60_000).show).toBe(false);
+    expect(decidePushAsk(first, platform, "lead-2", NOW + PUSH_ASK_GAP_MS - 1000).show).toBe(false);
+    const second = decidePushAsk(first, platform, "lead-2", NOW + PUSH_ASK_GAP_MS + 1000);
     expect(second.show).toBe(true);
-    expect(second.next!.n).toBe(2);
+    expect(second.next![platform].n).toBe(2);
   });
 
-  it(`never more than ${PUSH_ASK_MAX} for the account, however long it has been`, () => {
+  it(`never more than ${PUSH_ASK_MAX} on this side, however long it has been`, () => {
     let ledger = readPushAsk(undefined);
     let t = NOW;
     for (let i = 1; i <= PUSH_ASK_MAX; i++) {
-      const d = decidePushAsk(ledger, `lead-${i}`, t);
+      const d = decidePushAsk(ledger, platform, `lead-${i}`, t);
       expect(d.show).toBe(true);
-      ledger = laterPushAsk(d.next!, `lead-${i}`)!;
+      ledger = laterPushAsk(d.next!, platform, `lead-${i}`)!;
       t += PUSH_ASK_GAP_MS + DAY;
     }
-    expect(decidePushAsk(ledger, "lead-99", t + 365 * DAY).show).toBe(false);
+    expect(decidePushAsk(ledger, platform, "lead-99", t + 365 * DAY).show).toBe(false);
   });
 
-  it("'Don't ask again' ends it, including the reminder that is showing", () => {
-    const shown = decidePushAsk(empty, "lead-1", NOW).next!;
-    const stopped = stopPushAsk(shown)!;
-    expect(decidePushAsk(stopped, "lead-1", NOW).show).toBe(false);
-    expect(decidePushAsk(stopped, "lead-2", NOW + 30 * DAY).show).toBe(false);
+  it("'Not now' on the dashboard box rests the reminders on this side — no second ask seconds later", () => {
+    const pending = decidePushAsk(empty, platform, "lead-1", NOW).next!;
+    const rested = snoozePushAsk(pending, platform, NOW + 60_000)!;
+    expect(decidePushAsk(rested, platform, "lead-1", NOW + 120_000).show).toBe(false);
+    expect(decidePushAsk(rested, platform, "lead-2", NOW + 120_000).show).toBe(false);
+    expect(pushAskQuietUntil(rested, platform)).toBe(NOW + 60_000 + PUSH_ASK_GAP_MS);
+    expect(rested[platform].n).toBe(1); // a box "Not now" does not spend the budget
+  });
+});
+
+describe("the app's reminders are its own", () => {
+  it("everything the website does leaves the app's reminders untouched", () => {
+    let l = readPushAsk(undefined);
+    // Two reminders on a laptop, both put away…
+    l = laterPushAsk(decidePushAsk(l, "web", "lead-1", NOW).next!, "web", "lead-1")!;
+    l = laterPushAsk(decidePushAsk(l, "web", "lead-2", NOW + PUSH_ASK_GAP_MS + 1).next!, "web", "lead-2")!;
+    l = snoozePushAsk(l, "web", NOW + PUSH_ASK_GAP_MS + 2)!;
+    // …and the phone still gets its own, today.
+    expect(decidePushAsk(l, "app", "lead-3", NOW + PUSH_ASK_GAP_MS + 3).show).toBe(true);
+  });
+
+  it("but 'Don't ask again' — from anywhere — ends it everywhere", () => {
+    const stopped = stopPushAsk(decidePushAsk(readPushAsk(undefined), "web", "lead-1", NOW).next!)!;
+    for (const p of ["app", "web"] as AskPlatform[]) {
+      expect(decidePushAsk(stopped, p, "lead-1", NOW).show).toBe(false);
+      expect(decidePushAsk(stopped, p, "lead-9", NOW + 30 * DAY).show).toBe(false);
+    }
     expect(stopPushAsk(stopped)).toBeNull(); // nothing to write twice
   });
 
-  it("'Not now' on the dashboard box rests the reminders too — no second ask seconds later", () => {
-    const pending = decidePushAsk(empty, "lead-1", NOW).next!;
-    const rested = snoozePushAsk(pending, NOW + 60_000)!;
-    expect(decidePushAsk(rested, "lead-1", NOW + 120_000).show).toBe(false); // the pending one retires
-    expect(decidePushAsk(rested, "lead-2", NOW + 120_000).show).toBe(false); // and the gap restarts
-    expect(pushAskQuietUntil(rested)).toBe(NOW + 60_000 + PUSH_ASK_GAP_MS);
-    // A box "Not now" is not a reminder: it does not spend the budget.
-    expect(rested.n).toBe(1);
+  it("the app asks until the PHONE gets pushes; the website stops once anything does", () => {
+    const laptopOnly = ["https://fcm.googleapis.com/fcm/send/abc"];
+    const phone = ["apns:abcdef0123456789abcdef"];
+    expect(pushAlreadyOn([], "app")).toBe(false);
+    expect(pushAlreadyOn(laptopOnly, "app")).toBe(false); // a laptop is not the phone in their pocket
+    expect(pushAlreadyOn(phone, "app")).toBe(true);
+    expect(pushAlreadyOn([], "web")).toBe(false);
+    expect(pushAlreadyOn(laptopOnly, "web")).toBe(true);
+    expect(pushAlreadyOn(phone, "web")).toBe(true); // the phone has it: a computer has nothing to add
+  });
+
+  it("the first release's flat record is read as the website's — it can only make the website ask less", () => {
+    const legacy = readPushAsk({ n: 1, at: new Date(NOW).toISOString(), id: "lead-1", later: true, stop: false });
+    expect(legacy.web).toEqual({ n: 1, at: new Date(NOW).toISOString(), id: "lead-1", later: true });
+    expect(legacy.app).toEqual({ n: 0, at: null, id: null, later: false });
   });
 
   it("reads anything stored — or nothing, or junk — as a sane ledger", () => {
-    expect(readPushAsk(null)).toEqual({ n: 0, at: null, id: null, later: false, stop: false });
-    expect(readPushAsk({ n: "7", stop: "yes", later: 1 })).toEqual({ n: 0, at: null, id: null, later: false, stop: false });
-    expect(readPushAsk({ n: 2.9, stop: true })).toMatchObject({ n: 2, stop: true });
+    const blank = { n: 0, at: null, id: null, later: false };
+    expect(readPushAsk(null)).toEqual({ app: blank, web: blank, stop: false });
+    expect(readPushAsk({ app: { n: "7", later: 1 }, stop: "yes" })).toEqual({ app: blank, web: blank, stop: false });
+    expect(readPushAsk({ app: { n: 2.9 }, stop: true })).toMatchObject({ app: { n: 2 }, stop: true });
+  });
+});
+
+describe("the words fit the device", () => {
+  it("phone on a phone, computer on a computer, and the app on an iPhone browser", () => {
+    expect(pushAskCopy("phone").title).toBe("Get notifications like this on your phone");
+    expect(pushAskCopy("computer").title).toBe("Get notifications like this on this computer");
+    // An iPhone browser tab cannot get web push without Add to Home Screen:
+    // the words send them to the app — open it, or download it.
+    const iphone = pushAskCopy("iphone-browser");
+    expect(iphone.title).toBe("Get notifications like this on your phone");
+    expect(iphone.sub).toContain("SwiftCard app");
+    expect(iphone.sub).toMatch(/open it/i);
+    expect(iphone.sub).toMatch(/download/i);
   });
 
-  it("says phone on a phone and computer on a computer", () => {
-    expect(pushAskCopy(true).title).toBe("Get notifications like this on your phone");
-    expect(pushAskCopy(false).title).toBe("Get notifications like this on this computer");
-    for (const c of [pushAskCopy(true), pushAskCopy(false)]) {
-      expect(`${c.title} ${c.sub}`).not.toMatch(/pro|upgrade|\$|free trial/i); // never a sales line
+  it("never a sales line", () => {
+    for (const d of ["phone", "computer", "iphone-browser"] as const) {
+      const c = pushAskCopy(d);
+      expect(`${c.title} ${c.sub}`).not.toMatch(/\bpro\b|upgrade|\$|free trial/i);
     }
   });
 });
@@ -126,10 +170,15 @@ describe("a few reminders, then never again", () => {
 describe("the server is the authority", () => {
   const route = read("src/app/api/push/ask/route.ts");
 
-  it("never asks an account that already gets pushes on any device", () => {
-    expect(route).toMatch(/if \(await accountHasPush\(user\.id\)\) return NextResponse\.json\(\{ show: false \}\);/);
-    // A failed count reads as "on" — never as a reason to nag.
+  it("decides app or website from the REQUEST, never from what the page says", () => {
+    expect(route).toMatch(/const platformOf = \(req: NextRequest\): AskPlatform => \(isShellRequest\(req\) \? "app" : "web"\);/);
+    expect(route).not.toMatch(/body\.platform/);
+  });
+
+  it("never asks for what the account already has on this side; a failed read counts as 'has it'", () => {
+    expect(route).toMatch(/if \(await alreadyOn\(user\.id, platform\)\) return NextResponse\.json\(\{ show: false \}\);/);
     expect(route).toMatch(/if \(error\) return true;/);
+    expect(route).toMatch(/return pushAlreadyOn\(/);
   });
 
   it("checks the notification is theirs, unread, recent and important before spending anything", () => {
@@ -138,7 +187,7 @@ describe("the server is the authority", () => {
   });
 
   it("decides inside the verified read-modify-write, and an unrecorded ask is not shown", () => {
-    expect(route).toMatch(/mutateCustomization<unknown>\(user\.id, PUSH_ASK_KEY, \(cur\) => \{\s*\n\s*const d = decidePushAsk\(readPushAsk\(cur\), id\);/);
+    expect(route).toMatch(/mutateCustomization<unknown>\(user\.id, PUSH_ASK_KEY, \(cur\) => \{\s*\n\s*const d = decidePushAsk\(readPushAsk\(cur\), platform, id\);/);
     expect(route).toMatch(/if \(!r\.ok\) return NextResponse\.json\(\{ show: false \}\);/);
   });
 });
@@ -152,8 +201,19 @@ describe("one ask on screen, and every way of saying no is honoured", () => {
     expect(read("src/components/NotificationBell.tsx")).toMatch(/usePushAsk\("bell", askId, open\)/);
   });
 
-  it("only where this device can switch push on in one tap", () => {
-    expect(read("src/components/PushAskCallout.tsx")).toMatch(/const askable = state === "idle" && !askStopped\(\) && !askPushOn\(\) && !askSnoozed\(\) && decision !== false;/);
+  it("only where this device can act: the switch where it works, the app on an iPhone browser", () => {
+    const src = read("src/components/PushAskCallout.tsx");
+    expect(src).toMatch(/const deviceCanAct = state === "idle" \|\| \(state === "ios-install" && !!APP_STORE_URL\);/);
+    expect(src).toMatch(/const askable = deviceCanAct && !askStopped\(\) && !askPushOn\(\) && !askSnoozed\(\) && decision !== false;/);
+    expect(src).toMatch(/const mode: PushAsk\["mode"\] = state === "ios-install" \? "app" : "switch";/);
+    // Going to the App Store is the answer: that reminder is done.
+    expect(src).toContain("<AppStoreBadge onClick={() => laterAsk(id)} />");
+  });
+
+  it("Settings on an iPhone browser points to the app first, and keeps the home-screen route", () => {
+    const btn = read("src/components/EnablePushButton.tsx");
+    expect(btn).toMatch(/Notifications come through the <strong>SwiftCard app<\/strong> — open it and allow them\./);
+    expect(btn).toContain("Add to Home Screen");
   });
 
   it("a 'Don't Allow' at the device's own prompt ends it — from ANY switch; a denial already in place does not fire", () => {
@@ -166,6 +226,9 @@ describe("one ask on screen, and every way of saying no is honoured", () => {
     const btn = read("src/components/EnablePushButton.tsx");
     expect((btn.match(/turnedOffOnPurpose\(\);/g) ?? []).length).toBe(2); // native + web
     expect(read("src/lib/push-device.ts")).not.toMatch(/stopAsk|push\/ask/);
+    // …and one person's "no" is never written where the next person on a
+    // shared phone would inherit it.
+    expect(read("src/lib/push-ask-client.ts")).not.toMatch(/localStorage\.setItem/);
   });
 
   it("turning push on anywhere retires every ask on screen", () => {
@@ -176,7 +239,6 @@ describe("one ask on screen, and every way of saying no is honoured", () => {
     const nudge = read("src/components/PushNudge.tsx");
     expect(nudge).toMatch(/setAccount\(j\.pushOn \|\| j\.stopped \|\| quiet \? "done" : "ask"\)/);
     expect(nudge).toMatch(/onClick=\{\(\) => \{ dismiss\(\); snoozeAsk\(\); \}\}/);
-    // Turning push on from the box is not a "Not now".
     expect(nudge).toContain("<EnablePushButton onDone={dismiss} />");
   });
 
@@ -187,6 +249,6 @@ describe("one ask on screen, and every way of saying no is honoured", () => {
     const closeRow = panel.lastIndexOf("</div>", rowEnd);
     expect(rowEnd).toBeGreaterThan(-1);
     expect(clickable).toBeGreaterThan(-1);
-    expect(closeRow).toBeGreaterThan(clickable); // the row is closed before the reminder
+    expect(closeRow).toBeGreaterThan(clickable);
   });
 });

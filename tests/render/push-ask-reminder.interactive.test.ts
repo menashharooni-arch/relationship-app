@@ -84,6 +84,8 @@ beforeAll(async () => {
       "process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY": '"BPtestkeyplaceholderAAAA"',
       "process.env.NEXT_PUBLIC_SUPABASE_URL": '"https://example.supabase.co"',
       "process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY": '"anon"',
+      "process.env.NEXT_PUBLIC_APP_STORE_URL": '"https://apps.apple.com/app/id6798875872"',
+      "process.env.NEXT_PUBLIC_APP_STORE_ID": "undefined",
     },
     alias: {
       "next/navigation": join(tmp, "nav-stub.tsx"),
@@ -127,15 +129,23 @@ type Opts = {
   alreadySubscribed?: boolean;
   /** The site's light theme (data-sc-theme="light"). */
   light?: boolean;
+  /** An iPhone Safari TAB: no web push at all until "Add to Home Screen". */
+  iphoneBrowser?: boolean;
 };
+
+const IPHONE_SAFARI =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
 
 type Rig = { page: Page; asks: Array<Record<string, unknown>>; subscribes: number; permissionAsks: () => Promise<number> };
 
 async function rig(o: Opts): Promise<Rig> {
   const ctx = await browser.newContext({
     viewport: { width: o.width ?? 390, height: 844 },
-    ...(o.userAgent ? { userAgent: o.userAgent } : {}),
+    ...(o.iphoneBrowser ? { userAgent: IPHONE_SAFARI } : o.userAgent ? { userAgent: o.userAgent } : {}),
   });
+  // The App Store opens in a new tab when the badge is tapped; answer it here
+  // rather than reaching the real internet from a test.
+  await ctx.route("https://apps.apple.com/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<p>App Store</p>" }));
   const page = await ctx.newPage();
   const asks: Array<Record<string, unknown>> = [];
   const state = { subscribes: 0 };
@@ -167,7 +177,12 @@ async function rig(o: Opts): Promise<Rig> {
   });
 
   // The browser's push machinery, answered the way a real browser would.
-  await page.addInitScript(({ permission, answer, alreadySubscribed }) => {
+  await page.addInitScript(({ permission, answer, alreadySubscribed, iphoneBrowser }) => {
+    if (iphoneBrowser) {
+      // What an iPhone Safari tab really has: no PushManager at all.
+      delete (window as unknown as Record<string, unknown>).PushManager;
+      return;
+    }
     const w = window as unknown as Record<string, unknown>;
     w.__permissionAsks = 0;
     let perm = permission;
@@ -199,7 +214,7 @@ async function rig(o: Opts): Promise<Rig> {
       configurable: true,
       value: { ready: Promise.resolve(reg), register: async () => reg },
     });
-  }, { permission: o.permission ?? "default", answer: o.answer ?? "granted", alreadySubscribed: !!o.alreadySubscribed });
+  }, { permission: o.permission ?? "default", answer: o.answer ?? "granted", alreadySubscribed: !!o.alreadySubscribed, iphoneBrowser: !!o.iphoneBrowser });
 
   await page.goto(`${ORIGIN}/`);
   // After load: an init script runs before <html> exists.
@@ -437,6 +452,47 @@ describe("one ask on screen, never two", () => {
       expect(ratio, light ? "light theme" : "dark theme").toBeGreaterThan(4.5);
       await r.page.context().close();
     }
+  });
+});
+
+describe("an iPhone browser tab is sent to the app", () => {
+  it("offers the App Store — not a switch that cannot work there — and says why", async () => {
+    const r = await rig({ notifs: [LEAD], iphoneBrowser: true });
+    await openBell(r.page);
+    await r.page.waitForSelector('[data-push-ask="app"]');
+    expect(await r.page.locator('[data-push-ask] [role="switch"]').count()).toBe(0);
+    expect(await r.page.getAttribute('[data-push-ask] a[aria-label="Download on the App Store"]', "href"))
+      .toBe("https://apps.apple.com/app/id6798875872");
+    const text = await r.page.textContent("[data-push-ask]");
+    expect(text).toContain("on your phone");
+    expect(text).toContain("SwiftCard app");
+    expect(claims(r)).toEqual([{ id: LEAD.id }]);
+    await r.page.context().close();
+  });
+
+  it("tapping the App Store button is the answer: that reminder is done", async () => {
+    const r = await rig({ notifs: [LEAD], iphoneBrowser: true });
+    await openBell(r.page);
+    await r.page.waitForSelector('[data-push-ask="app"]');
+    await r.page.click('[data-push-ask] a[aria-label="Download on the App Store"]');
+    await r.page.waitForSelector("[data-push-ask]", { state: "detached" });
+    expect(r.asks).toContainEqual({ action: "later", id: LEAD.id });
+    await r.page.context().close();
+  });
+
+  it("fits a 320px iPhone", async () => {
+    const r = await rig({ notifs: [LEAD, VIEW], iphoneBrowser: true, width: 320 });
+    await openBell(r.page);
+    await r.page.waitForSelector('[data-push-ask="app"]');
+    const fits = await r.page.evaluate(() => {
+      const box = (document.querySelector("[data-push-ask]") as HTMLElement).getBoundingClientRect();
+      const panel = (document.querySelector('[role="dialog"][aria-label="Notifications"]') as HTMLElement).getBoundingClientRect();
+      const badge = (document.querySelector('[data-push-ask] a[aria-label="Download on the App Store"]') as HTMLElement).getBoundingClientRect();
+      return box.left >= panel.left - 0.5 && box.right <= panel.right + 0.5 && badge.right <= panel.right + 0.5
+        && document.documentElement.scrollWidth <= window.innerWidth;
+    });
+    expect(fits).toBe(true);
+    await r.page.context().close();
   });
 });
 
