@@ -276,7 +276,7 @@ const HIGHLEVEL_LOGO = (
   </svg>
 );
 
-// HubSpot connects with a pasted Private App access token (see the /token
+// HubSpot connects with a pasted service key / private-app token (see the /token
 // route for why) instead of the OAuth redirect the other cards use, so it
 // gets its own small form in place of a plain Connect link.
 // Paste-a-token integrations (HubSpot, Pipedrive — HighLevel next) are the same
@@ -708,12 +708,18 @@ export default function IntegrationsSettings({ googleConnected, hubspotConnected
         logo={HUBSPOT_LOGO}
         saveEndpoint="/api/integrations/hubspot/token"
         disconnectEndpoint="/api/integrations/hubspot"
-        tokenLabel="HubSpot Private App access token"
+        tokenLabel="HubSpot service key"
         placeholder="pat-na1-..."
+        // HubSpot stops creating legacy Private Apps on 2026-09-28 (new
+        // accounts) / 2026-10-26 (existing). Service Keys replace them with
+        // the same pat- Bearer token, so only this copy changed. An existing
+        // private-app token still pastes here fine.
         help={
           <>
-            In HubSpot: Settings → Integrations → Private Apps → Create a private app → grant the{" "}
-            <code className="text-slate-600">crm.objects.contacts.write</code> scope → copy the access token here.
+            In HubSpot: Settings → Integrations → Service Keys → Create service key → grant the{" "}
+            <code className="text-slate-600">crm.objects.contacts.read</code> and{" "}
+            <code className="text-slate-600">crm.objects.contacts.write</code> scopes → copy the key here. Already
+            have a private app token? That works too.
           </>
         }
         connected={hubspotConnected}
