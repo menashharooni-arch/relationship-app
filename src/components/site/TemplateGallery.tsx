@@ -104,20 +104,8 @@ function LinkExperience({ id, Component, data }: { id: string; Component: Tmpl["
               {["Your name *", "Your phone number *", "Your email (optional)", "Quick message (optional)"].map((ph) => (
                 <div key={ph} className="h-9 rounded-lg bg-white flex items-center px-3 text-[0.75rem] text-slate-500" style={{ border: "1px solid #E4DDD4" }}>{ph}</div>
               ))}
-              {/* The SMS consent checkbox, shown UNTICKED as it always renders
-                  (optional; pre-checking would break TCPA). Copy trimmed to the
-                  300px mock — full disclosure lives in SmsConsentCheckbox. */}
-              <div className="mt-1 flex items-start gap-2">
-                <span
-                  aria-hidden="true"
-                  className="mt-[2px] w-[13px] h-[13px] rounded-[3px] shrink-0 bg-white"
-                  style={{ border: "1.5px solid #C9BFB2" }}
-                />
-                <span className="text-[0.59375rem] leading-[1.35] text-slate-500">
-                  <strong className="text-slate-600">Text me follow-ups (optional).</strong>{" "}
-                  Msg frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out.
-                </span>
-              </div>
+              {/* No SMS consent line — the real share form has none (owner,
+                  2026-09-20); see LeadCaptureForm. */}
               <button onClick={() => setShared(true)} className="mt-1 w-full h-10 rounded-lg text-white text-[0.78125rem] font-bold flex items-center justify-center" style={{ background: theme.accent }}>Share my info →</button>
             </div>
           )}

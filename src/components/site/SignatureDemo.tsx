@@ -7,7 +7,6 @@ import PhotoFirst from "@/components/card-templates/PhotoFirst";
 import { withoutSocials, SAMPLE_DATA, SAMPLE_DATA_WITH_PHOTO, DEMO_HEADSHOT } from "@/components/card-templates/types";
 import type { CardData } from "@/components/card-templates/types";
 import SaveContactButton from "@/components/SaveContactButton";
-import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 import ShareButton from "@/components/ShareButton";
 import DemoSwiftLinks from "./DemoSwiftLinks";
 import { cardPageTheme } from "@/lib/card-page-theme";
@@ -111,14 +110,9 @@ function SwiftCardPopup({ onClose }: { onClose: () => void }) {
                   <input type="email" placeholder="Your email (optional)" readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm" />
                   <textarea placeholder="Quick message (optional)" rows={2} readOnly className="w-full bg-white border border-gray-200 text-gray-900 placeholder-gray-400 rounded-xl px-4 py-3 text-sm focus:outline-none shadow-sm resize-none" />
                   <button type="button" className="w-full text-white font-semibold py-3 px-6 rounded-full text-sm" style={{ background: THEME.accent }}>Share My Info</button>
-                  {/* The REAL disclosure component, not a copy of its words.
-                      This was a hand-written paragraph carrying the wording and
-                      the 8px size the live form used until July — so the demo
-                      was showing visitors a consent line the product had
-                      already replaced. Rendering the actual component is the
-                      only version that can't drift again; it is a plain
-                      presentational <p> with no state, so it is safe here. */}
-                  <SmsConsentCheckbox />
+                  {/* No consent line here either: the live share form no
+                      longer has one (owner, 2026-09-20). This demo has to keep
+                      matching it — tests/demo-consent-fidelity. */}
                 </div>
               </div>
             </div>

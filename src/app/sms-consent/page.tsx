@@ -49,69 +49,61 @@ export default function SmsConsentPage() {
           and <Link href="/privacy" className="text-brand underline">Privacy Policy</Link>.
         </P>
 
-        <H2>Where the opt-in appears</H2>
+        <H2>Who sends the messages, and who they go to</H2>
         <P>
-          Every SwiftCard user has a public card page (for example, swiftcard.me/their-name). When a
-          visitor wants to share their contact information with that person, they use the{" "}
-          <strong>&quot;Share your info&quot;</strong>{" "}form on the card. The SMS consent checkbox and its
-          disclosure sit directly on that form, immediately next to the submit button — the same block
-          appears on every
-          variation of the share form across the site (the card&apos;s share form, the post-save
-          share-back sheet, the &quot;reach out&quot; message modal, and the social-link share prompt).
+          Every SwiftCard user has a public card page (for example,
+          swiftcard.me/their-name). People they meet share their contact details with them — in person,
+          at an event, or through the &quot;Share your info&quot; form on that card page. Sharing contact
+          details is not a subscription to text messages, and SwiftCard does not treat it as one: a
+          contact captured that way is never sent an automated text.
         </P>
 
-        <H2>The consent flow, step by step</H2>
+        <H2>How consent is obtained</H2>
+        <P>
+          Consent is given to the SwiftCard user, by the person they met, in the conversation where
+          they exchanged details — the same permission any professional asks for before texting
+          someone. SwiftCard does not text anyone on its own behalf and never markets to these contacts.
+        </P>
         <ul className="mb-3">
-          <LI>A visitor opens a SwiftCard user&apos;s public card page.</LI>
           <LI>
-            They choose to share their contact info and enter their name, phone number, and email. Nothing
-            is collected unless the visitor deliberately opens this form and fills it in.
+            A SwiftCard user opens a contact in their Contacts list and sets up a text follow-up for
+            that one person.
           </LI>
           <LI>
-            Immediately next to the submit button, before they submit, they see the SMS consent checkbox
-            and the full disclosure quoted below: the <strong>types of messages</strong>{" "}they will receive
-            (follow-up texts from that SwiftCard user about their conversation — contact details, replies,
-            and any follow-up the user sets up), that message frequency varies, that msg &amp; data rates
-            may apply, and that STOP opts out and HELP gets help.
+            Before it can be switched on, the screen states:{" "}
+            <em>&quot;Only switch this on if [contact] agreed you could text them. They can reply STOP at
+            any time, which stops texts from SwiftCard for good.&quot;</em>{" "}
+            Switching it on is the user confirming they have that person&apos;s permission.
           </LI>
           <LI>
-            <strong>Ticking the SMS checkbox is the affirmative opt-in for text messages.</strong> The box is
-            a real checkbox, it is <strong>never pre-selected</strong>, and it is <strong>optional</strong> —
-            the visitor can share their contact information and submit the form without ticking it. If they
-            do not tick it, the contact is saved and no text message is ever sent to them; the card owner can
-            still reply by email. Consent is never bundled into an unrelated action, is never a condition of
-            submitting the form, and is never a condition of purchase or account creation.
+            Only that confirmation allows a text. It is recorded server-side as an{" "}
+            <strong>sms-ok</strong> flag that can only be set from the user&apos;s own signed-in account —
+            no public page, and nothing a visitor&apos;s browser sends, can set it.
           </LI>
           <LI>
-            The card owner can switch text follow-ups off for any contact at any time from their Contacts
-            list, independently of the visitor&apos;s own STOP.
+            Contacts without that flag — everyone captured by the share form, the business-card scanner,
+            manual entry or an import — are <strong>never</strong> sent an automated text. The user can
+            still reply by email.
           </LI>
-          <LI>Every message thereafter honors STOP (opt out platform-wide) and HELP (assistance).</LI>
+          <LI>
+            The user can switch text follow-ups off for any contact at any time, and the contact&apos;s own
+            STOP always overrides everything.
+          </LI>
         </ul>
 
-        <H2>Screenshot of the opt-in form</H2>
+        <H2>What the messages are</H2>
         <P>
-          This is the &quot;Share your info&quot; form as it renders on every public card page. The SMS
-          consent checkbox and full disclosure sit directly above the <strong>Share My Info</strong>{" "}
-          button, visible before anything is submitted, and the checkbox renders unticked:
+          Texts are one-to-one follow-ups about the conversation the two people already had: the
+          user&apos;s contact details, their replies, and any follow-up messages that user set up for that
+          contact. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP
+          for help. There is no marketing, no promotional blasting and no third-party content, and
+          mobile numbers or consent are never sold or shared for anyone else&apos;s marketing.
         </P>
 
-        {/* Hosted opt-in screenshot required by A2P 10DLC review (Twilio error
-            30896): website opt-in flows must include hosted screenshots, not
-            only a live link. Retake and replace public/sms-optin-screenshot.png
-            whenever the form UI or disclosure copy changes. */}
-        <div className="rounded-2xl border border-slate-200/80 bg-[#F5F7FB] p-5 sm:p-6 my-6">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/sms-optin-screenshot.png"
-            alt='The "Share your info" form: name, phone, and email fields, the unticked "Text me follow-ups (optional)" SMS consent checkbox with its full disclosure, and the Share My Info submit button below it'
-            className="w-full max-w-md mx-auto rounded-xl border border-slate-200"
-          />
-        </div>
-
-        <H2>See the live opt-in for yourself</H2>
+        <H2>See it for yourself</H2>
         <P>
-          The same flow is also on a public page — no login, no demo environment:
+          The share form — which collects contact details and nothing else — is on a public page, with no
+          login and no demo environment:
         </P>
 
         <div className="rounded-2xl border border-slate-200/80 bg-[#F5F7FB] p-5 sm:p-6 my-6">
@@ -124,35 +116,11 @@ export default function SmsConsentPage() {
             swiftcard.me/swift-card-swift-card-inc
           </a>
           <p className="text-slate-600 text-[0.9375rem] leading-relaxed mt-3">
-            Scroll to <strong>&quot;Share your info&quot;</strong>. The disclosure quoted below sits
-            directly above the <strong>Share My Info</strong>{" "}button, visible before anything is
-            submitted. This is SwiftCard&apos;s own card on its own platform — every other card on
-            the site shows the identical block.
+            Scroll to <strong>&quot;Share your info&quot;</strong>. It asks for a name, phone and email so
+            those details reach the card&apos;s owner — it does not sign anyone up for text messages, and
+            nothing submitted there can start one.
           </p>
         </div>
-
-        <H2>The exact disclosure shown</H2>
-        <div className="rounded-2xl border border-slate-200/80 bg-[#F5F7FB] p-5 sm:p-6 my-6">
-          <p className="text-slate-700 text-[0.875rem] leading-relaxed italic">
-            &quot;☐ <strong>Text me follow-ups (optional).</strong>{" "}I agree to receive follow-up text
-            messages from SwiftCard about my conversation with this SwiftCard user — their contact
-            details, replies, and any follow-up messages they set up. Msg frequency varies. Msg &amp;
-            data rates may apply. Reply STOP to opt out, HELP for help.&quot;
-          </p>
-          <p className="text-slate-600 text-[0.8125rem] leading-relaxed mt-3">
-            Directly beneath it, outside the checkbox label: &quot;Optional — you can share your info
-            without this and still hear back by email. SMS Terms · Privacy&quot;
-          </p>
-          <p className="text-slate-600 text-[0.8125rem] leading-relaxed mt-3">
-            The checkbox renders unticked on every page load. There is no code path that pre-selects it,
-            and no code path that blocks form submission when it is left unticked.
-          </p>
-        </div>
-        <P>
-          The &quot;SMS Terms&quot; and &quot;Privacy Policy&quot; text in the disclosure link directly to{" "}
-          <Link href="/sms-terms" className="text-brand underline">swiftcard.me/sms-terms</Link> and{" "}
-          <Link href="/privacy" className="text-brand underline">swiftcard.me/privacy</Link>.
-        </P>
 
         <H2>The number messages come from</H2>
         <P>

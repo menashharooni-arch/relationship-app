@@ -289,10 +289,16 @@ traffic. These are taken from the actual code, so they will.
 > sender of record and handles STOP/HELP centrally for the whole platform;
 > SwiftCard users do not bring or control their own numbers.
 
-> ⚠️ Do not describe the opt-in as a "separate consent checkbox" anywhere in
-> this filing. There is no checkbox — submission is the consent (see 5b's opt-in
-> description). Attesting to a checkbox a reviewer can't find on the live page
-> is a rejection, and the wording above is deliberately consistent with it.
+> ⚠️ THE OPT-IN CHANGED ON 2026-09-20 — READ THIS BEFORE FILING. There is no
+> consent checkbox on the share form any more (owner: "Share your info" hands
+> over contact details; it is not a subscription to texts, and it never claimed
+> to be). Do not describe one anywhere in this filing: attesting to a checkbox a
+> reviewer cannot find on the live page is exactly how campaign
+> CMc75ca0d204260393fa9c05e1b8f2e8c0 was rejected (30896). Consent is now
+> obtained by the SwiftCard user from the person they met, and confirmed by that
+> user in the app before anything can send — the opt-in description in 5b is
+> written to match, and /sms-consent, /sms-terms and /terms all describe that
+> same flow.
 
 **Sample message 1** (`src/app/api/leads/share-card/route.ts`):
 > Hi Alex! Jordan Reed here - save my contact information in the link below.
@@ -314,27 +320,34 @@ attribution is universal):
 > https://swiftcard.me/card/rachel-lim
 
 **Opt-in description** — this is the field that gets registrations rejected, so
-it must describe what the form *actually* does. SwiftCard uses an **explicit,
-unticked, optional SMS consent checkbox** (see the warning below before you
-submit). Paste this verbatim:
-> Web form, following an in-person interaction. A visitor taps or scans a
-> SwiftCard user's physical card, which opens that user's card page. The visitor
-> then chooses to submit their own name, phone number and email through the
-> "Share My Info" form. Directly adjacent to the submit button, visible before
-> submission, is an SMS consent checkbox that is NOT pre-selected and is
-> OPTIONAL — the visitor can submit the form without ticking it, and if they do
-> not tick it we never send them a text message. The checkbox reads: "Text me
-> follow-ups (optional). I agree to receive follow-up text messages from this
-> SwiftCard user about our conversation — their contact details, replies, and
-> any follow-up messages they set up. Msg frequency varies. Msg & data rates may
-> apply. Reply STOP to opt out, HELP for help." Immediately beneath it: "Optional
-> — you can share your info without this and still hear back by email," followed
-> by links to the SMS Terms and the Privacy Policy. Ticking the box is the
-> affirmative opt-in. Consent is then recorded server-side as an `sms-ok` flag
-> that the browser cannot set on its own; automated messages are sent only to
-> contacts carrying that flag, and capture paths that never displayed the
-> checkbox (business-card scanner, manual entry) are never auto-texted.
+it must describe what actually happens. This is a **verbal opt-in obtained in
+person, confirmed by the SwiftCard user in their account** — not a web form
+opt-in. Paste this verbatim:
+> Verbal, in person, following a face-to-face interaction, and confirmed in the
+> platform before any message can be sent. A SwiftCard user meets someone and
+> they exchange details; the person gives that user permission to follow up by
+> text. Contact details may be typed in by the user or handed over by the person
+> themselves through the "Share My Info" form on the user's card page — that
+> form collects name, phone and email only, carries no messaging opt-in, and a
+> contact captured through it is never sent an automated text. To message that
+> contact at all, the SwiftCard user must open the contact in their Contacts
+> list and switch on a text follow-up for that one person. Before it can be
+> switched on, the screen states: "Only switch this on if [contact] agreed you
+> could text them. They can reply STOP at any time, which stops texts from
+> SwiftCard for good." Switching it on is the user confirming they hold that
+> person's permission, and it is recorded server-side as an `sms-ok` flag that
+> can only be written from that user's authenticated account — no public page and
+> no visitor's browser can set it. Messages are one-to-one follow-ups about that
+> exchange; there is no marketing, no bulk sending and no purchased lists. Every
+> message honours STOP and HELP centrally for the whole platform.
 
+> #### HISTORY — the checkbox era (2026-07-31 → 2026-09-20)
+>
+> Kept because it records what a reviewer objected to, and why the wording
+> above is shaped the way it is. The checkbox itself is gone (owner,
+> 2026-09-20): the share form never enrolled anyone in texts, so it no longer
+> asks. If a WEB opt-in is ever reintroduced, this is the bar it has to clear.
+>
 > #### Real checkbox restored 2026-07-31 — required by Twilio, ticket #28654422
 >
 > Campaign `CM1319bbf18064a7f2100b8b47716fef0b` was rejected with **error 30924**
