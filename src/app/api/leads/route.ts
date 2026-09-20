@@ -25,7 +25,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, phone, company, message, card_owner, tags, source, visitor_id: client_visitor_id, sms_consent } = await req.json();
+    const { name, email, phone, company, message, card_owner, tags, source, visitor_id: client_visitor_id } = await req.json();
 
     // This is a PUBLIC endpoint — require real strings, not just truthy values
     // (a JSON payload of {name: [], phone: {}} would otherwise pass and crash
@@ -64,17 +64,22 @@ export async function POST(req: NextRequest) {
     // changing those would silently rewire existing capture paths. Kept OUT of
     // safeTags — that array also feeds the Zapier webhook payload, and internal
     // system tags must not start appearing in customers' Zaps.
-    // SMS consent (TCPA/CTIA + A2P). The public share forms show a clear
-    // disclosure right above the Send button ("by sharing you agree to be
-    // followed up by text and email…, reply STOP") and post sms_consent:true —
-    // i.e. SUBMITTING THE FORM IS THE CONSENT. So every real share opts in and
-    // gets sms-ok (the one tag the cron requires to send a text). An explicit
-    // false (the owner revoking per-contact) records sms-paused; an ABSENT
-    // field (a path that never showed the disclosure — scanner, manual add,
-    // legacy) records neither, so those are never auto-texted until the owner
-    // enables it. Email is unaffected — opt-in-by-sharing with an unsubscribe.
-    const smsConsented = sms_consent === true;
-    const smsDeclined = sms_consent === false;
+    // NO SMS CONSENT COMES FROM THIS ROUTE ANY MORE (owner, 2026-09-20).
+    //
+    // "Share your info" hands the owner a contact's details — the visitor
+    // typing what the owner would otherwise type themselves. It never enrolled
+    // anyone in text messages, so the consent box came off the forms, and this
+    // public endpoint now IGNORES sms_consent entirely rather than trusting a
+    // browser about it. That closes the matching hole: the field arrived from
+    // an unauthenticated request, so anything could have posted
+    // sms_consent:true and minted the one tag the follow-up cron requires.
+    //
+    // A text still needs consent — it just has to come from the SwiftCard
+    // user, who is the person who actually has it. Turning a contact's text
+    // automation on (PATCH /api/leads/[id], authenticated) is that assertion
+    // and is the only thing that sets sms-ok. Contacts captured here carry
+    // neither tag, exactly like the scanner and manual entry, so nothing
+    // automated ever texts them by default. STOP/HELP are unchanged.
 
     // Rate limit: same IP submitting to the same card too frequently.
     // card_owner is normalized so "Alice " vs "alice" can't mint fresh buckets.
@@ -180,22 +185,8 @@ export async function POST(req: NextRequest) {
     if (!visitIdentity.minted) dupQuery = dupQuery.eq("visitor_id", visitor_id);
     const { data: recentDup } = await dupQuery;
     if (recentDup?.length) {
-      // A deduped re-submit can still carry a CHANGED consent choice (they
-      // shared without the SMS box, then immediately re-submitted with it
-      // checked, or vice versa). Reconcile the existing row's sms-paused tag to
-      // the latest explicit choice so the duplicate-drop never drops consent.
-      if (typeof sms_consent === "boolean") {
-        const dup = recentDup[0] as { id: string; tags: string[] | null };
-        const curTags = Array.isArray(dup.tags) ? dup.tags : [];
-        // Set the consent pair to the latest explicit choice: consent → sms-ok
-        // (and clear sms-paused); decline → sms-paused (and clear sms-ok).
-        const base = curTags.filter((t) => t !== "sms-ok" && t !== "sms-paused");
-        const nextTags = Array.from(new Set([...base, sms_consent ? "sms-ok" : "sms-paused"]));
-        const changed = nextTags.length !== curTags.length || nextTags.some((t) => !curTags.includes(t));
-        if (changed) {
-          await admin.from("leads").update({ tags: nextTags }).eq("id", dup.id);
-        }
-      }
+      // Nothing to reconcile on a re-submit: this route cannot change SMS
+      // consent in either direction any more (see above).
       return attachVisitIdentity(NextResponse.json({ success: true, deduped: true }), visitIdentity);
     }
 
@@ -223,13 +214,11 @@ export async function POST(req: NextRequest) {
         geo_accuracy: geo.accuracy,
         card_owner,
         // New reach-outs arrive unread; over the free monthly cap they're also
-        // tagged locked so the dashboard blurs them behind Pro. SMS consent
-        // rides in as sms-ok (opted in) or sms-paused (declined) — never via
-        // safeTags (see above); neither, if the form didn't ask.
+        // tagged locked so the dashboard blurs them behind Pro. NO sms-ok /
+        // sms-paused here — a shared contact carries neither, and only the
+        // owner's own authenticated assertion can add one (see above).
         tags: [
           ...safeTags,
-          ...(smsConsented ? ["sms-ok"] : []),
-          ...(smsDeclined ? ["sms-paused"] : []),
           "unread",
           ...(locked ? [LOCKED_LEAD_TAG] : []),
         ],

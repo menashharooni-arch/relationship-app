@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith } from "@/lib/visitor";
 import { triggerSignupNudgeWhenVisible } from "@/lib/nudge";
-import SmsConsentCheckbox from "@/components/SmsConsentCheckbox";
 
 type Status = "idle" | "loading" | "done" | "error" | "limit";
 
@@ -19,7 +18,6 @@ export default function LeadCaptureForm({
   const [form, setForm] = useState({ name: "", phone: "", email: "", message: "" });
   // SMS opt-in. MUST default to false and MUST NOT gate submission — Twilio
   // A2P review requires the box be unchecked by default and optional.
-  const [smsConsent, setSmsConsent] = useState(false);
 
   // If this visitor shared with this owner before, don't ask again — and
   // pre-fill their details in case they use another form on the page.
@@ -49,7 +47,6 @@ export default function LeadCaptureForm({
           card_owner: cardOwner,
           source,
           visitor_id: getVisitorId(),
-          sms_consent: smsConsent, // real checkbox state; false = captured but never auto-texted
         }),
       });
     } catch {
@@ -142,19 +139,16 @@ export default function LeadCaptureForm({
       {status === "error" && (
         <p className="text-red-400 text-xs text-center">Something went wrong. Try again.</p>
       )}
-      {/* SMS opt-in is a real checkbox: unchecked by default and OPTIONAL, so
-          this form must stay submittable with it unchecked (posts
-          sms_consent:false → captured, never auto-texted). Required by Twilio
-          A2P review; see the header of SmsConsentCheckbox.tsx. It must render
-          ABOVE the submit button — the A2P campaign message_flow states the
-          disclosure sits directly above "Share My Info", and reviewers check
-          the live page against that claim. Email consent is
-          still by submission, and every email carries an unsubscribe link.
-          The "Every email includes an unsubscribe link." sentence stays removed
-          (owner decision, Aug 2026, 1728fe8) — that call was independent of the
-          checkbox and CAN-SPAM wants the mechanism in the email itself, which
-          every send already carries. */}
-      <SmsConsentCheckbox checked={smsConsent} onChange={setSmsConsent} />
+      {/* NO SMS consent box here any more (owner, 2026-09-20): "All you're
+          asking the person to do is share their information back with the user,
+          rather than the user just typing it in themselves." This form hands
+          over contact details; it does not enrol anyone in text messages, and
+          it never claimed to. Nothing it posts can grant SMS consent — the
+          public leads endpoint ignores a consent flag entirely, and an
+          automated text still requires the SwiftCard user to confirm, in the
+          app, that they have permission to text that contact (the sms-ok flag,
+          set only from an authenticated request). Email consent is still by
+          submission, and every email carries an unsubscribe link. */}
       <button
         type="submit"
         disabled={status === "loading"}

@@ -144,7 +144,7 @@ export const productDocs = defineDocs([
     answer:
       "Anyone looking at your card can use \"Share your info\" to send you their name, email and phone. That lands in your Contacts straight away, tagged with which card it came from and how they reached you — and it can trigger an automatic follow-up.",
     detail:
-      "The form is on every public card page. Text follow-ups need the visitor to tick the optional SMS consent box themselves; it is never pre-ticked and never required to submit. Saving your contact (the .vcf) is a separate action and does not by itself tell you who saved you — the \"Share your info\" form is what creates a contact.",
+      "The form is on every public card page, and it asks for contact details only — no consent box, because sharing details is not signing up for texts (changed 2026-09-20). A contact captured this way is never texted automatically: text follow-ups start only when you set one up for that person and confirm you have their permission. Email follow-ups are unaffected. Saving your contact (the .vcf) is a separate action and does not by itself tell you who saved you — the \"Share your info\" form is what creates a contact.",
   },
   {
     id: "made-with-swiftcard-badge",

@@ -115,7 +115,7 @@ export default function TermsPage() {
         <ul className="mb-3">
           <LI>You&apos;ll only collect and use it for legitimate business follow-up, in line with applicable privacy and anti-spam laws (including, where they apply to you, GDPR, CCPA/CPRA, CAN-SPAM, and TCPA).</LI>
           <LI>You have a lawful basis to contact the people you message, and you&apos;ll honor opt-outs. Automated follow-up emails you set up are sent on your behalf, and you&apos;re the sender responsible for them.</LI>
-          <LI><strong>Text messages are different.</strong> Swift Card Inc is the sender of every automated text message sent through SwiftCard. We send them from our own registered number, using our own message templates, only to people who ticked the SMS consent box on a share form, and only about the exchange that person started. You may write the wording of a follow-up you schedule, but we send it, every message identifies SwiftCard, and you never receive the recipient&apos;s mobile number to message yourself. Text messaging is governed by our <Link href="/sms-terms" className="text-brand underline">SMS &amp; Messaging Terms</Link>.</LI>
+          <LI><strong>Text messages are different.</strong> Swift Card Inc is the sender of every automated text message sent through SwiftCard. We send them from our own registered number, using our own message templates, only to a contact whose permission you have confirmed to us when you set the follow-up up, and only about the exchange that person started. You may write the wording of a follow-up you schedule, but we send it, every message identifies SwiftCard, and you never receive the recipient&apos;s mobile number to message yourself. Text messaging is governed by our <Link href="/sms-terms" className="text-brand underline">SMS &amp; Messaging Terms</Link>.</LI>
           <LI>You won&apos;t upload contact data you obtained unlawfully, or use SwiftCard to send unsolicited bulk messages.</LI>
         </ul>
         <P>
@@ -135,12 +135,13 @@ export default function TermsPage() {
         <H2>SMS &amp; text messaging program</H2>
         <P>
           <strong>Program description.</strong>{" "}Swift Card Inc (SwiftCard) sends transactional text messages to
-          people who explicitly opt in on a SwiftCard user&apos;s share form after an in-person exchange. Messages
+          people who gave a SwiftCard user permission to text them after an exchange, which that user confirms to
+          us before anything is sent. Messages
           contain the contact details of the SwiftCard user you just met, and the follow-ups about that exchange
           that you consented to receive. We are the sender of every message.
         </P>
         <ul className="mb-3">
-          <LI><strong>How you opt in.</strong> By ticking the unchecked SMS consent box on a SwiftCard share form and submitting your mobile number. Consent is never a condition of sharing your details or of any purchase.</LI>
+          <LI><strong>How you opt in.</strong> By giving the SwiftCard user you met permission to text you, in the exchange where you swapped details. They confirm that permission to us before any message can be sent, and it is the only thing that allows one. Consent is never a condition of sharing your details or of any purchase.</LI>
           <LI><strong>Message frequency.</strong> Message frequency varies — typically 1–5 messages per exchange you opt into.</LI>
           <LI><strong>Cost.</strong> Message and data rates may apply. SwiftCard does not charge you for these messages; your mobile carrier&apos;s standard rates apply.</LI>
           <LI><strong>Opting out.</strong> Reply <strong>STOP</strong> to any message to stop all further messages. You will receive a single confirmation and then no further texts.</LI>

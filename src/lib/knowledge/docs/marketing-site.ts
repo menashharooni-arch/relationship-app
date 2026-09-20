@@ -104,9 +104,9 @@ export const marketingDocs = defineDocs([
       "tcpa", "unsubscribe from texts", "a2p",
     ],
     answer:
-      "Texts only go to people who tick the optional consent box themselves on the \"Share your info\" form — it is never pre-ticked and never required. Replying STOP to any message opts that number out; START opts back in. The details are at swiftcard.me/sms-consent and swiftcard.me/sms-terms.",
+      "Sharing your details on a card is not signing up for texts, and there is no consent box on that form: it sends your name, phone and email to the person whose card it is, nothing more. A text is only ever sent when that SwiftCard user sets up a follow-up for you personally and confirms to us that you gave them permission — no automated text goes to anyone else. Replying STOP to any message opts that number out; START opts back in. The details are at swiftcard.me/sms-consent and swiftcard.me/sms-terms.",
     detail:
-      "Never describe the consent checkbox as required, and never suggest a way to work around it — the wording on that checkbox is carrier-approved compliance copy and the campaign registration depends on it matching the published pages. All SwiftCard texts come from one shared number, so a STOP from a recipient stops SwiftCard texts to that number from every sender on the platform, not just the one they were talking to.",
+      "There is no SMS consent checkbox anywhere any more (removed 2026-09-20) — never describe one, and never suggest a way to text someone who did not give the SwiftCard user permission. Permission is confirmed by the user, in Contacts, when they switch a text automation on for that contact; that confirmation is the only thing that allows a text, and switching it off withdraws it. All SwiftCard texts come from one shared number, so a STOP from a recipient stops SwiftCard texts to that number from every sender on the platform, not just the one they were talking to.",
   },
   {
     id: "contact-support",

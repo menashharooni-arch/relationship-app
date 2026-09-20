@@ -54,7 +54,7 @@ export const automationDocs = defineDocs([
     answer:
       "The switch on the \"Email automation\" or \"Text automation\" row pauses just that channel — steps stop and stay unsent, and switching it back on picks up where it left off. \"Reset ↺\" (visible only when the channel is off) clears that channel's messages so you can choose a new cadence.",
     detail:
-      "One thing worth knowing: turning the TEXT switch off does more than pause it — it also withdraws that contact's SMS consent, which blocks manual texts to them as well. Turning it back on does not restore consent by itself; the contact has to opt in again. Email and text are independent, so pausing one leaves the other running.",
+      "One thing worth knowing: the TEXT switch is where permission lives. Switching it on is you confirming that contact agreed you could text them (the screen says so), and it is the only thing that allows a text to them at all; switching it off withdraws that, which blocks manual texts to them as well until you switch it back on. Email and text are independent, so pausing one leaves the other running.",
   },
   {
     id: "what-stops-a-sequence",

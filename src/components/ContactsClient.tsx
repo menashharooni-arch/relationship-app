@@ -1665,6 +1665,20 @@ export default function ContactsClient({
                                   />
                                 </div>
                               ))}
+                              {/* WHERE TEXT CONSENT LIVES NOW (owner, 2026-09-20).
+                                  The share form no longer asks the visitor to
+                                  tick a box — sharing details is not
+                                  subscribing to texts — so the record is this:
+                                  switching a text automation on is the owner
+                                  stating they have this person's permission,
+                                  and it is the only thing that grants sms-ok.
+                                  Said plainly, where the decision is made,
+                                  because /sms-consent describes exactly this. */}
+                              {ch === "sms" && (
+                                <p className="text-[0.6875rem] text-gray-500 leading-snug mb-2.5">
+                                  Only switch this on if {(selected?.name || "this contact").trim()} agreed you could text them. They can reply STOP at any time, which stops texts from SwiftCard for good.
+                                </p>
+                              )}
                               <div className="flex items-center justify-between">
                                 {draftIsAi
                                   ? <button onClick={() => draftPreset && selectPreset(draftPreset)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Regenerate ↺</button>
