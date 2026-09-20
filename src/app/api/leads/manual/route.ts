@@ -5,6 +5,7 @@ import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
 import { readUsage, bumpUsage } from "@/lib/usage";
 import { getSourceLabel } from "@/lib/source-labels";
 import { syncLeadToAllCrms, sendLeadToZapier } from "@/lib/crm-sync";
+import { activeEvent } from "@/lib/event-tag";
 
 // The CRM fan-out below runs in after() — give it the same room as capture.
 export const maxDuration = 60;
@@ -20,6 +21,14 @@ export async function POST(req: NextRequest) {
 
   const { name, email, phone, company, notes, where_met, card_owner: requestedOwner } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: "Name is required." }, { status: 400 });
+
+  // "At an event?" covers EVERY contact added while it is on (owner,
+  // 2026-09-19), not only the ones who fill in the card's form — this route is
+  // also where a hand-typed contact and a scanned paper card land, and at a
+  // conference those are the same event. What the owner TYPED always wins: the
+  // tag only fills a blank "Where you met".
+  const eventTag = activeEvent(profile.customization);
+  const metAt = where_met?.trim() || eventTag?.label || null;
 
   // Attach the contact to the card the user currently has selected (validated to
   // belong to them), so it shows up in that card's scoped view. Falls back to the
@@ -57,7 +66,7 @@ export async function POST(req: NextRequest) {
       phone: phone?.trim() || null,
       company: company?.trim() || null,
       notes: notes?.trim() || null,
-      where_met: where_met?.trim() || null,
+      where_met: metAt,
       card_owner: finalOwner,
       source: "manual",
       status: "new_contact",
@@ -82,7 +91,7 @@ export async function POST(req: NextRequest) {
       phone: phone?.trim() || null,
       company: company?.trim() || null,
       notes: notes?.trim() || null,
-      whereMet: where_met?.trim() || null,
+      whereMet: metAt,
       source: getSourceLabel("manual"),
       capturedByCard: finalOwner as string,
       capturedByName: (card?.name as string | null) ?? null,
