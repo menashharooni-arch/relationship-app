@@ -381,7 +381,13 @@ export default async function CardPage({
       {!isEmbed && !isOwnerView && <SignupNudgeHost cardUsername={profile.username} />}
 
       {/* Business card — socials live in Swift Links, not on the card */}
-      <div className="w-full max-w-sm sc-card-settle">
+      {/* -mb-2 eats 8px of the page's gap-5 BELOW the hint (owner,
+          2026-09-20). The hint's own mt-3 above it then matches what is left,
+          so the line sits centred between the card and "Save …'s contact"
+          instead of hugging the card — and everything below moves up 6px.
+          Nothing else changes: the page keeps its gap-5 between every other
+          section. */}
+      <div className="w-full max-w-sm sc-card-settle -mb-2">
         <CardTilt>
           <CardScaler>
             <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
@@ -395,7 +401,7 @@ export default async function CardPage({
             "Swipe" on a touchscreen, "Scroll" with a mouse (globals.css);
             both are rendered and CSS picks one, so it is right on a phone, a
             laptop and an iPad with a keyboard without any JavaScript. */}
-        <p className="mt-2.5 text-center text-[0.6875rem] leading-snug text-slate-400">
+        <p className="mt-3 text-center text-[0.6875rem] leading-snug text-slate-400">
           <span className="sc-hint-swipe">Swipe</span>
           <span className="sc-hint-scroll">Scroll</span>
           {/* A card with no socials and no links has no socials to promise —
