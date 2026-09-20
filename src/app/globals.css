@@ -279,6 +279,18 @@ body {
 
    Pinned by tests/render/ios-input-zoom.test.ts (measured in a real browser with
    touch emulation) and tests/no-zoom-lockout.test.ts. */
+/* The hint under a public card says "Swipe" on anything with a touchscreen and
+   "Scroll" everywhere else — the same sentence, the verb that matches the
+   device in the visitor's hand. Same `any-pointer: coarse` question as the
+   zoom fix below, for the same reason: an iPad with a keyboard is still a
+   touchscreen. Default is the mouse wording, so a browser that answers neither
+   query still gets a sentence that makes sense with a scroll wheel. */
+.sc-hint-swipe { display: none; }
+@media (any-pointer: coarse) {
+  .sc-hint-swipe { display: inline; }
+  .sc-hint-scroll { display: none; }
+}
+
 @media (any-pointer: coarse) {
   input, select, textarea, [contenteditable]:not([contenteditable="false"]) {
     font-size: max(16px, 1em);
