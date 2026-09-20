@@ -58,4 +58,51 @@ describe("wired the way the rules assume", () => {
     expect(read("src/app/dashboard/page.tsx")).toMatch(/<EventTagChip initial=\{activeEvent\(profile\.customization\)\} \/>/);
     expect(read("src/components/EventTagChip.tsx")).toMatch(/method="post"/);
   });
+
+  // Owner, 2026-09-19: "every single contact that I add and any contact that
+  // scans my Apple Wallet card or anything like that … has it tagged
+  // correctly." Wallet, QR, NFC and sent links all end at the card's form
+  // (/api/leads); by hand and a scanned paper card both land in leads/manual.
+  it("a contact added by hand or scanned is saved as met there too", () => {
+    const manual = read("src/app/api/leads/manual/route.ts");
+    expect(manual).toMatch(/const eventTag = activeEvent\(profile\.customization\);/);
+    expect(manual).toMatch(/const metAt = where_met\?\.trim\(\) \|\| eventTag\?\.label \|\| null;/);
+    // Stored AND sent to the CRM/Zapier as the same value.
+    expect(manual).toMatch(/where_met: metAt,/);
+    expect(manual).toMatch(/whereMet: metAt,/);
+  });
+
+  it("never overwrites a 'Where you met' the owner typed", () => {
+    const manual = read("src/app/api/leads/manual/route.ts");
+    // What was typed comes FIRST in the fallback chain.
+    expect(manual).toMatch(/where_met\?\.trim\(\) \|\| eventTag\?\.label/);
+  });
+
+  it("every path that creates a contact is covered", () => {
+    // If a third writer of `leads` appears, it needs the tag too — this fails
+    // until someone decides.
+    const writers = ["src/app/api/leads/route.ts", "src/app/api/leads/manual/route.ts", "src/lib/demo-contact.ts"];
+    for (const f of writers) expect(read(f)).toMatch(/from\("leads"\)\s*\n?\s*\.insert|from\("leads"\)\.insert/);
+    // The sample contact that seeds a new account is deliberately NOT tagged.
+    expect(read("src/lib/demo-contact.ts")).not.toMatch(/activeEvent/);
+  });
+
+  it("a tap before the page is interactive still saves, and comes back", () => {
+    const route = read("src/app/api/profile/event/route.ts");
+    expect(route).toMatch(/req\.formData\(\)/);
+    expect(route).toMatch(/NextResponse\.redirect\(new URL\("\/dashboard", req\.url\), 303\)/);
+  });
+
+  it("gives a way out of the box: a cancel, Escape, and an empty blur", () => {
+    const chip = read("src/components/EventTagChip.tsx");
+    expect(chip).toMatch(/aria-label="Cancel"/);
+    expect(chip).toMatch(/e\.key === "Escape"/);
+    expect(chip).toMatch(/onBlur=\{\(\) => \{ if \(!draft\.trim\(\) && !saving\) cancel\(\); \}\}/);
+    // Nothing is written until Save.
+    expect(chip).toMatch(/const cancel = \(\) => \{ setEditing\(false\); setDraft\(""\); setError\(null\); \};/);
+  });
+
+  it("drops the line by itself when the tag ends mid-session", () => {
+    expect(read("src/components/EventTagChip.tsx")).toMatch(/setTimeout\(\(\) => setActive\(null\)/);
+  });
 });
