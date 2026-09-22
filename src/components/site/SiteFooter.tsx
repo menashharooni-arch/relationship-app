@@ -3,6 +3,7 @@ import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import SalesChat from "@/components/site/SalesChat";
 import NativeHidden from "@/components/NativeHidden";
 import AppStoreBadge from "@/components/AppStoreBadge";
+import RateUsLink from "@/components/RateUsLink";
 
 // Marketing footer — real routes only, no invented content.
 const COLS: { title: string; links: { label: string; href: string }[] }[] = [
@@ -98,7 +99,11 @@ export default function SiteFooter({ light = false }: { light?: boolean }) {
                 Deliberately NOT wrapped in NativeHidden's opposite: someone
                 reading the marketing site in a browser is exactly who should
                 see it, and the whole footer is already hidden in the shell. */}
-            <AppStoreBadge size="sm" className="mt-4" />
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <AppStoreBadge size="sm" />
+              {/* Same self-activating contract as the badge beside it. */}
+              <RateUsLink placement="footer" className={`text-[0.8125rem] ${muted} transition-colors`} />
+            </div>
           </div>
           {COLS.map((col) => (
             <div key={col.title}>
