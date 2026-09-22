@@ -62,4 +62,5 @@ export const UNDOCUMENTED_ROUTES: Record<string, string> = {
   "/auth/reset-password": "Reached only from a reset link or the Security section; both are documented there.",
   "/onboarding": "Invisible server-side provisioning step that immediately redirects. There is nothing for a user to do here.",
   "/welcome/team": "Legacy redirect for old invite emails; team members now use the normal card builder.",
+  "/splash-preview": "An internal review page that plays the app's launch animation in a browser, linked from nowhere and noindex. It exists because the launch image is compiled into the app, so the animation cannot otherwise be seen before a build ships. Nothing a customer needs.",
 };

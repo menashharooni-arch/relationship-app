@@ -170,13 +170,16 @@ describe("native splash v2", () => {
   const v2 = read("src/lib/splash/markup-v2.html");
   const capacitor = read("capacitor.config.ts");
 
-  it("is served only to builds that carry the v2 launch image", () => {
+  it("is recognised by its token, and sent a file that starts on ITS launch image", () => {
     expect(component).toMatch(/SPLASH_V2_TOKEN = "SwiftCardSplash\/2"/);
     expect(component).toMatch(/\.includes\(SPLASH_V2_TOKEN\)/);
-    expect(component).toMatch(/markup-v2\.html/);
     expect(component).toMatch(/join\(process\.cwd\(\), "src\/lib\/splash", file\)/);
-    // …and every build without a token keeps v1, whose launch image it has.
-    expect(component).toMatch(/markup\.html/);
+    // A v2 build now gets the TRANSITION file — frame 0 is still v2's launch
+    // image, so the handoff is unchanged; it then cross-fades to the new
+    // screen (2026-09-22). Its frame 0 is pinned in the transition suite.
+    expect(component).toMatch(/2: "markup-v2to3\.html"/);
+    // …and every build without a token is a v1 build, and gets its own.
+    expect(component).toMatch(/1: "markup-v1to3\.html"/);
     // The CURRENT build ships the v3 launch image, so that is what it says it
     // carries; v2 stays reachable for the builds already installed.
     expect(capacitor).toMatch(/appendUserAgent: "SwiftCardApp SwiftCardSplash\/3"/);
@@ -279,5 +282,66 @@ describe("native splash v3", () => {
     expect(v3).toMatch(/animation:vfk-clear 1400ms linear both;/);
     expect(v3).not.toMatch(/mask-mode:\s*luminance/);
     expect(v3).toMatch(/prefers-reduced-motion:\s*reduce/);
+  });
+});
+
+// ── The transition files: the new screen on the apps already installed ──────
+// Owner, 2026-09-22: "I don't want to wait for the review." The launch image
+// lives in the bundle, so a phone with an older build shows ITS image at
+// launch whatever the server sends. These files start there — pixel-identical,
+// so the handoff is still invisible — and cross-fade to the new screen under
+// the charge, before the fork lands. Measured against the real launch asset:
+// frame 0 differs by 0.4/255 on average.
+describe("native splash — transition builds", () => {
+  const v2to3 = read("src/lib/splash/markup-v2to3.html");
+  const v1to3 = read("src/lib/splash/markup-v1to3.html");
+  const v2 = read("src/lib/splash/markup-v2.html");
+  const v1 = read("src/lib/splash/markup.html");
+  const build = read("scripts/build-splash-transition.mjs");
+
+  it("every installed build is sent the file whose frame 0 is ITS launch image", () => {
+    expect(component).toMatch(/3: "markup-v3\.html"/);
+    expect(component).toMatch(/2: "markup-v2to3\.html"/);
+    expect(component).toMatch(/1: "markup-v1to3\.html"/);
+  });
+
+  it.each([
+    ["v2to3", v2to3, v2],
+    ["v1to3", v1to3, v1],
+  ])("%s holds the old ground and the old mark at frame 0", (_name, transition, old) => {
+    // the ground the root paints while held — the old one, not the new one
+    const oldHold = old.match(/html\.sc-splash-hold #sc-splash-vfork\{ background:([^;]+); \}/)?.[1];
+    expect(oldHold).toBeTruthy();
+    expect(transition).toContain(`html.sc-splash-hold #sc-splash-vfork{ background:${oldHold}; }`);
+    // …and the layer that paints that image: the old mark, at the old size.
+    const oldMark = old.match(/<img class="vfk-icon" src="(data:image\/webp;base64,[^"]+)"/)?.[1];
+    const oldSize = old.match(/--vfk-mark: ([\d.]+)vmax;/)?.[1];
+    expect(transition).toContain(`.vfk-legacy{`);
+    expect(transition).toContain(`background:url("${oldMark}") 50% 50% / ${oldSize}vmax ${oldSize}vmax no-repeat,${oldHold};`);
+  });
+
+  it("fades to the new screen before the fork lands, and is gone for the rest", () => {
+    // The fork starts at 150ms and lands at 300ms; the fade runs 110→320ms, so
+    // the strike happens on the new screen and nothing is left to cover the
+    // aperture when it opens at 700ms.
+    expect(v2to3).toMatch(/@keyframes vfk-legacy-out\{/);
+    expect(v2to3).toMatch(/7\.857\d*%\{ opacity:1 \}/);
+    expect(v2to3).toMatch(/22\.857\d*%\{ opacity:0 \}/);
+    expect(v2to3).toMatch(/100%\{ opacity:0 \}/);
+    expect(v2to3).toMatch(/animation:vfk-legacy-out 1400ms linear both;/);
+    expect(build).toMatch(/FADE_START_MS = 110/);
+    expect(build).toMatch(/FADE_END_MS = 320/);
+  });
+
+  it("is the v3 sequence otherwise — one animation, not three", () => {
+    for (const t of [v2to3, v1to3]) {
+      expect(t).toMatch(/--vfk-mark: 28\.125vmax/);          // the new mark
+      expect(t).toMatch(/linear-gradient\(146\.5deg/);        // the new field
+      expect(t).toMatch(/animation:vfk-clear 1400ms linear both;/);
+      expect(t).toMatch(/d\.classList\.add\("sc-splash-armed"\);d\.classList\.add\("sc-splash-hold"\)/);
+      expect(t).toMatch(/html:not\(\.sc-splash-armed\) #sc-splash-vfork\{display:none!important\}/);
+      expect(t).toMatch(/prefers-reduced-motion:\s*reduce/);
+      expect((t.match(/--vfk-bolt: url\("data:image\/webp;base64,/g) ?? []).length).toBe(1);
+    }
   });
 });
