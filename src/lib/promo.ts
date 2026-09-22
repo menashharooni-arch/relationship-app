@@ -45,10 +45,26 @@ export function freeDaysLabel(days: number | null | undefined): string {
   return FREE_PERIODS.find((p) => p.days === days)?.label ?? `${days} days`;
 }
 
-export type DiscountType = "percent" | "fixed" | "free_time";
+// "grant" is the odd one out and deliberately so: it is the TESTER code. The
+// other three are offers a customer redeems on the way to paying — they end up
+// as a Stripe coupon or a trial on a real subscription, and every one of them
+// still collects a card. A grant never touches Stripe: redeeming it switches
+// the account to the plan for `free_days` days, with no card and no
+// subscription, and the daily cron drops it back to Free when the time is up
+// (lib/referral-server expireFreeMonths, the same path a referral month uses).
+// It exists so the owner can open any plan on a throwaway account and look at
+// the product, without a test subscription appearing in live Stripe.
+//
+// `applies_to` says WHICH plan it opens ("pro" or "office"); "any" grants Pro.
+export type DiscountType = "percent" | "fixed" | "free_time" | "grant";
 
 export function isDiscountType(v: unknown): v is DiscountType {
-  return v === "percent" || v === "fixed" || v === "free_time";
+  return v === "percent" || v === "fixed" || v === "free_time" || v === "grant";
+}
+
+/** A code that opens a plan outright rather than discounting a purchase. */
+export function isGrantCode(promo: { discount_type?: string | null }): boolean {
+  return promo.discount_type === "grant";
 }
 
 // ── 3. Which plan the code is FOR ───────────────────────────────────────────
@@ -120,6 +136,10 @@ export type PromoRow = {
 
 /** What the customer is told they're getting ("30% off", "One month free"). */
 export function promoLabel(promo: PromoRow): string {
+  if (promo.discount_type === "grant") {
+    const plan = promo.applies_to === "office" ? "Office" : "Pro";
+    return `${plan} free for ${freeDaysLabel(promo.free_days ?? 14).toLowerCase()}`;
+  }
   if (promo.discount_type === "free_time" && promo.free_days) {
     return `${freeDaysLabel(promo.free_days)} free`;
   }
@@ -130,7 +150,7 @@ export function promoLabel(promo: PromoRow): string {
 
 /** How long money off runs, in words. Empty for free-time codes. */
 export function durationLabel(promo: PromoRow): string {
-  if (promo.discount_type === "free_time") return "";
+  if (promo.discount_type === "free_time" || promo.discount_type === "grant") return "";
   const d = promo.duration ?? "once";
   if (d === "forever") return "every payment";
   if (d === "repeating") {

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isRateLimited } from "@/lib/rate-limit";
-import { promoLabel, scopeLabel, durationLabel, promoScopeMessage } from "@/lib/promo";
+import { promoLabel, scopeLabel, durationLabel, promoScopeMessage, isGrantCode } from "@/lib/promo";
+import { PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
+import { provisionOfficeForOwner } from "@/lib/office-billing-sync";
 
 // POST /api/promo/redeem — user redeems a promo code
 export async function POST(req: NextRequest) {
@@ -95,6 +97,73 @@ export async function POST(req: NextRequest) {
   // Only now — after the redemption is durably recorded — bump the usage count,
   // so a duplicate/failed attempt can never inflate it.
   await admin.from("promo_codes").update({ uses_count: promo.uses_count + 1 }).eq("id", promo.id);
+
+  // ── A GRANT code opens the plan right here ────────────────────────────────
+  // No Stripe, no card, no subscription: the account is switched to the plan
+  // for free_days days and the daily cron (expireFreeMonths) puts it back on
+  // Free when the time is up. This is the tester path — see lib/promo.
+  if (isGrantCode(promo)) {
+    const days = Number(promo.free_days) > 0 ? Number(promo.free_days) : 14;
+    const wantsOffice = promo.applies_to === "office";
+
+    const { data: prof } = await admin
+      .from("profiles")
+      .select("plan, plan_expires_at, customization, stripe_subscription_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    // Never touch a REAL subscriber: their plan is Stripe's to set, and writing
+    // plan_expires_at onto a paying account would have the cron downgrade
+    // someone who is still being charged.
+    if (prof?.stripe_subscription_id) {
+      return NextResponse.json(
+        { error: "This code only works on an account with no subscription." },
+        { status: 409 },
+      );
+    }
+
+    // A grant is a gift: it can only ever be at least what they already had
+    // (same rule as the referral month — an Office account must not be
+    // demoted to Pro by collecting one).
+    const plan = wantsOffice || prof?.plan === "enterprise" ? "enterprise" : "pro";
+    // Extend rather than replace, so two codes in a row add up.
+    const base = Math.max(Date.now(), prof?.plan_expires_at ? new Date(prof.plan_expires_at as string).getTime() : 0);
+    const until = new Date(base + days * 86400000).toISOString();
+
+    const cust = { ...((prof?.customization as Record<string, unknown> | null) ?? {}) };
+    // The plan step is settled by this, exactly as paying settles it — without
+    // it a brand-new account is asked to choose a plan again on its next load.
+    cust[PLAN_CHOSEN_KEY] = plan;
+    // Not a Stripe trial: these keys drive the "your trial ends / you'll be
+    // charged" copy and the day-7 charge notice, and nothing here will charge.
+    delete cust._trial;
+    delete cust._trialEndsAt;
+    delete cust._trialChargeCents;
+    delete cust._trialChargeInterval;
+    delete cust._trialChargeWarnedFor;
+
+    await admin
+      .from("profiles")
+      .update({ plan, plan_expires_at: until, customization: cust })
+      .eq("id", user.id);
+
+    // An Office account with no office row has an empty admin console and no
+    // seats — the webhook provisions one on a real purchase, so a granted
+    // Office gets the same treatment.
+    if (plan === "enterprise") {
+      try {
+        await provisionOfficeForOwner(admin, user.id, 5);
+      } catch (e) {
+        console.error("[promo] office provision failed for grant:", e);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      granted: { plan, days, until },
+      promo: { code: promo.code, description: promo.description, label: promoLabel(promo) },
+    });
+  }
 
   // NOTE: stripe_coupon_id is deliberately NOT returned any more. It used to be,
   // and the client then handed it to /api/stripe/checkout, which passed it

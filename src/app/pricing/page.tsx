@@ -99,6 +99,15 @@ export default function PricingPage() {
         body: JSON.stringify({ code: promo.code.trim() }),
       });
       const data = await res.json();
+      // A GRANT code is not a discount to carry to checkout — the plan is
+      // already open by the time this returns, so say so and go to the app
+      // rather than leaving the person on a pricing page they no longer need.
+      if (res.ok && data.granted) {
+        const planName = data.granted.plan === "enterprise" ? "Office" : "Pro";
+        setPromo((p) => ({ ...p, status: "valid", message: `${planName} is on for ${data.granted.days} days — opening your dashboard…`, appliedCode: "", discountLabel: "", row: undefined }));
+        setTimeout(() => { window.location.href = "/dashboard"; }, 1200);
+        return;
+      }
       if (res.ok) {
         const d = data.promo;
         // Shared with the admin list so a code is described identically in both.

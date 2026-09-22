@@ -270,7 +270,10 @@ const FRAMES = [
   // every shape the page can make, in one screen, with the last row running
   // off the bottom edge the way a scrollable page should.
   // Re-measure if the page's content changes; SRC_VISIBLE is 2706.
-  { n: "08", src: "swift-links", y: 1284, kicker: "Swift Links",
+  // y re-measured 2026-09-22: the linen links page is 30px shorter than the
+  // aura one it replaced, so 1284 ran off the end of the capture (3960) and
+  // the last 30px of the frame were blank canvas.
+  { n: "08", src: "swift-links", y: 1254, kicker: "Swift Links",
     title: "All your links,\n<em>one page</em>",
     sub: "Photo, bio, socials, portfolio and booking at your own link.",
     // The crop now starts on the cream sheet, not the photo, so a white
@@ -285,14 +288,18 @@ const FRAMES = [
   { n: "09", src: "signature", y: 0, kicker: "Swift Signature",
     title: "Your card in\n<em>every email</em>",
     sub: "A live card under every message you send. Paste it once.",
-    bar: { bg: "#4b4948", fg: "#fff" },
+    // Dark glyphs since 2026-09-22: the sheet no longer dims the app behind it,
+    // so this bar sits on the cream header like frames 01-08, and white glyphs
+    // vanished into it.
+    bar: { bg: "#fbf7f1", fg: "#111" },
     pops: [
       { html: chip(`${check}<span>Signature copied</span>`), at: `top:${UPPER}px; right:${EDGE}px`, rot: 3, big: true },
     ] },
   { n: "10", src: "ways-to-share", y: 0, kicker: "Share",
     title: "QR, NFC and\n<em>Apple Wallet</em>",
     sub: "However you meet people, your card is one tap away.",
-    bar: { bg: "#646360", fg: "#fff" },
+    // Dark glyphs, same reason as frame 09.
+    bar: { bg: "#fbf7f1", fg: "#111" },
     pops: [
       { html: chip(`${apple}<span>Add to Apple Wallet</span>`), at: `top:${UPPER}px; left:50%; transform:translateX(-50%) rotate(-2deg)`, rot: null, wallet: true },
     ] },

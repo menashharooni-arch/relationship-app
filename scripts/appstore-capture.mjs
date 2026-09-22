@@ -184,8 +184,24 @@ const LEADS = [
 // traffic chart for exactly that reason. Hide fixed chrome for full-page
 // shots; viewport shots keep it, since there it sits where it belongs.
 const HIDE_FIXED = ".sc-tabbar, .sc-help-bubble { display: none !important; }";
-const shot = async (page, name, { full = false, wait = 1200 } = {}) => {
+// noDim: clear a modal's dark scrim before the shot. A sheet dims the app
+// behind it in the product, which is right there and wrong here — frames 09 and
+// 10 are the only two shot with a sheet open, so they came back with a grey
+// #474850 app behind the sheet while frames 01-08 show the cream one, and the
+// set read as two different designs (owner, 2026-09-22: "images 9 and 10 do not
+// have the same colors"). The sheet itself is untouched; only the scrim goes.
+const shot = async (page, name, { full = false, wait = 1200, noDim = false } = {}) => {
   await page.waitForTimeout(wait);
+  if (noDim) {
+    await page.evaluate(() => {
+      for (const el of document.querySelectorAll("div.fixed.inset-0")) {
+        el.style.background = "transparent";
+        el.style.backdropFilter = "none";
+        el.style.webkitBackdropFilter = "none";
+      }
+    }).catch(() => {});
+    await page.waitForTimeout(250);
+  }
   if (full) await page.addStyleTag({ content: HIDE_FIXED });
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: full });
   if (full) await page.evaluate(() => document.querySelectorAll("style").forEach((s) => { if (s.textContent.includes("sc-tabbar, .sc-help-bubble")) s.remove(); })).catch(() => {});
@@ -438,7 +454,7 @@ try {
     await more.click().catch(() => {});
     await page.waitForTimeout(2200);
     console.log("  wallet in share panel:", await page.locator('text=Add to Apple Wallet').count().catch(() => 0));
-    await shot(page, "ways-to-share", { full: false });
+    await shot(page, "ways-to-share", { full: false, noDim: true });
     await page.keyboard.press("Escape").catch(() => {});
     await page.waitForTimeout(600);
   } else {
@@ -456,7 +472,7 @@ try {
   if (await sig.count().catch(() => 0)) {
     await sig.click().catch(() => {});
     await page.waitForTimeout(2500);
-    await shot(page, "signature", { full: false });
+    await shot(page, "signature", { full: false, noDim: true });
   } else {
     console.log("  ! signature button not found");
   }
