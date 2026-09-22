@@ -34,9 +34,29 @@ export function averageRating(reviews: AppStoreReview[]): number | null {
   return Math.round((sum / reviews.length) * 10) / 10;
 }
 
+// Every way this can come back empty, said out loud.
+//
+// This used to be `catch {}` and three bare `return []`s. Failing safe is
+// right — a marketing page must never show a broken rating — but failing
+// SILENTLY meant the section sat empty on swiftcard.me for days with four real
+// five-star reviews live on the App Store, and nothing anywhere said why.
+// Owner, 2026-09-22: "I thought I saw a reviews page... any five star review
+// got posted to our website, no?" It was there; it just wasn't speaking.
+//
+// One prefix, greppable in Vercel's runtime logs (the page is ISR, so the
+// regeneration that produced an empty section is the line you want).
+function quiet(reason: string): AppStoreReview[] {
+  console.warn(`[app-store-reviews] no reviews shown: ${reason}`);
+  return [];
+}
+
 export async function fetchAppStoreReviews(limit = 12): Promise<AppStoreReview[]> {
   const id = appStoreId();
-  if (!id) return [];
+  if (!id) {
+    return quiet(
+      "no App Store id — set NEXT_PUBLIC_APP_STORE_URL (or APP_STORE_ID) in this environment",
+    );
+  }
   const country = (process.env.APP_STORE_COUNTRY || "us").toLowerCase();
   const url = `https://itunes.apple.com/${country}/rss/customerreviews/id=${id}/sortBy=mostRecent/json`;
 
@@ -44,10 +64,18 @@ export async function fetchAppStoreReviews(limit = 12): Promise<AppStoreReview[]
     // Cache for an hour — Apple's feed updates slowly and this keeps marketing
     // pages fast without hammering the feed on every request.
     const res = await fetch(url, { next: { revalidate: 3600 } });
-    if (!res.ok) return [];
+    if (!res.ok) return quiet(`Apple returned ${res.status} ${res.statusText} for ${url}`);
     const data = await res.json().catch(() => null);
-    const entries = data?.feed?.entry;
-    if (!Array.isArray(entries)) return [];
+    if (data === null) return quiet(`Apple's response was not JSON (${url})`);
+    // Apple's JSON is a converted XML feed, so a feed holding exactly ONE
+    // review gives `entry` as an object rather than a one-element array. The
+    // old code required an array and dropped that review on the floor — the
+    // first review the app ever got would have been invisible.
+    const raw = data?.feed?.entry;
+    const entries = Array.isArray(raw) ? raw : raw && typeof raw === "object" ? [raw] : null;
+    if (!entries) {
+      return quiet(`feed.entry is ${raw === undefined ? "missing" : typeof raw} (${url})`);
+    }
 
     const out: AppStoreReview[] = [];
     for (const e of entries) {
@@ -66,8 +94,9 @@ export async function fetchAppStoreReviews(limit = 12): Promise<AppStoreReview[]
       });
       if (out.length >= limit) break;
     }
+    if (!out.length) return quiet(`${entries.length} feed entries, none usable (${url})`);
     return out;
-  } catch {
-    return [];
+  } catch (err) {
+    return quiet(`fetch threw: ${err instanceof Error ? err.message : String(err)} (${url})`);
   }
 }
