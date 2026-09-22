@@ -450,29 +450,11 @@ export default async function CardPage({
             own sharing surfaces: the dashboard button and MoreShareOptions. */}
       </div>
 
-      {/* ── Share Your Info Back ── */}
-      {alreadyShared ? (
-        <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <div className="flex items-center gap-3">
-            <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "#16a34a" }}>
-              <svg viewBox="0 0 20 20" fill="#fff" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
-            </span>
-            <SectionHeading>Your contact info has already been shared</SectionHeading>
-          </div>
-          <p className="text-slate-500 text-xs mt-1.5 ml-9">
-            {firstName} already has your details — just save {firstName}&apos;s contact above and you&apos;re all set.
-          </p>
-        </div>
-      ) : (
-        <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
-          <SectionHeading>Share your info with {firstName}</SectionHeading>
-          <div className="mt-4">
-            <LeadCaptureForm cardOwner={profile.username} source={source} />
-          </div>
-        </div>
-      )}
-
-      {/* ── Swift Links + Share — one compact closing card ── */}
+      {/* ── Swift Links — the owner's bio, socials and action links ──
+          Sits between Save contact and Share your info (owner order
+          2026-09-22). It used to close the page; a visitor who has just
+          saved the contact sees what else this person links to BEFORE
+          being asked for their own details. */}
       {hasConnectSection && (
         <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
           <div className="flex items-center justify-between gap-3 mb-3">
@@ -521,6 +503,28 @@ export default async function CardPage({
             trackSource={source}
             suppressTracking={isEmbed || isOwnerView}
           />
+        </div>
+      )}
+
+      {/* ── Share Your Info Back ── */}
+      {alreadyShared ? (
+        <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+          <div className="flex items-center gap-3">
+            <span className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "#16a34a" }}>
+              <svg viewBox="0 0 20 20" fill="#fff" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+            </span>
+            <SectionHeading>Your contact info has already been shared</SectionHeading>
+          </div>
+          <p className="text-slate-500 text-xs mt-1.5 ml-9">
+            {firstName} already has your details — just save {firstName}&apos;s contact above and you&apos;re all set.
+          </p>
+        </div>
+      ) : (
+        <div className="w-full max-w-sm rounded-2xl p-5 shadow-sm" style={{ background: "#fff", border: "1px solid #E4DDD4" }}>
+          <SectionHeading>Share your info with {firstName}</SectionHeading>
+          <div className="mt-4">
+            <LeadCaptureForm cardOwner={profile.username} source={source} />
+          </div>
         </div>
       )}
 
