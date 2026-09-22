@@ -29,6 +29,7 @@ import AppStorePopup from "@/components/AppStorePopup";
 import IapProbe from "@/components/IapProbe";
 import ReviewPromptTrigger from "@/components/ReviewPromptTrigger";
 import FirstLeadNudge from "@/components/FirstLeadNudge";
+import RateUsBanner from "@/components/RateUsBanner";
 import TourBanner from "@/components/TourBanner";
 import PendingInviteBanner from "@/components/PendingInviteBanner";
 import { findPendingInviteForEmail } from "@/lib/pending-invite";
@@ -658,6 +659,9 @@ export default async function DashboardPage({
   // and hidden until they go Pro (upgrading makes isPro true → nothing hidden).
   const isLocked = (l: { tags?: string[] | null }) => Array.isArray(l.tags) && l.tags.includes(LOCKED_LEAD_TAG);
   const visibleLeads = isPro ? allLeads : allLeads.filter((l) => !isLocked(l));
+  // Real contacts only — the sample contact every new account starts with is
+  // tagged "demo" and must not count as a milestone (FirstLeadNudge, RateUsBanner).
+  const realLeadCount = visibleLeads.filter((l) => !(Array.isArray(l.tags) && l.tags.includes("demo"))).length;
   const lockedCount = isPro ? 0 : allLeads.length - visibleLeads.length;
 
   // "Follow up first" (lib/intent-score.ts), for this card's visible contacts.
@@ -925,6 +929,15 @@ export default async function DashboardPage({
               params, hence the Suspense useSearchParams wants). */}
           <Suspense><TourBanner /></Suspense>
 
+          {/* "Rate us on the App Store" — only after a real lead or 5+ views,
+              snoozed 60 days per user once dismissed or clicked (lib/rate-us.ts).
+              Web only; the app has Apple's own sheet. */}
+          <RateUsBanner
+            leadCount={realLeadCount}
+            viewCount={(swiftCardViews ?? 0) + (swiftLinkViews ?? 0)}
+            dismissedAt={((profile as { rate_us_dismissed_at?: string | null }).rate_us_dismissed_at) ?? null}
+          />
+
           {/* My Cards — full width, top of dashboard */}
           <div data-tour="my-cards" className="bg-gray-900 border border-gray-800/80 rounded-2xl p-5 mb-5">
             <div className="flex items-center justify-between gap-3 mb-3">
@@ -1037,7 +1050,7 @@ export default async function DashboardPage({
               with (tagged "demo") made this "Your first contact! Refer a friend"
               fire on the very first dashboard load, before anyone had shared
               anything (2026-09-16 web run). */}
-          <FirstLeadNudge leadCount={visibleLeads.filter((l) => !(Array.isArray(l.tags) && l.tags.includes("demo"))).length} isPro={isPro} />
+          <FirstLeadNudge leadCount={realLeadCount} isPro={isPro} />
 
           {!isPro && (nearLimit || lockedCount > 0) && (
             <PlanGate

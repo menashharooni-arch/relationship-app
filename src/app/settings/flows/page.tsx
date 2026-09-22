@@ -15,7 +15,8 @@ import EnablePushButton from "@/components/EnablePushButton";
 import HelpWidget from "@/components/HelpWidget";
 import TakeTourButton from "@/components/TakeTourButton";
 import NativeHidden from "@/components/NativeHidden";
-import { APP_STORE_URL } from "@/lib/app-store";
+import { APP_STORE_URL, APP_STORE_WRITE_REVIEW_URL } from "@/lib/app-store";
+import RateUsLink from "@/components/RateUsLink";
 import AppStoreBadge from "@/components/AppStoreBadge";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import DashboardLink from "@/components/DashboardLink";
@@ -431,6 +432,26 @@ export default async function FlowSettingsPage({
                 {/* The shared badge — the header's look (owner, 2026-09-18),
                     not the blue "App Store" chip that stood here. */}
                 <AppStoreBadge className="shrink-0" />
+              </div>
+            </NativeHidden>
+          )}
+          {/* Permanent "Rate us" link, web only (the app has /grow and Apple's
+              own sheet). A plain link, no rating widget of ours — App Review
+              1.1.7 / 5.6.1. See lib/rate-us.ts. */}
+          {APP_STORE_WRITE_REVIEW_URL && (
+            <NativeHidden>
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <p className="text-white text-sm font-semibold">Rate SwiftCard</p>
+                  <p className="text-gray-500 text-xs mt-0.5">A quick App Store review helps other people find us.<span className="hidden md:inline"> Best on iPhone.</span></p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <RateUsLink
+                    placement="settings"
+                    className="text-xs font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-full px-4 py-2 transition-colors"
+                  />
+                  <AppStoreBadge size="sm" />
+                </div>
               </div>
             </NativeHidden>
           )}
