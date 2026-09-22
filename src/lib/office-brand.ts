@@ -634,19 +634,44 @@ export async function seedBrandFromOwnersFirstCard(officeId: string, ownerId: st
   if (!card) return; // owner has no card yet — the Branding page starts blank
 
   const cust = (card.customization as Record<string, unknown> | null) ?? {};
+  // The whole card, not just its look (owner, 2026-09-22: "Why would someone
+  // design their card in SwiftLinks and then have to go back into branding and
+  // do that also?"). The company's phone is the number they labelled "office"
+  // — a "mobile" is theirs, never the team's. The Swift Links design comes too;
+  // the page's CONTENT (bio, links) stays theirs.
+  const officePhone = Array.isArray(cust.phones)
+    ? (cust.phones as Array<{ number?: unknown; label?: unknown }>)
+        .find((p) => p?.label === "office" && typeof p.number === "string" && p.number.trim())?.number as string | undefined
+    : undefined;
+  const rawAddr = cust.address && typeof cust.address === "object" ? cust.address as Record<string, unknown> : null;
+  const address: OfficeAddress = {};
+  for (const k of ["street", "unit", "city", "state", "zip"] as const) {
+    const v = rawAddr?.[k];
+    if (typeof v === "string" && v.trim()) address[k] = v.trim();
+  }
+  const linkDesign: Record<string, unknown> = {};
+  for (const key of OFFICE_LINK_DESIGN_KEYS) {
+    const v = cust[key as string];
+    if (v !== undefined && v !== null && v !== "") linkDesign[key as string] = v;
+  }
   const update: Record<string, unknown> = {
     brand_logo_url: (card.logo_url as string | null) ?? null,
     brand_company: (card.company as string | null) || null,
     brand_website: (card.website as string | null) || null,
     brand_template: (card.template as string | null) || null,
     brand_custom_layout: withoutFaceImage(cust.customLayout ?? null),
+    brand_phone: officePhone?.trim() || null,
+    brand_fax: (typeof cust.fax === "string" && cust.fax.trim()) || null,
+    brand_address: Object.keys(address).length ? address : null,
     brand_design: extractDesign(cust),
+    brand_link_design: Object.keys(linkDesign).length ? linkDesign : null,
   };
 
   const { error } = await admin.from("offices").update(update).eq("id", officeId);
   if (error) {
-    // brand_design missing (pre-migration schema) — seed what we can.
+    // A newer column missing (pre-migration schema) — seed what we can.
     delete update.brand_design;
+    delete update.brand_link_design;
     await admin.from("offices").update(update).eq("id", officeId);
   }
 
