@@ -258,10 +258,24 @@ const FRAMES = [
     pops: [
       { html: loc("Portland, OR", "3,193", "2,574", "619"), at: `top:${UPPER}px; right:${EDGE}px`, rot: 2.5 },
     ] },
-  { n: "08", src: "swift-links", y: 0, kicker: "Swift Links",
+  // y=1284, not 0: at the top of the page this frame was her photo and a bio,
+  // and the links — the thing it is captioned for — were below the fold, with
+  // only the first tile's edge showing. Owner, 2026-09-22: "really show how
+  // additional links look in SwiftLinks."
+  //
+  // 1284 is 22px above the big "Lena Brooks" heading, measured off a render of
+  // this page at the capture's own 440x956@3x rather than guessed. From there
+  // the 2706px window holds the name, subtitle, bio, socials, Connect, both
+  // section headers, the featured tile, the grid PAIR and the compact rows —
+  // every shape the page can make, in one screen, with the last row running
+  // off the bottom edge the way a scrollable page should.
+  // Re-measure if the page's content changes; SRC_VISIBLE is 2706.
+  { n: "08", src: "swift-links", y: 1284, kicker: "Swift Links",
     title: "All your links,\n<em>one page</em>",
     sub: "Photo, bio, socials, portfolio and booking at your own link.",
-    bar: { overlay: true, fg: "#fff" },
+    // The crop now starts on the cream sheet, not the photo, so a white
+    // overlay bar would be invisible. Linen's sheet colour, dark glyphs.
+    bar: { bg: "#FBF7F0", fg: "#111" },
     pops: [
       { html: `<div class="pop card link"><span class="emoji">🎬</span><b>Watch the 2026 wedding reel</b>${arrow}</div>`, at: `top:${LOWER}px; left:${EDGE}px`, rot: -2.5 },
     ] },

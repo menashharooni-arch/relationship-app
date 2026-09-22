@@ -42,10 +42,13 @@ let userId = null, cardId = null, browser;
 // uses, so the App Store set, the website and the demo card all tell one
 // story. Her headshot ships in this repo (public/showcase/lena.jpg), which is
 // why the screenshots can show a real face without licensing a stock photo.
-const PHOTO = "https://swiftcard.me/showcase/lena.jpg";
-// Teal, from the card's own accent palette. The old near-black accent left the
-// QR, the icons and every action on the page reading as grey furniture.
-const ACCENT = "#0f766e";
+const SITE = "https://swiftcard.me";
+const PHOTO = `${SITE}/showcase/lena.jpg`;
+// Warm brown, the accent of the "Linen" Look the links page now wears, so the
+// card and the links page read as one set rather than two designs. The old
+// near-black accent left the QR, the icons and every action reading as grey
+// furniture.
+const ACCENT = "#6B5B45";
 
 const CARD = {
   name: "Lena Brooks", title: "Photographer", company: "Lena Brooks Photography",
@@ -60,11 +63,12 @@ const CARD = {
 
 const BIO = "Weddings, portraits and brand shoots — natural light, real moments. Portland, OR.";
 
-// Card design — "Sea Glass" (owner, 2026-09-22: the card and the links page
-// were too dark and didn't look designed). The details panel goes from near
-// black to a pale sea-glass tint, teal carries the QR and the icons, and the
-// headshot becomes the only dark mass on the card. The Onyx panel this
-// replaces read as a black rectangle on the frames' blue background.
+// Card design — "Warm editorial", chosen by the owner from three rendered
+// candidates on 2026-09-22 (the card and the links page were too dark and
+// didn't look designed). The details panel goes from near black to ivory,
+// warm brown carries the QR and the icons, and the headshot becomes the only
+// dark mass on the card. The Onyx panel this replaces read as a black
+// rectangle on the frames' blue background.
 //
 // VERIFIED BY RENDERING, not by reading the preset list — PhotoFirst uses
 // these keys in ways the picker's names do not imply:
@@ -76,28 +80,57 @@ const BIO = "Weddings, portraits and brand shoots — natural light, real moment
 const CARD_DESIGN = {
   photoUrl: PHOTO,
   accentColor: ACCENT,
-  // Pale sea glass, not white: it gives the frosted sheen something to sit on,
-  // so the panel reads as a designed surface instead of a blank one.
-  bgColor: "#eef6f7",                 // the DETAILS panel
+  // Ivory, not white: it gives the frosted sheen something to sit on, so the
+  // panel reads as a designed surface instead of a blank one. Same ivory the
+  // Linen Look puts behind the links page.
+  bgColor: "#FBF7F0",                 // the DETAILS panel
   textColor: "#ffffff",               // her name, over the photo
-  infoColor: "#111827",               // phone/email/site on that panel
+  infoColor: "#2B241A",               // phone/email/site on that panel
   finish: "frosted",                  // milky sheet + bright top edge over it
-  // Only visible on a card with no photo; harmless, and better than the
+  // Only visible on a card with no photo; harmless, and warmer than the
   // template's default indigo if that ever happens.
-  surfaceColor: "linear-gradient(145deg, #2f7f8f 0%, #3f9fae 60%, #56b8c4 100%)",
+  surfaceColor: "linear-gradient(145deg, #6B5B45 0%, #8A7355 60%, #A68A66 100%)",
   bio: BIO,
 };
 
-// A links page with something to look at: one featured tile, a pair in the
-// grid, and slim rows for the plain links — the three tile sizes the layout
-// engine supports, so the page shows its range instead of one shape repeated.
+// A links page with something to look at. Owner, 2026-09-22: "really show how
+// additional links look in SwiftLinks and make them very nice and very cool."
+//
+// The previous set said in a comment that it used all three tile sizes and
+// then made every single link `compact` — six identical slim rows, which is
+// the one shape that shows none of what the page can do. This uses the range
+// for real:
+//
+//   header   a section title — chapters down a long page (Pro)
+//   featured a full-width tile with its own image
+//   grid     a half-width pair, side by side, each with an image
+//   compact  the slim rows, for the links that are just links
+//
+// The images are her work: a portrait photographer's page showing portraits
+// is the tile system doing the thing it exists for. They come off production
+// (the capture runs against it) so nothing here needs a local file server.
 const LINKS = [
-  { emoji: "🎬", label: "Watch the 2026 wedding reel", url: "https://lenabrooks.photo/reel", size: "compact" },
-  { emoji: "📸", label: "Portfolio", url: "https://lenabrooks.photo/portfolio", size: "compact" },
-  { emoji: "💍", label: "Wedding packages", url: "https://lenabrooks.photo/weddings", size: "compact" },
-  { emoji: "🌅", label: "Mini sessions", url: "https://lenabrooks.photo/minis", size: "compact" },
-  { emoji: "📅", label: "Check my 2026 availability", url: "https://lenabrooks.photo/book", size: "compact" },
-  { emoji: "✉️", label: "Join the newsletter", url: "https://lenabrooks.photo/news", size: "compact" },
+  { label: "My work", url: "", kind: "header" },
+  // Featured — the one tile that gets the full width. Landscape, and a
+  // sparkler send-off is the one image in the library that reads as a wedding.
+  { label: "Watch the 2026 wedding reel", url: "https://lenabrooks.photo/reel",
+    size: "featured", media: { url: `${SITE}/marketing/ll-blog.jpg`, type: "image" } },
+  // A grid PAIR — two is deliberate: layoutTiles promotes a lone grid tile to
+  // featured rather than leave a half-width tile beside empty space, so an odd
+  // count would silently lose the side-by-side shape this frame is meant to show.
+  //
+  // The labels follow the images, not the other way round: both are portraits,
+  // and her bio already says "weddings, portraits and brand shoots". A tile
+  // captioned "Weddings" over an office headshot is the kind of mismatch a
+  // reviewer notices before anything else on the screen.
+  { label: "Portraits", url: "https://lenabrooks.photo/portraits",
+    size: "grid", media: { url: `${SITE}/showcase/zoe.jpg`, type: "image" } },
+  { label: "Brand shoots", url: "https://lenabrooks.photo/brand",
+    size: "grid", media: { url: `${SITE}/showcase/maya.jpg`, type: "image" } },
+  { label: "Book me", url: "", kind: "header" },
+  { label: "Check my 2026 availability", url: "https://lenabrooks.photo/book", size: "compact" },
+  { label: "Wedding packages", url: "https://lenabrooks.photo/packages", size: "compact" },
+  { label: "Join the newsletter", url: "https://lenabrooks.photo/news", size: "compact" },
 ];
 
 // Every field a contact can show is filled. "No notes" / "Not set" / "no flow"
@@ -184,16 +217,19 @@ try {
       customization: {
         ...CARD_DESIGN,
         links: LINKS,
-        // A cover photo over "Frost" — the light glass Look (owner, 2026-09-22).
-        // Its pale blue-lilac wash sits under a frosted sheet, which keeps the
-        // headshot the brightest thing on the page while the page itself reads
-        // light. "aura", which this replaces, was near-black: in the App Store
-        // frames it showed as a dark slab with a face at the top.
-        linkLook: "frost",
+        // A cover photo over "Linen" — ivory settling into taupe, with a warm
+        // brown accent (owner's pick, 2026-09-22). The page reads light and
+        // editorial, the headshot stays the brightest thing on it, and the
+        // accent is the same brown the card's QR and icons carry. "aura",
+        // which this replaces, was near-black: in the App Store frames it
+        // showed as a dark slab with a face at the top.
+        linkLook: "linen",
         linkHeroStyle: "cover",
         linkHeroContent: "photo",
         linkIconShape: "circle",
-        linkIconFill: "accent",
+        // Mono, not accent: on a cream sheet a row of brown chips reads as one
+        // brown smear. Quiet neutral chips let the tiles below carry the colour.
+        linkIconFill: "mono",
         youtube: "lenabrooks",
         facebook: "lenabrooks.photo",
       },
