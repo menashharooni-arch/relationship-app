@@ -27,7 +27,22 @@ import {
 async function openLinkedInConnect(href: string, opts: { guest: boolean; returnTo: string }): Promise<void> {
   if (detectNativeApp()) {
     const sep = href.includes("?") ? "&" : "?";
-    const url = new URL(`${href}${sep}native=1`, window.location.origin).toString();
+    let url = new URL(`${href}${sep}native=1`, window.location.origin).toString();
+    // The in-app sheet has NONE of the app's cookies, so the connect route
+    // never saw a session and sent every signed-in user to the website's
+    // sign-in page instead of LinkedIn ("it glitches out to the website" —
+    // owner, 2026-09-22). Carry the session across as the same short-lived
+    // signed token the CRM connects use (lib/connect-user.ts). A guest has no
+    // session to carry: guest=1 is already on the href.
+    if (!opts.guest) {
+      try {
+        const r = await fetch("/api/integrations/handoff", { method: "POST" });
+        if (r.ok) {
+          const { h } = (await r.json()) as { h?: string };
+          if (h) url += `&h=${encodeURIComponent(h)}`;
+        }
+      } catch { /* fall through — the sheet shows sign-in instead of a dead tap */ }
+    }
     try {
       const { Browser } = await import("@capacitor/browser");
       await Browser.open({ url, presentationStyle: "fullscreen" });

@@ -87,3 +87,38 @@ describe("every homepage builder is wired the same way", () => {
     expect(wizard).toContain("/storage/v1/object/public/");
   });
 });
+
+// ── Signed in, inside the iOS shell ──────────────────────────────────────────
+//
+// Owner, 2026-09-22: "whenever I try to connect LinkedIn it just glitches out
+// to the website losing all progress." Two causes, both in the shell:
+//
+//  1. The in-app sheet has none of the app's cookies, so the connect route saw
+//     no session and sent the user to the WEBSITE's sign-in page. The CRM
+//     connects had already solved this with a signed handoff token (?h=); the
+//     headshot import never got it.
+//  2. The return leg reloaded the editor to deliver the status, which threw
+//     away every unsaved edit. It now finishes in place, like the web popup.
+describe("signed-in LinkedIn connect from the iOS shell", () => {
+  it("carries the session into the sheet as the handoff token", () => {
+    const src = read("src/components/ProfilePhotoSuggest.tsx");
+    const nativeBranch = src.slice(src.indexOf("if (detectNativeApp())"), src.indexOf("// Web."));
+    expect(nativeBranch).toContain('fetch("/api/integrations/handoff", { method: "POST" })');
+    expect(nativeBranch).toContain("&h=${encodeURIComponent(h)}");
+    // Guests have no session to carry — guest=1 already does the job.
+    expect(nativeBranch).toMatch(/if \(!opts\.guest\)/);
+  });
+
+  it("finishes in place on the editor that started it, never reloading it", () => {
+    const bridge = read("src/components/NativeAppBridge.tsx");
+    const branch = bridge.slice(bridge.indexOf("swiftcard://linkedin-callback"), bridge.indexOf('url.startsWith("swiftcard:")'));
+    expect(branch).toContain("window.postMessage({ source: LINKEDIN_MESSAGE, status }, window.location.origin)");
+    // Only when the webview is already on that page, and never for a guest's
+    // photo, which travels in the URL and is read on mount.
+    expect(branch).toMatch(/provider === "linkedin" &&\s*status !== "photo" &&\s*new URL\(next, window\.location\.origin\)\.pathname === window\.location\.pathname/);
+    // The listener that receives it accepts exactly this shape.
+    const suggest = read("src/components/ProfilePhotoSuggest.tsx");
+    expect(suggest).toContain("data.source !== LINKEDIN_MESSAGE");
+    expect(suggest).toContain("e.origin !== window.location.origin");
+  });
+});

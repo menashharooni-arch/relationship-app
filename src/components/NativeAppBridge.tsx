@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { safeNextPath } from "@/lib/safe-next";
 import { detectNativeApp } from "@/lib/platform";
+import { LINKEDIN_MESSAGE } from "@/lib/linkedin-popup";
 
 /**
  * Native-shell runtime bridge. Renders nothing; on web every effect is a no-op.
@@ -98,9 +99,26 @@ export default function NativeAppBridge() {
               // must never steer the webview off our own origin.
               const next =
                 safeNextPath(nextRaw) ?? "/settings/flows";
+              const status = q.get("status") ?? "error";
+              // LinkedIn headshot, signed in, and the webview is still on the
+              // editor that started it: finish IN PLACE, the way the web popup
+              // does, instead of reloading the page. The reload threw away
+              // every unsaved edit on the card ("losing all progress" — owner,
+              // 2026-09-22); ProfilePhotoSuggest's message listener imports the
+              // photo into the live form. A guest's photo (status=photo) rides
+              // in `next` as ?li_photo= and is read on mount, so that one
+              // still navigates — the guest draft autosaves, nothing is lost.
+              if (
+                provider === "linkedin" &&
+                status !== "photo" &&
+                new URL(next, window.location.origin).pathname === window.location.pathname
+              ) {
+                window.postMessage({ source: LINKEDIN_MESSAGE, status }, window.location.origin);
+                return;
+              }
               const sep = next.includes("?") ? "&" : "?";
               window.location.href =
-                `${next}${sep}integration=${provider}&status=${encodeURIComponent(q.get("status") ?? "error")}`;
+                `${next}${sep}integration=${provider}&status=${encodeURIComponent(status)}`;
               return;
             }
 
