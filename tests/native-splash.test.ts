@@ -320,17 +320,23 @@ describe("native splash — transition builds", () => {
     expect(transition).toContain(`background:url("${oldMark}") 50% 50% / ${oldSize}vmax ${oldSize}vmax no-repeat,${oldHold};`);
   });
 
-  it("fades to the new screen before the fork lands, and is gone for the rest", () => {
-    // The fork starts at 150ms and lands at 300ms; the fade runs 110→320ms, so
-    // the strike happens on the new screen and nothing is left to cover the
-    // aperture when it opens at 700ms.
-    expect(v2to3).toMatch(/@keyframes vfk-legacy-out\{/);
-    expect(v2to3).toMatch(/7\.857\d*%\{ opacity:1 \}/);
-    expect(v2to3).toMatch(/22\.857\d*%\{ opacity:0 \}/);
-    expect(v2to3).toMatch(/100%\{ opacity:0 \}/);
-    expect(v2to3).toMatch(/animation:vfk-legacy-out 1400ms linear both;/);
-    expect(build).toMatch(/FADE_START_MS = 110/);
-    expect(build).toMatch(/FADE_END_MS = 320/);
+  it("gives the old screen no time of its own: gone 130ms after the app takes over", () => {
+    // Owner, 2026-09-22: remove the navy screen with the app icon, keep the
+    // new one. The clock starts when the native launch image is taken away, so
+    // the fade begins at 0 and is over before the fork starts at 150ms. It
+    // cannot be instant — frame 0 must still BE that build's launch image or
+    // the mark jumps at the handoff — so 130ms is the floor.
+    for (const t of [v2to3, v1to3]) {
+      expect(t).toMatch(/@keyframes vfk-legacy-out\{/);
+      expect(t).toMatch(/0%\{ opacity:1 \}/);
+      expect(t).toMatch(/9\.285\d*%\{ opacity:0 \}/);
+      expect(t).toMatch(/100%\{ opacity:0 \}/);
+      expect(t).toMatch(/animation:vfk-legacy-out 1400ms linear both;/);
+      // …and no second "hold it a while longer" stop.
+      expect(t).not.toMatch(/7\.857\d*%\{ opacity:1 \}/);
+    }
+    expect(build).toMatch(/FADE_START_MS = 0/);
+    expect(build).toMatch(/FADE_END_MS = 130/);
   });
 
   it("is the v3 sequence otherwise — one animation, not three", () => {

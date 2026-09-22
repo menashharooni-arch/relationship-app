@@ -50,11 +50,16 @@ export default async function SplashPreviewPage({
           ? "This is the launch animation a new app build plays. Tap replay to watch it again."
           : "This is what the app you already have plays: it starts on its own launch screen and cross-fades to the new one. Tap replay to watch it again."}
       </p>
-      <div className="flex gap-3 text-xs text-gray-500">
+      <div className="flex gap-4 text-xs text-gray-500">
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a className={file === FILES["3"] ? "text-white font-semibold" : "underline"} href="/splash-preview">New build</a>
+        <a className={key === "3" ? "text-white font-semibold" : "underline"} href="/splash-preview">New build</a>
+        {/* The app in the owner's hands carries the ORIGINAL navy launch image
+            (it shows the square icon at launch), so that is the one to offer
+            first; the middle version is here for builds that have it. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a className={file === FILES["2to3"] ? "text-white font-semibold" : "underline"} href="/splash-preview?v=2to3">Installed app</a>
+        <a className={key === "1to3" ? "text-white font-semibold" : "underline"} href="/splash-preview?v=1to3">App you have now</a>
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a className={key === "2to3" ? "text-white font-semibold" : "underline"} href="/splash-preview?v=2to3">Middle build</a>
       </div>
       {/* A FULL page load, not next/link: the overlay's guard and its clock
           both run at parse, and a client-side navigation would re-mount the

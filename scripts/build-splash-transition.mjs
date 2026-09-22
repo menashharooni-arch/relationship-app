@@ -29,11 +29,19 @@ const V1 = "src/lib/splash/markup.html";
 const V2 = "src/lib/splash/markup-v2.html";
 const V3 = "src/lib/splash/markup-v3.html";
 
-// The master clock is 1400ms. Hold the old screen through the pause that frame
-// 0 already sits in, then cross-fade while the charge builds; the fork starts
-// at 150ms and lands at 300ms, so the strike arrives on the new screen.
-const FADE_START_MS = 110;
-const FADE_END_MS = 320;
+// The master clock is 1400ms, and it starts the moment the native launch image
+// is taken away — so clock 0 is the first frame the person actually sees from
+// us. The old screen is therefore given NO time of its own (owner, 2026-09-22:
+// remove the navy screen with the app icon, keep the new one): the cross-fade
+// begins immediately and is over in 130ms, before the fork starts at 150ms.
+//
+// It cannot be zero. Frame 0 has to BE the launch image compiled into that
+// build, or the mark jumps at the handoff — the one rule none of this may
+// break. A 130ms fade is the shortest that still reads as a change of light
+// rather than a pop, and it is the closest thing to "gone" that is possible
+// without a new App Store build, where the launch image itself is the new one.
+const FADE_START_MS = 0;
+const FADE_END_MS = 130;
 const CLOCK_MS = 1400;
 const pct = (ms) => +((ms / CLOCK_MS) * 100).toFixed(4);
 
@@ -84,8 +92,9 @@ for (const [name, file] of [["v1to3", V1], ["v2to3", V2]]) {
     `  animation:vfk-legacy-out ${CLOCK_MS}ms linear both;\n` +
     `}\n` +
     `@keyframes vfk-legacy-out{\n` +
-    `  0%{ opacity:1 }\n` +
-    `  ${pct(FADE_START_MS)}%{ opacity:1 }   /* ${FADE_START_MS}ms  the hold ends */\n` +
+    `  0%{ opacity:1 }   /* the launch image this build carries */\n` +
+    // Only when the fade is held off for a while; at 0 it would repeat the stop above.
+    (FADE_START_MS > 0 ? `  ${pct(FADE_START_MS)}%{ opacity:1 }   /* ${FADE_START_MS}ms */\n` : "") +
     `  ${pct(FADE_END_MS)}%{ opacity:0 }   /* ${FADE_END_MS}ms  now it is the new screen */\n` +
     `  100%{ opacity:0 }\n` +
     `}\n`;
