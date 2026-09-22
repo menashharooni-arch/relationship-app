@@ -169,29 +169,61 @@ Turn them on in Settings, then open that account's card link (shown on its dashb
 ```
 
 ## Screenshots
-One 6.9-inch iPhone set at 1320 × 2868 px, eight frames, in
-`app-store/screenshots/6.9-inch-v3` (2026-09-06; bigger bleed-off phone,
-status bar and Dynamic Island in the glass, feature kicker, accent phrase in
-each headline) — its README explains the persona, the design choices and how
-to regenerate. Search results show the first three,
-so the story lands there: your card → they save you → every lead in your
-pocket. Upload with `scripts/asc-upload-screenshots.mjs` targeting the
-pending version's localization id; it deletes and recreates the set so the
-listing mirrors the directory exactly.
+One 6.9-inch iPhone set at 1320 × 2868 px, ten frames. Newest is
+`app-store/screenshots/6.9-inch-v5` (2026-09-10; the whole phone in frame at
+real iPhone 16 Pro Max proportions, titanium rail, pop-outs moved to the side
+edges, status-bar colour sampled from the capture instead of typed). Each set's
+README explains the persona, the design choices and how to regenerate. Search
+results show the first three, so the story lands there: your card → they save
+you → every lead in your pocket.
+
+**What is actually on the listing:** the live 1.0.1 shows **v2**; the pending
+1.0.2 holds **v4**. **v5 has never been uploaded.** Never replace a staged set
+without Menash's explicit go.
+
+The pipeline is three steps, and only the last one touches Apple:
+
+1. `node scripts/appstore-capture.mjs` → `app-store/screenshots/_raw`. Drives a
+   real browser through a real login against production, so it needs
+   `SUPABASE_SERVICE_ROLE_KEY` and `NEXT_PUBLIC_SUPABASE_URL` in `.env.local`;
+   it creates a throwaway account, seeds it, and deletes every row in a
+   `finally`. Without the service-role key it cannot run at all.
+2. `node scripts/appstore-compose-v5.mjs` → `6.9-inch-v5` (`ONLY=01,06` for a
+   subset). Re-check the typed pop-out values against the new captures — they
+   are listed in that set's README.
+3. `node scripts/asc-upload-screenshots.mjs <dir>` targeting the pending
+   version's localization id; it deletes and recreates the set so the listing
+   mirrors the directory exactly.
+
+⚠️ OPEN: `appstore-capture.mjs` was retuned on 2026-09-22 (`92a8c3cc`) to shoot
+a lighter card and links page — the Sea Glass preset, teal accent, white info
+panel — because the owner said the frames were too dark and didn't look
+designed. **It has not been re-run.** `_raw` is still the 2026-09-09 capture, so
+v5 and every earlier set still show the old dark card, and no set on disk shows
+the design that script now produces. A listing refresh means steps 1–3 in order,
+on a machine that has the service-role key.
 
 ## Version
-- 1.0.2, build 12. "What's New": `This update is all about accessibility.
+- 1.0.2, build 13. "What's New": `This update is all about accessibility.
   • Larger Text: SwiftCard now follows your iPhone's text size, right up to the
   largest accessibility sizes. • VoiceOver and Voice Control: clearer labels
   and a more predictable reading order throughout. • Better contrast, and
   Reduce Motion is now respected across the app.`
-  (Build 12 is the ACCESSIBILITY build: Dynamic Type in MainViewController's
+  (1.0.2 is the ACCESSIBILITY release: Dynamic Type in MainViewController's
   web view, the VoiceOver/contrast/reduced-motion pass, and the system rating
   prompt. Build 11 predates all of it, so the live 1.0.1 does not scale with
   Larger Text even though the accessibility labels published 2026-09-11 say it
-  does — that gap is what 1.0.2 closes. Staged in App Store Connect with build
-  12 attached; NOT submitted — Menash presses Add for Review. The text above is
-  the source of truth for `scripts/asc-whats-new.mjs`.)
+  does — that gap is what 1.0.2 closes. The "What's New" text above is the
+  source of truth for `scripts/asc-whats-new.mjs`.
+
+  BUILD 13 SUPERSEDES BUILD 12, same version and same release notes: it is
+  build 12 plus the v3 launch screen (the owner's field and mark, with the
+  lightning drawn into it — `scripts/build-splash-v3.mjs`, the launch images in
+  `Splash.imageset`, and `SwiftCardSplash/3` in the user agent so the server
+  serves the matching animation). A launch screen is not a "What's New" line,
+  which is why the copy is unchanged. Upload build 13 and attach THAT one; build
+  12 was staged in App Store Connect and never submitted. NOT submitted either
+  way — Menash presses Add for Review.)
 - 1.0.1, build 11 shipped 2026-09-03 and is live. "What's New": `Push
   notifications now work — get alerted the moment someone views your card or
   saves their details. Also fixes Universal Links and the home-screen widget.`
