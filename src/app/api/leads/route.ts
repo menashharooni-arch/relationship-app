@@ -15,6 +15,7 @@ import { reportError } from "@/lib/report-error";
 export const maxDuration = 60;
 import { clientIp } from "@/lib/client-ip";
 import { notifyVisit } from "@/lib/visit-notify";
+import { announceFirstLeadIfTeammate } from "@/lib/team-alerts";
 import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveGeo } from "@/lib/request-geo";
 import { attachVisitIdentity, resolveVisitIdentity } from "@/lib/visit-identity";
@@ -388,6 +389,10 @@ export async function POST(req: NextRequest) {
           },
         }).catch((e) => reportError("leads.notify", e)),
       );
+      // An Office TEAMMATE's first lead ever → their admins hear about it
+      // (lib/team-alerts). Never each lead after that: those stay with the
+      // teammate, so a busy team cannot flood the admin's phone.
+      after(announceFirstLeadIfTeammate(ownerProfile.id as string, (cardRow?.name as string | null) || (ownerProfile.name as string | null) || null));
     }
 
 

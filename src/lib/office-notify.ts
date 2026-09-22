@@ -7,14 +7,20 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 // admin's own dashboard bell. Two different tables = zero chance of bleed.
 //
 // This inbox is intentionally LOW-NOISE: only team-level events an owner
-// actually needs (someone joined, someone left, an invite was declined). It must
-// NEVER carry small per-lead activity like "a contact was saved" — that belongs
-// on the individual member's personal bell, not the admin team inbox.
+// actually needs. It must NEVER carry small per-lead activity like "a contact
+// was saved" — that belongs on the individual member's personal bell. Rolled-up
+// team news (leads waiting, a first lead, milestones, the weekly recap) comes
+// from lib/team-alerts.ts, which also decides what reaches the admin's phone.
 
 export type OfficeNotificationType =
-  | "member_joined"     // an invited sub-user accepted and is now on the team
-  | "member_left"       // a member left this team (e.g. moved to another office)
-  | "invite_declined";  // an invitee declined the invitation (seat freed)
+  | "member_joined"       // an invited sub-user accepted and is now on the team
+  | "member_left"         // a member left this team (e.g. moved to another office)
+  | "invite_declined"     // an invitee declined the invitation (seat freed)
+  | "invite_expired"      // an invitation ran out unanswered (bell only)
+  | "member_first_lead"   // a teammate captured their first-ever lead
+  | "leads_waiting"       // team leads still New a day after they arrived
+  | "team_milestone"      // the team crossed a round number of views or leads
+  | "team_weekly_recap";  // Monday: the team's week
 
 export type OfficeNotification = {
   id: string;

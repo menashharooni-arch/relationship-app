@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { writePushPrefs } from "@/lib/push-prefs";
 import { PUSH_CATEGORIES, readPushPrefs, type PushCategory } from "@/lib/push-policy";
+import { isTeamAlertRecipient } from "@/lib/team-alerts";
 
 // Per-category push switches, stored on profiles.customization._push.
 //
@@ -20,7 +21,11 @@ export async function GET() {
 
   const admin = getAdminSupabase();
   const { data } = await admin.from("profiles").select("customization").eq("id", user.id).maybeSingle();
-  return NextResponse.json({ prefs: readPushPrefs(data?.customization) });
+  // teamAlerts: whether the "Team alerts" switch means anything for this
+  // person (an Office owner, or a role that sees team analytics). Nobody else
+  // can receive one, so nobody else is shown it.
+  const teamAlerts = await isTeamAlertRecipient(user.id).catch(() => false);
+  return NextResponse.json({ prefs: readPushPrefs(data?.customization), teamAlerts });
 }
 
 export async function PATCH(req: NextRequest) {

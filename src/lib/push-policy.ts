@@ -15,10 +15,21 @@
 //                   — ≤1 per contact per day, ≤5 a day (its own caps, below)
 //   meeting_booked  a meeting was booked from their card
 //   billing_problem a payment failed and access is at risk
+//   weekly_recap    once a week, Monday morning: THEIR OWN week in numbers
+//                   (an Office admin gets their TEAM's week instead)
+//   team_alert      Office admins only: team news worth acting on — leads
+//                   waiting a day, a teammate's first lead, a team milestone,
+//                   someone joining. ≤2 a day, its own cap. NEVER per-member
+//                   views or leads: a 20-person team would bury the admin.
+//
+// THE WEEKLY RECAP IS THE ONE DIGEST (owner, 2026-09-22 — "rethink the whole
+// notification system … weekly only"). It is the person's own numbers, once a
+// week, on its own switch — not a tip, not a promotion. Everything below
+// stays out: marketing, tips, product news, streaks, referral rewards, daily
+// digests, "you're doing great". Those go to the bell and to email.
 //
 // EXPLICITLY NOT: marketing, tips, product news, streaks, referral rewards,
-// digests, "you're doing great" — none of it. Those go to the bell and to
-// email, which the person reads when they choose to.
+// daily digests, "you're doing great" — none of it.
 //
 // A VIEW MILESTONE IS NOT A SIXTH CATEGORY. It still cannot cause a push: no
 // milestone has ever rung a phone and none may. What it now does is retitle the
@@ -52,7 +63,9 @@ export type PushCategory =
   | "card_view"
   | "contact_return"
   | "meeting_booked"
-  | "billing_problem";
+  | "billing_problem"
+  | "weekly_recap"
+  | "team_alert";
 
 export const PUSH_CATEGORIES: PushCategory[] = [
   "new_lead",
@@ -62,6 +75,8 @@ export const PUSH_CATEGORIES: PushCategory[] = [
   "contact_return",
   "meeting_booked",
   "billing_problem",
+  "weekly_recap",
+  "team_alert",
 ];
 
 /**
@@ -80,7 +95,12 @@ export const LIVE_CATEGORIES: PushCategory[] = [
   "card_view",
   "contact_return",
   "billing_problem",
+  "weekly_recap",
+  "team_alert",
 ];
+
+/** Only an Office admin (owner, or a role that sees team analytics) is shown this switch — nobody else can receive it. */
+export const TEAM_ONLY_CATEGORIES: PushCategory[] = ["team_alert"];
 
 /** Copy shown in Settings. The label is what the person is agreeing to receive. */
 export const PUSH_CATEGORY_COPY: Record<PushCategory, { label: string; hint: string }> = {
@@ -94,6 +114,8 @@ export const PUSH_CATEGORY_COPY: Record<PushCategory, { label: string; hint: str
   contact_return: { label: "Returning contacts", hint: "A contact you've met opens your card again" },
   meeting_booked: { label: "Meetings booked", hint: "Someone books time with you from your card" },
   billing_problem: { label: "Billing problems", hint: "A payment failed and your plan is at risk" },
+  weekly_recap: { label: "Weekly recap", hint: "Your week in numbers, once, on Monday morning" },
+  team_alert: { label: "Team alerts", hint: "Leads waiting a day, a teammate's first lead, team milestones — at most two a day" },
   // NOTE: quiet hours apply to this one too — see decidePush().
 };
 
@@ -115,6 +137,8 @@ export const DEFAULT_PUSH_PREFS: Record<PushCategory, boolean> = {
   contact_return: true,
   meeting_booked: true,
   billing_problem: true,
+  weekly_recap: true,
+  team_alert: true,
 };
 
 export const DAILY_CAP = 5;          // excludes UNCAPPED and OWN_CAP categories
@@ -128,7 +152,13 @@ export const DAILY_CAP = 5;          // excludes UNCAPPED and OWN_CAP categories
  * Owner decision D4 (2026-09-18): one push per contact per day, five a day in
  * all. Everything past that still reaches the bell.
  */
-export const OWN_CAP: PushCategory[] = ["contact_return"];
+export const OWN_CAP: PushCategory[] = ["contact_return", "team_alert", "weekly_recap"];
+/**
+ * Team alerts: at most two a day per admin, whatever the team size. A team of
+ * twenty must never mean twenty interruptions (owner, 2026-09-22: "we don't
+ * want their account to get spammed"). Past two, the admin bell still has it.
+ */
+export const TEAM_ALERT_DAILY_CAP = 2;
 export const CONTACT_RETURN_DAILY_CAP = 5;
 export const CONTACT_RETURN_PER_CONTACT_DAILY_CAP = 1;
 export const QUIET_START_HOUR = 22;  // 10pm local
@@ -239,6 +269,8 @@ export type PolicyInput = {
   contactReturnSentToday?: number;
   /** contact_return pushes sent in the last 24h about THIS contact. */
   sameContactSentToday?: number;
+  /** team_alert pushes sent in the last 24h. */
+  teamAlertSentToday?: number;
   /**
    * THE 8AM CATCH-UP, and nothing else. It is one notification a morning,
    * already rationed by its own once-per-12h mark (api/push/catchup) — which it
@@ -266,7 +298,7 @@ export type PushMode = "alert" | "update";
 
 export type PolicyResult =
   | { send: true; mode: PushMode }
-  | { send: false; reason: "category_off" | "quiet_hours" | "daily_cap" | "batched" | "contact_cap" };
+  | { send: false; reason: "category_off" | "quiet_hours" | "daily_cap" | "batched" | "contact_cap" | "team_cap" };
 
 /**
  * The whole decision, pure so every rule is testable without a database.
@@ -328,6 +360,16 @@ export function decidePush(input: PolicyInput): PolicyResult {
     }
     return { send: true, mode: "alert" };
   }
+
+  // Team news for an admin: two a day, apart from their own five.
+  if (category === "team_alert") {
+    if ((input.teamAlertSentToday ?? 0) >= TEAM_ALERT_DAILY_CAP) return { send: false, reason: "team_cap" };
+    return { send: true, mode: "alert" };
+  }
+
+  // Once a week by construction (api/push/recap marks it before sending); it
+  // must not be eaten by a busy Sunday, and must not eat Monday's leads.
+  if (category === "weekly_recap") return { send: true, mode: "alert" };
 
   if (!UNCAPPED.includes(category) && cappedSentToday >= DAILY_CAP) {
     return { send: false, reason: "daily_cap" };

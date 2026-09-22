@@ -35,9 +35,12 @@ describe("the notification preferences panel", () => {
       const page = await render(browser, width);
       try {
         const switches = await page.$$('[role="switch"]');
-        // Six live categories (Returning contacts joined in the warm-lead
-        // work), "Only Hot contacts" under it while it is on, and quiet hours.
-        expect(switches.length).toBe(8);
+        // Seven live categories (Returning contacts joined in the warm-lead
+        // work; Weekly recap 2026-09-22), "Only Hot contacts" under it while it
+        // is on, and quiet hours. "Team alerts" is admins-only and this panel
+        // is not an admin's, so it must NOT be here.
+        expect(switches.length).toBe(9);
+        expect(await page.$('[role="switch"][aria-label="Team alerts"]')).toBeNull();
 
         const viewport = width;
         for (const el of switches) {

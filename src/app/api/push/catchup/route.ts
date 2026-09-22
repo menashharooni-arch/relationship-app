@@ -66,6 +66,11 @@ const RANK: Record<PushCategory, number> = {
   contact_saved: 3,
   card_view: 1,
   meeting_booked: 2,
+  // Never held overnight in practice (the recap goes at 9am, team alerts at
+  // send time or 9am), and neither writes a personal bell row this reads —
+  // listed so the ranking is total.
+  team_alert: 2.5,
+  weekly_recap: 0.5,
 };
 
 function destinationFor(category: PushCategory, cardOwner: string | null): string {

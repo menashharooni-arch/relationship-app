@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  LIVE_CATEGORIES, PUSH_CATEGORY_COPY, DEFAULT_PUSH_PREFS,
+  LIVE_CATEGORIES, PUSH_CATEGORY_COPY, DEFAULT_PUSH_PREFS, TEAM_ONLY_CATEGORIES,
   type PushCategory,
 } from "@/lib/push-policy";
 
@@ -20,13 +20,18 @@ type Prefs = Record<PushCategory, boolean> & { quietHours?: boolean; returningHo
 export default function PushPreferencesForm() {
   const [prefs, setPrefs] = useState<Prefs>({ ...DEFAULT_PUSH_PREFS, quietHours: true });
   const [loaded, setLoaded] = useState(false);
+  const [teamAlerts, setTeamAlerts] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     fetch("/api/push/preferences")
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (alive && j?.prefs) setPrefs(j.prefs); })
+      .then((j) => {
+        if (!alive) return;
+        if (j?.prefs) setPrefs(j.prefs);
+        setTeamAlerts(j?.teamAlerts === true);
+      })
       .catch(() => {})
       .finally(() => { if (alive) setLoaded(true); });
     return () => { alive = false; };
@@ -56,11 +61,11 @@ export default function PushPreferencesForm() {
       <div>
         <p className="text-sm font-semibold" style={{ color: "#0f172a" }}>What we notify you about</p>
         <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>
-          These are the only things SwiftCard will ever send to your phone. No tips, no promotions, no weekly stats.
+          These are the only things SwiftCard will ever send to your phone. Nothing else — no tips, no promotions.
         </p>
       </div>
 
-      {LIVE_CATEGORIES.map((cat) => (
+      {LIVE_CATEGORIES.filter((cat) => teamAlerts || !TEAM_ONLY_CATEGORIES.includes(cat)).map((cat) => (
         <Toggle
           key={cat}
           label={PUSH_CATEGORY_COPY[cat].label}

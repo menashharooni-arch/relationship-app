@@ -60,10 +60,9 @@ export const ADMIN_TOUR_STEPS: TourStep[] = [
     path: TEAM,
     anchor: "admin-team-bell",
     title: "Team notifications",
-    // Deliberately quiet: this inbox carries joins, departures and declined
-    // invitations only. Promising leads and cards-going-live here sent admins
-    // looking for team lead alerts that arrive on their personal bell instead.
-    body: "Changes to your team land here — someone joining, someone leaving, an invitation declined. Leads and card views stay on your own dashboard's bell.",
+    // Team news, rolled up (lib/team-alerts, 2026-09-22) — never each lead or
+    // view a teammate gets; those stay on that teammate's own bell.
+    body: "Your team's news lands here — who joined or left, leads still waiting after a day, a teammate's first lead, team milestones and Monday's recap. The important ones reach your phone too, at most two a day.",
     placement: "bottom",
   },
   // Analytics is one of the console's four tabs. The tour used to walk past it

@@ -5,6 +5,7 @@ import { getOfficeBrand, applyBrandToUserCards, stripBrandFromUserCards } from "
 import { isInviteExpired } from "@/lib/office-invite";
 import { writeAudit } from "@/lib/audit";
 import { notifyOffice, displayLabelFrom } from "@/lib/office-notify";
+import { alertTeam } from "@/lib/team-alerts";
 import { insertNotification } from "@/lib/notify";
 import { NextResponse } from "next/server";
 
@@ -290,11 +291,20 @@ export async function POST(req: Request) {
   // errors so accept is never blocked.
   if (didActivate) {
     const joinerLabel = displayLabelFrom(member.invite_name as string | null, user.email);
-    await notifyOffice(officeId, {
+    // Also to the admins' phones (team_alert, ≤2 a day — lib/team-alerts):
+    // a new person on the team is news an owner wants, and it happens a
+    // handful of times, not twenty times a day.
+    const { count: members } = await admin
+      .from("office_members").select("id", { count: "exact", head: true })
+      .eq("office_id", officeId).eq("status", "active");
+    const teamSize = (members ?? 0) + 1; // + the owner
+    await alertTeam(officeId, {
       type: "member_joined",
       title: `${joinerLabel} joined your team`,
       body: user.email ? `${user.email} accepted their invitation and is now on your team.` : "A new teammate accepted their invitation.",
       meta: { userId: user.id },
+      push: { body: `Their card is live — your team is now ${teamSize}.` },
+      skipPushFor: [user.id],
     });
     for (const r of oldRows ?? []) {
       await notifyOffice(r.office_id as string, {

@@ -52,3 +52,20 @@ jobs:
           # A silent failure here is a notification nobody ever gets, so a bad
           # status fails the run and shows up in the Actions list.
           [ "$code" = "200" ]
+
+      # Same schedule, same secret: the Monday recap and the daily team check
+      # (api/push/recap) decide for themselves whose hour it is, and ledger
+      # everything, so a duplicate or late run sends nothing twice.
+      - name: Monday recaps and the daily team check
+        if: always()
+        env:
+          SECRET: ${{ secrets.PUSH_CATCHUP_SECRET }}
+        run: |
+          body=$(mktemp)
+          code=$(curl -sS --max-time 90 -o "$body" -w "%{http_code}" \
+            -H "Authorization: Bearer $SECRET" \
+            https://swiftcard.me/api/push/recap)
+          echo "HTTP $code"
+          cat "$body"
+          echo
+          [ "$code" = "200" ]

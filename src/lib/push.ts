@@ -93,6 +93,7 @@ export async function sendPushToUser(userId: string, payload: {
   let lastViewUpdateAt: number | null = null;
   let contactReturnSentToday = 0;
   let sameContactSentToday = 0;
+  let teamAlertSentToday = 0;
   // Every view that reached this function since the hour's alert: the alert
   // itself, the silent updates after it, and the ones the update throttle held
   // back. That total is what the running-count banner says, so it must count
@@ -118,6 +119,7 @@ export async function sendPushToUser(userId: string, payload: {
       // something that was suppressed.
       if (outcome === "sent" && !UNCAPPED.includes(cat) && !OWN_CAP.includes(cat)) cappedSentToday++;
       if (outcome === "sent" && cat === "contact_return") contactReturnSentToday++;
+      if (outcome === "sent" && cat === "team_alert") teamAlertSentToday++;
       if (cat !== "card_view") continue;
       if (outcome === "sent" && (!lastViewPushAt || at > lastViewPushAt)) lastViewPushAt = at;
       if (outcome === "rollup" && (!lastViewUpdateAt || at > lastViewUpdateAt)) lastViewUpdateAt = at;
@@ -146,7 +148,7 @@ export async function sendPushToUser(userId: string, payload: {
 
   const verdict = decidePush({
     category: payload.category, prefs, cappedSentToday, lastViewPushAt, lastViewUpdateAt,
-    contactReturnSentToday, sameContactSentToday,
+    contactReturnSentToday, sameContactSentToday, teamAlertSentToday,
     catchup: payload.catchup === true,
   });
   if (!verdict.send) {
