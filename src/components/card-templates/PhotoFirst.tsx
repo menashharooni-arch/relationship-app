@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, DetailsGap, QR_PINNED, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn, nameClass, textWidthFactor, cardFontClass } from "./shared";
+import { cardAspect, ContactRows, DetailsGap, QR_PINNED, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn, nameClass, textWidthFactor, cardFontClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const ACCENT_DEFAULT = "#6d28d9";
@@ -152,8 +152,8 @@ export default function PhotoFirst({ data }: { data: CardData }) {
             is pinned to the bottom by its own auto margin (see DetailsGap). */}
         <DetailsGap f={f} />
         {/* Contact rows — shared block, auto-fits to the amount of info */}
-        <div className="flex flex-col" style={{ gap: Math.round(5 * f) }}>
-          <ContactRows data={data} f={f} scale={contactScale(data)} palette={{ accent: ACCENT, ...rowPal }} />
+        <div className="flex flex-col min-h-0" style={{ gap: Math.round(5 * f), flex: "1 1 0" }}>
+          <ContactRows data={data} palette={{ accent: ACCENT, ...rowPal }} />
           {socials.length > 0 && (
             <div className="flex items-center gap-2.5 mt-0.5">
               {socials.map((s, i) => <span key={i} style={{ color: s.color }}>{s.icon}</span>)}

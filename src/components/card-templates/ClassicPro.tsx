@@ -6,7 +6,7 @@
 import { isDarkBg, panelBackground } from "@/lib/template-style";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass, textWidthFactor, cardFontClass } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass, textWidthFactor, cardFontClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const NAVY = "#0e1b35";
@@ -143,8 +143,8 @@ export default function ClassicPro({ data }: { data: CardData }) {
         style={{ padding: "16px 18px 14px", borderLeft: "1px solid #e8eef8" }}
       >
         {/* Contact rows — shared block, auto-fits to the amount of info */}
-        <div className="mt-0.5">
-          <ContactRows data={data} f={f} scale={contactScale(data)} palette={style.infoColor ? infoPaletteFrom(style.infoColor) : infoInk} />
+        <div className="mt-0.5 flex flex-col min-h-0" style={{ flex: "1 1 0" }}>
+          <ContactRows data={data} palette={style.infoColor ? infoPaletteFrom(style.infoColor) : infoInk} />
         </div>
 
         {/* Social handles (compact, if space) */}

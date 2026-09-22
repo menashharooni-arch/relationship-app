@@ -128,9 +128,20 @@ describe("every text field on a card goes through a fitter", () => {
     expect(src, "phone not fitted — an extension used to run off the card").toMatch(/fitPx\([^)]*formatPhone/);
     // fitGrownPx is fitPx for rows that grow on a sparse card, capped so the
     // growth can never widen the line past the calibrated budget.
-    expect(src, "email not fitted").toMatch(/fit(Grown)?Px\([^)]*data\.email/);
-    expect(src, "website not fitted").toMatch(/fit(Grown)?Px\([^)]*data\.website/);
     expect(src, "fitGrownPx must still be built on fitPx").toMatch(/export function fitGrownPx[\s\S]*?fitPx\(base \* grow/);
+    // Since 2026-09-22 every row is sized in CSS as the smallest of its share of
+    // the block's HEIGHT and what fits ACROSS the block's width — so each row's
+    // size must go through `across(` (width) and `u(` / --sc-u (height).
+    const rows = src.slice(src.indexOf("export function ContactRows"));
+    for (const [name, re] of [
+      ["phone", /const phoneSize = [\s\S]*?var\(--sc-u\)[\s\S]*?across\(ROW_CHROME_PX, phoneBudget/],
+      ["email", /const emailSize = [\s\S]*?u\(rel\.email\)[\s\S]*?across\(24, [^)]*email\.length/],
+      ["website", /const webSize = [\s\S]*?u\(rel\.web\)[\s\S]*?across\(24, [^)]*web\.length/],
+      ["fax", /const faxSize = [\s\S]*?u\(rel\.fax\)[\s\S]*?across\(ROW_CHROME_PX, phoneEm\(formatPhone\(fax\)/],
+      ["address", /const addrSize = [\s\S]*?u\(rel\.addr\)[\s\S]*?across\(22, addrLongest/],
+    ] as const) {
+      expect(rows, `${name} row is not fitted to both the block's width and height`).toMatch(re);
+    }
   });
 
   it("the email and website rows can wrap, because fitting alone cannot save them", () => {

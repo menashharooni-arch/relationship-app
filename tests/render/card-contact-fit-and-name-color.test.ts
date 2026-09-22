@@ -112,15 +112,18 @@ describe("a sparse card's email and website stay on one line", () => {
     }, 60_000);
   }
 
-  it("a DENSE card renders exactly as it always did (fitPx untouched below growth)", async () => {
-    // Same email on a card full enough that nothing grows: the size must be the
-    // plain fitPx size, i.e. byte-for-byte the pre-fix rendering.
+  it("a DENSE card's email is never smaller than it used to be, and stays on one line", async () => {
+    // This used to pin the dense card at exactly its old 13px. The owner asked
+    // for the opposite (2026-09-22: details must use the space they have), so a
+    // busy card now grows its email into its panel too — the guarantee that
+    // matters is that it never goes below the old size and never breaks.
     await render(ModernBold, card({
       email: "aaron@malvecapital.com", website: "malvecapital.com",
       phone: "(415) 555-0188", address: "1200 Ocean Ave\nSan Francisco, CA 94122",
     }));
     const fs = await page.evaluate(() => parseFloat(getComputedStyle([...document.querySelector("a[href^='mailto:']")!.querySelectorAll("span")].pop()!).fontSize));
-    expect(fs).toBeLessThanOrEqual(13.01);
+    expect(fs).toBeGreaterThanOrEqual(12.99);
+    expect(await rowWraps("a[href^='mailto:']")).toBe(false);
   });
 });
 

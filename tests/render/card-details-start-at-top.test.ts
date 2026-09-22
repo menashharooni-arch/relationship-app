@@ -76,8 +76,10 @@ describe("card details start right under the header, on every template", () => {
         const card = document.querySelector(".sc-card") as HTMLElement;
         const cr = card.getBoundingClientRect();
         // The details block: ContactRows' own container (it sets container-type).
-        const block = Array.from(card.querySelectorAll<HTMLElement>("div"))
-          .find((d) => d.style.containerType === "inline-size" && d.classList.contains("flex-col")) as HTMLElement;
+        // The rows themselves: the block's size container stretches to the QR
+        // by design (it is the room the rows may grow into), so where the
+        // details START is the top of the rows inside it.
+        const block = card.querySelector("[data-contact-block] > div") as HTMLElement;
         const top = block.getBoundingClientRect().top;
 
         const inFlow = (el: Element) => {

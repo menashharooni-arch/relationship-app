@@ -11,7 +11,7 @@ import LocalBusiness from "@/components/card-templates/LocalBusiness";
 import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
 import type { CardData } from "@/components/card-templates/types";
-import { contactScale, contactRowCount } from "@/components/card-templates/shared";
+import { detailLineBudget } from "@/components/card-templates/shared";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -268,47 +268,52 @@ describe("card details fit, never collide, and grow into spare room", () => {
     for (const [tname, Template] of TEMPLATES) {
       const f = await probe(Template, full, 460);
       const s = await probe(Template, sparse, 460);
-      expect(s.emailPx, `${tname}: a sparse card must not render smaller than a full one`).toBeGreaterThan(f.emailPx);
+      // The email is the same address on both, and on both it now reaches the
+      // edge of its panel — a full card no longer shrinks it. The rows that are
+      // bound by HEIGHT, not width, are where spare room must show.
+      expect(s.emailPx, `${tname}: a sparse card must not render smaller than a full one`).toBeGreaterThanOrEqual(f.emailPx);
+      expect(s.addressPx, `${tname}: the sparse card's address must take its spare room`).toBeGreaterThan(f.addressPx);
     }
   }, 180_000);
 
   it("a card with one detail uses noticeably more of the space than a busy one", async () => {
-    const one = SCENARIOS.find(([n]) => n === "email only")![1];
+    const one = SCENARIOS.find(([n]) => n === "phone only")![1];
     const busy = SCENARIOS.find(([n]) => n === "everything at once")![1];
     for (const [tname, Template] of TEMPLATES) {
       const a = await probe(Template, one, 460);
       const b = await probe(Template, busy, 460);
-      expect(a.emailPx / b.emailPx, `${tname} one-detail vs busy`).toBeGreaterThan(1.25);
+      expect(a.phonePx / b.phonePx, `${tname} one-detail vs busy`).toBeGreaterThan(1.25);
     }
   }, 180_000);
 
   // ── The policy itself, without a browser ────────────────────────────────
-  it("only grows where the measurement said there was room", () => {
-    // Calibrated ceilings (min across all six templates, measured at 460px):
-    //   1.0 rows -> 2.34x   2.9 -> 1.59x   4.9 -> 1.19x   6.9 -> 1.07x
-    // The curve must stay under those and reach exactly 1 for a full card.
-    expect(contactScale({ ...BASE, phone: "", website: "" })).toBeGreaterThan(1.3);
-    expect(contactScale(BASE)).toBeGreaterThan(1.1);
-    expect(contactScale(BASE)).toBeLessThan(1.59 * 0.85);
-
-    const busy = SCENARIOS.find(([n]) => n === "everything at once")![1];
-    expect(contactRowCount(busy)).toBeGreaterThan(4.5);
-    // A full card keeps today's rendering exactly — all the growth happens
-    // where there is room, and nowhere else.
-    expect(contactScale(busy)).toBe(1);
+  it("budgets the height of every row it will draw", () => {
+    // 100cqh ÷ this budget is the largest lead size at which the block fits,
+    // so every row that renders must add to it — a row missing from the budget
+    // is a row the block will grow straight past the QR to make room for.
+    const none = detailLineBudget({ ...BASE, phone: "", email: "", website: "" });
+    const one = detailLineBudget({ ...BASE, email: "", website: "" });
+    const three = detailLineBudget(BASE);
+    const withAddr = detailLineBudget({ ...BASE, address: "1200 Ocean Ave\nSan Francisco, CA 94122" });
+    const withFax = detailLineBudget({ ...BASE, customization: { fax: "(415) 555-0100" } });
+    const longEmail = detailLineBudget({ ...BASE, email: "bartholomew.fitzgerald-montgomery@northwind-commercial-advisors.com" });
+    expect(none).toBe(1);
+    expect(three).toBeGreaterThan(one);
+    expect(withAddr).toBeGreaterThan(three);
+    expect(withFax).toBeGreaterThan(three);
+    // A long email wraps, so it is budgeted as two lines, not one.
+    expect(longEmail).toBeGreaterThan(three);
   });
 
   it("reaches every template, and every place a card is rendered", () => {
-    // The sizing lives inside ContactRows, so it follows the component
-    // wherever it goes — but only if the template actually passes it. A
-    // template that renders <ContactRows f={f}> and forgets the scale keeps
-    // the old cramped rendering with nothing to show for it, and no test
-    // downstream would notice, because the card still fits.
+    // The sizing lives inside ContactRows, but it sizes to the box its
+    // template gives it — so every template must render it as a flex item that
+    // takes the column's leftover height (card-detail-fill measures that).
     const dir = "src/components/card-templates";
     for (const file of ["ClassicPro", "ModernBold", "PhotoFirst", "LocalBusiness", "LuxuryMinimal", "LogoFirst"]) {
       const src = readFileSync(join(process.cwd(), `${dir}/${file}.tsx`), "utf8");
       expect(src, `${file} must render ContactRows`).toContain("<ContactRows");
-      expect(src, `${file} must pass the contact scale`).toContain("scale={contactScale(data)}");
+      expect(src, `${file} still passes the retired contact scale`).not.toMatch(/contactScale|scale={/);
     }
 
     // …and the public card page — the link people actually share — must route
@@ -325,7 +330,12 @@ describe("card details fit, never collide, and grow into spare room", () => {
     expect(registry).toContain('"custom"');
   });
 
-  it("never grows without bound, whatever the data", () => {
-    expect(contactScale({ ...BASE, phone: "", email: "", website: "", title: "", company: "" })).toBeLessThanOrEqual(1.35);
-  });
+  it("never grows without bound, whatever the data", async () => {
+    // A lone phone number stops at the design ceiling (DETAIL_MAX_PX) — the
+    // same size as the person's name — however much room its panel has.
+    const one = SCENARIOS.find(([n]) => n === "phone only")![1];
+    for (const [tname, Template] of TEMPLATES) {
+      expect((await probe(Template, one, 460)).phonePx, tname).toBeLessThanOrEqual(24.01);
+    }
+  }, 180_000);
 });

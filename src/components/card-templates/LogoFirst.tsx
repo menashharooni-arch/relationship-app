@@ -10,7 +10,7 @@ import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
 import { cardLogoShape,
-  cardAspect, ContactRows, contactScale, fitFactor, fitName, fitTitle, fitTitleFluid, titleBox, fitCompany, heroGrow,
+  cardAspect, ContactRows, fitFactor, fitName, fitTitle, fitTitleFluid, titleBox, fitCompany, heroGrow,
   qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom,
   DetailsGap, QR_PINNED, textWidthFactor, cardFontClass } from "./shared";
 import PanelVideo from "./PanelVideo";
@@ -371,8 +371,8 @@ export default function LogoFirst({ data }: { data: CardData }) {
         </div>
 
         <DetailsGap f={f} />
-        <div className="min-w-0">
-          <ContactRows data={data} f={f} scale={contactScale(data)} palette={{ accent, ...infoPal, phoneWeight: 700 }} />
+        <div className="min-w-0 flex flex-col min-h-0" style={{ flex: "1 1 0" }}>
+          <ContactRows data={data} palette={{ accent, ...infoPal, phoneWeight: 700 }} />
         </div>
 
         {/* Same shape, size and corner as every other template's QR: its own

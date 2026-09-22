@@ -7,7 +7,7 @@ import { isDarkBg, panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, DetailsGap, contactScale, fitFactor, fitCompany, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, nameClass, textWidthFactor, cardFontClass } from "./shared";
+import { cardAspect, ContactRows, DetailsGap, fitFactor, fitCompany, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, nameClass, textWidthFactor, cardFontClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const AMBER_DEFAULT  = "#b45309";
@@ -154,7 +154,7 @@ export default function LocalBusiness({ data }: { data: CardData }) {
 
           <DetailsGap f={f} />
           {/* Contact rows — shared block (address included), auto-fits to the amount of info */}
-          <ContactRows data={data} f={f} scale={contactScale(data)} palette={style.infoColor ? { accent: AMBER, ...infoPaletteFrom(style.infoColor) } : { accent: AMBER, ...bodyInk }} />
+          <ContactRows data={data} palette={style.infoColor ? { accent: AMBER, ...infoPaletteFrom(style.infoColor) } : { accent: AMBER, ...bodyInk }} />
         </div>
 
         {/* Right: QR — always on the card; gives up a little room when dense */}

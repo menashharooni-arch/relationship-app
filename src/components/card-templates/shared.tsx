@@ -101,39 +101,6 @@ export function fitFactor(data: CardData): number {
   return Math.max(0.7, 1 - (rows - 4) * 0.075);
 }
 
-/**
- * How much the CONTACT BLOCK grows beyond the card-wide density factor.
- *
- * `fitFactor` has to serve the logo, the QR and the hero text as well, so it
- * stays conservative — it tops out at 1.18 and only reaches that on a card with
- * two rows or fewer. The result was the complaint that started this: a card
- * carrying just an email, a website and an address rendered its details at
- * roughly the size a full card uses, with a third of the panel empty under
- * them (owner, 2026-09-10 — "it looks very small... there is more space for
- * that to take up").
- *
- * CALIBRATED, NOT GUESSED. Every template was rendered at 460px across nine
- * content scenarios and the contact text swept upward until something crossed
- * the card's edge, giving the real ceiling for each. The tightest template at
- * each load (min across all six):
- *
- *     rows  1.0  →  2.34x     rows  3.3  →  1.53x
- *     rows  2.0  →  1.60x     rows  4.9  →  1.19x
- *     rows  2.9  →  1.59x     rows  6.9  →  1.07x
- *
- * This curve stays at or under ~80% of that ceiling everywhere, and returns
- * exactly 1 from 4.5 rows up — a full card keeps today's rendering byte for
- * byte, so all the growth happens where there is measured room for it and
- * nowhere else. tests/render/card-overflow.test.ts holds both halves: nothing
- * clips, and a sparse card must actually be bigger than a full one.
- */
-const CONTACT_COMFY_ROWS = 4.5;
-
-export function contactScale(data: CardData): number {
-  const rows = contactRowCount(data);
-  return Math.min(1.35, Math.max(1, 1 + (CONTACT_COMFY_ROWS - rows) * 0.11));
-}
-
 // Cap used for HERO text (names/companies) — they grow with sparseness but a
 // touch less than rows so the layout stays balanced.
 /**
@@ -799,53 +766,136 @@ export type RowPalette = {
   phoneWeight?: number; // default 700; refined templates can use 600
 };
 
-export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; palette: RowPalette; f: number; scale?: number }) {
+// ── The details block fills the space it is given ────────────────────────────
+//
+// Owner, 2026-09-22: "card detail information … has to fit the space and
+// maximize it as much as it could without cutting anything out … utilize all
+// the space without words shifting, anything being cut off the card, anything
+// overlapping anything else, or anything cut off by the QR."
+//
+// The block used to size itself from a guess: a row COUNT fed a growth curve
+// (contactScale) that had to be safe for the tightest template and the busiest
+// header, so it stopped growing at 4.5 rows. Measured on a fresh card — phone,
+// email, website and an address — the phone was 14.5px on every template while
+// 18–25px fitted; the real ceiling at a given row count varied 2x with the mix
+// of rows and what sat above them, which no single curve can know.
+//
+// Now each template hands the block the space it actually has (a flex item
+// that takes whatever the header and the QR leave), and the block is a CSS size
+// container. Every row is sized in CSS as the smallest of three things:
+//
+//   1. its share of the block's HEIGHT (100cqh ÷ the rows' line budget, below)
+//   2. what fits its own line across the block's WIDTH (100cqw ÷ measured ems)
+//   3. the design ceiling, DETAIL_MAX_PX, so a lone phone is not a billboard
+//
+// Resolved by the browser at layout time — no measuring script, so nothing
+// jumps after load, and it is exact for every template, typeface and content
+// mix instead of calibrated for the worst one. Each row is also capped just
+// under the row above it (phone ≥ email > website/address), which is how the
+// hierarchy holds when one row is held back by its width.
+// tests/render/card-fit-sweep.test.ts proves nothing clips or overlaps, and
+// tests/render/card-detail-fill.test.ts proves the block actually fills.
+
+/** The phone number on the roomiest card. Name-sized, not headline-sized. */
+const DETAIL_MAX_PX = 24;
+/** Line height every row is laid out at, so the height budget is exact. */
+const ROW_LH = 1.25;
+const ADDR_LH = 1.3;
+/** Space between rows, as a share of the phone size. */
+const ROW_GAP_U = 0.3;
+/** Each row's size relative to the phone's — the block's type hierarchy. */
+const REL = { email: 0.86, web: 0.74, fax: 0.76, addr: 0.72 } as const;
+/** Past these lengths a value is expected to wrap onto a second line. */
+const EMAIL_WRAP_CHARS = 32;
+const WEB_WRAP_CHARS = 36;
+const ADDR_LINE_CHARS = 38;
+
+/**
+ * Each present row's size relative to the LEADING row on this card.
+ *
+ * The shares in REL order rows against each other; they are not a ceiling on a
+ * row that has nothing above it. A card carrying only a website would otherwise
+ * stop at 0.74 of the phone size it does not have — the same "looks small" with
+ * most of the panel empty.
+ */
+export function detailShares(data: CardData) {
+  const phones = cardPhones(data).length;
+  const email = !!(data.email ?? "").trim();
+  const web = !!(data.website ?? "").trim();
+  const fax = !!cardFax(data);
+  const addr = !!(data.address ?? "").trim();
+  const lead = phones ? 1 : Math.max(email ? REL.email : 0, web ? REL.web : 0, fax ? REL.fax : 0, addr ? REL.addr : 0, 0.01);
+  const k = 1 / lead;
+  return { email: REL.email * k, web: REL.web * k, fax: REL.fax * k, addr: REL.addr * k };
+}
+
+/**
+ * The block's height in LEAD-ROW units: the sum of every row's line box at its
+ * share of the leading row's size, plus the gaps between rows. 100cqh divided
+ * by this is the largest lead size at which the whole block still fits.
+ */
+export function detailLineBudget(data: CardData): number {
+  const phones = cardPhones(data).length;
+  const email = (data.email ?? "").trim();
+  const web = (data.website ?? "").trim();
+  const fax = cardFax(data);
+  const addrLines = (data.address ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const addrRows = addrLines.reduce((n, l) => n + Math.max(1, Math.ceil(l.length / ADDR_LINE_CHARS)), 0);
+  const rows = phones + (email ? 1 : 0) + (web ? 1 : 0) + (fax ? 1 : 0) + (addrLines.length ? 1 : 0);
+  if (!rows) return 1;
+  const rel = detailShares(data);
+  return (
+    phones * ROW_LH +
+    (email ? rel.email * ROW_LH * (email.length > EMAIL_WRAP_CHARS ? 2 : 1) : 0) +
+    (web ? rel.web * ROW_LH * (web.length > WEB_WRAP_CHARS ? 2 : 1) : 0) +
+    (fax ? rel.fax * ROW_LH : 0) +
+    rel.addr * ADDR_LH * addrRows +
+    (rows - 1) * ROW_GAP_U
+  );
+}
+
+export function ContactRows({ data, palette }: { data: CardData; palette: RowPalette }) {
   const ic = (rowColor: string) => ({ color: palette.accent ?? rowColor });
-  // `f` is the card-wide density factor, shared with the logo, QR and hero text.
-  // `scale` is the contact block's OWN growth, so detail text can take up the
-  // room a sparse card leaves without also inflating the logo and the QR.
-  const s = f * scale;
-  const gap = Math.round(5 * s);
-  // Email/website grow a bit less than the rest (capped at 1.1) and shrink on a
-  // tighter budget — sized for the narrowest contact panel (ModernBold) so a
-  // grown email can never poke past the card edge.
-  const rowGrow = Math.min(s, 1.1 * scale);
   const phones = cardPhones(data);
+  const fax = cardFax(data);
   const fontClass = cardFontClass(data);
+  // Average advance per character for the email/website/address rows: serif and
+  // monospace faces run wider than the default sans, and under-estimating them
+  // wrapped short emails mid-address.
+  const perChar = fontClass === "mono" ? 0.68 : fontClass === "serif" ? 0.63 : 0.58;
+
+  // The phone size the block's HEIGHT allows (1 above), capped by design (3).
+  // `--sc-u` is resolved where it is USED, so 100cqh is always this block's
+  // height: the root below is the nearest size container for every row.
+  const unit = `min(${DETAIL_MAX_PX}px, calc((100cqh - 2px) / ${detailLineBudget(data).toFixed(3)}))`;
+  const rel = detailShares(data);
+  const u = (k: number) => `calc(${k} * var(--sc-u))`;
+  /** What fits one line across the block (2): chrome px, then ems of text. */
+  const across = (chromePx: number, ems: number) => `calc((100cqw - ${chromePx}px) / ${Math.max(0.1, ems).toFixed(2)})`;
+
   // Em budget for one phone row: the number, plus the label at its fixed share
   // of the number's size, plus the gap between them. See PHONE_W above for why
   // this is measured per typeface rather than counted in characters.
   const phoneBudget = (p: ShownPhone) =>
     phoneEm(formatPhone(p.number), fontClass)
     + (p.label ? phoneLabelEm(p.label, fontClass, 0.05) * PHONE_LABEL_RATIO + PHONE_LABEL_GAP_EM : 0);
-  const phoneSizeCss = (p: ShownPhone) =>
-    `clamp(${PHONE_FLOOR_PX}px, calc((100cqw - ${ROW_CHROME_PX}px) / ${phoneBudget(p).toFixed(2)}), ${(14.5 * s).toFixed(2)}px)`;
-  // EMAIL and WEBSITE are sized from the contact panel's actual width (a CSS
-  // container query), not a character budget. The budget had to assume the
-  // narrowest panel, so on a sparse card the email stayed ~12px beside a 20px
-  // phone, and a long address shrank to ~4px on a busy one (owner, 2026-09-17:
-  // phone and email should both read larger). Each is as large as its panel
-  // allows on one line, capped just under the phone, and never below a readable
-  // floor — past the floor it wraps instead of shrinking into a smudge.
-  const fluid = (text: string | null | undefined, maxCss: string, minPx: number, emPerChar: number) => {
-    const len = Math.max(1, (text ?? "").trim().length);
-    return `clamp(${minPx}px, calc((100cqw - 24px) / ${(len * emPerChar).toFixed(2)}), ${maxCss})`;
-  };
-  // The email is capped just UNDER the phone, which is how the type hierarchy
-  // (phone ≥ email > website > address) is held. The phone is no longer a
-  // number this code knows — it resolves against the panel at paint time — so
-  // the cap has to be expressed in CSS and reference that same expression,
-  // rather than a px value computed here that the phone may never reach. Get
-  // this wrong and a constrained phone renders SMALLER than the email beside
-  // it, which card-detail-fit asserts against.
-  const emailMax = `max(${fitGrownPx(13, rowGrow, data.email, 22).toFixed(2)}px, calc(0.86 * ${
-    phones.length ? phoneSizeCss(phones[0]) : `${(14.5 * s).toFixed(2)}px`
-  }))`;
-  // Average advance per character: serif and monospace faces run wider than the
-  // default sans, and under-estimating them wrapped short emails mid-address.
-  const perChar = fontClass === "mono" ? 0.68 : fontClass === "serif" ? 0.63 : 0.58;
-  const emailSize = fluid(data.email, emailMax, 10, perChar);
-  const webSize = fluid(data.website, `max(${fitGrownPx(11.5, rowGrow, data.website, 24).toFixed(2)}px, calc(0.84 * ${emailMax}))`, 9.5, perChar * 0.96);
+  // Below the floor the LABEL wraps under the number rather than being cut.
+  const phoneSize = (p: ShownPhone) =>
+    `max(${PHONE_FLOOR_PX}px, min(var(--sc-u), ${across(ROW_CHROME_PX, phoneBudget(p))}))`;
+  // Each row is capped just under the one above it, in CSS, because the row
+  // above resolves at paint time and may be held back by its own width.
+  const under = (v: string) => `calc(0.92 * var(${v}))`;
+  const email = (data.email ?? "").trim();
+  const web = (data.website ?? "").trim();
+  const emailSize = `max(10px, min(${u(rel.email)}, ${across(24, Math.min(email.length, 60) * perChar)}${phones.length ? ", var(--sc-p)" : ""}))`;
+  const webSize = `max(9.5px, min(${u(rel.web)}, ${across(24, Math.min(web.length, 60) * perChar * 0.96)}${
+    email ? `, ${under("--sc-e")}` : phones.length ? `, ${under("--sc-p")}` : ""}))`;
+  const faxSize = `max(8.5px, min(${u(rel.fax)}, ${across(ROW_CHROME_PX, phoneEm(formatPhone(fax), fontClass) + 2.2)}${
+    phones.length ? `, ${under("--sc-p")}` : ""}))`;
+  const addrLongest = Math.min(ADDR_LINE_CHARS,
+    Math.max(1, ...(data.address ?? "").split("\n").map((l) => l.trim().length)));
+  const addrSize = `max(8.5px, min(${u(rel.addr)}, ${across(22, addrLongest * perChar * 0.95)}${
+    email ? `, ${under("--sc-e")}` : ""}${phones.length ? `, ${under("--sc-p")}` : ""}))`;
 
   // Every row is a flex child, so it needs min-w-0 to be allowed to shrink below
   // its content width. Without it a flex item's automatic minimum size is its
@@ -858,63 +908,73 @@ export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; p
   // normal wrapping has nowhere to break and the text just leaves the card.
   const wrapLong: React.CSSProperties = { overflowWrap: "anywhere", minWidth: 0 };
 
+  const vars = {
+    "--sc-u": unit,
+    ...(phones.length ? { "--sc-p": phoneSize(phones[0]) } : {}),
+    ...(email ? { "--sc-e": emailSize } : {}),
+  } as React.CSSProperties;
+
   return (
-    // container-type makes 100cqw the contact panel's own width (see fluid above).
-    <div className="flex flex-col" style={{ gap, containerType: "inline-size" }}>
-      {phones.map((p, i) => (
-        <a key={`ph${i}`} href={`tel:${p.number.replace(/[^\d+]/g, "")}`} className={row} style={{ color: palette.strong, textDecoration: "none" }}>
-          <span className="shrink-0" style={ic(palette.strong)}><IcoPhone /></span>
-          {/* The number and its label are budgeted TOGETHER against the panel's
-              real width (phoneSizeCss above). Sizing the number alone by a
-              character count is what put "MOBILE" off the edge of the card. */}
-          <span
-            style={{
-              fontSize: phoneSizeCss(p),
-              fontWeight: palette.phoneWeight ?? 700,
-              // Wrapping is the safety valve, not the normal case: past the
-              // floor the LABEL drops under the number rather than being cut.
-              display: "flex", flexWrap: "wrap", alignItems: "baseline",
-              columnGap: `${PHONE_LABEL_GAP_EM}em`, minWidth: 0,
-            }}
-          >
-            <span style={{ whiteSpace: "nowrap" }}>{formatPhone(p.number)}</span>
-            {p.label && (
-              // `em`, so the label tracks the number instead of sitting at a
-              // fixed 9·s px while the number shrank away from underneath it.
-              <span style={{ fontWeight: 400, opacity: 0.5, fontSize: `${PHONE_LABEL_RATIO}em`, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{p.label}</span>
-            )}
-          </span>
-        </a>
-      ))}
-      {/* Email + website: fitted so they normally sit on one line, and allowed to
-          wrap when they're past what fitting can absorb (see fitPx's floor). */}
-      {data.email && (
-        <a href={`mailto:${data.email}`} className={row} style={{ color: palette.mid, textDecoration: "none" }}>
-          <span className="shrink-0" style={ic(palette.mid)}><IcoMail /></span>
-          <span style={{ fontSize: emailSize, fontWeight: 600, ...wrapLong }}>{data.email}</span>
-        </a>
-      )}
-      {data.website && (
-        <a href={webHref(data.website)} target="_blank" rel="noopener noreferrer" className={row} style={{ color: palette.soft, textDecoration: "none" }}>
-          <span className="shrink-0" style={ic(palette.soft)}><IcoGlobe /></span>
-          <span style={{ fontSize: webSize, fontWeight: 500, ...wrapLong }}>{data.website}</span>
-        </a>
-      )}
-      {cardFax(data) && (
-        <div className="flex items-center gap-2" style={{ color: palette.soft }}>
-          <span className="shrink-0" style={ic(palette.soft)}><IcoPhone /></span>
-          <span style={{ fontSize: Math.max(8.5, 11 * s), fontWeight: 500 }}>
-            {formatPhone(cardFax(data))}
-            <span style={{ opacity: 0.6, marginLeft: 5, fontSize: 8.5 * s, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
-          </span>
-        </div>
-      )}
-      {data.address && (
-        <div className="flex items-start gap-2" style={{ color: palette.muted }}>
-          <span className="shrink-0" style={{ ...ic(palette.muted), marginTop: 1 }}><IcoPin /></span>
-          <span style={{ fontSize: Math.max(8.5, 10.5 * s), lineHeight: 1.3, whiteSpace: "pre-line" }}>{data.address}</span>
-        </div>
-      )}
+    // The size container: it takes the height its template leaves it (flex
+    // 1 1 0 — never its content's height, which size containment ignores) and
+    // the column's width. 100cqh / 100cqw inside are exactly that box.
+    <div data-contact-block style={{ flex: "1 1 0", minHeight: 0, minWidth: 0, alignSelf: "stretch", containerType: "size" }}>
+      <div className="flex flex-col" style={{ ...vars, gap: u(ROW_GAP_U), lineHeight: ROW_LH }}>
+        {phones.map((p, i) => (
+          <a key={`ph${i}`} href={`tel:${p.number.replace(/[^\d+]/g, "")}`} className={row} style={{ color: palette.strong, textDecoration: "none" }}>
+            <span className="shrink-0" style={ic(palette.strong)}><IcoPhone /></span>
+            {/* The number and its label are budgeted TOGETHER against the panel's
+                real width (phoneBudget above). Sizing the number alone by a
+                character count is what put "MOBILE" off the edge of the card. */}
+            <span
+              style={{
+                fontSize: i === 0 ? "var(--sc-p)" : phoneSize(p),
+                fontWeight: palette.phoneWeight ?? 700,
+                // Wrapping is the safety valve, not the normal case: past the
+                // floor the LABEL drops under the number rather than being cut.
+                display: "flex", flexWrap: "wrap", alignItems: "baseline",
+                columnGap: `${PHONE_LABEL_GAP_EM}em`, minWidth: 0,
+              }}
+            >
+              <span style={{ whiteSpace: "nowrap" }}>{formatPhone(p.number)}</span>
+              {p.label && (
+                // `em`, so the label tracks the number instead of sitting at a
+                // fixed size while the number changed underneath it.
+                <span style={{ fontWeight: 400, opacity: 0.5, fontSize: `${PHONE_LABEL_RATIO}em`, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{p.label}</span>
+              )}
+            </span>
+          </a>
+        ))}
+        {/* Email + website: sized so they normally sit on one line, and allowed
+            to wrap when they're past what the floor can hold. */}
+        {email && (
+          <a href={`mailto:${data.email}`} className={row} style={{ color: palette.mid, textDecoration: "none" }}>
+            <span className="shrink-0" style={ic(palette.mid)}><IcoMail /></span>
+            <span style={{ fontSize: "var(--sc-e)", fontWeight: 600, ...wrapLong }}>{data.email}</span>
+          </a>
+        )}
+        {web && (
+          <a href={webHref(data.website ?? "")} target="_blank" rel="noopener noreferrer" className={row} style={{ color: palette.soft, textDecoration: "none" }}>
+            <span className="shrink-0" style={ic(palette.soft)}><IcoGlobe /></span>
+            <span style={{ fontSize: webSize, fontWeight: 500, ...wrapLong }}>{data.website}</span>
+          </a>
+        )}
+        {fax && (
+          <div className="flex items-center gap-2" style={{ color: palette.soft }}>
+            <span className="shrink-0" style={ic(palette.soft)}><IcoPhone /></span>
+            <span style={{ fontSize: faxSize, fontWeight: 500, whiteSpace: "nowrap" }}>
+              {formatPhone(fax)}
+              <span style={{ opacity: 0.6, marginLeft: "0.45em", fontSize: "0.77em", textTransform: "uppercase", letterSpacing: "0.05em" }}>Fax</span>
+            </span>
+          </div>
+        )}
+        {data.address && (
+          <div className="flex items-start gap-2" style={{ color: palette.muted }}>
+            <span className="shrink-0" style={{ ...ic(palette.muted), marginTop: 1 }}><IcoPin /></span>
+            <span style={{ fontSize: addrSize, lineHeight: ADDR_LH, whiteSpace: "pre-line", ...wrapLong }}>{data.address}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

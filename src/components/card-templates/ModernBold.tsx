@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass, textWidthFactor, cardFontClass } from "./shared";
+import { cardAspect, ContactRows, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass, textWidthFactor, cardFontClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const BG           = "#070d1c";
@@ -143,8 +143,8 @@ export default function ModernBold({ data }: { data: CardData }) {
         style={{ padding: "16px 18px 14px", color: "#94a3b8" }}
       >
         {/* Contact rows — shared block, auto-fits to the amount of info */}
-        <div className="mt-1">
-          <ContactRows data={data} f={f} scale={contactScale(data)} palette={{ accent: BLUE, ...infoPal }} />
+        <div className="mt-1 flex flex-col min-h-0" style={{ flex: "1 1 0" }}>
+          <ContactRows data={data} palette={{ accent: BLUE, ...infoPal }} />
         </div>
 
         {/* QR + label — always on the card; gives up a little room when dense */}
