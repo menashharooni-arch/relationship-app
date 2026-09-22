@@ -6,7 +6,7 @@
 import { isDarkBg, panelBackground } from "@/lib/template-style";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass, textWidthFactor, cardFontClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const NAVY = "#0e1b35";
@@ -32,8 +32,9 @@ export default function ClassicPro({ data }: { data: CardData }) {
   const { logoMaxPct, companyPx } = splitLogoRow({
     row: 152, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.48, minLogo: 46,
     company: data.company, targetPx: 11, trackingEm: 0.03, uppercase: false,
+    widthFactor: textWidthFactor(cardFontClass(data), false),
   });
-  const companyFit = fitCompany(13.5, data.company, 18, companyPx, 0.03, false, f);
+  const companyFit = fitCompany(13.5, data.company, 18, companyPx, 0.03, false, f, textWidthFactor(cardFontClass(data), false));
   const socials = [
     data.linkedin  && { icon: <IcoLinkedIn />, handle: data.linkedin, color: "#60a5fa" },
     data.instagram && { icon: <IcoInsta />,    handle: data.instagram, color: "#c084fc" },

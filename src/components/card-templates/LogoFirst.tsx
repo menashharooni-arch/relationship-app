@@ -12,8 +12,7 @@ import type { CardData } from "./types";
 import { cardLogoShape,
   cardAspect, ContactRows, contactScale, fitFactor, fitName, fitTitle, fitTitleFluid, titleBox, fitCompany, heroGrow,
   qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom,
-  DetailsGap, QR_PINNED,
-} from "./shared";
+  DetailsGap, QR_PINNED, textWidthFactor, cardFontClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const NAVY   = "#2C3A52";
@@ -147,7 +146,7 @@ export default function LogoFirst({ data }: { data: CardData }) {
   // 5.1px — a 55-character company name rendered present and unreadable. The
   // line is `truncate`, so past the floor it ends in an ellipsis instead, which
   // says "there is more of this" rather than pretending to show all of it.
-  const rawCompanyFit = fitCompany(11, data.company, 26, 210, 0, false, f);
+  const rawCompanyFit = fitCompany(11, data.company, 26, 210, 0, false, f, textWidthFactor(cardFontClass(data), false));
   const companyFit = { ...rawCompanyFit, fontSize: Math.max(6.5, rawCompanyFit.fontSize) };
 
   // The tile's edge. It is the only thing separating a logo whose own background
@@ -353,8 +352,15 @@ export default function LogoFirst({ data }: { data: CardData }) {
             </p>
           ) : null}
 
+          {/* NOT `truncate`. This was the one company name on any template that
+              could be hard-cut: `truncate` hides the overflow, so when
+              fitCompany under-measured the face — Courier New runs 24% wider
+              than the Arial tables it sizes from — the name lost its last words
+              to an ellipsis instead of wrapping. Every other template wraps,
+              fitCompany already sizes for two lines, and the width factor now
+              makes the estimate right in the first place. */}
           {data.company ? (
-            <p className="mt-1 min-w-0 truncate" style={{ ...companyFit, color: infoPal.soft, fontWeight: 400 }}>
+            <p className="mt-1 min-w-0" style={{ ...companyFit, color: infoPal.soft, fontWeight: 400, overflowWrap: "anywhere" }}>
               {data.company}
             </p>
           ) : null}

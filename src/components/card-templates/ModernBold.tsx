@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass } from "./shared";
+import { cardAspect, ContactRows, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoLinkedIn, IcoInsta, IcoX, IcoTikTok, nameClass, textWidthFactor, cardFontClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const BG           = "#070d1c";
@@ -34,8 +34,9 @@ export default function ModernBold({ data }: { data: CardData }) {
   const { logoMaxPct, companyPx } = splitLogoRow({
     row: 170.4, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.48, minLogo: 46,
     company: data.company, targetPx: 10, trackingEm: 0.16, uppercase: true,
+    widthFactor: textWidthFactor(cardFontClass(data), true),
   });
-  const companyFit = fitCompany(12, data.company, 18, companyPx, 0.16, true, f);
+  const companyFit = fitCompany(12, data.company, 18, companyPx, 0.16, true, f, textWidthFactor(cardFontClass(data), true));
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#a78bfa" },
     data.twitter   && { icon: <IcoX />,        color: "#94a3b8" },

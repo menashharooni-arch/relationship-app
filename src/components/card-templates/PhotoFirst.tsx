@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, DetailsGap, QR_PINNED, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn, nameClass } from "./shared";
+import { cardAspect, ContactRows, DetailsGap, QR_PINNED, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, IcoInsta, IcoX, IcoTikTok, IcoLinkedIn, nameClass, textWidthFactor, cardFontClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const ACCENT_DEFAULT = "#6d28d9";
@@ -39,8 +39,9 @@ export default function PhotoFirst({ data }: { data: CardData }) {
   const { logoMaxPct, companyPx } = splitLogoRow({
     row: 242, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.52, minLogo: 60,
     company: data.company, targetPx: 12, trackingEm: 0, uppercase: false,
+    widthFactor: textWidthFactor(cardFontClass(data), false),
   });
-  const companyFit = fitCompany(13.5, data.company, 20, companyPx, 0, false, f);
+  const companyFit = fitCompany(13.5, data.company, 20, companyPx, 0, false, f, textWidthFactor(cardFontClass(data), false));
   const socials = [
     data.instagram && { icon: <IcoInsta />,    color: "#c084fc" },
     data.twitter   && { icon: <IcoX />,        color: "#64748b" },
