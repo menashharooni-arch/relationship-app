@@ -17,7 +17,7 @@ import { stripeDowngradeAllowed } from "@/lib/iap-entitlement";
 import { provisionOfficeForOwner, tearDownOfficeForOwner, officeAccessEndedMessage } from "@/lib/office-billing-sync";
 import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { ledgerAdd, ledgerHas, recordProTrialStarted } from "@/lib/trial-ledger";
-import { EVER_PAID_KEY, PRO_ENDED_PENDING_KEY, TRIAL_ENDS_KEY, anyInvoiceActuallyPaid, proEndedNotice, stripeTrialEndIso } from "@/lib/billing-state";
+import { EVER_PAID_KEY, PRO_ENDED_PENDING_KEY, TRIAL_CHARGE_CENTS_KEY, TRIAL_CHARGE_INTERVAL_KEY, TRIAL_ENDS_KEY, anyInvoiceActuallyPaid, proEndedNotice, stripeTrialEndIso } from "@/lib/billing-state";
 import { revalidateCardPage, revalidateUserCards } from "@/lib/card-page-data";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -434,8 +434,19 @@ export async function POST(req: NextRequest) {
         delete srcCust[PRO_ENDED_PENDING_KEY];
         delete srcCust._trial;
         delete srcCust._proWarnedFor;
-        if (trialEndsAt) srcCust[TRIAL_ENDS_KEY] = trialEndsAt;
-        else delete srcCust[TRIAL_ENDS_KEY];
+        if (trialEndsAt) {
+          srcCust[TRIAL_ENDS_KEY] = trialEndsAt;
+          // What the card will actually be charged when the trial converts.
+          // Stored now because the day-7 notice must quote it (lib/trial-notice),
+          // and the trial row is the only place that knows the price the person
+          // signed up at — a later price change must not rewrite their notice.
+          if (recurringCents) srcCust[TRIAL_CHARGE_CENTS_KEY] = recurringCents;
+          srcCust[TRIAL_CHARGE_INTERVAL_KEY] = mapped?.interval === "annual" ? "annually" : "monthly";
+        } else {
+          delete srcCust[TRIAL_ENDS_KEY];
+          delete srcCust[TRIAL_CHARGE_CENTS_KEY];
+          delete srcCust[TRIAL_CHARGE_INTERVAL_KEY];
+        }
         await admin.from("profiles").update({
           customization: { ...srcCust, _planSource: "stripe", [PLAN_CHOSEN_KEY]: plan },
         }).eq("id", userId);
@@ -678,6 +689,24 @@ export async function POST(req: NextRequest) {
         if (trialEndIso) cust[TRIAL_ENDS_KEY] = trialEndIso;
         else delete cust[TRIAL_ENDS_KEY];
         dirty = true;
+      }
+      // Keep the trial's charge amount beside the date (see TRIAL_CHARGE_CENTS_KEY).
+      // A portal plan swap mid-trial lands here, not on checkout.session.completed,
+      // so without this the day-7 notice would quote the OLD price.
+      {
+        const trialPrice = sub.items?.data?.[0]?.price;
+        const cents = trialEndIso ? trialPrice?.unit_amount ?? null : null;
+        const word = trialEndIso ? (trialPrice?.recurring?.interval === "year" ? "annually" : "monthly") : null;
+        if ((cust[TRIAL_CHARGE_CENTS_KEY] ?? null) !== cents) {
+          if (cents) cust[TRIAL_CHARGE_CENTS_KEY] = cents;
+          else delete cust[TRIAL_CHARGE_CENTS_KEY];
+          dirty = true;
+        }
+        if ((cust[TRIAL_CHARGE_INTERVAL_KEY] ?? null) !== word) {
+          if (word) cust[TRIAL_CHARGE_INTERVAL_KEY] = word;
+          else delete cust[TRIAL_CHARGE_INTERVAL_KEY];
+          dirty = true;
+        }
       }
 
       if (sub.cancel_at_period_end) {

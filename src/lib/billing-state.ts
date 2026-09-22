@@ -11,6 +11,13 @@ const DAY_MS = 86_400_000;
  *  Stripe webhook so the dashboard never has to call Stripe to know it. */
 export const TRIAL_ENDS_KEY = "_trialEndsAt";
 
+/** customization keys: what the first charge after a trial will be. Mirrored
+ *  by the Stripe webhook beside TRIAL_ENDS_KEY so the day-7 notice can quote
+ *  the amount without a Stripe call per trial — and Visa's trial rules require
+ *  that notice to carry the amount, not only the date. */
+export const TRIAL_CHARGE_CENTS_KEY = "_trialChargeCents";
+export const TRIAL_CHARGE_INTERVAL_KEY = "_trialChargeInterval";
+
 /** customization key: Pro ended and the person has not yet chosen between
  *  subscribing and continuing on Free. Cleared by api/account/choose-plan and
  *  by any paid plan being provisioned. */
