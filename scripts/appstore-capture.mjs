@@ -60,19 +60,30 @@ const CARD = {
 
 const BIO = "Weddings, portraits and brand shoots — natural light, real moments. Portland, OR.";
 
-// Card design — "Sea Glass", the template's own preset (owner, 2026-09-22:
-// the card and the links page were too dark and didn't look designed).
-// The headshot fills the left over a teal panel, the details sit on a white
-// panel under the frosted finish, and teal carries the QR and the icons. The
-// Onyx panel this replaces made the whole card read as a black rectangle in
-// the App Store frames, against a blue background, with no design in it.
+// Card design — "Sea Glass" (owner, 2026-09-22: the card and the links page
+// were too dark and didn't look designed). The details panel goes from near
+// black to a pale sea-glass tint, teal carries the QR and the icons, and the
+// headshot becomes the only dark mass on the card. The Onyx panel this
+// replaces read as a black rectangle on the frames' blue background.
+//
+// VERIFIED BY RENDERING, not by reading the preset list — PhotoFirst uses
+// these keys in ways the picker's names do not imply:
+//   • bgColor is the DETAILS panel on this template, not the card.
+//   • surfaceColor is the backdrop behind the photo, so it only ever shows on
+//     a card with NO headshot. Kept as the fallback, but it paints nothing here.
+//   • finish composes OVER bgColor. Frosted is a white sheen, so on a white
+//     panel it is invisible; it is why the panel carries a tint at all.
 const CARD_DESIGN = {
   photoUrl: PHOTO,
   accentColor: ACCENT,
-  bgColor: "#ffffff",                 // the info panel
+  // Pale sea glass, not white: it gives the frosted sheen something to sit on,
+  // so the panel reads as a designed surface instead of a blank one.
+  bgColor: "#eef6f7",                 // the DETAILS panel
   textColor: "#ffffff",               // her name, over the photo
-  infoColor: "#111827",               // phone/email/site on the white panel
-  finish: "frosted",                  // the preset's own material
+  infoColor: "#111827",               // phone/email/site on that panel
+  finish: "frosted",                  // milky sheet + bright top edge over it
+  // Only visible on a card with no photo; harmless, and better than the
+  // template's default indigo if that ever happens.
   surfaceColor: "linear-gradient(145deg, #2f7f8f 0%, #3f9fae 60%, #56b8c4 100%)",
   bio: BIO,
 };
