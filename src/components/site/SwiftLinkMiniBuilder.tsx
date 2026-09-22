@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ImageUpload from "@/components/ImageUpload";
 import ProfilePhotoSuggest from "@/components/ProfilePhotoSuggest";
@@ -29,7 +29,15 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
   const [launching, setLaunching] = useState(false);
   const [fullPreview, setFullPreview] = useState(false);
   const closeFullPreview = useCallback(() => setFullPreview(false), []);
-  const { sketch, patch, patchLinkStyle, patchSocial, handOff, reset } = useProductSketch("swiftlink", open);
+  const { sketch, patch, patchLinkStyle, patchSocial, handOff, reset, linkedInReturn } = useProductSketch("swiftlink", open);
+  // Back from the guest LinkedIn photo import (see readGuestLinkedInReturn):
+  // re-open on the first step WITHOUT reset, so the stashed sketch and the
+  // photo just connected for are both there.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time re-open after the LinkedIn hop
+    if (linkedInReturn) { setStep(0); setOpen(true); }
+  }, [linkedInReturn]);
+
 
   // The link is derived exactly like the real builder: prettyCardSlug fuses
   // name + business into AlexMorgan-MorganCo. The old local slugify produced
@@ -101,7 +109,7 @@ export default function SwiftLinkMiniBuilder({ linkedinEnabled = false }: { link
           <div className="pt-1">
             <span className="block text-slate-500 text-[0.75rem] font-medium mb-1.5">Profile photo</span>
             <ImageUpload guest field="photo" shape="circle" currentUrl={sketch.headshot} label="" onUploaded={(u) => patch({ headshot: u || null })} />
-            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={linkedinEnabled} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
+            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={linkedinEnabled} returnTo="/?builder=swiftlink" onConfirm={(u) => patch({ headshot: u })} />
             {/* Only used to look your headshot up — never shown on the page. */}
             <Field label="Email (only used to find your headshot)" type="email" placeholder="alex@morganco.com" value={sketch.email} onChange={(e) => patch({ email: e.target.value })} />
           </div>

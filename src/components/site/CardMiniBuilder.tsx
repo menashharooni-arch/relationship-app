@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CardScaler from "@/components/CardScaler";
 import InertPreview from "@/components/InertPreview";
@@ -49,7 +49,15 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [launching, setLaunching] = useState(false);
-  const { sketch, patch, patchStyle, handOff, reset } = useProductSketch("card", open);
+  const { sketch, patch, patchStyle, handOff, reset, linkedInReturn } = useProductSketch("card", open);
+  // Back from the guest LinkedIn photo import (see readGuestLinkedInReturn):
+  // re-open on the first step WITHOUT reset, so the stashed sketch and the
+  // photo just connected for are both there.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time re-open after the LinkedIn hop
+    if (linkedInReturn) { setStep(0); setOpen(true); }
+  }, [linkedInReturn]);
+
 
   const Preview = TEMPLATES.find((t) => t.id === sketch.template)?.Component ?? ClassicPro;
   const addressStr = [
@@ -139,7 +147,7 @@ export default function CardMiniBuilder({ linkedinEnabled = false }: { linkedinE
             <ImageUpload guest field="photo" shape="circle" currentUrl={sketch.headshot} label="Headshot" onUploaded={(u) => patch({ headshot: u || null })} />
             {/* Looks your headshot up from the email you entered. Shows what it
                 found and applies nothing until you pick it. */}
-            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={linkedinEnabled} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
+            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={linkedinEnabled} returnTo="/?builder=card" onConfirm={(u) => patch({ headshot: u })} />
           </div>
           <div>
             <ImageUpload guest field="logo" shape="square" currentUrl={sketch.logo} label="Company logo" onUploaded={(u) => patch({ logo: u || null })} />

@@ -168,8 +168,46 @@ function fromPrefill(p: CardPrefill): Sketch {
   };
 }
 
+// ── Back from a guest LinkedIn photo import ──────────────────────────────────
+//
+// "Connect LinkedIn" in a homepage builder is a full-page hop (no account to
+// attach a popup to), and the callback lands on `returnTo` with the imported
+// photo as ?li_photo=. Only /cards/new ever read that param — the homepage
+// builders sent people back to "/" and then ignored it, so the visitor came
+// back to the top of the homepage with the builder closed and no photo (owner,
+// 2026-09-22: "LinkedIn profile pictures do not connect properly").
+//
+// Each builder now returns to /?builder=<product>. This reads that back: the
+// matching builder re-opens with the sketch it stashed before the hop, and the
+// photo is applied on top. Only our own storage host is accepted — the param
+// is never trusted blind (same rule as the wizard's reader).
+export function readGuestLinkedInReturn(
+  search: string,
+  product: CardPrefill["product"],
+  storageOrigin: string | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): { returned: boolean; photo: string | null } {
+  const params = new URLSearchParams(search);
+  if (params.get("builder") !== product) return { returned: false, photo: null };
+  const photo = params.get("li_photo");
+  const ok = !!photo && !!storageOrigin && photo.startsWith(`${storageOrigin}/storage/v1/object/public/`);
+  return { returned: true, photo: ok ? photo : null };
+}
+
 export function useProductSketch(product: CardPrefill["product"], open: boolean) {
   const [sketch, setSketch] = useState<Sketch>(EMPTY_SKETCH);
+  const [linkedInReturn, setLinkedInReturn] = useState(false);
+  const [returnedPhoto, setReturnedPhoto] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const { returned, photo } = readGuestLinkedInReturn(url.search, product);
+    if (!returned) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the LinkedIn return URL on mount
+    setLinkedInReturn(true);
+    if (photo) setReturnedPhoto(photo);
+    for (const k of ["builder", "li_photo", "integration", "status"]) url.searchParams.delete(k);
+    window.history.replaceState({}, "", url.toString());
+  }, [product]);
 
   const patch = useCallback((p: Partial<Sketch>) => setSketch((prev) => ({ ...prev, ...p })), []);
   const patchStyle = useCallback(
@@ -188,12 +226,21 @@ export function useProductSketch(product: CardPrefill["product"], open: boolean)
   // On open, pick up whatever another builder captured earlier this session.
   // consumePrefill() read-and-removes; the autosave below immediately re-stashes
   // the merged result, so nothing is lost and there's never a stale duplicate.
+  //
+  // A photo just imported from LinkedIn goes on AFTER the restore, so the
+  // stashed sketch's older (or missing) headshot can never overwrite the one
+  // the visitor just connected for.
   useEffect(() => {
     if (!open) return;
     const carried = consumePrefill();
+    const photo = returnedPhoto;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from the session sketch when the builder opens
-    if (carried) setSketch((prev) => (prev === EMPTY_SKETCH ? fromPrefill(carried) : prev));
-  }, [open]);
+    setSketch((prev) => {
+      const base = prev === EMPTY_SKETCH && carried ? fromPrefill(carried) : prev;
+      return photo ? { ...base, headshot: photo } : base;
+    });
+    if (photo) setReturnedPhoto(null);
+  }, [open, returnedPhoto]);
 
   // Keep the shared sketch current as they type, so ANY other entry point
   // (another builder, or a generic "Get started" button) carries it too.
@@ -220,5 +267,5 @@ export function useProductSketch(product: CardPrefill["product"], open: boolean)
     resetMarketingSketch();
   }, []);
 
-  return { sketch, patch, patchStyle, patchLinkStyle, patchSocial, handOff, reset };
+  return { sketch, patch, patchStyle, patchLinkStyle, patchSocial, handOff, reset, linkedInReturn };
 }

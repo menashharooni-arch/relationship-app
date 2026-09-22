@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CardScaler from "@/components/CardScaler";
 import InertPreview from "@/components/InertPreview";
@@ -42,7 +42,15 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [launching, setLaunching] = useState(false);
-  const { sketch, patch, patchStyle, handOff, reset } = useProductSketch("signature", open);
+  const { sketch, patch, patchStyle, handOff, reset, linkedInReturn } = useProductSketch("signature", open);
+  // Back from the guest LinkedIn photo import (see readGuestLinkedInReturn):
+  // re-open on the first step WITHOUT reset, so the stashed sketch and the
+  // photo just connected for are both there.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time re-open after the LinkedIn hop
+    if (linkedInReturn) { setStep(0); setOpen(true); }
+  }, [linkedInReturn]);
+
 
   const Preview = TEMPLATES.find((t) => t.id === sketch.template)?.Component ?? ClassicPro;
 
@@ -117,7 +125,7 @@ export default function SignatureMiniBuilder({ linkedinEnabled = false }: { link
         <div className="space-y-5">
           <div>
             <ImageUpload guest field="photo" shape="circle" currentUrl={sketch.headshot} label="Headshot" onUploaded={(u) => patch({ headshot: u || null })} />
-            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={linkedinEnabled} returnTo="/" onConfirm={(u) => patch({ headshot: u })} />
+            <ProfilePhotoSuggest guest email={sketch.email} linkedinEnabled={linkedinEnabled} returnTo="/?builder=signature" onConfirm={(u) => patch({ headshot: u })} />
           </div>
           <div>
             <ImageUpload guest field="logo" shape="square" currentUrl={sketch.logo} label="Company logo" onUploaded={(u) => patch({ logo: u || null })} />

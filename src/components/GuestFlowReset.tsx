@@ -31,6 +31,11 @@ import { resetMarketingSketch } from "@/lib/guest-reset";
 export default function GuestFlowReset() {
   useEffect(() => {
     if (isAuthenticated()) return;
+    // Back from a homepage builder's LinkedIn photo hop (/?builder=…): that is
+    // the SAME visit continuing, not a fresh landing. The builder re-opens with
+    // the sketch it stashed before the hop — wiping it here handed the visitor
+    // their photo on a blank form (see readGuestLinkedInReturn).
+    if (new URLSearchParams(window.location.search).has("builder")) return;
     resetMarketingSketch();
   }, []);
 
