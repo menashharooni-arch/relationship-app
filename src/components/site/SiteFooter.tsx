@@ -99,10 +99,18 @@ export default function SiteFooter({ light = false }: { light?: boolean }) {
                 Deliberately NOT wrapped in NativeHidden's opposite: someone
                 reading the marketing site in a browser is exactly who should
                 see it, and the whole footer is already hidden in the shell. */}
-            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="mt-4 flex flex-wrap items-center gap-2.5">
               <AppStoreBadge size="sm" />
-              {/* Same self-activating contract as the badge beside it. */}
-              <RateUsLink placement="footer" className={`text-[0.8125rem] ${muted} transition-colors`} />
+              {/* A second button beside the badge, not a grey line under it
+                  (owner, 2026-09-22: "it should be easier to find"). Same
+                  radius and height as the sm badge so the pair reads as one
+                  row; same self-activating contract. */}
+              <RateUsLink
+                placement="footer"
+                className={`inline-flex items-center rounded-xl border px-3 py-2.5 text-[0.8125rem] font-semibold leading-none transition-colors ${
+                  light ? "border-slate-300 text-slate-900 hover:bg-slate-100" : "border-white/20 text-white hover:bg-white/10"
+                }`}
+              />
             </div>
           </div>
           {COLS.map((col) => (
