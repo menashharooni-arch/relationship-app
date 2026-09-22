@@ -68,6 +68,19 @@ describe("every homepage builder is wired the same way", () => {
     expect(read("src/components/GuestFlowReset.tsx")).toContain('has("builder")');
   });
 
+  it("a guest inside the iOS shell gets the photo back in the APP, not in the browser sheet", () => {
+    // Sign up → the card builder, signed out, in the shell: the hop runs in
+    // the in-app sheet, so the guest branch must finish at swiftcard:// like
+    // DONE does, with li_photo carried in `next` for the wizard's reader.
+    const cb = read("src/app/api/integrations/linkedin/callback/route.ts");
+    const guestBranch = cb.slice(cb.indexOf("if (userId === GUEST_STATE)"));
+    expect(guestBranch).toContain("swiftcard://linkedin-callback?status=photo&next=");
+    expect(guestBranch).toMatch(/const res = isNative\s*\?/);
+    expect(guestBranch).toContain('url.searchParams.set("li_photo", publicUrl)');
+    // Both cookies cleared on this exit too, like every other.
+    expect(guestBranch).toContain('res.cookies.set("li_native", "", { maxAge: 0, path: "/" })');
+  });
+
   it("the wizard's own ?li_photo= reader is untouched", () => {
     const wizard = read("src/app/cards/new/NewCardWizard.tsx");
     expect(wizard).toContain('url.searchParams.get("li_photo")');

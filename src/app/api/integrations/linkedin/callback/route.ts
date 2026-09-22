@@ -97,11 +97,26 @@ export async function GET(request: NextRequest) {
       // The photo rides back as a query param the builder reads and applies to
       // the draft (mirrors DONE, plus li_photo).
       const url = new URL(returnTo, APP_URL);
-      url.searchParams.set("integration", "linkedin");
-      url.searchParams.set("status", "photo");
       url.searchParams.set("li_photo", publicUrl);
-      const res = NextResponse.redirect(url.toString());
+      // A guest inside the iOS shell (Sign up → the card builder, signed out)
+      // ran this in the in-app browser sheet. Finishing at an https URL here
+      // left the WEBSITE's builder showing inside that sheet while the app's
+      // own builder sat behind it with no photo — the guest twin of the bug
+      // DONE fixes. Same exit as DONE: a swiftcard:// URL re-enters the app
+      // and NativeAppBridge steers the webview to `next` (it appends
+      // integration/status itself), where the wizard's ?li_photo= reader
+      // applies the photo.
+      const res = isNative
+        ? NextResponse.redirect(
+            `swiftcard://linkedin-callback?status=photo&next=${encodeURIComponent(url.pathname + url.search)}`,
+          )
+        : (() => {
+            url.searchParams.set("integration", "linkedin");
+            url.searchParams.set("status", "photo");
+            return NextResponse.redirect(url.toString());
+          })();
       res.cookies.set("li_return_to", "", { maxAge: 0, path: "/" });
+      res.cookies.set("li_native", "", { maxAge: 0, path: "/" });
       return res;
     } catch (e) {
       console.error("[linkedin/callback] guest photo import failed:", e);
