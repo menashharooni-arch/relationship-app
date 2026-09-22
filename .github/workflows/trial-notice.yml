@@ -1,0 +1,51 @@
+name: Trial charge notice
+
+# ── Why this is a GitHub schedule and not a Vercel cron ──────────────────────
+#
+# A card trial ends by charging the card. Visa wants the notice at least 7 days
+# before that charge (with the amount); Mastercard wants it 3 to 7 days before
+# the trial ends. Exactly 7 days satisfies both, which is also one email rather
+# than two — so the job has to wake up hourly and send to whoever has just
+# crossed the 7-day mark.
+#
+# Vercel's Hobby plan allows two cron jobs per project, each at most once a day,
+# and an hourly entry in vercel.json silently breaks every later deployment
+# (cron_jobs_limits_reached). Same reasoning as push-catchup.yml.
+#
+# /api/reminders calls the same function daily as a backstop, and the route
+# stamps _trialChargeWarnedFor before sending, so a duplicate or delayed run
+# cannot email anyone twice.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: trial-notice
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send this hour's trial-ending notices
+        env:
+          SECRET: ${{ secrets.PUSH_CATCHUP_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "PUSH_CATCHUP_SECRET is not set — trial customers are being charged with no notice."
+            exit 1
+          fi
+          body=$(mktemp)
+          code=$(curl -sS --max-time 90 -o "$body" -w "%{http_code}" \
+            -H "Authorization: Bearer $SECRET" \
+            https://swiftcard.me/api/billing/trial-notice)
+          echo "HTTP $code"
+          cat "$body"
+          echo
+          # A silent failure here is a customer charged without warning, which
+          # is a dispute we would lose — fail the run so it shows in Actions.
+          [ "$code" = "200" ]

@@ -223,16 +223,45 @@ function proLossCard() {
 // trial-start email promises "cancel before then and you won't be charged";
 // this is the reminder that makes that promise fair (2026-09-16 audit).
 // Billing mail, not marketing: it is sent regardless of product-update prefs.
-export function trialChargeSoonEmail(opts: { firstName: string; chargeDate: string; manageUrl: string }) {
+export function trialChargeSoonEmail(opts: {
+  firstName: string;
+  planName?: string;
+  chargeDate: string;
+  /** The recurring charge. Visa requires the AMOUNT in this notice, not just
+   *  the date — an email that says "you'll be charged" without saying how much
+   *  is the one a disputing cardholder wins on. Optional only because a legacy
+   *  trial row may predate the webhook storing it; the copy adapts. */
+  amountCents?: number | null;
+  /** "monthly" / "annually" — reads straight into the sentence. */
+  intervalWord?: string;
+  manageUrl: string;
+}) {
   const safeName = escapeHtml(opts.firstName);
   const date = escapeHtml(opts.chargeDate);
+  const planName = escapeHtml(opts.planName || "Pro");
+  const price =
+    typeof opts.amountCents === "number" && opts.amountCents > 0
+      ? `$${(opts.amountCents / 100).toFixed(2)}${opts.intervalWord ? ` ${escapeHtml(opts.intervalWord)}` : ""}`
+      : null;
+  const tableRows = [
+    row("Plan", `SwiftCard ${planName}`),
+    row("First charge", date),
+    ...(price ? [row("Amount", price)] : []),
+  ].join("");
+
   const body = `
-    ${h1(`Your Pro trial ends ${date}`)}
-    ${p(`Hi ${safeName}, a quick heads-up: your 14-day SwiftCard Pro trial ends on ${date}, and your subscription starts then on the card you added.`)}
-    ${p(`Keeping Pro? You don't need to do anything. Want to stay on Free instead? Cancel before ${date} and you won't be charged.`)}
+    ${h1(`Your ${planName} trial ends ${date}`)}
+    ${p(`Hi ${safeName}, a heads-up while there's still time to decide: your free trial ends on ${date}, and your subscription starts then on the card you added${price ? ` — ${price}` : ""}.`)}
+    <div style="background:#fff;border:1px solid #E4DDD4;border-radius:16px;overflow:hidden;margin-bottom:24px;">
+      <div style="padding:0 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0">${tableRows}</table>
+      </div>
+    </div>
+    ${proLossCard()}
+    ${p(`Keeping ${planName}? You don't need to do anything. Want to stay on Free instead? Cancel before ${date} and you won't be charged.`)}
     ${btn(opts.manageUrl, "Manage my plan →")}
   `;
-  return built(BILLING_FROM, `Your SwiftCard Pro trial ends ${opts.chargeDate}`, layout(body));
+  return built(BILLING_FROM, `Your SwiftCard ${opts.planName || "Pro"} trial ends ${opts.chargeDate}`, layout(body));
 }
 
 // Heads-up a few days before a trial / free-month grant ends.
