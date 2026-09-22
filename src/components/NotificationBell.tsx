@@ -3,6 +3,9 @@
 import { Fragment, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import NotificationBody from "@/components/NotificationBody";
+import SeeWhoLink from "@/components/SeeWhoLink";
+import { useIsNativeApp } from "@/lib/platform";
+import { NATIVE_BODY_REMAP, NATIVE_HIDDEN_TYPES } from "@/lib/native-notification-copy";
 import PushAskCallout, { usePushAsk } from "@/components/PushAskCallout";
 import { pickAskCandidate } from "@/lib/push-ask";
 
@@ -55,13 +58,20 @@ export default function NotificationBell({
     openRef.current = open;
   }, [open]);
 
-  const unread = notifications.filter((n) => !n.read).length;
-  const readCount = notifications.filter((n) => n.read).length;
-
   // "Get notifications like this on your phone" — under ONE row at most (the
   // newest unread new contact / reply / contact download), only while the
   // dropdown is open, and only when the rules in lib/push-ask.ts allow it.
-  const askId = pickAskCandidate(notifications);
+  // Inside the iPhone app, the same rows the dashboard list hides or rewords
+  // (lib/native-notification-copy — App Review 3.1.1). The web is unchanged.
+  const isNative = useIsNativeApp();
+  const shown = isNative
+    ? notifications
+        .filter((n) => n.type !== "referral_claim" && !NATIVE_HIDDEN_TYPES.has(n.type))
+        .map((n) => (NATIVE_BODY_REMAP[n.type] ? { ...n, body: NATIVE_BODY_REMAP[n.type] } : n))
+    : notifications;
+  const unread = shown.filter((n) => !n.read).length;
+  const readCount = shown.filter((n) => n.read).length;
+  const askId = pickAskCandidate(shown);
   const ask = usePushAsk("bell", askId, open);
 
   useEffect(() => {
@@ -279,13 +289,13 @@ export default function NotificationBell({
             </div>
 
             <div className="overflow-y-auto divide-y divide-gray-800">
-              {notifications.length === 0 ? (
+              {shown.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <p className="text-gray-400 text-sm">No notifications yet</p>
                   <p className="text-gray-600 text-xs mt-1">You&apos;ll see new leads here</p>
                 </div>
               ) : (
-                notifications.map((n) => (
+                shown.map((n) => (
                   <Fragment key={n.id}>
                   {/* border-b-0 when the reminder hangs under this row: the
                       list's divider would otherwise cut the row from it. */}
@@ -298,6 +308,7 @@ export default function NotificationBell({
                             account the place a view came from arrives blocked
                             out from the server, and this blurs what is left. */}
                         {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed"><NotificationBody text={n.body} /></p>}
+                        <SeeWhoLink text={`${n.title} ${n.body ?? ""}`} />
                         {/* Meta line: card tag + time — chip lives here so the
                             title keeps full width on narrow phones. */}
                         <div className="flex items-center gap-2 mt-1 min-w-0">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
-import { cardEventNotice } from "@/lib/card-event-notify";
+import { cardEventNotice, REPEAT_VISIT_LOOKBACK_MS } from "@/lib/card-event-notify";
 import { dispatchCrmEvent } from "@/lib/crm-events";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { isCardActive } from "@/lib/card-active";
@@ -47,6 +47,33 @@ function str(v: unknown, max: number): string | null {
 }
 
 // Public: called from card page without auth
+/**
+ * Separate visits this browser made to this page in the last 7 days, this one
+ * included — for "3rd visit this week 👀" (lib/card-event-notify.ts). One
+ * view event is recorded per visit per surface (view-visit-window), so a row
+ * count IS a visit count. Best-effort: a failed read just loses the headline.
+ */
+async function countRecentVisits(
+  admin: ReturnType<typeof getAdminSupabase>,
+  cardOwner: string,
+  visitorId: string,
+  surface: "card" | "links",
+): Promise<number | undefined> {
+  try {
+    const { count } = await admin
+      .from("card_events")
+      .select("id", { count: "exact", head: true })
+      .eq("card_owner_username", cardOwner)
+      .eq("visitor_id", visitorId)
+      .eq("event_type", "viewed_card")
+      .eq("surface", surface)
+      .gte("created_at", new Date(Date.now() - REPEAT_VISIT_LOOKBACK_MS).toISOString());
+    return count ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -541,6 +568,9 @@ export async function POST(req: NextRequest) {
           // A session is proof of who this is; a remembered name is not, and
           // the copy now says which it has (lib/card-event-notify.ts).
           nameConfirmed: !!sessionViewer,
+          repeatVisits: isView && !firstEver && !returning && visitor_id
+            ? await countRecentVisits(admin, card_owner_username, visitor_id, surface)
+            : undefined,
         });
 
         // Flood backstop: the dedup keys on the client-supplied visitor_id, so

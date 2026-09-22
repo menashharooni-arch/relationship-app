@@ -4,7 +4,7 @@ import { isApnsEndpoint, sendApnsDetailed } from "@/lib/apns";
 import { reportError as reportServerError } from "@/lib/report-error";
 import { assertSafeUrl } from "@/lib/safe-fetch";
 import { isPaidPlan } from "@/lib/plan";
-import { stripLocationMarks, withoutLocation } from "@/lib/location-privacy";
+import { stripLocationMarks, teaseLocation } from "@/lib/location-privacy";
 import { genericNames, stripNameMarks } from "@/lib/contact-privacy";
 import {
   decidePush, fitBody, readPushPrefs, pushCardTag, cardTagLine, MAX_TITLE_CHARS, OWN_CAP, UNCAPPED, VIEW_ROLLUP_TAG,
@@ -184,14 +184,15 @@ export async function sendPushToUser(userId: string, payload: {
   // same honesty rule the milestones copy is held to (lib/milestones.ts).
   // WHERE A LOCK SCREEN LOSES THE LOCATION. The place a view came from is a
   // Pro feature, and a push cannot blur anything — so for a Free account the
-  // whole fragment comes out and the sentence closes up ("Sam viewed your
-  // Swift Links."). A paid account keeps it, with the invisible marks removed.
+  // place is shaded out in one fixed shape ("Sam viewed your Swift Links in
+  // ▒▒▒▒▒, ▒▒." — lib/location-privacy teaseLocation, owner 2026-09-22). A
+  // paid account keeps it, with the invisible marks removed.
   // Every push in the product goes through here, so no producer can forget.
   //
   // The same rule for a KNOWN CONTACT'S NAME (lib/contact-privacy.ts): a Free
   // lock screen says "A contact re-opened your card", a paid one says "Priya".
   const plainBody = (s: string) =>
-    paid ? stripNameMarks(stripLocationMarks(s)) : withoutLocation(genericNames(s));
+    paid ? stripNameMarks(stripLocationMarks(s)) : teaseLocation(genericNames(s));
   payload = {
     ...payload,
     title: fitBody(isUpdate ? `${viewsThisHour} views in the last hour` : plainBody(payload.title), MAX_TITLE_CHARS),

@@ -4,17 +4,10 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useIsNativeApp } from "@/lib/platform";
 import NotificationBody from "@/components/NotificationBody";
+import SeeWhoLink from "@/components/SeeWhoLink";
+import { NATIVE_BODY_REMAP, NATIVE_HIDDEN_TYPES } from "@/lib/native-notification-copy";
 import PushAskCallout, { usePushAsk } from "@/components/PushAskCallout";
 import { pickAskCandidate } from "@/lib/push-ask";
-
-// Native-safe remaps for stored notification bodies that contain selling copy.
-// The stored body is unchanged on web; only the in-app native render is swapped.
-const NATIVE_BODY_REMAP: Record<string, string> = {
-  sequence_paused:
-    "Your automated follow-up sequences are paused. Sequences are only available on the Pro plan — nothing was deleted.",
-  pro_ended:
-    "Your account is on the Free plan now. Your dashboard shows what changes and lets you choose which card stays live — nothing has been deleted.",
-};
 
 type Notification = {
   id: string;
@@ -150,7 +143,7 @@ export default function NotificationsPanel({
 
   // Native app: drop the referral "claim your free month of Pro" promo
   // entirely (a selling incentive). Web shows every notification.
-  const shown = items.filter((n) => !(isNative && n.type === "referral_claim"));
+  const shown = items.filter((n) => !(isNative && n.type === "referral_claim") && !(isNative && NATIVE_HIDDEN_TYPES.has(n.type)));
 
   // "Get notifications like this on your phone" — under ONE row at most. Same
   // rules as the bell (lib/push-ask.ts), and never both at once: this list
@@ -277,6 +270,7 @@ export default function NotificationsPanel({
                 // sentence. Paid accounts render exactly as before.
                 return displayBody && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed"><NotificationBody text={displayBody} /></p>;
               })()}
+              <SeeWhoLink text={`${n.title} ${n.body ?? ""}`} />
               {/* Referral month earned → the explicit tap-to-claim */}
               {n.type === "referral_claim" && (
                 claimResult[n.id] ? (

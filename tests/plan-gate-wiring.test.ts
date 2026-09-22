@@ -138,7 +138,7 @@ const SITES: Site[] = [
     ],
   },
   {
-    file: "src/components/NotificationsPanel.tsx",
+    file: "src/lib/native-notification-copy.ts",
     web: [],
     native: [
       "Your automated follow-up sequences are paused. Sequences are only available on the Pro plan — nothing was deleted.",
@@ -171,7 +171,9 @@ describe("Area 3 — exact native PlanGate copy present (char-for-char incl. em 
 });
 
 describe("Area 3 — every wired file routes through <PlanGate>", () => {
-  for (const site of SITES) {
+  // A src/lib copy module is DATA, not a call site: the notification lists
+  // that render it are held to useIsNativeApp in free-notification-hooks.
+  for (const site of SITES.filter((s) => !s.file.startsWith("src/lib/"))) {
     const src = read(site.file);
     it(`${site.file} imports and uses PlanGate/PlanNotice/PlanBadge`, () => {
       expect(src).toMatch(/from "@\/components\/PlanGate"|from "@\/lib\/platform"/);

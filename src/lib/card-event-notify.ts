@@ -1,6 +1,7 @@
 import { getSourceLabel } from "@/lib/source-labels";
 import { locationPhrase } from "@/lib/location-display";
 import type { GeoAccuracy } from "@/lib/request-geo";
+import { ordinal } from "@/lib/contact-return-notify";
 
 // What the owner is told when someone touches their card.
 //
@@ -10,6 +11,12 @@ import type { GeoAccuracy } from "@/lib/request-geo";
 // around it is plumbing.
 
 export type CardEventNotice = { type: string; title: string; body: string };
+
+/**
+ * How far back "3rd visit this week" looks. A LOOKBACK for a headline — not a
+ * dedupe window; visit dedupe is VIEW_VISIT_WINDOW_MS (lib/view-window.ts).
+ */
+export const REPEAT_VISIT_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * The notification for one card event, or null when the event isn't news.
@@ -57,6 +64,15 @@ export function cardEventNotice(input: {
    * 2026-09-18) — an identification we cannot stand behind.
    */
   nameConfirmed?: boolean;
+  /**
+   * How many separate visits this same browser has made to this page in the
+   * last 7 days, this one included. Someone who keeps coming back is the most
+   * interesting person an owner does NOT yet know (owner, 2026-09-22: make the
+   * notifications something people want to open). 2+ retitles the view as
+   * "3rd visit this week 👀"; the body is unchanged, so the lock screen keeps
+   * the where. Every plan — it is a fact about the visit, not a Pro detail.
+   */
+  repeatVisits?: number;
 }): CardEventNotice | null {
   const { eventType } = input;
   const name = (input.visitorName ?? "").trim();
@@ -89,7 +105,10 @@ export function cardEventNotice(input: {
     const firstTitle = isLinks ? "Your Swift Links' first view!" : "Your card's first view!";
     return {
       type: "card_viewed",
-      title: input.firstEver ? firstTitle : isLinks ? "Swift Links viewed" : "Card viewed",
+      title: input.firstEver ? firstTitle
+        : (input.repeatVisits ?? 0) >= 2
+          ? `${ordinal(input.repeatVisits!)} visit this week 👀`
+          : isLinks ? "Swift Links viewed" : "Card viewed",
       // "Someone" when we genuinely don't know. A visitor is only named once
       // they have shared their details, so this never guesses at an identity.
       body: `${who} viewed ${surfaceLabel}${near}.`,

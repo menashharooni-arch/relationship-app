@@ -64,6 +64,24 @@ export function withoutLocation(text: string): string {
 }
 
 /**
+ * The Free LOCK SCREEN: the place stays in the sentence, shaded out.
+ *
+ * A push can't blur, so this used to drop the fragment and the banner read
+ * "Someone viewed your card." — which hid that there was a where at all.
+ * Owner, 2026-09-22: "Someone viewed your SwiftCard link in … and it'll have
+ * the state blurred on the phone." Every place becomes the SAME shape, so the
+ * banner shows there is a place without leaking how long its name is, or
+ * whether it was a city, a region or a country. Still says nothing about Pro.
+ */
+export const TEASED_PLACE = " in ▒▒▒▒▒, ▒▒";
+
+export function teaseLocation(text: string): string {
+  const parts = text.split(PHRASE_MARK);
+  const out = parts.map((p, i) => (i % 2 === 1 ? TEASED_PLACE : p)).join("");
+  return stripLocationMarks(out).replace(/\s+([.!?,])/g, "$1").replace(/\s{2,}/g, " ").trim();
+}
+
+/**
  * Replace every marked place with blocks, keeping the marks so the app can
  * still blur what is left. THIS is what a Free account is actually sent: the
  * real place name never reaches the browser.

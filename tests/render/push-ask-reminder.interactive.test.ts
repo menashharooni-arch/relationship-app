@@ -72,6 +72,13 @@ beforeAll(async () => {
     };
   `);
 
+  writeFileSync(join(tmp, "link-stub.tsx"), `
+    import { createElement } from "react";
+    export default function Link(props: any) {
+      const { href, children, prefetch, scroll, ...rest } = props;
+      return createElement("a", { href: typeof href === "string" ? href : "#", ...rest }, children);
+    }
+  `);
   const out = await build({
     entryPoints: [join(tmp, "entry.tsx")],
     bundle: true,
@@ -89,6 +96,8 @@ beforeAll(async () => {
     },
     alias: {
       "next/navigation": join(tmp, "nav-stub.tsx"),
+      // SeeWhoLink (the Free "See who and where →" line) uses next/link.
+      "next/link": join(tmp, "link-stub.tsx"),
       "@/components/PlanGate": join(tmp, "plangate-stub.tsx"),
       "@": resolve("src"),
     },

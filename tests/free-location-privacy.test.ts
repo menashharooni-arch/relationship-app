@@ -5,7 +5,7 @@ import { cardEventNotice } from "@/lib/card-event-notify";
 import { locationPhrase } from "@/lib/location-display";
 import {
   PLACE_MARK, PHRASE_MARK,
-  redactPlaces, redactLegacyPlace, splitLocationParts, stripLocationMarks, withoutLocation, redactPlaceLabel } from "@/lib/location-privacy";
+  redactPlaces, redactLegacyPlace, splitLocationParts, stripLocationMarks, withoutLocation, teaseLocation, redactPlaceLabel } from "@/lib/location-privacy";
 import { redactForPlan } from "@/lib/notification-privacy";
 
 // ── Locations are Pro, including the ones hiding inside a sentence ───────────
@@ -105,26 +105,40 @@ describe("what a Free account is actually sent", () => {
 });
 
 describe("the lock screen, where nothing can be blurred", () => {
-  it("drops the location fragment whole and closes the sentence up", () => {
+  // Owner, 2026-09-22: the place stays in the sentence, shaded out — the Free
+  // banner shows there IS a where, and never what it is.
+  it("shades the place out in one fixed shape", () => {
     const n = cardEventNotice({
       eventType: "viewed_card", visitorName: "Sam", nameConfirmed: true, location: "Roslyn, NY", geoAccuracy: "city",
     })!;
-    expect(withoutLocation(n.body)).toBe("Sam viewed your card.");
+    expect(teaseLocation(n.body)).toBe("Sam viewed your card in ▒▒▒▒▒, ▒▒.");
   });
 
-  it("does the same for every shape the composer can produce", () => {
+  it("every shape the composer can produce looks identical — no length or precision leaks", () => {
     for (const [loc, acc] of [["Roslyn, NY", "city"], ["Great Neck, NY", "city_approx"], ["New York, US", "region"], ["US", "country"]] as const) {
       const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Sam", nameConfirmed: true, location: loc, geoAccuracy: acc })!;
-      expect(withoutLocation(n.body), `${loc}/${acc}`).toBe("Sam viewed your card.");
+      const out = teaseLocation(n.body);
+      expect(out, `${loc}/${acc}`).toBe("Sam viewed your card in ▒▒▒▒▒, ▒▒.");
+      expect(out).not.toMatch(/Roslyn|Neck|New York|\bUS\b|\bNY\b/);
     }
+  });
+
+  it("a view with no location gets no invented one", () => {
+    const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Sam", nameConfirmed: true })!;
+    expect(teaseLocation(n.body)).toBe("Sam viewed your card.");
+  });
+
+  it("withoutLocation still closes the sentence up where no place is wanted", () => {
+    const n = cardEventNotice({ eventType: "viewed_card", visitorName: "Sam", nameConfirmed: true, location: "Roslyn, NY", geoAccuracy: "city" })!;
+    expect(withoutLocation(n.body)).toBe("Sam viewed your card.");
   });
 
   it("is applied in the one place every push goes through", () => {
     const push = read("src/lib/push.ts");
     // Known-contact names ride the same path (lib/contact-privacy.ts): paid
     // strips the marks, Free turns the name into "a contact" before the
-    // location fragment is dropped.
-    expect(push).toMatch(/paid \? stripNameMarks\(stripLocationMarks\(s\)\) : withoutLocation\(genericNames\(s\)\)/);
+    // location is shaded out.
+    expect(push).toMatch(/paid \? stripNameMarks\(stripLocationMarks\(s\)\) : teaseLocation\(genericNames\(s\)\)/);
     // Title as well as body — a producer could put a place in either.
     expect(push).toMatch(/plainBody\(payload\.title\)/);
     expect(push).toMatch(/fitBody\(plainBody\(payload\.body\)\)/);
