@@ -28,8 +28,10 @@ import { asc, token } from "./lib/asc.mjs";
 const DISPLAY_TYPE = "APP_IPHONE_67";
 // The en-US localization of the version in PREPARE_FOR_SUBMISSION. Apple
 // refuses screenshot edits on a released version, so this has to be the
-// unreleased one: 1.0.2 as of 2026-09-09 (1.0.0 was 38667b78…, 1.0.1 077d36d9…).
-const LOCALIZATION = process.env.ASC_LOCALIZATION_ID || "efacc7ef-d168-43b7-9751-cf49f0cb2046";
+// unreleased one: 1.0.3 as of 2026-09-22 (1.0.2 was efacc7ef… — released with
+// the v4 set; 1.0.1 077d36d9…; 1.0.0 38667b78…). When a new version is
+// created, find its localization id and update this default.
+const LOCALIZATION = process.env.ASC_LOCALIZATION_ID || "a63321c5-ed5d-4743-b271-3364de201cdd";
 const dir = process.argv[2] || "app-store/screenshots/6.9-inch";
 
 const files = readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".png")).sort();
