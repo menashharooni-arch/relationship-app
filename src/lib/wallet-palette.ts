@@ -481,7 +481,9 @@ function logoFirst(style: TemplateStyle): RawLook {
   const band = style.bgColor ?? "#2c3a52";
   const composed = panelBackground(style, "#2C3A52");
   const dark = isDarkBg(composed);
-  const accent = logoFirstAccent(style.accentColor, composed, dark);
+  // Against the base colour, as LogoFirst does: `composed` is a gradient once
+  // a finish is on, and the accent always fell back to white.
+  const accent = logoFirstAccent(style.accentColor, band, dark);
   return {
     band, details: null,
     finish: style.finish, media: mediaOf(style),

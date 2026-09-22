@@ -106,7 +106,11 @@ export default function LogoFirst({ data }: { data: CardData }) {
   const style = templateStyle(data);
   const bg = panelBackground(style, NAVY);
   const dark = isDarkBg(bg);
-  const accent = readableAccent(style.accentColor, bg, dark);
+  // Contrast is judged against the BASE colour, not `bg`: with a finish on,
+  // `bg` is a gradient, yiq() can't read it, and every accent fell back to
+  // white — the Accent / icons picker did nothing at all (Office Branding,
+  // owner report 2026-09-22). The finish sits over this same colour.
+  const accent = readableAccent(style.accentColor, style.bgColor || NAVY, dark);
   const nameColor = style.textColor ?? (dark ? "#FFFFFF" : INK);
   // The light palette was two steps too pale: on Bone, the address rendered at
   // #7A8AA3 over #F4F2ED and all but vanished. Every tone here now sits at a
