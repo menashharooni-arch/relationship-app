@@ -25,13 +25,53 @@ export function appStoreId(): string | null {
   return m ? m[1] : null;
 }
 
-// Average of the reviews we fetched (one decimal). Note: this is the average of
-// the RECENT reviews in the feed, not Apple's lifetime aggregate — labelled as
-// such in the UI so it's never misrepresented.
-export function averageRating(reviews: AppStoreReview[]): number | null {
-  if (!reviews.length) return null;
-  const sum = reviews.reduce((a, r) => a + r.rating, 0);
-  return Math.round((sum / reviews.length) * 10) / 10;
+// Only reviews at or above this go on the website. Owner, 2026-09-22: "I only
+// want the Apple reviews that are 4.5 stars or higher to show up."
+//
+// Apple's per-review ratings are whole stars, so in practice this is "five
+// stars only" — 4.5 is the threshold, not a value any single review can hold.
+// It is written as 4.5 anyway because that is the instruction, and because a
+// half-star scale would slot straight in.
+//
+// WHY THE HEADLINE NUMBER DOES NOT COME FROM THESE. Showing a filtered set and
+// then averaging IT would print "5.0" no matter what the app's real rating was
+// — a made-up number, which is exactly what FTC 16 CFR Part 465 is about. So
+// the page shows a SELECTION of reviews (clearly worded as such) beside
+// Apple's own lifetime average and rating count, from fetchAppStoreRating()
+// below. Selecting what to feature is fine; misstating the score is not.
+export const MIN_DISPLAY_RATING = 4.5;
+
+/** Apple's own lifetime score for the app — never computed by us. */
+export type AppStoreRating = { average: number; count: number };
+
+// The real aggregate, from Apple's public lookup endpoint (no auth, same as the
+// RSS feed). Null whenever Apple doesn't give us both numbers, and the UI then
+// simply shows no score rather than guessing at one.
+export async function fetchAppStoreRating(): Promise<AppStoreRating | null> {
+  const id = appStoreId();
+  if (!id) return null;
+  const country = (process.env.APP_STORE_COUNTRY || "us").toLowerCase();
+  const url = `https://itunes.apple.com/lookup?id=${id}&country=${country}`;
+  try {
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) {
+      console.warn(`[app-store-reviews] no rating shown: Apple returned ${res.status} (${url})`);
+      return null;
+    }
+    const app = (await res.json().catch(() => null))?.results?.[0];
+    const average = Number(app?.averageUserRating);
+    const count = Number(app?.userRatingCount);
+    if (!Number.isFinite(average) || !Number.isFinite(count) || count < 1) {
+      console.warn(`[app-store-reviews] no rating shown: lookup had no usable score (${url})`);
+      return null;
+    }
+    return { average: Math.round(average * 10) / 10, count: Math.round(count) };
+  } catch (err) {
+    console.warn(
+      `[app-store-reviews] no rating shown: lookup threw: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return null;
+  }
 }
 
 // Every way this can come back empty, said out loud.
@@ -78,10 +118,17 @@ export async function fetchAppStoreReviews(limit = 12): Promise<AppStoreReview[]
     }
 
     const out: AppStoreReview[] = [];
+    let belowThreshold = 0;
     for (const e of entries) {
       // The first feed entry is the app itself (no im:rating) — skip it.
       const rating = Number(e?.["im:rating"]?.label);
       if (!Number.isFinite(rating) || rating < 1) continue;
+      // The owner's rule, applied HERE rather than in the page, so every
+      // surface that ever shows a review inherits it and none can drift.
+      if (rating < MIN_DISPLAY_RATING) {
+        belowThreshold += 1;
+        continue;
+      }
       const body = String(e?.content?.label ?? "").trim();
       if (!body) continue;
       out.push({
@@ -94,7 +141,13 @@ export async function fetchAppStoreReviews(limit = 12): Promise<AppStoreReview[]
       });
       if (out.length >= limit) break;
     }
-    if (!out.length) return quiet(`${entries.length} feed entries, none usable (${url})`);
+    if (!out.length) {
+      return quiet(
+        belowThreshold
+          ? `${entries.length} feed entries, ${belowThreshold} below the ${MIN_DISPLAY_RATING}-star threshold, none left to show (${url})`
+          : `${entries.length} feed entries, none usable (${url})`,
+      );
+    }
     return out;
   } catch (err) {
     return quiet(`fetch threw: ${err instanceof Error ? err.message : String(err)} (${url})`);

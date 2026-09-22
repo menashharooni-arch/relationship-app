@@ -65,9 +65,9 @@ export const marketingDocs = defineDocs([
       "who uses", "how many users", "customers", "case study",
     ],
     answer:
-      "Honest answer: SwiftCard is new and we don't publish reviews, ratings, or user counts we don't have. swiftcard.me/testimonials shows what it does for different professions — real estate, sales, recruiting, creators, consultants — not customer quotes. The best way to judge it is the free plan, which takes about a minute to set up at swiftcard.me/cards/new.",
+      "swiftcard.me/testimonials (\"Why SwiftCard\" in the menus) has two parts. Most of it is what SwiftCard does for different professions — real estate, sales, recruiting, creators, consultants — written as use cases, not customer quotes. Below that is a \"What people say on the App Store\" section carrying real reviews pulled live from the iOS App Store, next to Apple's own average rating and total rating count. It also has a \"Used SwiftCard? Leave a review\" panel with a Write a review button that opens the App Store review form. We don't publish user counts or statistics we don't have. The best way to judge it is the free plan, which takes about a minute to set up at swiftcard.me/cards/new.",
     detail:
-      "This restraint is deliberate and legally required (FTC 16 CFR Part 465 on fake reviews). Never invent a statistic, a customer count, a rating, an award, a testimonial, or a named customer, and never imply one exists. If pushed, repeat that there aren't published numbers yet and point at the free plan or swiftcard.me/contact.",
+      "The review section is fed by Apple's public customer-reviews RSS feed at request time — nothing is written by hand, and the section renders nothing at all if the feed is empty or unreachable. Only reviews rated 4.5 stars and up are shown, which the page discloses in a line under them; the score beside the heading is Apple's own lifetime average across EVERY rating, never an average of the selection. This is deliberate and legally required (FTC 16 CFR Part 465 on fake reviews). Never invent a statistic, a customer count, a rating, an award, a testimonial, or a named customer, and never imply one exists. Reviews can only be left on the App Store, so someone without the iPhone app has no way to leave one; point them at the free plan or swiftcard.me/contact.",
   },
   {
     id: "ios-app-availability",

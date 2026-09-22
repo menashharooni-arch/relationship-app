@@ -1,9 +1,22 @@
-import { fetchAppStoreReviews, averageRating } from "@/lib/app-store-reviews";
+import { APP_STORE_URL, APP_STORE_WRITE_REVIEW_URL } from "@/lib/app-store";
+import {
+  fetchAppStoreReviews,
+  fetchAppStoreRating,
+  MIN_DISPLAY_RATING,
+} from "@/lib/app-store-reviews";
 
-// Displays REAL App Store reviews (Apple's public RSS feed). Renders NOTHING
-// when there are no reviews — so it's invisible until the iOS app is live, and
-// never shows an invented rating/count (FTC compliant, see testimonials/page).
-// Async server component: the fetch is cached (revalidate 1h) in the lib.
+// Displays REAL App Store reviews (Apple's public RSS feed), filtered to
+// MIN_DISPLAY_RATING and up — owner, 2026-09-22: "I only want the Apple reviews
+// that are 4.5 stars or higher to show up", plus "a place for users to just
+// leave a review too". Renders NOTHING when there are no reviews to show, so
+// it stays invisible until the app has some, and never shows an invented
+// rating/count. Async server component: both fetches are cached (1h) in the lib.
+//
+// The score beside the heading is APPLE'S OWN lifetime average and rating
+// count, not the average of the cards below — averaging a set we filtered to
+// the top would print 5.0 whatever the app's real score was. Featuring a
+// selection is fine; misstating the score is what FTC 16 CFR Part 465 forbids,
+// so the selection is disclosed in one line under the grid.
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -18,11 +31,13 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export default async function AppStoreReviews() {
-  const reviews = await fetchAppStoreReviews(12);
-  if (!reviews.length) return null; // pre-launch / no reviews → render nothing
-
-  const avg = averageRating(reviews);
-  const appStoreUrl = process.env.NEXT_PUBLIC_APP_STORE_URL || null;
+  // Two independent public endpoints — no reason to wait for one before the
+  // other, and a failure in either must not take the section down.
+  const [reviews, rating] = await Promise.all([
+    fetchAppStoreReviews(12),
+    fetchAppStoreRating(),
+  ]);
+  if (!reviews.length) return null; // pre-launch / nothing at the threshold → render nothing
 
   return (
     // Light like the rest of the marketing site, with the site's kicker and the
@@ -34,9 +49,14 @@ export default async function AppStoreReviews() {
           <h2 className="rd-h2 text-slate-900 text-[clamp(1.9rem,4vw,3rem)] mt-4">
             What people say on the <span className="hp-fill">App Store</span>
           </h2>
-          {avg !== null && (
-            <p className="text-slate-500 text-[1.05rem] mt-4">
-              <span className="font-bold text-slate-900">{avg.toFixed(1)}</span> average across the {reviews.length} most recent reviews.
+          {rating && (
+            <p className="text-slate-500 text-[1.05rem] mt-4 flex items-center justify-center gap-2 flex-wrap">
+              <Stars rating={Math.round(rating.average)} />
+              <span>
+                <span className="font-bold text-slate-900">{rating.average.toFixed(1)}</span>
+                {" on the App Store, across "}
+                {rating.count === 1 ? "1 rating" : `${rating.count} ratings`}.
+              </span>
             </p>
           )}
         </div>
@@ -52,11 +72,47 @@ export default async function AppStoreReviews() {
           ))}
         </div>
 
-        {appStoreUrl && (
-          <div className="text-center mt-10" data-reveal>
-            <a href={appStoreUrl} target="_blank" rel="noopener noreferrer" className="rd-btn rd-btn-primary">
-              Read more on the App Store →
-            </a>
+        {/* The disclosure. Small and quiet, but present: the cards above are a
+            selection, and this says so in the same breath as where the score
+            came from. Without it, a filtered wall of five stars next to a
+            number reads as "this is everything", which is the misrepresentation
+            the rule is about. */}
+        <p className="text-slate-400 text-[0.78125rem] text-center mt-8 max-w-xl mx-auto leading-relaxed">
+          Reviews written on the App Store, shown here when they&apos;re rated {MIN_DISPLAY_RATING} stars or
+          higher{rating ? ". The score above is Apple's own, across every rating the app has received" : ""}.
+        </p>
+
+        {/* Leave a review. In the iOS app this link opens the App Store straight
+            on the review form, which is what Apple's own guidance prescribes for
+            a user-initiated "rate this app" control; on the web it opens the
+            listing, since you can't review an app you haven't downloaded. */}
+        {APP_STORE_WRITE_REVIEW_URL && (
+          <div className="hp-card !p-8 mt-10 max-w-2xl mx-auto text-center" data-reveal>
+            <p className="text-slate-900 font-semibold text-[1.0625rem]">Used SwiftCard? Leave a review.</p>
+            <p className="text-slate-500 text-[0.90625rem] leading-relaxed mt-2">
+              It takes a few seconds, it posts under your App Store name, and it&apos;s the one thing that
+              helps other people find us.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <a
+                href={APP_STORE_WRITE_REVIEW_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rd-btn rd-btn-primary"
+              >
+                Write a review
+              </a>
+              {APP_STORE_URL && (
+                <a
+                  href={APP_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rd-btn border border-slate-200 text-slate-700"
+                >
+                  Read more on the App Store →
+                </a>
+              )}
+            </div>
           </div>
         )}
       </div>
