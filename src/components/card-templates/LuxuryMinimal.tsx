@@ -7,7 +7,7 @@ import { panelBackground } from "@/lib/template-style";
 import React from "react";
 import { MiniQR as QR } from "./MiniQR";
 import type { CardData } from "./types";
-import { cardAspect, ContactRows, DetailsGap, QR_PINNED, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom } from "./shared";
+import { cardAspect, ContactRows, DetailsGap, QR_PINNED, contactScale, fitFactor, fitCompany, splitLogoRow, fitTitleFluid, titleBox, fitName, heroGrow, logoStyle, logoCircleStyle, cardLogoShape, qrSize, templateStyle, CARD_BASE_FONT, isDarkBg, infoPaletteFrom, textWidthFactor, cardFontClass } from "./shared";
 import PanelVideo from "./PanelVideo";
 
 const GOLD_DEFAULT  = "#b08d57";
@@ -38,8 +38,9 @@ export default function LuxuryMinimal({ data }: { data: CardData }) {
   const { logoMaxPct, companyPx } = splitLogoRow({
     row: 170.4, gap: 8, hasLogo: !!data.logoUrl, defaultLogoFrac: 0.48, minLogo: 46,
     company: data.company, targetPx: 9, trackingEm: 0.22, uppercase: true,
+    widthFactor: textWidthFactor(cardFontClass(data), true),
   });
-  const companyFit = fitCompany(10.5, data.company, 18, companyPx, 0.22, true, f);
+  const companyFit = fitCompany(10.5, data.company, 18, companyPx, 0.22, true, f, textWidthFactor(cardFontClass(data), true));
 
   return (
     <div

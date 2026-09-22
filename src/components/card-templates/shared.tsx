@@ -357,8 +357,13 @@ export function splitLogoRow(opts: {
   targetPx: number;
   trackingEm: number;
   uppercase: boolean;
+  /** How much wider this card's face runs than the Arial tables these figures
+   *  come from — see textWidthFactor. Defaults to 1, so a caller that has not
+   *  been updated renders exactly as it did. */
+  widthFactor?: number;
 }): { logoMaxPct: string; companyPx: number } {
   const { row, gap, hasLogo, defaultLogoFrac, minLogo, company, targetPx, trackingEm, uppercase } = opts;
+  const wf = opts.widthFactor ?? 1;
   const pct = (px: number) => `${Number(((px / row) * 100).toFixed(2))}%`;
   if (!hasLogo) return { logoMaxPct: "0%", companyPx: row * NARROW };
 
@@ -367,7 +372,7 @@ export function splitLogoRow(opts: {
   if (!s) return { logoMaxPct: pct(defaultLogo), companyPx: 0 };
 
   const word = longestWord(s);
-  const needed = (wordEm(word, uppercase) + word.length * trackingEm) * targetPx * SAFETY;
+  const needed = (wordEm(word, uppercase) * wf + word.length * trackingEm) * targetPx * SAFETY;
 
   // What the name gets: never less than the old fixed share, never so much that
   // the logo drops under its floor.
@@ -398,6 +403,10 @@ export function fitCompany(
   uppercase = false,
   /** Density (fitFactor): a short name only grows where there is room. */
   f = 1,
+  /** How much wider this card's face runs than the Arial tables these figures
+   *  come from — see textWidthFactor. Defaults to 1, so a caller that has not
+   *  been updated renders exactly as it did. */
+  widthFactor = 1,
 ): { fontSize: number; letterSpacing: string } {
   const s = (text ?? "").trim();
   // Start from the existing length-based size so short names are untouched and
@@ -410,7 +419,7 @@ export function fitCompany(
   if (!s || availPx <= 0) return { fontSize: size, letterSpacing: `${trackingEm}em` };
 
   const word = longestWord(s);
-  const glyphs = wordEm(word, uppercase); // em of glyph advance, measured
+  const glyphs = wordEm(word, uppercase) * widthFactor; // em of glyph advance, measured
   const n = word.length;                  // tracking is applied per character
   const widthAt = (fs: number, tr: number) => (glyphs + n * tr) * fs * SAFETY;
 
@@ -433,7 +442,7 @@ export function fitCompany(
   // ONE line at the grown size — a name that would wrap is left where it is,
   // because two bigger lines is not an improvement — and the cap keeps the
   // company subordinate to the name above it.
-  const lineEm = wordEm(s, uppercase);
+  const lineEm = wordEm(s, uppercase) * widthFactor;
   const oneLineMax = availPx / ((lineEm + s.length * tracking) * SAFETY);
   const grow = 1 + (COMPANY_GROW - 1) * roomGrow(f);
   if (oneLineMax > size) size = Math.max(size, Math.min(base * grow, oneLineMax));
@@ -446,6 +455,147 @@ export function fitPx(base: number, text: string | null | undefined, comfy: numb
   if (len <= comfy) return base;
   return Math.max(base * FIT_FLOOR, (base * comfy) / len);
 }
+
+// ── Phone rows are sized by the PANEL, in the card's own typeface ────────────
+//
+// Owner, 2026-09-20: "it has my phone number on it and then it says 'mobile'
+// next to it. It's cutting off of the card so it only says a few of the
+// letters."
+//
+// Two separate mistakes made that inevitable, and a character count could not
+// see either one:
+//
+// 1. THE LABEL WAS NEVER IN THE BUDGET. The row was sized `fitPx(14.5·s,
+//    formatPhone(number), 16)` — the NUMBER's length against a 16-character
+//    comfy — while "MOBILE" rendered beside it at a flat 9·s px with a flat 5px
+//    margin. "(415) 555-0188" is 14 characters, so it never shrank at all, and
+//    the whole span carried `white-space: nowrap`, so the label could neither
+//    shrink nor wrap. It simply hung off the card.
+//
+// 2. A CHARACTER COUNT IS NOT A WIDTH. `comfy: 16` is a budget with no units.
+//    On a card carrying one phone the block grows to 14.5 × 1.18 × 1.35 ≈ 23px
+//    (fitFactor × contactScale), and MEASURED at 460px the row then wants 221px
+//    in Luxury Minimal's 218px panel — over the edge before the label is drawn.
+//
+// So the row is now sized the way the email and website rows already are: a CSS
+// container query against the panel's real width, with an em budget that
+// includes the label, the gap and the icon. Below the floor the label wraps
+// under the number rather than being cut — the number itself never breaks,
+// because splitting a phone number mid-digit leaves a string that looks like a
+// phone number and isn't one.
+
+export type CardFontClass = "sans" | "serif" | "mono";
+
+/**
+ * Which of the three metric families this card's typeface belongs to.
+ *
+ * The picker offers four faces plus the unset default, but they differ in only
+ * three ways that matter to a width budget, so three tables cover all of them.
+ */
+export function cardFontClass(data: Pick<CardData, "customization">): CardFontClass {
+  const f = String((data.customization as { fontFamily?: string } | undefined)?.fontFamily ?? "").toLowerCase();
+  if (f.includes("mono") || f.includes("courier")) return "mono";
+  if (f.includes("georgia") || f.includes("times")) return "serif";
+  if (f.includes("serif") && !f.includes("sans-serif")) return "serif";
+  return "sans";
+}
+
+/**
+ * Advance widths in em for every character `formatPhone` can emit, MEASURED at
+ * weight 700 by the method documented above W_UPPER (render one character ten
+ * times at font-size 100, divide by 1000).
+ *
+ * The spread is the whole point: "+1 (512) 555-0147 ext. 8891" is 11.40em in
+ * Segoe UI and 16.20em in Courier New — 42% — so a number sized for Arial is a
+ * third of the way off the card in Mono. Every fit constant in this file was
+ * calibrated in Arial, and nothing had ever rendered the other four.
+ *
+ * `sans` holds the WIDEST of Arial, Segoe UI and Trebuchet MS per character, so
+ * it stays a safe bound whichever face a given renderer resolves `system-ui`
+ * and `var(--font-geist-sans)` to — those differ between production, the OG
+ * image generator and the render harness, and a budget that only holds on one
+ * of them is not a budget. `serif` is Georgia and `mono` is Courier New, both
+ * metric-stable everywhere.
+ *
+ * To re-measure: scripts/measure-card-fonts.mjs.
+ */
+const PHONE_W: Record<CardFontClass, Record<string, number>> = {
+  sans: {
+    "0": 0.586, "1": 0.586, "2": 0.586, "3": 0.586, "4": 0.586, "5": 0.586,
+    "6": 0.586, "7": 0.586, "8": 0.586, "9": 0.586,
+    "(": 0.368, ")": 0.368, "+": 0.586, "-": 0.368, ".": 0.368, ",": 0.368,
+    " ": 0.302, e: 0.575, x: 0.556, t: 0.397,
+  },
+  serif: {
+    "0": 0.702, "1": 0.490, "2": 0.627, "3": 0.625, "4": 0.650, "5": 0.600,
+    "6": 0.648, "7": 0.555, "8": 0.677, "9": 0.648,
+    "(": 0.447, ")": 0.447, "+": 0.704, "-": 0.379, ".": 0.329, ",": 0.329,
+    " ": 0.254, e: 0.572, x: 0.588, t: 0.398,
+  },
+  // Courier New is uniform — every glyph, including the space, is 0.6.
+  mono: {},
+};
+/** What an unlisted character costs: the widest in its family. */
+const PHONE_W_FALLBACK: Record<CardFontClass, number> = { sans: 0.586, serif: 0.704, mono: 0.601 };
+
+/** Width of a formatted phone number, in em of its own font size. */
+export function phoneEm(text: string, cls: CardFontClass): number {
+  const table = PHONE_W[cls];
+  const fallback = PHONE_W_FALLBACK[cls];
+  let sum = 0;
+  for (const ch of text) sum += table[ch] ?? fallback;
+  return sum;
+}
+
+/**
+ * Width of an uppercase phone label ("MOBILE", "OFFICE") in em of ITS OWN size,
+ * including the letter-spacing, which is a real part of the rendered width.
+ *
+ * Uppercase varies far less between these faces than digits do — MOBILE is
+ * 3.57em in Trebuchet, 4.08em in Arial and 4.27em in Georgia — so the measured
+ * Arial table (W_UPPER) plus one factor per family covers the spread rather
+ * than three more tables. Courier is uniform and so is computed directly.
+ */
+export function phoneLabelEm(text: string, cls: CardFontClass, trackingEm: number): number {
+  const n = text.length;
+  if (cls === "mono") return n * (0.601 + trackingEm);
+  return wordEm(text, true) * (cls === "serif" ? 1.15 : 1.12) + n * trackingEm;
+}
+
+/**
+ * How much wider than the Arial figures in W_UPPER/W_MIXED a given face runs.
+ *
+ * MEASURED (scripts/measure-card-fonts.mjs), relative to Arial:
+ *
+ *                       sans   serif    mono   rounded
+ *   mixed case         0.934   1.022   1.240    1.005
+ *   UPPERCASE          0.989   1.016   0.901    0.874
+ *
+ * Courier New is the reason this exists: it is uniform at 0.6em, which is 24%
+ * wider than Arial's lower-case average and 10% NARROWER than its capitals —
+ * so one number cannot serve both, and SAFETY's 8% covers neither. That gap is
+ * what let "Northwind Commercial Real Estate Advisors" render 51px wider than
+ * its column in Mono, where Logo First's `truncate` then cut it off.
+ *
+ * Each figure is the widest face in its family, rounded up.
+ */
+export function textWidthFactor(cls: CardFontClass, uppercase: boolean): number {
+  if (cls === "mono") return uppercase ? 1.0 : 1.25;
+  if (cls === "serif") return 1.03;
+  return 1.01;
+}
+
+/** The label's size as a share of the number's, so the two always scale together. */
+const PHONE_LABEL_RATIO = 0.62;
+/** Space between number and label — was a flat 5px beside a 14.5px number. */
+const PHONE_LABEL_GAP_EM = 0.36;
+/** Below this the label wraps under the number instead of shrinking further. */
+const PHONE_FLOOR_PX = 9.5;
+/**
+ * What the icon and its gap take out of the panel before any text is laid out:
+ * `w-3` (12px) plus `gap-2` (8px), and a pixel either side for rounding.
+ */
+const ROW_CHROME_PX = 23;
 
 /**
  * The class for a template's NAME element: `text-white` only while the owner
@@ -594,7 +744,19 @@ export function qrSize(f: number): number {
 export function cardAspect(data: CardData, threshold = 7): string {
   const rows = contactRowCount(data);
   if (rows <= threshold) return "1.75 / 1";
-  const ratio = Math.max(1.35, 1.75 - (rows - threshold) * 0.06);
+  // 0.10 per row past the threshold, floored at 1.25.
+  //
+  // RE-CALIBRATED 2026-09-20, because the old 0.06/1.35 had never been measured
+  // against a card that was actually full. The fullest card the product allows
+  // — four labelled phones, a fax, a four-line address, an email long enough to
+  // wrap and a 70-character title, about 11.5 rows — came out at 1.48, and the
+  // QR then sat 40px BELOW the bottom edge on Photo First and Logo First while
+  // the address ran 2–3px past it on Local Business. The floor was part of it:
+  // that card needs roughly 1.31, which the old 1.35 forbade outright.
+  //
+  // This is the valve of last resort, and it only opens past `threshold` rows,
+  // so no card that fits today changes shape by a pixel.
+  const ratio = Math.max(1.25, 1.75 - (rows - threshold) * 0.1);
   return `${ratio.toFixed(3)} / 1`;
 }
 
@@ -648,7 +810,16 @@ export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; p
   // tighter budget — sized for the narrowest contact panel (ModernBold) so a
   // grown email can never poke past the card edge.
   const rowGrow = Math.min(s, 1.1 * scale);
-  const phonePx = fitPx(14.5 * s, formatPhone(cardPhones(data)[0]?.number ?? ""), 16);
+  const phones = cardPhones(data);
+  const fontClass = cardFontClass(data);
+  // Em budget for one phone row: the number, plus the label at its fixed share
+  // of the number's size, plus the gap between them. See PHONE_W above for why
+  // this is measured per typeface rather than counted in characters.
+  const phoneBudget = (p: ShownPhone) =>
+    phoneEm(formatPhone(p.number), fontClass)
+    + (p.label ? phoneLabelEm(p.label, fontClass, 0.05) * PHONE_LABEL_RATIO + PHONE_LABEL_GAP_EM : 0);
+  const phoneSizeCss = (p: ShownPhone) =>
+    `clamp(${PHONE_FLOOR_PX}px, calc((100cqw - ${ROW_CHROME_PX}px) / ${phoneBudget(p).toFixed(2)}), ${(14.5 * s).toFixed(2)}px)`;
   // EMAIL and WEBSITE are sized from the contact panel's actual width (a CSS
   // container query), not a character budget. The budget had to assume the
   // narrowest panel, so on a sparse card the email stayed ~12px beside a 20px
@@ -656,17 +827,25 @@ export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; p
   // phone and email should both read larger). Each is as large as its panel
   // allows on one line, capped just under the phone, and never below a readable
   // floor — past the floor it wraps instead of shrinking into a smudge.
-  const fluid = (text: string | null | undefined, maxPx: number, minPx: number, emPerChar: number) => {
+  const fluid = (text: string | null | undefined, maxCss: string, minPx: number, emPerChar: number) => {
     const len = Math.max(1, (text ?? "").trim().length);
-    return `clamp(${minPx}px, calc((100cqw - 24px) / ${(len * emPerChar).toFixed(2)}), ${maxPx.toFixed(2)}px)`;
+    return `clamp(${minPx}px, calc((100cqw - 24px) / ${(len * emPerChar).toFixed(2)}), ${maxCss})`;
   };
-  const emailMax = Math.max(fitGrownPx(13, rowGrow, data.email, 22), (cardPhones(data).length ? phonePx : 14.5 * s) * 0.86);
+  // The email is capped just UNDER the phone, which is how the type hierarchy
+  // (phone ≥ email > website > address) is held. The phone is no longer a
+  // number this code knows — it resolves against the panel at paint time — so
+  // the cap has to be expressed in CSS and reference that same expression,
+  // rather than a px value computed here that the phone may never reach. Get
+  // this wrong and a constrained phone renders SMALLER than the email beside
+  // it, which card-detail-fit asserts against.
+  const emailMax = `max(${fitGrownPx(13, rowGrow, data.email, 22).toFixed(2)}px, calc(0.86 * ${
+    phones.length ? phoneSizeCss(phones[0]) : `${(14.5 * s).toFixed(2)}px`
+  }))`;
   // Average advance per character: serif and monospace faces run wider than the
   // default sans, and under-estimating them wrapped short emails mid-address.
-  const font = String((data.customization as { fontFamily?: string } | undefined)?.fontFamily ?? "").toLowerCase();
-  const perChar = font.includes("mono") ? 0.68 : font.includes("serif") && !font.includes("sans-serif") ? 0.63 : 0.58;
+  const perChar = fontClass === "mono" ? 0.68 : fontClass === "serif" ? 0.63 : 0.58;
   const emailSize = fluid(data.email, emailMax, 10, perChar);
-  const webSize = fluid(data.website, Math.max(fitGrownPx(11.5, rowGrow, data.website, 24), emailMax * 0.84), 9.5, perChar * 0.96);
+  const webSize = fluid(data.website, `max(${fitGrownPx(11.5, rowGrow, data.website, 24).toFixed(2)}px, calc(0.84 * ${emailMax}))`, 9.5, perChar * 0.96);
 
   // Every row is a flex child, so it needs min-w-0 to be allowed to shrink below
   // its content width. Without it a flex item's automatic minimum size is its
@@ -682,16 +861,28 @@ export function ContactRows({ data, palette, f, scale = 1 }: { data: CardData; p
   return (
     // container-type makes 100cqw the contact panel's own width (see fluid above).
     <div className="flex flex-col" style={{ gap, containerType: "inline-size" }}>
-      {cardPhones(data).map((p, i) => (
+      {phones.map((p, i) => (
         <a key={`ph${i}`} href={`tel:${p.number.replace(/[^\d+]/g, "")}`} className={row} style={{ color: palette.strong, textDecoration: "none" }}>
           <span className="shrink-0" style={ic(palette.strong)}><IcoPhone /></span>
-          {/* A phone stays on one line — breaking a number mid-digit is worse
-              than shrinking it — so it must be FITTED. It previously had a fixed
-              size with nowrap, which meant an extension ("...ext. 8891") could
-              neither shrink nor wrap and ran ~50px past the card edge. */}
-          <span style={{ fontSize: fitPx(14.5 * s, formatPhone(p.number), 16), fontWeight: palette.phoneWeight ?? 700, whiteSpace: "nowrap" }}>
-            {formatPhone(p.number)}
-            {p.label && <span style={{ fontWeight: 400, opacity: 0.5, marginLeft: 5, fontSize: 9 * s, textTransform: "uppercase", letterSpacing: "0.05em" }}>{p.label}</span>}
+          {/* The number and its label are budgeted TOGETHER against the panel's
+              real width (phoneSizeCss above). Sizing the number alone by a
+              character count is what put "MOBILE" off the edge of the card. */}
+          <span
+            style={{
+              fontSize: phoneSizeCss(p),
+              fontWeight: palette.phoneWeight ?? 700,
+              // Wrapping is the safety valve, not the normal case: past the
+              // floor the LABEL drops under the number rather than being cut.
+              display: "flex", flexWrap: "wrap", alignItems: "baseline",
+              columnGap: `${PHONE_LABEL_GAP_EM}em`, minWidth: 0,
+            }}
+          >
+            <span style={{ whiteSpace: "nowrap" }}>{formatPhone(p.number)}</span>
+            {p.label && (
+              // `em`, so the label tracks the number instead of sitting at a
+              // fixed 9·s px while the number shrank away from underneath it.
+              <span style={{ fontWeight: 400, opacity: 0.5, fontSize: `${PHONE_LABEL_RATIO}em`, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{p.label}</span>
+            )}
           </span>
         </a>
       ))}
