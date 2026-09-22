@@ -49,8 +49,11 @@ export const APP_STORE_ID: string | null =
 // Store app itself — straight onto the review form, which is what Apple's own
 // docs prescribe for a user-initiated "rate this app" control.
 //
-// On the web it is the plain listing: a web visitor may not have the app, and
-// you cannot review an app you have not downloaded.
+// The in-app /grow card on the web is the plain listing (a visitor there may
+// not have the app). The web "Rate us" surfaces — dashboard banner, Settings,
+// footer, swiftcard.me/review — use the write-review link everywhere (owner
+// call 2026-09-22): on iPhone/iPad/Mac it opens the review screen, elsewhere
+// the listing's web page with a "Best on iPhone" hint. See lib/rate-us.ts.
 export const APP_STORE_LISTING_URL: string | null =
   APP_STORE_ID ? `https://apps.apple.com/app/id${APP_STORE_ID}` : null;
 export const APP_STORE_WRITE_REVIEW_URL: string | null =
