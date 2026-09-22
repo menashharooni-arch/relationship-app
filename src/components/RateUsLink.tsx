@@ -19,7 +19,7 @@ export default function RateUsLink({
   className = "",
   children = "Rate us on the App Store",
 }: {
-  placement: "dashboard_banner" | "settings" | "footer";
+  placement: "dashboard_banner" | "settings" | "footer" | "reviews_page";
   className?: string;
   children?: ReactNode;
 }) {

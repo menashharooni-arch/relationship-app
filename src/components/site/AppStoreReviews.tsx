@@ -1,4 +1,5 @@
 import { APP_STORE_URL, APP_STORE_WRITE_REVIEW_URL } from "@/lib/app-store";
+import RateUsLink from "@/components/RateUsLink";
 import {
   fetchAppStoreReviews,
   fetchAppStoreRating,
@@ -82,10 +83,11 @@ export default async function AppStoreReviews() {
           higher{rating ? ". The score above is Apple's own, across every rating the app has received" : ""}.
         </p>
 
-        {/* Leave a review. In the iOS app this link opens the App Store straight
-            on the review form, which is what Apple's own guidance prescribes for
-            a user-initiated "rate this app" control; on the web it opens the
-            listing, since you can't review an app you haven't downloaded. */}
+        {/* Leave a review. RateUsLink is the one web "rate us" control (owner,
+            2026-09-22: the reviews page is another place people can review):
+            straight to Apple's review form on iPhone/iPad/Mac, the listing's
+            web page elsewhere with a "Best on iPhone" tip, and every tap
+            counted as cta rate_us / reviews_page. See lib/rate-us.ts. */}
         {APP_STORE_WRITE_REVIEW_URL && (
           <div className="hp-card !p-8 mt-10 max-w-2xl mx-auto text-center" data-reveal>
             <p className="text-slate-900 font-semibold text-[1.0625rem]">Used SwiftCard? Leave a review.</p>
@@ -94,14 +96,9 @@ export default async function AppStoreReviews() {
               helps other people find us.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              <a
-                href={APP_STORE_WRITE_REVIEW_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rd-btn rd-btn-primary"
-              >
+              <RateUsLink placement="reviews_page" className="rd-btn rd-btn-primary">
                 Write a review
-              </a>
+              </RateUsLink>
               {APP_STORE_URL && (
                 <a
                   href={APP_STORE_URL}
