@@ -24,7 +24,7 @@ describe("native splash", () => {
     // The client-side half, which also covers iOS 15 (no Sec-Fetch-Site).
     expect(markup).toMatch(/document\.referrer\.indexOf\(location\.origin\)===0/);
     // ~52KB of inlined artwork: read once per process, never per request.
-    expect(component).toMatch(/cachedMarkup \?\?=/);
+    expect(component).toMatch(/cachedMarkup\[file\] \?\?=/);
   });
 
   it("never replays on a tab tap: a router fetch is not a launch", () => {
@@ -173,10 +173,13 @@ describe("native splash v2", () => {
   it("is served only to builds that carry the v2 launch image", () => {
     expect(component).toMatch(/SPLASH_V2_TOKEN = "SwiftCardSplash\/2"/);
     expect(component).toMatch(/\.includes\(SPLASH_V2_TOKEN\)/);
-    expect(component).toMatch(/src\/lib\/splash\/markup-v2\.html/);
-    // …and every build without the token keeps v1, whose launch image it has.
-    expect(component).toMatch(/src\/lib\/splash\/markup\.html/);
-    expect(capacitor).toMatch(/appendUserAgent: "SwiftCardApp SwiftCardSplash\/2"/);
+    expect(component).toMatch(/markup-v2\.html/);
+    expect(component).toMatch(/join\(process\.cwd\(\), "src\/lib\/splash", file\)/);
+    // …and every build without a token keeps v1, whose launch image it has.
+    expect(component).toMatch(/markup\.html/);
+    // The CURRENT build ships the v3 launch image, so that is what it says it
+    // carries; v2 stays reachable for the builds already installed.
+    expect(capacitor).toMatch(/appendUserAgent: "SwiftCardApp SwiftCardSplash\/3"/);
   });
 
   it("paints the logo's gradient full screen, from the very first frame", () => {
@@ -212,5 +215,69 @@ describe("native splash v2", () => {
     expect(v2).toMatch(/animation:vfk-clear 1400ms linear both;/);
     expect(v2).not.toMatch(/mask-mode:\s*luminance/);
     expect(v2).toMatch(/prefers-reduced-motion:\s*reduce/);
+  });
+});
+
+// ── v3: the owner's reference image ─────────────────────────────────────────
+// Owner, 2026-09-20: make the splash this image, then run the same lightning
+// into it. Everything about the SEQUENCE is v2's and is covered above; what is
+// pinned here is the artwork it now starts from, and the versioning that keeps
+// an installed app from handing off to a frame 0 that is not its launch image.
+describe("native splash v3", () => {
+  const v3 = read("src/lib/splash/markup-v3.html");
+  const build = read("scripts/build-splash-v3.mjs");
+  const capacitor = read("capacitor.config.ts");
+
+  it("is served only to builds that carry the v3 launch image", () => {
+    expect(component).toMatch(/SPLASH_V3_TOKEN = "SwiftCardSplash\/3"/);
+    expect(component).toMatch(/ua\.includes\(SPLASH_V3_TOKEN\) \? 3 : ua\.includes\(SPLASH_V2_TOKEN\) \? 2 : 1/);
+    expect(component).toMatch(/markup-v3\.html/);
+    expect(capacitor).toMatch(/SwiftCardSplash\/3/);
+  });
+
+  it("frame 0 is the reference field, root and plane painting the identical fill", () => {
+    // Both the HOLD frame (painted by the root before the native launch image
+    // is dropped) and the plane must be the same field, sized to the same
+    // 100vmax square the launch image aspect-fills, or the handoff shifts.
+    const field = v3.match(/radial-gradient\([^;]+linear-gradient\(146\.5deg,#2c489f 0%,#111b49 100%\)/)?.[0];
+    expect(field, "the v3 field").toBeTruthy();
+    const fill = `background:${field} 50% 50% / 100vmax 100vmax no-repeat,#1f3274;`;
+    expect(v3).toContain(`html.sc-splash-hold #sc-splash-vfork{ ${fill} }`);
+    const plane = v3.slice(v3.indexOf(".vfk-plane{"));
+    expect(plane.slice(0, plane.indexOf("}"))).toContain(fill);
+    // v2's lighter field is gone.
+    expect(v3).not.toContain("linear-gradient(135deg,#4a5ea5");
+  });
+
+  it("draws the mark at the size the launch image does", () => {
+    // 28.125vmax is the reference's own card (36.07% of its width) expressed
+    // against the mark's box; scripts/verify-splash.mjs measures the real thing.
+    expect(v3).toMatch(/--vfk-mark: 28\.125vmax/);
+    expect(build).toMatch(/const MARK_VMAX = \+\(CARD_VMAX \* \(REF\.side \/ 290\)\)/);
+  });
+
+  it("the mark is drawn from the reference, not lifted out of the app icon", () => {
+    expect(build).toContain("BOLT_PATH");
+    // It never READS the icon — the shape is the traced path in the script.
+    expect(build).not.toMatch(/sharp\(ICON\)|const ICON =/);
+    // Two glow passes, fitted to the reference's measured falloff.
+    expect(build).toMatch(/GLOW_LAYERS = \[[\s\S]*sigma: 35[\s\S]*sigma: 16[\s\S]*\]/);
+  });
+
+  it("opens through its OWN bolt, with one mask defined once", () => {
+    expect((v3.match(/--vfk-bolt: url\("data:image\/webp;base64,/g) ?? []).length).toBe(1);
+    expect((v3.match(/var\(--vfk-bolt\)/g) ?? []).length).toBe(4);
+    expect((v3.match(/src="data:image\/webp;base64,/g) ?? []).length).toBe(1);
+    expect(build).toMatch(/svgBolt\(MASK_PX\)/);
+  });
+
+  it("keeps every v1 guard", () => {
+    expect(v3).toMatch(/d\.classList\.add\("sc-splash-armed"\);d\.classList\.add\("sc-splash-hold"\)/);
+    expect(v3).toMatch(/html:not\(\.sc-splash-armed\) #sc-splash-vfork\{display:none!important\}/);
+    expect(v3).toMatch(/d\.classList\.remove\("sc-splash-armed"\)/);
+    expect(v3).toMatch(/document\.referrer\.indexOf\(location\.origin\)===0/);
+    expect(v3).toMatch(/animation:vfk-clear 1400ms linear both;/);
+    expect(v3).not.toMatch(/mask-mode:\s*luminance/);
+    expect(v3).toMatch(/prefers-reduced-motion:\s*reduce/);
   });
 });

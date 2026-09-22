@@ -60,10 +60,13 @@ const config: CapacitorConfig = {
     // redirect on (that check shipped before any build carried the token, so
     // it was inert; installed builds are covered by the sc_shell cookie the
     // boot script plants instead). Takes effect on the next native build.
-    // "SwiftCardSplash/2" = this build carries the v2 launch image (the logo's
-    // gradient full screen, the mark alone in the centre). The server sends the
-    // matching v2 animation only to builds that say so — see NativeSplash.tsx.
-    appendUserAgent: "SwiftCardApp SwiftCardSplash/2",
+    // "SwiftCardSplash/3" = this build carries the v3 launch image (the owner's
+    // reference field, with the mark drawn bigger and brighter in the centre).
+    // The server sends the matching animation only to builds that say so — see
+    // NativeSplash.tsx — so an installed v1 or v2 app keeps the animation whose
+    // first frame matches ITS launch image. Bump this whenever the launch image
+    // changes, or an app hands off from its own image to a different frame 0.
+    appendUserAgent: "SwiftCardApp SwiftCardSplash/3",
     // The native canvas behind the webview — what rubber-band overscroll
     // reveals. White by default, which read as white bars at the top/bottom of
     // every scroll. globals.css also suppresses the bounce itself
