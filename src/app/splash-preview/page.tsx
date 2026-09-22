@@ -23,22 +23,48 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function SplashPreviewPage() {
-  const markup = readFileSync(join(process.cwd(), "src/lib/splash/markup-v3.html"), "utf8");
+// ?v= picks which one to watch. The default is what a NEW build plays; the
+// transition files are what the apps already installed play, starting on their
+// own launch image and cross-fading to the new screen (NativeSplash).
+const FILES: Record<string, string> = {
+  "3": "markup-v3.html",
+  "2to3": "markup-v2to3.html",
+  "1to3": "markup-v1to3.html",
+};
+
+export default async function SplashPreviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ v?: string }>;
+}) {
+  const { v } = await searchParams;
+  const key = v && FILES[v] ? v : "3";
+  const file = FILES[key];
+  const markup = readFileSync(join(process.cwd(), "src/lib/splash", file), "utf8");
   return (
     <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center gap-4 px-6 text-center">
       {/* What the bolt opens onto — the page underneath, as on a real launch. */}
       <h1 className="text-white text-2xl font-bold">SwiftCard</h1>
       <p className="text-gray-400 text-sm max-w-xs leading-relaxed">
-        This is the launch animation the next app build will play. Tap replay to watch it again.
+        {file === FILES["3"]
+          ? "This is the launch animation a new app build plays. Tap replay to watch it again."
+          : "This is what the app you already have plays: it starts on its own launch screen and cross-fades to the new one. Tap replay to watch it again."}
       </p>
+      <div className="flex gap-3 text-xs text-gray-500">
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a className={file === FILES["3"] ? "text-white font-semibold" : "underline"} href="/splash-preview">New build</a>
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a className={file === FILES["2to3"] ? "text-white font-semibold" : "underline"} href="/splash-preview?v=2to3">Installed app</a>
+      </div>
       {/* A FULL page load, not next/link: the overlay's guard and its clock
           both run at parse, and a client-side navigation would re-mount the
           markup without ever running its script — which is exactly the case
           the arming guard exists to suppress. Nothing would play. */}
-      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a
-        href="/splash-preview"
+        // Replays the one being watched, not the default. `key` comes from the
+        // FILES table, never straight from the query, so nothing a visitor
+        // types can land in the URL.
+        href={key === "3" ? "/splash-preview" : `/splash-preview?v=${key}`}
         className="mt-1 rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white"
       >
         Replay

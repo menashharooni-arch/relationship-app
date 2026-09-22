@@ -67,9 +67,26 @@ export const SPLASH_V3_TOKEN = "SwiftCardSplash/3";
 
 // Read once per server process, not once per request: this is ~52KB of inlined
 // artwork and a synchronous disk read has no business in the request path.
+// WHICH FILE EACH INSTALLED BUILD GETS.
+//
+// A build carrying the v3 launch image gets the v3 animation, whose frame 0 IS
+// that image. Every build already on a phone carries an older image, and the
+// owner did not want to wait for review to see the new screen (2026-09-22), so
+// those get a TRANSITION file: the same v3 sequence, but starting on the launch
+// image that build actually has and cross-fading to the new one at 110-320ms,
+// under the charge and before the fork lands (build-splash-transition.mjs).
+// The handoff from the static image stays pixel-identical either way — which is
+// the one rule none of these may break.
+const MARKUP: Record<SplashVersion, string> = {
+  3: "markup-v3.html",
+  2: "markup-v2to3.html",
+  1: "markup-v1to3.html",
+};
+export type SplashVersion = 1 | 2 | 3;
+
 const cachedMarkup: Record<string, string> = {};
-function splashMarkup(version: 1 | 2 | 3): string {
-  const file = version === 3 ? "markup-v3.html" : version === 2 ? "markup-v2.html" : "markup.html";
+function splashMarkup(version: SplashVersion): string {
+  const file = MARKUP[version];
   return (cachedMarkup[file] ??= readFileSync(join(process.cwd(), "src/lib/splash", file), "utf8"));
 }
 
