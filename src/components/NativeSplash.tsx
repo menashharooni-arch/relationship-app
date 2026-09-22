@@ -58,15 +58,19 @@ import { isNativeRequest } from "@/lib/native-request";
 // no installed app ever sees a first frame that doesn't match its own launch
 // image. v2's assets come from scripts/build-splash-v2.mjs.
 export const SPLASH_V2_TOKEN = "SwiftCardSplash/2";
+// v3 (owner, 2026-09-20): the reference image — a deeper blue field with the
+// sheen across the top, and the mark bigger, brighter and DRAWN rather than
+// lifted out of the app icon (scripts/build-splash-v3.mjs). Same rule as v2:
+// only a build whose launch image IS this may be handed this animation, so it
+// carries its own token and every older build keeps what it shipped with.
+export const SPLASH_V3_TOKEN = "SwiftCardSplash/3";
 
 // Read once per server process, not once per request: this is ~52KB of inlined
 // artwork and a synchronous disk read has no business in the request path.
-let cachedMarkup: string | null = null;
-let cachedMarkupV2: string | null = null;
-function splashMarkup(v2: boolean): string {
-  if (v2) return (cachedMarkupV2 ??= readFileSync(join(process.cwd(), "src/lib/splash/markup-v2.html"), "utf8"));
-  cachedMarkup ??= readFileSync(join(process.cwd(), "src/lib/splash/markup.html"), "utf8");
-  return cachedMarkup;
+const cachedMarkup: Record<string, string> = {};
+function splashMarkup(version: 1 | 2 | 3): string {
+  const file = version === 3 ? "markup-v3.html" : version === 2 ? "markup-v2.html" : "markup.html";
+  return (cachedMarkup[file] ??= readFileSync(join(process.cwd(), "src/lib/splash", file), "utf8"));
 }
 
 export default async function NativeSplash() {
@@ -87,6 +91,7 @@ export default async function NativeSplash() {
   // armed it, so markup delivered any other way can never show. The cost of a
   // miss here is bandwidth (~52KB), never a replay.
 
-  const v2 = (h.get("user-agent") ?? "").includes(SPLASH_V2_TOKEN);
-  return <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: splashMarkup(v2) }} />;
+  const ua = h.get("user-agent") ?? "";
+  const version = ua.includes(SPLASH_V3_TOKEN) ? 3 : ua.includes(SPLASH_V2_TOKEN) ? 2 : 1;
+  return <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: splashMarkup(version) }} />;
 }

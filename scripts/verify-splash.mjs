@@ -21,13 +21,14 @@
  *
  * Usage: node scripts/verify-splash.mjs [baseUrl]     (default http://127.0.0.1:3111)
  *        SPLASH_V2=1 node scripts/verify-splash.mjs   (as a build carrying the v2 launch image)
+ *        SPLASH_V3=1 node scripts/verify-splash.mjs   (as a build carrying the v3 launch image)
  */
 import { chromium } from "playwright";
 
 const BASE = process.argv[2] || "http://127.0.0.1:3111";
 const UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) SwiftCardApp" +
-  (process.env.SPLASH_V2 ? " SwiftCardSplash/2" : "");
+  (process.env.SPLASH_V3 ? " SwiftCardSplash/3" : process.env.SPLASH_V2 ? " SwiftCardSplash/2" : "");
 
 // Every device the app ships to, plus one landscape case. `expect` is what the
 // static launch image renders the mark at, which is what the overlay's first
@@ -37,8 +38,12 @@ const DEVICES = [
   ["iPhone 15 Pro Max", 430, 932], ["iPad Air", 820, 1180],
   ["iPad Pro 12.9", 1024, 1366], ["landscape", 844, 390],
 ];
-// 560 = the mark's measured span in the shipped 2732x2732 launch asset.
-const markFor = (w, h) => (560 * Math.max(w, h)) / 2732;
+// The mark's measured span in the shipped 2732x2732 launch asset: 560 for v1
+// and v2, 768 for v3 (build-splash-v3.mjs draws it larger, to the owner's
+// reference image). The overlay must draw it at exactly the size the static
+// image does, or the mark jumps the instant the animation takes over.
+const MARK_SPAN = process.env.SPLASH_V3 ? 768 : 560;
+const markFor = (w, h) => (MARK_SPAN * Math.max(w, h)) / 2732;
 
 // Pointed at production, a burst of contexts trips Vercel's bot challenge and
 // serves a "Security Checkpoint" page instead of the app — which looks exactly
@@ -151,11 +156,16 @@ console.log("\nHandoff — the sequence starts when the screen is actually ours"
     () => getComputedStyle(document.getElementById("sc-splash-vfork")).backgroundColor);
   const heldImg = await page.evaluate(
     () => getComputedStyle(document.getElementById("sc-splash-vfork")).backgroundImage);
-  // v1: flat navy. v2: the logo's gradient (a CSS gradient needs no decode) over its mid-tone.
+  // v1: flat navy. v2: the logo's gradient over its mid-tone. v3: the
+  // reference's field — the sheen's radial over the linear, on its mid-tone.
+  // Every one of them is CSS only: a gradient needs no decode, so the held
+  // frame is on screen immediately whatever the mask images are doing.
   check("held frame paints the launch image's ground even before any image decodes",
-    process.env.SPLASH_V2
-      ? heldBg === "rgb(54, 66, 120)" && heldImg.startsWith("linear-gradient(135deg")
-      : heldBg === "rgb(26, 35, 66)",
+    process.env.SPLASH_V3
+      ? heldBg === "rgb(31, 50, 116)" && heldImg.startsWith("radial-gradient(") && heldImg.includes("linear-gradient(146.5deg")
+      : process.env.SPLASH_V2
+        ? heldBg === "rgb(54, 66, 120)" && heldImg.startsWith("linear-gradient(135deg")
+        : heldBg === "rgb(26, 35, 66)",
     `background=${heldBg} ${heldImg.slice(0, 40)}`);
   await page.waitForTimeout(180);
   const go = await probe(page);
