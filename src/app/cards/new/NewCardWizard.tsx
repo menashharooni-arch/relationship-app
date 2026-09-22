@@ -173,13 +173,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 }) {
   const router = useRouter();
   // After a paid checkout the success page routes the OWNER here to create their
-  // card first (it counts as Office seat 1). postcheckout=office → send them on
-  // to the Office admin dashboard when done; pro/absent → dashboard.
+  // card first (it counts as Office seat 1). Every plan finishes on the
+  // dashboard with the tour — an Office owner included; the team console is
+  // one tap away on its Admin tab (owner, 2026-09-22).
   const searchParams = useSearchParams();
   const postCheckout = searchParams.get("postcheckout");
   // First card → the guided tour starts on the dashboard (the empty-state
   // dashboard deliberately does not run it — nothing to point at yet).
-  const doneHref = postCheckout === "office" ? "/office/admin" : (isFirstCard || tourOnDone) ? "/dashboard?tour=1" : "/dashboard";
+  const doneHref = (postCheckout || isFirstCard || tourOnDone) ? "/dashboard?tour=1" : "/dashboard";
   // A plan-specific CTA (Get Pro / Get Office) routes here with ?plan=… so the
   // visitor still builds their card first, but AFTER account creation goes
   // straight to payment for that plan — no plan chooser again (unified flow).
@@ -1769,23 +1770,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 
             <GetTheAppCard />
 
-            {postCheckout === "office" ? (
-              <button
-                type="button"
-                onClick={() => { markPushAsked(); router.push("/office/admin"); }}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-base py-4 rounded-full transition-colors"
-              >
-                Go to your Office dashboard →
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => { markPushAsked(); router.push(doneHref); }}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-base py-4 rounded-full transition-colors"
-              >
-                Continue to dashboard →
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => { markPushAsked(); router.push(doneHref); }}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-base py-4 rounded-full transition-colors"
+            >
+              Continue to dashboard →
+            </button>
           </div>
         )}
 

@@ -78,7 +78,11 @@ describe("the guided tour reaches a brand-new account", () => {
     const emptyBranchEnd = c.indexOf("</main>", emptyBranchAt);
     expect(c.slice(emptyBranchAt, emptyBranchEnd)).not.toContain("<TourAutoStart");
     const wizard = code("src/app/cards/new/NewCardWizard.tsx");
-    expect(wizard).toMatch(/\(isFirstCard \|\| tourOnDone\) \? "\/dashboard\?tour=1"/);
+    expect(wizard).toMatch(/\(postCheckout \|\| isFirstCard \|\| tourOnDone\) \? "\/dashboard\?tour=1"/);
+    // A new Office owner lands on their OWN dashboard, never straight in the
+    // admin console (owner, 2026-09-22) — from the wizard or from checkout.
+    expect(wizard).not.toMatch(/router\.push\("\/office\/admin"\)|doneHref = [^;]*"\/office\/admin"/);
+    expect(code("src/app/checkout/success/page.tsx")).not.toContain('"/office/admin"');
   });
 
   it("an invited Office member's first card hands off to the tour too", () => {

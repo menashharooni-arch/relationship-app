@@ -18,12 +18,15 @@ import AwaitingPlan from "./AwaitingPlan";
 //     the "Office sign-up glitches" report (2026-09-16).
 //   • No card yet  → send them into Create-Your-Card first (Pro and Office both
 //     require a card; the Office owner's card is seat 1). We pass postcheckout so
-//     the wizard routes to the Office dashboard (office) or the dashboard (pro).
-//   • Has a card   → the caller's `next`, else Office → /office/admin,
-//     Pro → /dashboard.
+//     the wizard knows the card is part of a purchase.
+//   • Has a card   → the caller's `next`, else /dashboard with the new-account
+//     tour — Office included. An Office owner lands on THEIR dashboard first
+//     and reaches the team console from its Admin tab, where the admin tour is
+//     offered (owner, 2026-09-22: never straight into the admin page).
 export const dynamic = "force-dynamic";
 
 const SAFE_PATH = /^\/[a-zA-Z0-9?=&_.\-/]*$/;
+const WELCOME = "/dashboard?upgraded=true&welcome=1";
 
 export default async function CheckoutSuccessPage({
   searchParams,
@@ -68,7 +71,7 @@ export default async function CheckoutSuccessPage({
     }
     if (!paid) redirect("/welcome");
     const planLanded = isOffice ? isOfficePlan(profile?.plan) : isPaidPlan(profile?.plan);
-    const safeNextEarly = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") && SAFE_PATH.test(next) ? next : "/office/admin";
+    const safeNextEarly = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") && SAFE_PATH.test(next) ? next : WELCOME;
     return <AwaitingPlan planName={isOffice ? "Office" : "Pro"} fallbackHref={planLanded ? safeNextEarly : undefined} />;
   }
 
@@ -83,5 +86,5 @@ export default async function CheckoutSuccessPage({
   }
 
   const safeNext = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") && SAFE_PATH.test(next) ? next : null;
-  redirect(safeNext ?? (isOffice ? "/office/admin" : "/dashboard?upgraded=true&welcome=1"));
+  redirect(safeNext ?? WELCOME);
 }
