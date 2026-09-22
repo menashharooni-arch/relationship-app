@@ -60,7 +60,11 @@ describe("in-app browser sheets never open a selling surface", () => {
     const offenders: string[] = [];
 
     for (const file of walk(join(ROOT, "src"))) {
-      const rel = file.slice(ROOT.length + 1);
+      // Forward slashes on every platform: ALLOWED is keyed that way, and on
+      // Windows a raw slice hands back "src\components\…", which matches no
+      // entry — so both allowlisted OAuth call sites were reported as 3.1.1
+      // leaks on the owner's machine while CI (Linux) stayed green.
+      const rel = file.slice(ROOT.length + 1).split(/[\\/]/).join("/");
       const src = stripComments(readFileSync(file, "utf8"));
       if (!/Browser\.open\s*\(/.test(src)) continue;
       if (ALLOWED[rel]) continue;

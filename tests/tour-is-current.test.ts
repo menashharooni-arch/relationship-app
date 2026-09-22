@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { TOUR_STEPS, buildTourSteps } from "@/lib/tour-steps";
 import { ADMIN_TOUR_STEPS } from "@/lib/admin-tour-steps";
@@ -30,11 +29,22 @@ const read = (p: string) => readFileSync(join(root, p), "utf8");
  * would miss and call broken.
  */
 function anchorsInApp(): Set<string> {
-  const out = execSync(
-    `grep -rhoE 'data-tour="[a-z0-9-]+"|tour: "[a-z0-9-]+"' src/ || true`,
-    { encoding: "utf8", cwd: root },
-  );
-  return new Set([...out.matchAll(/"([a-z0-9-]+)"/g)].map((m) => m[1]));
+  // A Node walk, not `grep -r`. execSync goes through cmd.exe on Windows,
+  // which has no grep and reads the `|` inside the pattern as a pipe — so this
+  // whole file threw on the owner's machine ("'tour:' is not recognized") while
+  // CI stayed green, which is the worst way for a guard to fail.
+  const found = new Set<string>();
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else
+        for (const m of readFileSync(full, "utf8").matchAll(/(?:data-tour=|tour: )"([a-z0-9-]+)"/g))
+          found.add(m[1]);
+    }
+  };
+  walk(join(root, "src"));
+  return found;
 }
 
 const ALL_STEPS = [

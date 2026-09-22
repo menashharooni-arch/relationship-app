@@ -141,10 +141,10 @@ Data types collected — declare exactly these:
 - Contact: Menash Harooni, menashharooni@gmail.com, +1 917 905 7335
 - **Notes for the reviewer** (paste verbatim):
 ```
-SwiftCard is the iPhone and iPad app for SwiftCard (swiftcard.me), a digital business card and contact-capture service. The app manages your own account: your cards, the people who shared their details with you, follow-ups, and analytics.
+SwiftCard is the iPhone app for SwiftCard (swiftcard.me), a digital business card and contact-capture service. The app manages your own account: your cards, the people who shared their details with you, follow-ups, and analytics.
 
-WHAT IS IN 1.0.1
-A bug-fix release. Builds up to 1.0.0 were signed without their entitlements, so push notifications, Universal Links and the home-screen widget did not work on device. 1.0.1 fixes that. No new features, no change to purchasing, no change to data handling.
+WHAT IS IN 1.0.2
+An accessibility release. The app now follows the system text size (Dynamic Type) right up to the largest accessibility sizes, VoiceOver labels and reading order were reworked throughout, contrast was raised, and Reduce Motion is respected across the app. It also adds Apple's system rating prompt and a new launch screen. No new features, no change to purchasing, no change to data handling.
 
 IN-APP PURCHASE (3.1.1)
 Pro is sold only through In-App Purchase: two auto-renewable subscriptions in the group "SwiftCard Pro", each with a 14-day free trial.

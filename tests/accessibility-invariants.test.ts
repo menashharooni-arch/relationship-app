@@ -35,13 +35,25 @@ describe("Larger Text — every size scales with the root", () => {
     // Dynamic Type does. A single new text-[13px] silently stops scaling.
     const offenders: string[] = [];
     for (const f of globTsx()) {
+      // Root-relative, forward slashes, on every platform. Windows builds
+      // "C:\…\src\app\x.tsx", which `replace(root + "/", "")` leaves untouched
+      // — read() then joined root onto an absolute path and threw ENOENT, and
+      // the "/card-templates/" exemption below never matched either.
+      const rel = f.slice(root.length + 1).split(/[\\/]/).join("/");
       // The card templates are EXEMPT and must stay exempt: the same markup is
       // rendered to a PNG, an Apple Wallet pass and an OG image at exact pixel
       // sizes, so its type must not move. TemplateStyleControls edits those
       // fixed sizes, so it names them too.
-      if (f.includes("/card-templates/")) continue;
-      const hits = read(f.replace(root + "/", "")).match(/text-\[\d+(\.\d+)?px\]/g);
-      if (hits) offenders.push(`${f.replace(root + "/", "")}: ${hits.slice(0, 3).join(" ")}`);
+      if (rel.includes("/card-templates/")) continue;
+      // Same reason, a different renderer: HowItWorksScenes draws miniature
+      // iPhones at a fixed width (<PhoneFrame width={176}>) where every inner
+      // dimension is px too — a 52px headshot, 6px radii, rows that already
+      // truncate. Its 5.5–11px type is that illustration's scale, not body
+      // text; let it grow and the labels overflow a phone that cannot grow
+      // with them. Marketing-site only: the shell never renders this page.
+      if (rel.endsWith("/site/HowItWorksScenes.tsx")) continue;
+      const hits = read(rel).match(/text-\[\d+(\.\d+)?px\]/g);
+      if (hits) offenders.push(`${rel}: ${hits.slice(0, 3).join(" ")}`);
     }
     expect(
       offenders,
