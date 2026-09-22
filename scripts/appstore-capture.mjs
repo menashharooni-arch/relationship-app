@@ -43,7 +43,9 @@ let userId = null, cardId = null, browser;
 // story. Her headshot ships in this repo (public/showcase/lena.jpg), which is
 // why the screenshots can show a real face without licensing a stock photo.
 const PHOTO = "https://swiftcard.me/showcase/lena.jpg";
-const ACCENT = "#111827";
+// Teal, from the card's own accent palette. The old near-black accent left the
+// QR, the icons and every action on the page reading as grey furniture.
+const ACCENT = "#0f766e";
 
 const CARD = {
   name: "Lena Brooks", title: "Photographer", company: "Lena Brooks Photography",
@@ -58,16 +60,20 @@ const CARD = {
 
 const BIO = "Weddings, portraits and brand shoots — natural light, real moments. Portland, OR.";
 
-// Card design: the headshot fills the left, and the panel behind the details
-// is the template's own Royal Violet preset rather than flat white.
-// Onyx panel behind the details, ink buttons. The violet gradient this
-// replaces fought the photo and the page around it; black lets the headshot be
-// the only colour on the card.
+// Card design — "Sea Glass", the template's own preset (owner, 2026-09-22:
+// the card and the links page were too dark and didn't look designed).
+// The headshot fills the left over a teal panel, the details sit on a white
+// panel under the frosted finish, and teal carries the QR and the icons. The
+// Onyx panel this replaces made the whole card read as a black rectangle in
+// the App Store frames, against a blue background, with no design in it.
 const CARD_DESIGN = {
   photoUrl: PHOTO,
   accentColor: ACCENT,
-  bgColor: "#0a0a0a",
-  textColor: "#ffffff",
+  bgColor: "#ffffff",                 // the info panel
+  textColor: "#ffffff",               // her name, over the photo
+  infoColor: "#111827",               // phone/email/site on the white panel
+  finish: "frosted",                  // the preset's own material
+  surfaceColor: "linear-gradient(145deg, #2f7f8f 0%, #3f9fae 60%, #56b8c4 100%)",
   bio: BIO,
 };
 
@@ -167,12 +173,12 @@ try {
       customization: {
         ...CARD_DESIGN,
         links: LINKS,
-        // A cover photo instead of the initials block, on a dark Look so the
-        // tiles and the brand-coloured social chips carry the page.
-        // "aura" is the one Look that renders the social chips MONOTONE and
-        // carries a deep plum gradient behind the whole page — the brand-
-        // coloured chips were the loudest thing on the old version.
-        linkLook: "aura",
+        // A cover photo over "Frost" — the light glass Look (owner, 2026-09-22).
+        // Its pale blue-lilac wash sits under a frosted sheet, which keeps the
+        // headshot the brightest thing on the page while the page itself reads
+        // light. "aura", which this replaces, was near-black: in the App Store
+        // frames it showed as a dark slab with a face at the top.
+        linkLook: "frost",
         linkHeroStyle: "cover",
         linkHeroContent: "photo",
         linkIconShape: "circle",
