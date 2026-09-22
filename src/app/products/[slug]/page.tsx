@@ -151,8 +151,10 @@ const PRODUCTS: Record<string, Product> = {
     ),
     // Every claim below is enforced in code — the texting ones especially, since
     // they are new. Registered sender: A2P 10DLC campaign COJQ2MB, approved
-    // 2026-08-13. Consent gate: the sms-ok tag, set only by the checkbox on the
-    // capture form; reminders/route.ts refuses to text without it. Inbound:
+    // 2026-08-13. Consent gate: the sms-ok tag — since 2026-09-20 it is set ONLY
+    // by the owner switching a text follow-up on for that contact (the share
+    // form no longer asks, and the public capture route cannot set it);
+    // reminders/route.ts refuses to text without it. Inbound:
     // api/twilio/inbound logs replies to lead_messages. Manual send: api/sms/send
     // checks auth and sms-paused, NOT the plan — so it really is every plan.
     // Sequences: reminders/route.ts hard-gates on isPaidPlan, hence "on Pro".

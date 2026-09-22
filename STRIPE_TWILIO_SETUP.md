@@ -142,22 +142,29 @@ This repo is **public** — the SIDs below are recorded in `CREDENTIALS-RUNBOOK.
 | `useInboundWebhookOnNumber` | `false` — the Service webhook wins; the number's own webhook is the fallback if it ever leaves the Service |
 | Vercel env (Production) | `TWILIO_ACCOUNT_SID`, `TWILIO_MESSAGING_SERVICE_SID`, `TWILIO_PHONE_NUMBER` set. `TWILIO_AUTH_TOKEN` set as of the first live send test |
 | Status callback | `https://swiftcard.me/api/twilio/status` (POST), passed per-message on create — records the CARRIER's verdict on each text |
-| A2P 10DLC | **Not registered** — no brand, no campaign. See step 5. **This is the current delivery blocker.** |
+| A2P 10DLC | **Registered and approved** — campaign `COJQ2MB`, approved 2026-08-13. Texts deliver: last 30034 failure 2026-08-11, first delivery 2026-09-03, still delivering 2026-09-19 (an automated follow-up). Step 5 is the record of what was filed — and what to update when the filing stops matching the product. |
 
 > ### ⚠️ "It said Sent but the text never arrived"
 >
-> This is the expected symptom of the unregistered A2P 10DLC campaign above, and
-> it is **not** an app bug. Creating a message via the Twilio API is only an
-> ACCEPTANCE: the call returns `201` with status `queued`, so `sendSms()`
-> correctly reports `sent` and the message is logged. Delivery is decided later
-> by the US carrier, which **silently drops** traffic from an unregistered 10DLC
-> number (error **30034**).
+> **That was the unregistered-campaign symptom, and it is over**: it describes
+> traffic sent before campaign `COJQ2MB` was approved on 2026-08-13. Kept because
+> the mechanism still explains any future non-delivery, and because "Sent" is not
+> "delivered" is the part people get wrong.
 >
-> The app now hears about this: every send passes a `statusCallback`, and
-> `/api/twilio/status` writes the real outcome back onto the logged message, so
-> the conversation thread shows "Not delivered" instead of "Sent" and an ops
-> alert fires. That makes the failure visible — it does **not** make it deliver.
-> Only completing step 5 does.
+> Creating a message via the Twilio API is only an ACCEPTANCE: the call returns
+> `201` with status `queued`, so `sendSms()` correctly reports `sent` and the
+> message is logged. Delivery is decided later by the US carrier, which
+> **silently dropped** traffic from an unregistered 10DLC number (error
+> **30034**) — the three such failures from 2026-08-11 are still in
+> `lead_messages`, and every send since 2026-09-03 reads `delivered`.
+>
+> The app hears the real outcome either way: every send passes a
+> `statusCallback`, and `/api/twilio/status` writes the carrier verdict back onto
+> the logged message, so the thread shows "Not delivered" instead of "Sent" and
+> an ops alert fires. **If it happens again**, read `lead_messages.status` and
+> `error_code` first: 30034 means the registration lapsed or the number left the
+> campaign, while 30003 (unreachable), 30006 (landline) and 21610 (that number
+> replied STOP) are per-recipient and normal.
 
 `sendSms()` requires Account SID **and** Auth Token **and** a sender, so with the
 Auth Token missing it returns `not_configured` and the app behaves exactly as it
@@ -206,10 +213,18 @@ own opt-out list would never get updated. Pick one:
 - Turn it on and separately sync Twilio's suppression list into
   `message_opt_outs` (not currently built).
 
-### 5. A2P 10DLC registration (US SMS, required) — **the current blocker**
+### 5. A2P 10DLC registration (US SMS) — **DONE: campaign `COJQ2MB`, approved 2026-08-13**
+
+Nothing here is needed to start sending; texts have been delivering since
+2026-09-03. This section stays for two reasons: it is the record of exactly what
+was filed, which a re-review starts from, and it is what you edit when the
+product changes underneath the filing — as it did on 2026-09-20, when the
+consent checkbox came off the share form. See the warning in 5b: the registered
+message flow still describes a checkbox that no longer exists, and updating it
+is an open task.
 
 US carriers require **brand + campaign registration** before they will deliver
-traffic from a 10-digit long code. Until this is done every text is accepted by
+traffic from a 10-digit long code. Until that is done every text is accepted by
 Twilio and then silently dropped by the carrier (error 30034). Console →
 Messaging → Regulatory Compliance → A2P 10DLC.
 
@@ -268,6 +283,9 @@ current volume is nowhere near the ceiling.
 >
 > There is no urgency: as of 2026-07-28 only 1 of 25 phone-bearing leads is
 > tagged `sms-ok` and it has no follow-up sequence, so nothing is queued.
+>
+> **Outcome: brand and campaign `COJQ2MB` were approved on 2026-08-13.** The
+> history above is kept because a re-review starts from the same evidence.
 
 #### 5b. Campaign — use these values verbatim
 
@@ -281,15 +299,26 @@ traffic. These are taken from the actual code, so they will.
 > SwiftCard is a digital business card service operated by Swift Card Inc. When
 > someone taps or scans a SwiftCard user's card, they may choose to submit their
 > own name, phone number and email through the "Share My Info" form on that
-> user's card page, having been told next to the submit button that doing so
-> means receiving follow-up texts. Those recipients get a follow-up text from
+> user's card page — that form collects contact details only and carries no
+> messaging opt-in. A text is sent only where that person gave the SwiftCard
+> user permission in the exchange, which the user confirms in their account
+> before anything can send. Those recipients get a follow-up text from
 > the card owner containing a link to that owner's contact card, and optionally
 > the owner's scheduled follow-up messages. All traffic sends from one number,
 > +1 (917) 905-7335, owned and operated by Swift Card Inc, which is the sole
 > sender of record and handles STOP/HELP centrally for the whole platform;
 > SwiftCard users do not bring or control their own numbers.
 
-> ⚠️ THE OPT-IN CHANGED ON 2026-09-20 — READ THIS BEFORE FILING. There is no
+> ⚠️ OPEN TASK — THE LIVE FILING IS OUT OF DATE. Campaign `COJQ2MB` was
+> approved on 2026-08-13 describing the consent checkbox, and the checkbox was
+> removed on 2026-09-20. Nothing is broken and texts keep delivering, but the
+> registered message flow now describes a form that no longer exists, so the
+> campaign needs UPDATING (Console → Messaging → Regulatory Compliance → A2P
+> 10DLC → `COJQ2MB` → edit the opt-in/message flow) with the description below.
+> Carriers re-review, and a live page that contradicts the filing is exactly how
+> an earlier campaign was rejected.
+>
+> THE OPT-IN CHANGED ON 2026-09-20 — READ THIS BEFORE FILING OR UPDATING. There is no
 > consent checkbox on the share form any more (owner: "Share your info" hands
 > over contact details; it is not a subscription to texts, and it never claimed
 > to be). Do not describe one anywhere in this filing: attesting to a checkbox a

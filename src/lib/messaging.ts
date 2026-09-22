@@ -457,9 +457,11 @@ export async function deliverToLead(opts: {
   //   3. phone only, no consent          → SMS   (pre-existing fallback, see below)
   //
   // Only an AFFIRMATIVE opt-in promotes SMS. Having a phone number is not
-  // consent: the A2P 10DLC message flow we registered (campaign COJQ2MB) states
-  // that ticking the checkbox IS the opt-in, so texting on the strength of a
-  // stored number alone would contradict the flow the carriers approved.
+  // consent: since 2026-09-20 the opt-in is the SwiftCard user confirming, on
+  // the contact's text automation, that this person agreed to be texted (it is
+  // the only thing that sets sms-ok). Texting on the strength of a stored
+  // number alone would contradict that — and the A2P filing for campaign
+  // COJQ2MB, which describes exactly this flow.
   //
   // Case 3 predates this change and is left as-is: it is the only way a
   // phone-only lead is reachable at all, and removing it would silently make
