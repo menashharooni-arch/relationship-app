@@ -32,12 +32,19 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${APP_URL}/settings/flows?integration=linkedin&status=error`);
   }
 
-  const userId = await resolveConnectUserId(request);
+  const userId = guestRequested ? null : await resolveConnectUserId(request);
   const user = userId ? { id: userId } : null;
-  // A session always wins: if the "guest" is actually signed in, do the real
-  // connect so the token lands on their account like normal.
   if (!user && !guestRequested) return NextResponse.redirect(`${APP_URL}/login`);
 
+  // guest=1 means "I want my photo back, now" — it is only ever sent by the
+  // homepage builders, which know nothing about sessions and can only receive
+  // the ?li_photo= return. This used to let a session win ("do the real
+  // connect so the token lands on their account"), which stored a token and
+  // came back with status=connected and NO photo — so every SIGNED-IN visitor
+  // of "See how your card / SwiftLink would look", the owner included, saw
+  // nothing happen (2026-09-22). The one-shot photo import serves them just as
+  // well; the account connect is still one tap away in the card editor.
+  //
   // Signed state binds this user_id + issue time so a forged/unsigned state
   // can't write LinkedIn tokens onto another user's row. Guests carry the
   // GUEST_STATE marker instead of a user id — the callback never writes

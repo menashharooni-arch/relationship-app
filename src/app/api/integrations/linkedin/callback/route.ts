@@ -55,8 +55,13 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get("error");
 
   // The user declined consent (or LinkedIn returned an error) — not a failure
-  // on our side, just send them back cleanly.
-  if (error || !code || !state) return DONE("error");
+  // on our side, just send them back cleanly. Logged (no PII: LinkedIn's own
+  // error code + description) because a silent DONE("error") is exactly what
+  // made "it just glitches out" undiagnosable from the server side.
+  if (error || !code || !state) {
+    console.warn("[linkedin/callback] bounced:", error ?? (code ? "no state" : "no code"), searchParams.get("error_description") ?? "");
+    return DONE("error");
+  }
 
   // Reject a forged/unsigned state (arbitrary user_id) so tokens can't be
   // written onto another user's row.
@@ -64,7 +69,10 @@ export async function GET(request: NextRequest) {
   if (!userId) return DONE("error");
 
   const tokens = await exchangeLinkedInCode(code);
-  if (!tokens?.access_token) return DONE("error");
+  if (!tokens?.access_token) {
+    console.warn("[linkedin/callback] token exchange failed (client id/secret or redirect_uri mismatch?)");
+    return DONE("error");
+  }
 
   // ── Guest one-shot photo import ────────────────────────────────────────────
   // A signed-out visitor on the free-card builder: there is no account row to

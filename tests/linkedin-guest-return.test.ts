@@ -64,6 +64,16 @@ describe("every homepage builder is wired the same way", () => {
     expect(src).toMatch(/if \(linkedInReturn\) \{ setStep\(0\); setOpen\(true\); \}/);
   });
 
+  it("a builder's guest=1 connect always comes back as a photo, even for a signed-in visitor", () => {
+    // Found live (owner's own Chrome, 2026-09-22): the session "won", the
+    // callback stored a token and returned status=connected with no photo, and
+    // the homepage builder — which can only receive ?li_photo= — showed
+    // nothing. guest=1 is the builder saying "photo, please"; honour it.
+    const connect = read("src/app/api/integrations/linkedin/connect/route.ts");
+    expect(connect).toContain("const userId = guestRequested ? null : await resolveConnectUserId(request);");
+    expect(connect).not.toMatch(/A session always wins/);
+  });
+
   it("the homepage reset stands aside for a LinkedIn return", () => {
     expect(read("src/components/GuestFlowReset.tsx")).toContain('has("builder")');
   });
