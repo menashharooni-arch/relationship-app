@@ -9,7 +9,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 export type AuditAction =
   | "invite.created" | "invite.resent" | "invite.revoked" | "invite.declined" | "invite.expired"
   | "invite.accepted"
-  | "member.removed" | "member.added"
+  | "member.removed" | "member.added" | "member.account_deleted"
   | "role.changed"
   | "seat.changed" | "seat.reduction_scheduled" | "seat.reduction_canceled"
   | "plan.changed" | "plan.canceled" | "plan.reactivated"

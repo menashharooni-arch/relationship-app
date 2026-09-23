@@ -638,3 +638,99 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats, onPer
     </>
   );
 }
+
+// ── Delete a member's account (owner only) ──────────────────────────────────
+// Owner decision, 2026-09-23: a team member cannot delete their own account;
+// only the admin of the Office plan can. This removes them from the team
+// exactly like "Remove from team", then deletes their SwiftCard account the
+// same way a self-delete does (hidden now, reopenable for 30 days, then gone).
+// Behind a typed confirmation, because unlike removal it takes the whole
+// account, not just the seat. The server re-checks that the caller is the owner.
+export function DeleteMemberAccountButton({ memberId, personName, onPersonPage = false }: {
+  memberId: string;
+  personName: string;
+  onPersonPage?: boolean;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const first = personName.split(/\s+/)[0] || "this person";
+
+  async function del() {
+    if (busy || typed.trim().toUpperCase() !== "DELETE") return;
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch(`/api/office/members/delete-account?id=${encodeURIComponent(memberId)}`, { method: "POST" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setError(j.error ?? "Couldn't delete the account — please try again.");
+        return;
+      }
+      setDone(true);
+      if (!onPersonPage) router.refresh();
+    } catch {
+      setError("Couldn't reach the server — please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function close() {
+    setOpen(false); setTyped(""); setError(null);
+    if (done) {
+      setDone(false);
+      if (onPersonPage) router.push("/office/admin");
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => { setOpen(true); setError(null); }}
+        className="text-xs font-semibold text-red-400 hover:text-red-300 px-3.5 py-2 rounded-full transition-colors"
+      >
+        Delete account
+      </button>
+
+      {open && (
+        <Modal title={done ? "Account deleted ✓" : `Delete ${first}'s account?`} onClose={() => !busy && close()}>
+          {done ? (
+            <>
+              <p className="text-gray-400 text-sm mb-4">
+                {first} was removed from your team and their SwiftCard account was deleted. We emailed them; they can reopen it within 30 days.
+              </p>
+              <button onClick={close}
+                className="w-full bg-gray-800 hover:bg-gray-700 text-white text-sm font-semibold py-2.5 rounded-full transition-colors">
+                Back to my team
+              </button>
+            </>
+          ) : (
+            <>
+              <ul className="text-gray-300 text-sm mb-4 leading-relaxed space-y-1.5 list-disc pl-4">
+                <li>{first} is removed from your team and their seat is freed. The leads they captured stay with your company.</li>
+                <li>Their SwiftCard account is deleted: their cards, Swift Links page, contacts and history disappear now, and are permanently removed after 30 days.</li>
+                <li>Any subscription they pay for themselves is stopped.</li>
+                <li>We email them, and they can reopen the account within 30 days by signing in.</li>
+              </ul>
+              <label htmlFor="del-confirm" className="block text-xs text-gray-400 mb-1.5">Type <strong className="text-white">DELETE</strong> to confirm</label>
+              <input id="del-confirm" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off"
+                className="w-full rounded-xl bg-gray-950 border border-gray-800 text-sm text-white px-3.5 py-2.5 mb-3 focus:outline-none focus:border-gray-600" />
+              {error && <p className="text-red-400 text-xs mb-3" role="alert">{error}</p>}
+              <button onClick={del} disabled={busy || typed.trim().toUpperCase() !== "DELETE"}
+                className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white text-sm font-bold py-2.5 rounded-full transition-colors">
+                {busy ? "Deleting…" : `Delete ${first}'s account`}
+              </button>
+              <button onClick={close} disabled={busy}
+                className="w-full text-gray-500 hover:text-gray-300 text-xs py-2 mt-1 transition-colors disabled:opacity-50">
+                Never mind
+              </button>
+            </>
+          )}
+        </Modal>
+      )}
+    </>
+  );
+}

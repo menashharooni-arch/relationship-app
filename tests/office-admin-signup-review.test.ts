@@ -237,6 +237,6 @@ describe("the owner's first card becomes the office brand — the branding half 
     const p = code("src/app/office/admin/branding/page.tsx");
     expect(p).toContain("We started this from your card");
     expect(p).toContain("locks?.saved !== true");
-    expect(p).toContain("Your name, title, photo, mobile and email stay on your card only.");
+    expect(p.replace(/\s+/g, " ")).toContain("Your name, title, photo, mobile and email stay on your card only.");
   });
 });

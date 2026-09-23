@@ -10,7 +10,7 @@ import { useDisplayClock } from "@/components/DisplayClock";
 // row types stay TYPE imports, which the compiler erases entirely.
 import { MEMBER_STATUS_LABEL, type MemberStatus } from "@/lib/member-status";
 import type { TeamPerson, TeamInvite } from "@/lib/office-team";
-import { InviteRowActions, RemoveMemberButton } from "@/components/office/TeamActions";
+import { InviteRowActions, RemoveMemberButton, DeleteMemberAccountButton } from "@/components/office/TeamActions";
 
 // One list for real members and pending invitations, plus the detail drawer.
 // Everything is plain English: no slugs, no enums, no ids on screen.
@@ -200,6 +200,8 @@ function Drawer({ person, appUrl, caps, onClose }: {
           {!person.isOwner && person.memberRowId && caps.canRemove && (
             <div className="pt-4 border-t border-gray-800">
               <RemoveMemberButton memberId={person.memberRowId} personName={person.name} canManageSeats={caps.canManageSeats} />
+              {/* Owner only (2026-09-23): members can't delete their own account. */}
+              {caps.viewerIsOwner && <DeleteMemberAccountButton memberId={person.memberRowId} personName={person.name} />}
             </div>
           )}
           {person.isOwner && (

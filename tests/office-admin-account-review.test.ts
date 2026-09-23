@@ -159,3 +159,45 @@ describe("the app never paints /pricing, and sign-in keeps where you were going"
     expect(proxy).toContain('login.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);');
   });
 });
+
+describe("the owner can delete a team member's account (members can't delete their own)", () => {
+  const r = code("src/app/api/office/members/delete-account/route.ts");
+
+  it("owner only — not a delegated admin", () => {
+    expect(r).toContain("if (!ctx || !ctx.isOwner)");
+    expect(r).toContain("Only the Office owner can delete a team member's account.");
+  });
+
+  it("removes them from the team with the Remove button's own handler, THEN soft-deletes", () => {
+    expect(r).toContain('import { DELETE as removeFromTeam } from "../route";');
+    const removeAt = r.indexOf("await removeFromTeam(");
+    const deleteAt = r.indexOf("_deleted: true");
+    expect(removeAt).toBeGreaterThan(-1);
+    expect(deleteAt).toBeGreaterThan(removeAt);
+    expect(r).toContain("stopSubscription(");
+    expect(r).toContain("revokeAppleTokensOnDelete(target)");
+  });
+
+  it("never the owner themselves, only an active member of THIS office", () => {
+    expect(r).toContain('.eq("office_id", ctx.officeId)');
+    expect(r).toContain('member.status !== "active"');
+    expect(r).toContain("targetId === user.id || targetId === ctx.ownerId");
+  });
+
+  it("the person is emailed and can reopen within 30 days", () => {
+    expect(r).toContain('subject: "Your SwiftCard account was deleted"');
+    expect(r).toContain("within 30 days");
+  });
+
+  it("the button is shown only to the owner, behind a typed DELETE", () => {
+    const ta = code("src/components/office/TeamActions.tsx");
+    expect(ta).toContain('typed.trim().toUpperCase() !== "DELETE"');
+    expect(code("src/components/office/TeamList.tsx")).toContain("{caps.viewerIsOwner && <DeleteMemberAccountButton");
+    expect(code("src/app/office/admin/team/[id]/page.tsx")).toContain("{viewerIsOwner && <DeleteMemberAccountButton");
+  });
+
+  it("members still cannot delete their own account", () => {
+    const self = code("src/app/api/account/delete/route.ts");
+    expect(self).toContain("officeSubUserBlockMessage(user.id");
+  });
+});

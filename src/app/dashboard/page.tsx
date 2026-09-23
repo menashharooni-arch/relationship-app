@@ -489,14 +489,17 @@ export default async function DashboardPage({
         sortBy === "name-asc" || sortBy === "name-desc" ? "name" : "created_at",
         { ascending: sortBy === "name-asc" || sortBy === "oldest" }
       ),
+    // Notifications are read with the service role, always scoped to this
+    // user_id: the table is not readable with a user's own session, so a Free
+    // account can't pull the unredacted location text (lock-client-reads.sql).
     // Panel (bottom of dashboard): ONLY this card's activity (+ account-level
     // ones like referral months, which have no card scope).
     // Unread first, then newest — matching /api/notifications. Ordering on
     // created_at alone let 20 recent read rows hide every older unread one
     // from both the list and the badge (the badge counts fetched rows).
-    supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).or(`card_owner.eq.${activeUsername.replace(/[^a-z0-9-]/gi, "")},card_owner.is.null`).order("read", { ascending: true }).order("created_at", { ascending: false }).limit(20),
+    getAdminSupabase().from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).or(`card_owner.eq.${activeUsername.replace(/[^a-z0-9-]/gi, "")},card_owner.is.null`).order("read", { ascending: true }).order("created_at", { ascending: false }).limit(20),
     // Bell (top nav): EVERY card's notifications, each tagged with its card.
-    supabase.from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).order("read", { ascending: true }).order("created_at", { ascending: false }).limit(20),
+    getAdminSupabase().from("notifications").select("id, type, title, body, read, created_at, card_owner").eq("user_id", user.id).order("read", { ascending: true }).order("created_at", { ascending: false }).limit(20),
     // Service-role client: the offices RLS policies are mutually recursive with
     // office_members, so a user-scoped read raises "infinite recursion detected
     // in policy for relation offices" once there's a row to evaluate. Still
@@ -518,7 +521,9 @@ export default async function DashboardPage({
   let panelNotifications: NotifRow[] | null = panelNotifRes.data;
   let bellNotifications: NotifRow[] | null = bellNotifRes.data;
   if (panelNotifRes.error || bellNotifRes.error) {
-    const { data: fallback } = await supabase
+    // Service role, scoped to this user: notifications are not readable with a
+    // user's own session (supabase/lock-client-reads.sql).
+    const { data: fallback } = await getAdminSupabase()
       .from("notifications")
       .select("id, type, title, body, read, created_at")
       .eq("user_id", user.id)

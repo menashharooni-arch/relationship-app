@@ -5,7 +5,7 @@ import { getMemberDetail } from "@/lib/office-analytics";
 import { getOfficeUserIds, isOfficeMember } from "@/lib/office-cards";
 import { relativeTime } from "@/lib/relative-time";
 import { StatTile, PageHead, Empty, Badge } from "@/components/office/OfficeUI";
-import { RemoveMemberButton } from "@/components/office/TeamActions";
+import { RemoveMemberButton, DeleteMemberAccountButton } from "@/components/office/TeamActions";
 
 export const metadata = { title: "Team member — Admin — SwiftCard" };
 
@@ -40,7 +40,11 @@ export default async function OfficeMemberPage({ params }: { params: Promise<{ i
           desc={m.email ?? undefined}
           action={
             !isOwner && memberRow && caps.canRemove ? (
-              <RemoveMemberButton memberId={memberRow.id} personName={m.name} canManageSeats={caps.canManageSeats} onPersonPage />
+              <div className="flex items-center gap-1 flex-wrap">
+                <RemoveMemberButton memberId={memberRow.id} personName={m.name} canManageSeats={caps.canManageSeats} onPersonPage />
+                {/* Owner only (2026-09-23): members can't delete their own account. */}
+                {viewerIsOwner && <DeleteMemberAccountButton memberId={memberRow.id} personName={m.name} onPersonPage />}
+              </div>
             ) : undefined
           }
         />

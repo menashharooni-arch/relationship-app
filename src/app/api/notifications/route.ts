@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidUser, redactForPlan } from "@/lib/notification-privacy";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Service role, scoped to this user on every query: the notifications table
+  // is not readable with a user's own session (supabase/lock-client-reads.sql)
+  // — a Free account could otherwise read the unredacted location text in
+  // devtools. The session is used only to identify the user.
+  const db = getAdminSupabase();
 
   // No ?card= → ALL cards (the bell). ?card=X → that card only, plus legacy
   // un-tagged/account-level notifications (the dashboard panel).
@@ -15,7 +21,7 @@ export async function GET(req: NextRequest) {
   // contact instead of guessing from the name. Asked for first; without the
   // column the query below runs exactly as it always did.
   const scopedQuery = (cols: string) => {
-    let q = supabase.from("notifications").select(cols).eq("user_id", user.id);
+    let q = db.from("notifications").select(cols).eq("user_id", user.id);
     if (card) q = q.or(`card_owner.eq.${card},card_owner.is.null`);
     // Unread first, then newest. With a plain created_at order, 20 recent READ
     // rows pushed every older unread one out of the window — it vanished from
@@ -29,7 +35,7 @@ export async function GET(req: NextRequest) {
   // If the card_owner column migration hasn't run yet, selecting/filtering on
   // it errors and the bell would show nothing — fall back to the plain query.
   if (error) {
-    ({ data } = await supabase
+    ({ data } = await db
       .from("notifications")
       .select("id, type, title, body, read, created_at")
       .eq("user_id", user.id)
@@ -45,13 +51,18 @@ export async function PATCH(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Service role, scoped to this user on every query: the notifications table
+  // is not readable with a user's own session (supabase/lock-client-reads.sql)
+  // — a Free account could otherwise read the unredacted location text in
+  // devtools. The session is used only to identify the user.
+  const db = getAdminSupabase();
 
   let body: { id?: string; read?: boolean; card?: string } = {};
   try { body = await req.json(); } catch { /* no body = mark all read */ }
 
   if (body.id) {
     // Toggle a single notification's read state.
-    await supabase
+    await db
       .from("notifications")
       .update({ read: body.read ?? true })
       .eq("user_id", user.id)
@@ -61,7 +72,7 @@ export async function PATCH(req: NextRequest) {
     // card's notifications + account-level ones are touched — never another
     // card's. Without it (the bell) it's genuinely all cards.
     const card = (body.card || "").replace(/[^a-zA-Z0-9_-]/g, "");
-    let q = supabase
+    let q = db
       .from("notifications")
       .update({ read: true })
       .eq("user_id", user.id)
@@ -71,7 +82,7 @@ export async function PATCH(req: NextRequest) {
     // card_owner column missing → scoped update errors; retry unscoped so the
     // button still works (matches pre-migration behavior).
     if (error && card) {
-      await supabase
+      await db
         .from("notifications")
         .update({ read: true })
         .eq("user_id", user.id)
@@ -88,21 +99,26 @@ export async function DELETE(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Service role, scoped to this user on every query: the notifications table
+  // is not readable with a user's own session (supabase/lock-client-reads.sql)
+  // — a Free account could otherwise read the unredacted location text in
+  // devtools. The session is used only to identify the user.
+  const db = getAdminSupabase();
 
   let body: { id?: string; read?: boolean; card?: string } = {};
   try { body = await req.json(); } catch { /* ignore */ }
 
   if (body.id) {
-    await supabase.from("notifications").delete().eq("user_id", user.id).eq("id", body.id);
+    await db.from("notifications").delete().eq("user_id", user.id).eq("id", body.id);
   } else if (body.read) {
     const card = (body.card || "").replace(/[^a-zA-Z0-9_-]/g, "");
-    let q = supabase.from("notifications").delete().eq("user_id", user.id).eq("read", true);
+    let q = db.from("notifications").delete().eq("user_id", user.id).eq("read", true);
     if (card) q = q.or(`card_owner.eq.${card},card_owner.is.null`);
     const { error } = await q;
     if (error && card) {
       // Column missing → fall back to the old unscoped clear (read-only rows,
       // and the user explicitly asked to clear them).
-      await supabase.from("notifications").delete().eq("user_id", user.id).eq("read", true);
+      await db.from("notifications").delete().eq("user_id", user.id).eq("read", true);
     }
   }
 

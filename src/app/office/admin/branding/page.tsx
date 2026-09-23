@@ -60,8 +60,9 @@ export default async function OfficeBrandingPage() {
         <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl px-4 py-3 mb-5">
           <p className="text-sm text-blue-200 font-medium">We started this from your card</p>
           <p className="text-xs text-blue-200/80 mt-1 leading-relaxed">
-            Your company name, logo, website, office phone, fax, address, card design and Swift Links design are
-            filled in from the card you made. Your name, title, photo, mobile and email stay on your card only.
+            The company details your card had — name, logo, website, and any office phone, fax and address — plus
+            its card design and Swift Links design are filled in below. Your name, title, photo, mobile and email
+            stay on your card only.
             Your team&apos;s cards use it as it is now — check it over, change anything you like, and tap <strong>Save</strong>.
           </p>
         </div>
