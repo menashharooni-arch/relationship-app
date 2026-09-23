@@ -514,14 +514,16 @@ export async function POST(req: NextRequest) {
         // ── A contact the owner already KNOWS, coming back ──────────────────
         // (lib/known-contact.ts decided who; lib/contact-return-notify.ts says
         // it.) Not the visit they were captured in — that was "New contact" —
-        // and never a Free lead whose details are locked behind the cap.
+        // and never a Free lead whose details are locked behind the cap. The
+        // tag outlives an upgrade (only the plan unlocks it), so a Pro owner's
+        // once-locked contacts are named like any other.
         //
         // The visit is keyed on the CONTACT, not the browser: Priya on her
         // phone and her laptop in the same half hour is one visit, one row,
         // one buzz. Every notifyVisit below uses this key, so a milestone or a
         // download in the same visit upgrades the same row.
         const returning =
-          contact.kind === "known" && isReturnVisit(contact) && !isLockedContact(contact) ? contact : null;
+          contact.kind === "known" && isReturnVisit(contact) && (!isLockedContact(contact) || isPaidPlan(owner.plan as string | null)) ? contact : null;
         const visitWho = returning ? `lead:${returning.leadId}` : visitor_id;
         let returnNotice: ReturnType<typeof contactReturnNotice> = null;
         if (returning) {

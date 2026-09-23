@@ -34,7 +34,9 @@ function canCarryLocation(type: string | null | undefined): boolean {
  * and an upgrade pitch to someone who is paying. A paid account is not shown
  * them. Nothing is deleted — the rows are simply not handed to a paid reader.
  */
-export const FREE_STATE_TYPES: ReadonlySet<string> = new Set(["pro_ended", "plan_downgraded", "sequence_paused"]);
+// lead_cap_reached: "That's 5 of 5 … Pro opens every one of them" — once
+// they pay, every one of them already is open.
+export const FREE_STATE_TYPES: ReadonlySet<string> = new Set(["pro_ended", "plan_downgraded", "sequence_paused", "lead_cap_reached"]);
 
 /** The locked-lead teaser (api/leads) — on a paid account the contact is open. */
 const LOCKED_LEAD_TAIL = / shared their info — open to unlock\.$/;

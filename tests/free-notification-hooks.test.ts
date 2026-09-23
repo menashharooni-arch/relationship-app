@@ -144,3 +144,31 @@ describe("the last free contact of the month is announced, once, in the bell", (
     expect(NATIVE_BODY_REMAP.lead_cap_reached).toBe("Anyone else who shares their info this month is still saved — nothing is lost. Your free contacts reset on the 1st.");
   });
 });
+
+// ── 2026-09-23 follow-ups ────────────────────────────────────────────────────
+
+describe("the bell's card chip only appears when it tells cards apart", () => {
+  it("a one-card account does not see its own card name on every row", () => {
+    expect(code("src/components/NotificationBell.tsx")).toMatch(
+      /n\.card_owner && \(!cardLabels \|\| Object\.keys\(cardLabels\)\.length > 1 \|\| !\(n\.card_owner in cardLabels\)\) && \(/,
+    );
+  });
+});
+
+describe("the Free contact meter never reads past its limit", () => {
+  it("stops at 5/5 and names the rest as waiting", () => {
+    const dash = code("src/app/dashboard/page.tsx");
+    expect(dash).toMatch(/\{Math\.min\(monthlyLeadsUsed, FREE_LIMIT\)\}\/\{FREE_LIMIT\} this month\{lockedCount > 0 \? ` · \$\{lockedCount\} waiting` : ""\}/);
+    expect(dash).not.toMatch(/\{monthlyLeadsUsed\}\/\{FREE_LIMIT\} this month</);
+  });
+});
+
+describe("upgrading leaves no Free-only notification behind", () => {
+  it("a paid account is never shown the 5-of-5 heads-up", async () => {
+    const { redactForPlan, FREE_STATE_TYPES } = await import("@/lib/notification-privacy");
+    expect(FREE_STATE_TYPES.has("lead_cap_reached")).toBe(true);
+    const rows = [{ type: "lead_cap_reached", title: "That's 5 of 5 new contacts this month", body: "…" }];
+    expect(redactForPlan(rows, true)).toHaveLength(0);
+    expect(redactForPlan(rows, false)).toHaveLength(1);
+  });
+});

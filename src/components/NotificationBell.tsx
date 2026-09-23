@@ -337,7 +337,11 @@ export default function NotificationBell({
                         {/* Meta line: card tag + time — chip lives here so the
                             title keeps full width on narrow phones. */}
                         <div className="flex items-center gap-2 mt-1 min-w-0">
-                          {n.card_owner && (
+                          {/* Only worth a chip when there is a card to tell it
+                              apart from: one-card accounts saw their own name
+                              on every row. A slug that isn't theirs (a team
+                              card) still gets one. */}
+                          {n.card_owner && (!cardLabels || Object.keys(cardLabels).length > 1 || !(n.card_owner in cardLabels)) && (
                             <span className="shrink-0 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-gray-800 border border-gray-700 text-gray-400 max-w-[130px] truncate" title={`Card: ${cardLabels?.[n.card_owner] ?? n.card_owner}`}>
                               {cardLabels?.[n.card_owner] ?? n.card_owner}
                             </span>

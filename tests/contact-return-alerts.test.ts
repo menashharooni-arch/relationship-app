@@ -199,8 +199,8 @@ describe("wired the way the rules assume", () => {
   const push = read("src/lib/push.ts");
   const catchup = read("src/app/api/push/catchup/route.ts");
 
-  it("only a returning, unlocked, known contact is named", () => {
-    expect(events).toMatch(/contact\.kind === "known" && isReturnVisit\(contact\) && !isLockedContact\(contact\) \? contact : null/);
+  it("only a returning, unlocked, known contact is named — and upgrading unlocks it", () => {
+    expect(events).toMatch(/contact\.kind === "known" && isReturnVisit\(contact\) && \(!isLockedContact\(contact\) \|\| isPaidPlan\(owner\.plan as string \| null\)\) \? contact : null/);
   });
 
   it("a returning contact's push opens their contact", () => {

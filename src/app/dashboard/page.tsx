@@ -1276,7 +1276,12 @@ export default async function DashboardPage({
                   <h2 className="text-white font-semibold text-sm whitespace-nowrap">Quick Contacts</h2>
                   <div className="flex items-center gap-2 shrink-0">
                     {!isPro && (
-                      <p className="text-gray-600 text-xs hidden sm:block">{monthlyLeadsUsed}/{FREE_LIMIT} this month</p>
+                      // Never "13/5": the meter stops at the limit, and the
+                      // contacts past it are named for what they are — saved,
+                      // waiting (the same count as the locked banner above).
+                      <p className="text-gray-600 text-xs hidden sm:block">
+                        {Math.min(monthlyLeadsUsed, FREE_LIMIT)}/{FREE_LIMIT} this month{lockedCount > 0 ? ` · ${lockedCount} waiting` : ""}
+                      </p>
                     )}
                     <span data-tour="add-contact" className="flex items-center"><AddContactModal cardOwner={activeUsername} /></span>
                   </div>

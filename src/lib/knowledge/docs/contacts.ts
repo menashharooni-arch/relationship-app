@@ -168,6 +168,6 @@ export const contactsDocs = defineDocs([
     answer:
       "On Free, contacts captured beyond {limit.leads} in a month are still captured and stored — they're just held back until the account is on a paid plan, with a banner telling you how many are waiting. Nothing is lost, and they all appear the moment the account is paid.",
     detail:
-      "When a Free account's last free contact of the month comes in, the bell says so once (\"That's {limit.leads} of {limit.leads} new contacts this month\") — never as a phone notification — so the next one being held back is not a surprise. The visitor never sees a failure — their share always succeeds. The counter resets on the 1st and counts per account, so deleting a card or a contact doesn't reset it. The same holds after a downgrade: contacts are hidden, never deleted.",
+      "When a Free account's last free contact of the month comes in, the bell says so once (\"That's {limit.leads} of {limit.leads} new contacts this month\") — never as a phone notification — so the next one being held back is not a surprise. Past the limit, the counter above Quick Contacts stays at \"{limit.leads}/{limit.leads} this month\" and adds how many are waiting (\"· 3 waiting\"). The visitor never sees a failure — their share always succeeds. The counter resets on the 1st and counts per account, so deleting a card or a contact doesn't reset it. The same holds after a downgrade: contacts are hidden, never deleted.",
   },
 ]);
