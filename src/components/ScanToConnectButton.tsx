@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import QRCard from "@/components/QRCard";
 
@@ -17,6 +17,14 @@ import QRCard from "@/components/QRCard";
 // "QR code scan" rather than "Card link".
 export default function ScanToConnectButton({ url }: { url: string }) {
   const [open, setOpen] = useState(false);
+  // Escape closes it too — on a computer that is the expected way out of an
+  // overlay, and it had none (2026-09-23 free-account review).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   return (
     <>
@@ -45,6 +53,9 @@ export default function ScanToConnectButton({ url }: { url: string }) {
           and still covering the card for every step after it. */}
       {open && createPortal(
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Scan to connect"
           className="fixed inset-0 z-[10001] flex items-center justify-center p-6"
           style={{ background: "rgba(0,0,0,0.8)" }}
           onClick={(e) => e.target === e.currentTarget && setOpen(false)}

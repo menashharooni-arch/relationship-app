@@ -120,7 +120,10 @@ export default function EventTagChip({ initial }: { initial: { label: string; un
             // away by tapping slightly off the field.
             onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); cancel(); } }}
             onBlur={() => { if (!draft.trim() && !saving) cancel(); }}
-            placeholder="Where are you meeting people?"
+            // Short enough to show whole at 16px on a 390px phone — the longer
+            // "Where are you meeting people?" was cut off mid-word there. The
+            // full question stays in the (screen-reader) label above.
+            placeholder="Event or place"
             // text-base on phones: anything smaller makes iOS zoom the page in
             // on focus, and it never zooms back out.
             className="min-w-0 flex-1 bg-gray-800 border border-gray-700 rounded-full px-3 py-1.5 text-base sm:text-[0.75rem] text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
