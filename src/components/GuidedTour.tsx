@@ -346,7 +346,7 @@ export default function GuidedTour({
       const sig = `c|${W}|${H}|${m.tipW}|${m.tipH}`;
       if (sig === m.sig) return;
       m.sig = sig;
-      if (full.current) full.current.style.opacity = "1";
+      if (full.current) { full.current.style.opacity = "1"; full.current.style.pointerEvents = "auto"; }
       [maskT, maskB, maskL, maskR].forEach((mm) => mm.current && (mm.current.style.opacity = "0"));
       if (ring.current) ring.current.style.opacity = "0";
       if (holeCover.current) holeCover.current.style.opacity = "0";
@@ -370,7 +370,13 @@ export default function GuidedTour({
     if (sig === m.sig) return;
     m.sig = sig;
 
-    if (full.current) full.current.style.opacity = "0";
+    // Hidden AND out of the way. It used to go transparent but keep catching
+    // every tap, full-screen and above the page — so the spotlight hole was
+    // never actually open: an "interactive" step ("Your SwiftCard — try it",
+    // which invites you to tap Scan to connect) or a clickToAdvance step could
+    // not be clicked at all. The four masks and the hole cover below are what
+    // block the rest of the page during a spotlight step.
+    if (full.current) { full.current.style.opacity = "0"; full.current.style.pointerEvents = "none"; }
 
     // Four dim rectangles framing the hole.
     setBox(maskT.current, 0, 0, W, y0);
