@@ -103,6 +103,12 @@ async function applyEvent(
     return "revoke";
   }
 
+  if (decision.action === "forget_apple") {
+    delete customization._planSource;
+    await admin.from("profiles").update({ customization }).eq("id", profile.id);
+    return "forget_apple";
+  }
+
   return "ignore";
 }
 

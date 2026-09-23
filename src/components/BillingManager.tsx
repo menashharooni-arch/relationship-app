@@ -188,6 +188,32 @@ export default function BillingManager() {
     if (!sub) {
       return <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 text-sm text-gray-400">{err ?? "Couldn't load your plan — pull down to refresh, or try again in a moment."}</div>;
     }
+    // A team member's OWN subscription from before they joined. The panel below
+    // would call their plan "Office" and say Apple bills it — true of neither:
+    // the team pays for their plan, and what Apple (or a card) bills is their
+    // personal Pro. Say that, and where to stop it.
+    if (sub.personalSubOnly) {
+      const viaApple = sub.planSource === "apple" && !sub.hasStripeSubscription;
+      return (
+        <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+          <p className="text-sm font-semibold text-white">Your own Pro subscription</p>
+          <p className="mt-1.5 text-[0.8125rem] leading-relaxed text-gray-400">
+            {viaApple
+              ? "Your team plan already includes everything in Pro. The Pro subscription you had before joining is still billed through your Apple account — cancel it there and you lose nothing, or keep it for if you ever leave the team."
+              : "Your team plan already includes everything in Pro. You also have your own Pro subscription from before you joined. It isn't billed through Apple, so it isn't managed in your Apple account settings."}
+          </p>
+          {viaApple && (
+            <button
+              type="button"
+              onClick={() => manageIapSubscription()}
+              className="mt-3 w-full rounded-full bg-gray-800 border border-gray-700 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700"
+            >
+              Manage subscription
+            </button>
+          )}
+        </div>
+      );
+    }
     const nPlan = sub.plan ?? "free";
     const nPaid = nPlan === "pro" || nPlan === "office";
     const appleBilled = sub?.planSource === "apple";
@@ -287,6 +313,24 @@ export default function BillingManager() {
   // SEE it in the app — the definition of a billing trap. Show exactly two
   // things: what they're paying, and the way out. No plan switcher, no seats —
   // team billing is the org's, not theirs.
+  if (sub.personalSubOnly && sub.planSource === "apple" && !sub.hasStripeSubscription) {
+    // Bought in the iPhone app before joining: Apple bills it, so there is no
+    // cancel button this page could offer — only where to find Apple's.
+    return (
+      <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5">
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-sm text-gray-400">Your personal subscription</p>
+          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-500/15 text-blue-300">Pro</span>
+        </div>
+        <p className="text-xs text-gray-500 leading-relaxed">
+          Your team&apos;s Office seat already includes everything in Pro, so the Pro subscription you bought
+          in the iPhone app isn&apos;t adding anything while you&apos;re on the team. Apple bills it, and it keeps
+          renewing until you cancel it on your iPhone in Settings → Apple ID → Subscriptions — or keep it
+          for if you ever leave the team.
+        </p>
+      </div>
+    );
+  }
   if (sub.personalSubOnly) {
     return (
       <PersonalSubCard

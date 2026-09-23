@@ -20,8 +20,10 @@ export async function GET() {
   // A team member is never sold a plan — their seat is the plan. Backstop for
   // any paywall that asks: Apple purchases can't be refused server-side, so
   // "not eligible" here is one more thing keeping a trial offer off their screen.
+  // `teamMember` lets /pricing send them to their dashboard instead of reading
+  // "not eligible" as "you already had your trial — billing starts today".
   if (await getOfficeSubUserContext(user.id)) {
-    return NextResponse.json({ eligible: false }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ eligible: false, teamMember: true }, { headers: { "Cache-Control": "no-store" } });
   }
   const { data: profile } = await getAdminSupabase()
     .from("profiles")

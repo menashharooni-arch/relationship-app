@@ -30,7 +30,7 @@ export default async function ProfilePage() {
   ]);
   // Same rule as /settings — an Office member whose seat the owner pays for is
   // never billed, so the receipts switch is hidden for them here too.
-  const showBilling = canSeeBilling(officeCtx, profile.stripe_subscription_id as string | null);
+  const showBilling = canSeeBilling(officeCtx, profile.stripe_subscription_id as string | null, (profile.customization as { _planSource?: unknown } | null)?._planSource);
 
   const defaults = {
     day1: { enabled: true, time: "13:00" },

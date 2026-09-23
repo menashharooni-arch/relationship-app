@@ -141,7 +141,7 @@ export default async function FlowSettingsPage({
   // a sub they couldn't see or cancel anywhere in the app. The API returns the
   // trimmed personal-sub view for them (personalSubOnly), never the org's plan
   // manager, so showing the section cannot expose team billing.
-  const showBilling = canSeeBilling(officeCtx, profile.stripe_subscription_id as string | null);
+  const showBilling = canSeeBilling(officeCtx, profile.stripe_subscription_id as string | null, (profile.customization as { _planSource?: unknown } | null)?._planSource);
 
   const googleIntegration = integrations?.find((i) => i.provider === "google");
   const hubspotIntegration = integrations?.find((i) => i.provider === "hubspot");

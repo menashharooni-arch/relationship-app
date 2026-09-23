@@ -117,10 +117,14 @@ export const resolveOfficeContext = cache(async (userId: string): Promise<Office
 export function canSeeBilling(
   office: OfficeContext | null | undefined,
   personalSubscriptionId: string | null | undefined,
+  /** customization._planSource — "apple" is a personal Pro bought in the app
+   *  before joining. Apple keeps charging for it, and only the member can stop
+   *  it, so it counts as their own subscription exactly like a Stripe one. */
+  planSource?: unknown,
 ): boolean {
   if (!office || office.isOwner) return true;
   if (roleHasCapability(office.role, "manage_billing")) return true;
-  return !!personalSubscriptionId;
+  return !!personalSubscriptionId || planSource === "apple";
 }
 
 /**
@@ -221,13 +225,17 @@ export async function officeSubUserBlockMessage(
   // subscription must be able to cancel/manage THAT subscription — otherwise
   // they're billed forever with no way out (billing audit #6A). This is their
   // own sub, never the org's, so allowing it can't touch org billing.
+  // An Apple one counts too (see canSeeBilling): the read model has to reach
+  // them so Plan and billing can say where to cancel it. The write routes all
+  // act on a Stripe subscription and refuse cleanly when there is none.
   if (opts?.allowIfOwnSubscription) {
     const { data: profile } = await getAdminSupabase()
       .from("profiles")
-      .select("stripe_subscription_id")
+      .select("stripe_subscription_id, customization")
       .eq("id", userId)
       .maybeSingle();
     if (profile?.stripe_subscription_id) return null;
+    if ((profile?.customization as { _planSource?: unknown } | null)?._planSource === "apple") return null;
   }
   return opts?.message ?? "This is managed by your organization. Ask your Office admin if you need a change.";
 }

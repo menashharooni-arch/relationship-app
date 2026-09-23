@@ -82,15 +82,21 @@ export default function PricingPage() {
   // A SIGNED-IN account that already had its free Pro period (the trial or a
   // friend's referral month) is not offered another — the same rule checkout
   // enforces. Signed out, or on any error, the answer is true.
+  // An Office team member has nothing to buy — their seat is their plan, and
+  // /upgrade and /checkout already send them home — so this page does too.
   const [trialOk, setTrialOk] = useState(true);
   useEffect(() => {
     let cancelled = false;
     fetch("/api/iap/trial-eligible", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { eligible?: unknown } | null) => { if (!cancelled && d?.eligible === false) setTrialOk(false); })
+      .then((d: { eligible?: unknown; teamMember?: unknown } | null) => {
+        if (cancelled) return;
+        if (d?.teamMember === true) { router.replace("/dashboard"); return; }
+        if (d?.eligible === false) setTrialOk(false);
+      })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [router]);
 
   // The plan buttons navigate away with a full page load, leaving `loading`
   // set. Back from the card builder restores this page from the back/forward

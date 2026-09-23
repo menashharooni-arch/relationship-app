@@ -359,18 +359,28 @@ export async function POST(req: Request) {
   // alongside this: Settings → Billing now shows their personal sub + cancel).
   // Bell notification so the message survives the redirect; response flag so
   // the join screen can show it inline too. Best-effort — never blocks accept.
+  // Pro bought in the iPhone app counts too: Apple bills it, so nothing here
+  // can cancel it and it kept charging with no word said. Only the member can
+  // stop it, in their Apple account — so that is where this sends them.
   const { data: joinerBilling } = await admin
     .from("profiles")
-    .select("stripe_subscription_id")
+    .select("stripe_subscription_id, customization")
     .eq("id", user.id)
     .maybeSingle();
-  const hasPersonalSubscription = !!joinerBilling?.stripe_subscription_id;
+  const personalBilledBy: "stripe" | "apple" | null = joinerBilling?.stripe_subscription_id
+    ? "stripe"
+    : (joinerBilling?.customization as { _planSource?: unknown } | null)?._planSource === "apple"
+      ? "apple"
+      : null;
+  const hasPersonalSubscription = personalBilledBy !== null;
   if (hasPersonalSubscription && didActivate) {
     await insertNotification({
       user_id: user.id,
       type: "personal_sub_reminder",
       title: "You still have a personal Pro subscription",
-      body: "Your team seat now includes everything in Pro. You can cancel your own subscription in Settings → Plan and billing — or keep it for if you ever leave the team.",
+      body: personalBilledBy === "apple"
+        ? "Your team seat now includes everything in Pro. Your own Pro is billed by Apple and keeps renewing until you cancel it on your iPhone: Settings → Apple ID → Subscriptions — or keep it for if you ever leave the team."
+        : "Your team seat now includes everything in Pro. You can cancel your own subscription in Settings → Plan and billing — or keep it for if you ever leave the team.",
     }).catch(() => {});
   }
 
@@ -385,6 +395,7 @@ export async function POST(req: Request) {
     ok: true,
     officeName: (member.offices as { name: string } | null)?.name,
     hasPersonalSubscription,
+    personalBilledBy,
     firstCardId: (existingCard?.id as string | undefined) ?? null,
   });
 }

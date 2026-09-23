@@ -33,6 +33,9 @@ const RC_REVOKE_EVENTS = new Set(["EXPIRATION"]);
 export type RcDecision =
   | { action: "grant" }
   | { action: "revoke" }
+  /** Apple stopped billing an account whose plan is the ORG's: leave the plan
+   *  alone, just stop describing it as Apple-billed. */
+  | { action: "forget_apple" }
   | { action: "ignore" };
 
 // ── Sandbox purchases must not grant production Pro ─────────────────────────
@@ -86,7 +89,12 @@ export function decideRcEvent(opts: {
   // Pro in the app, then joined a team, keeps _planSource "apple" — and their
   // lapsing Apple subscription used to drop the seat their company pays for to
   // Free ("Your Pro plan has ended", every paid feature locked).
-  if (isOfficePlan(opts.currentPlan) || opts.isOfficeMember) return { action: "ignore" };
+  // Their own Apple Pro has ended, though, and Plan and billing must stop
+  // telling them Apple still charges them for it (it counts as a personal
+  // subscription for a team member — lib/office-roles canSeeBilling).
+  if (isOfficePlan(opts.currentPlan) || opts.isOfficeMember) {
+    return opts.planSource === "apple" ? { action: "forget_apple" } : { action: "ignore" };
+  }
   if (opts.planSource !== "apple") return { action: "ignore" };
   if (opts.hasStripeSubscription) return { action: "ignore" };
   if (opts.currentPlan === "free" || opts.currentPlan === null) return { action: "ignore" };

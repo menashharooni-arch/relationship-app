@@ -37,8 +37,8 @@ const PREVIEW_CALL_SITES: { file: string; logo: string; why: string }[] = [
   },
   {
     file: "src/app/cards/[id]/edit/CardEditForm.tsx",
-    logo: "logoUrl={cardLogoUrl}",
-    why: "cardLogoUrl is what the editor's save writes to logo_url",
+    logo: "logoUrl={liveLogoUrl}",
+    why: "liveLogoUrl is what logo_url holds after the editor's save — the card's own logo, or on a team member's card the office's, which the server writes over it",
   },
   {
     file: "src/components/site/SwiftLinkMiniBuilder.tsx",

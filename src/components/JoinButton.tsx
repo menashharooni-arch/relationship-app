@@ -6,6 +6,7 @@ export default function JoinButton({ token }: { token: string }) {
   const [status, setStatus] = useState<"idle" | "joining" | "done" | "declining" | "declined" | "error">("idle");
   const [error, setError] = useState("");
   const [hasPersonalSub, setHasPersonalSub] = useState(false);
+  const [personalSubApple, setPersonalSubApple] = useState(false);
 
   async function handleDecline() {
     setStatus("declining");
@@ -45,6 +46,7 @@ export default function JoinButton({ token }: { token: string }) {
       setStatus("done");
       const personalSub = json.hasPersonalSubscription === true;
       setHasPersonalSub(personalSub);
+      setPersonalSubApple(json.personalBilledBy === "apple");
       // Straight into the REAL card builder — the same 4-step wizard everyone
       // uses (Card info → Card design → Socials → Social design). The wizard's
       // ?add=1 path resolves their office context server-side: branding fields
@@ -74,13 +76,20 @@ export default function JoinButton({ token }: { token: string }) {
         <div className="w-full bg-green-900/30 border border-green-700/50 text-green-300 font-semibold py-3 rounded-full text-sm text-center">
           You&apos;re in! Let&apos;s build your card…
         </div>
-        {hasPersonalSub && (
+        {hasPersonalSub && (personalSubApple ? (
+          <p className="mt-3 rounded-xl border border-blue-500/25 bg-blue-500/10 text-blue-200 text-xs px-3.5 py-3 leading-relaxed">
+            Heads up: your team seat includes everything in Pro, and you also have your own Pro
+            subscription, billed by Apple. It keeps renewing until you cancel it on your iPhone in{" "}
+            <span className="font-semibold">Settings → Apple ID → Subscriptions</span> — or keep it for if you
+            ever leave the team. We&apos;ve put this in your notifications too.
+          </p>
+        ) : (
           <p className="mt-3 rounded-xl border border-blue-500/25 bg-blue-500/10 text-blue-200 text-xs px-3.5 py-3 leading-relaxed">
             Heads up: your team seat includes everything in Pro, and you also have your own Pro
             subscription. You can cancel yours in <span className="font-semibold">Settings → Plan and billing</span> —
             or keep it for if you ever leave the team. We&apos;ve put this in your notifications too.
           </p>
-        )}
+        ))}
       </div>
     );
   }

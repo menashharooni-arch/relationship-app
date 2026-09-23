@@ -239,6 +239,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
 
   // Content — media; Design — template + style
   const [cardLogoUrl, setCardLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
+  // What logo_url holds once this is saved, so every preview shows the live
+  // page: the editor's own logo, or on a team member's card the OFFICE's (or
+  // none) — the server writes the brand's logo over theirs on every save.
+  const liveLogoUrl = org ? orgLogo : cardLogoUrl;
   // Logo display shape: "auto" keeps the classic square/wide/banner behavior;
   // "circle" renders the whole mark inside a circular plate (never cropped).
   const [logoShape, setLogoShape] = useState<"auto" | "circle">(card.customization?.logoShape === "circle" ? "circle" : "auto");
@@ -366,8 +370,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     snapchat: socials.snapchat,
     initials: (name || card.username)[0]?.toUpperCase() ?? "?",
     photoUrl: photoState,
-    // A member's card carries the OFFICE's logo (or none) — the server applies it.
-    logoUrl: org ? orgLogo : cardLogoUrl,
+    logoUrl: liveLogoUrl,
     cardUrl: `swiftcard.me/${card.username}`,
     address: [
       [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
@@ -633,9 +636,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       title={title}
       bio={bio}
       photoUrl={photoState}
-      // cardLogoUrl is what the save writes to logo_url, so the hero's
+      // liveLogoUrl is what logo_url holds after the save, so the hero's
       // headshot → logo → initials fallback previews exactly as it renders.
-      logoUrl={org ? orgLogo : cardLogoUrl}
+      logoUrl={liveLogoUrl}
       socials={{
         instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
         twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,
@@ -925,7 +928,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               defaultOpen={photosStartOpen}
               lead={
                 <span className="flex -space-x-2 shrink-0" aria-hidden>
-                  {[org ? orgLogo : cardLogoUrl, photoState].map((src, i) =>
+                  {[liveLogoUrl, photoState].map((src, i) =>
                     src ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img key={i} src={src} alt="" className={`w-7 h-7 border-2 border-gray-900 bg-white object-contain ${i === 1 ? "rounded-full object-cover" : "rounded-lg"}`} />

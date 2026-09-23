@@ -15,10 +15,17 @@ const code = (p: string) => read(p).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\
 
 describe("nothing but the team changes a member's plan", () => {
   it("a lapsing Apple subscription never drops an Office seat", () => {
-    for (const eventType of ["EXPIRATION", "CANCELLATION", "BILLING_ISSUE"]) {
+    for (const eventType of ["CANCELLATION", "BILLING_ISSUE"]) {
       expect(decideRcEvent({ eventType, currentPlan: "enterprise", planSource: "apple", hasStripeSubscription: false }).action).toBe("ignore");
       expect(decideRcEvent({ eventType, currentPlan: "pro", planSource: "apple", hasStripeSubscription: false, isOfficeMember: true }).action).toBe("ignore");
     }
+    // It ending only stops Plan and billing saying Apple charges them — the plan stays.
+    expect(decideRcEvent({ eventType: "EXPIRATION", currentPlan: "enterprise", planSource: "apple", hasStripeSubscription: false }).action).toBe("forget_apple");
+    expect(decideRcEvent({ eventType: "EXPIRATION", currentPlan: "pro", planSource: "apple", hasStripeSubscription: false, isOfficeMember: true }).action).toBe("forget_apple");
+    expect(decideRcEvent({ eventType: "EXPIRATION", currentPlan: "enterprise", planSource: "stripe", hasStripeSubscription: true }).action).toBe("ignore");
+    const rc = code("src/app/api/iap/revenuecat/route.ts");
+    const forget = rc.slice(rc.indexOf('decision.action === "forget_apple"'));
+    expect(forget).toMatch(/delete customization\._planSource;\s*await admin\.from\("profiles"\)\.update\(\{ customization \}\)\.eq\("id", profile\.id\);/);
     // A plain Pro-by-Apple account still loses Pro when Apple says so.
     expect(decideRcEvent({ eventType: "EXPIRATION", currentPlan: "pro", planSource: "apple", hasStripeSubscription: false }).action).toBe("revoke");
   });
@@ -38,7 +45,41 @@ describe("nothing but the team changes a member's plan", () => {
   });
 
   it("the Apple trial check never offers a member a trial", () => {
-    expect(code("src/app/api/iap/trial-eligible/route.ts")).toMatch(/if \(await getOfficeSubUserContext\(user\.id\)\) \{\s*return NextResponse\.json\(\{ eligible: false \}/);
+    expect(code("src/app/api/iap/trial-eligible/route.ts")).toMatch(/if \(await getOfficeSubUserContext\(user\.id\)\) \{\s*return NextResponse\.json\(\{ eligible: false, teamMember: true \}/);
+  });
+
+  it("the pricing page sends a member home instead of telling them billing starts today", () => {
+    expect(code("src/app/pricing/page.tsx")).toContain('if (d?.teamMember === true) { router.replace("/dashboard"); return; }');
+  });
+});
+
+describe("a member still paying Apple for their own Pro is told, and can see it", () => {
+  it("an Apple subscription counts as their own, exactly like a Stripe one", async () => {
+    const { canSeeBilling } = await import("@/lib/office-roles");
+    const member = { isOwner: false, role: "member" } as unknown as Parameters<typeof canSeeBilling>[0];
+    expect(canSeeBilling(member, null)).toBe(false);
+    expect(canSeeBilling(member, null, "apple")).toBe(true);
+    expect(canSeeBilling(member, "sub_123")).toBe(true);
+    expect(canSeeBilling(member, null, "stripe")).toBe(false);
+    const roles = code("src/lib/office-roles.ts");
+    expect(roles).toContain('if ((profile?.customization as { _planSource?: unknown } | null)?._planSource === "apple") return null;');
+    for (const p of ["src/app/settings/flows/page.tsx", "src/app/profile/page.tsx"]) {
+      expect(code(p)).toContain("(profile.customization as { _planSource?: unknown } | null)?._planSource);");
+    }
+  });
+  it("joining says where to cancel it — on the iPhone, not in SwiftCard", () => {
+    const join = code("src/app/api/join/route.ts");
+    expect(join).toContain('?._planSource === "apple"');
+    expect(join).toContain("Settings → Apple ID → Subscriptions");
+    expect(code("src/components/JoinButton.tsx")).toContain('setPersonalSubApple(json.personalBilledBy === "apple");');
+  });
+  it("Plan and billing shows their own Apple Pro, never 'Office billed through Apple'", () => {
+    const bm = code("src/components/BillingManager.tsx");
+    expect(bm).toContain('if (sub.personalSubOnly && sub.planSource === "apple" && !sub.hasStripeSubscription) {');
+    const nativeAt = bm.indexOf("if (native) {");
+    const memberAt = bm.indexOf("if (sub.personalSubOnly) {", nativeAt);
+    expect(memberAt).toBeGreaterThan(nativeAt);
+    expect(memberAt).toBeLessThan(bm.indexOf("const nPlan = sub.plan"));
   });
 });
 
