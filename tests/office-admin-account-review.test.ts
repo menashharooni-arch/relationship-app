@@ -168,14 +168,24 @@ describe("the owner can delete a team member's account (members can't delete the
     expect(r).toContain("Only the Office owner can delete a team member's account.");
   });
 
-  it("removes them from the team with the Remove button's own handler, THEN soft-deletes", () => {
+  it("marks the account deleted FIRST, then removes (the Remove button's own handler), then re-asserts", () => {
+    // Measured live: "remove, then delete" interrupted mid-way left someone
+    // removed but not deleted, and no longer on the team to retry from.
     expect(r).toContain('import { DELETE as removeFromTeam } from "../route";');
+    const firstMark = r.indexOf("const first = await markDeleted();");
     const removeAt = r.indexOf("await removeFromTeam(");
-    const deleteAt = r.indexOf("_deleted: true");
-    expect(removeAt).toBeGreaterThan(-1);
-    expect(deleteAt).toBeGreaterThan(removeAt);
-    expect(r).toContain("stopSubscription(");
-    expect(r).toContain("revokeAppleTokensOnDelete(target)");
+    const againMark = r.indexOf("const again = await markDeleted();");
+    expect(firstMark).toBeGreaterThan(-1);
+    expect(removeAt).toBeGreaterThan(firstMark);
+    expect(againMark).toBeGreaterThan(removeAt);
+    expect(r).toContain("_deleted: true");
+  });
+
+  it("the slow outside work runs in after(), so a closed tab can't cut it off", () => {
+    const tail = r.slice(r.indexOf("after(async () => {"));
+    expect(tail).toContain("stopSubscription(subId)");
+    expect(tail).toContain("revokeAppleTokensOnDelete(target)");
+    expect(tail).toContain('subject: "Your SwiftCard account was deleted"');
   });
 
   it("never the owner themselves, only an active member of THIS office", () => {

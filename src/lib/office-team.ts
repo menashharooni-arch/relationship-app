@@ -301,9 +301,13 @@ export async function getTeamOverview(
     // No username column in this select — and none is needed: when the
     // analytics name fell through to the account handle it equals the member's
     // public slug, which IS on the record.
+    // Last resort before the handle: the address they were invited at. A
+    // generated handle ("helloqamue78p1lm2-7b955b") read as garbage in the
+    // roster and in "Remove …?" / "Delete …'s account?" (seen live 2026-09-23).
+    const inviteEmail = (memberRow?.invite_email as string | null) || (prof?.email as string | null) || null;
     const displayName = e.name && e.name !== e.username
       ? e.name
-      : (memberRow?.invite_name as string | null) || e.name;
+      : (memberRow?.invite_name as string | null) || inviteEmail || e.name;
     return {
       ...e,
       name: displayName,
