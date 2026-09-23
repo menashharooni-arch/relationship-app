@@ -55,6 +55,7 @@ import { Suspense } from "react";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan, describeFreeDesignChanges, proLinkFeaturesInUse } from "@/lib/plan";
 import { pickFreeLiveCardIds } from "@/lib/card-active";
 import { redactForPlan } from "@/lib/notification-privacy";
+import { hideForReader } from "@/lib/office-account-notifications";
 import { readUsage } from "@/lib/usage";
 import { backfillCardPhotos } from "@/lib/card-media";
 import { buildCardData } from "@/lib/card-data";
@@ -537,6 +538,17 @@ export default async function DashboardPage({
   // tab above is Pro, and this list used to say it in a sentence several times
   // a day. Blocked out HERE, on the server, so there is nothing to read in
   // devtools; the app blurs what is left (lib/location-privacy.ts).
+  // Same reader rule as /api/notifications (lib/office-account-notifications),
+  // from what this page already loaded — no extra query.
+  const notifReader = {
+    officeAccount: isEnterprise,
+    teamMember: isEnterprise && !ownedOfficeRes.data && !!profile.office_id,
+    ownSubscription:
+      !!profile.stripe_subscription_id ||
+      (profile.customization as { _planSource?: unknown } | null)?._planSource === "apple",
+  };
+  panelNotifications = hideForReader(panelNotifications ?? [], notifReader);
+  bellNotifications = hideForReader(bellNotifications ?? [], notifReader);
   panelNotifications = redactForPlan(panelNotifications ?? [], isPro);
   bellNotifications = redactForPlan(bellNotifications ?? [], isPro);
 

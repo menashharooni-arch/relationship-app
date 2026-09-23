@@ -8,6 +8,7 @@ import { writeAudit } from "@/lib/audit";
 import { notifyOffice, displayLabelFrom } from "@/lib/office-notify";
 import { alertTeam } from "@/lib/team-alerts";
 import { insertNotification } from "@/lib/notify";
+import { officeCompanyName } from "@/lib/office-display-name";
 import { NextResponse, after } from "next/server";
 
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
@@ -342,6 +343,20 @@ export async function POST(req: Request) {
       },
       skipPushFor: [user.id],
     });
+    // And the person who joined gets one line of their own that says what
+    // being on a team means for their card — the admin heard about the join,
+    // they heard nothing. Bell only, once (didActivate), no push: they are
+    // on screen right now.
+    const company = await officeCompanyName(officeId as string, {
+      storedName: (member.offices as { name?: string | null } | null)?.name ?? null,
+      ownerId: ownerId ?? null,
+    }).catch(() => null);
+    await insertNotification({
+      user_id: user.id,
+      type: "office_joined",
+      title: company ? `You joined ${company}` : "You joined your team",
+      body: "Your team admin manages the company details on your card; your name, title, headshot and your own links are yours to edit. You'll hear from us here when someone opens your card or shares their details with you.",
+    }).catch(() => {});
     for (const r of oldRows ?? []) {
       await notifyOffice(r.office_id as string, {
         type: "member_left",

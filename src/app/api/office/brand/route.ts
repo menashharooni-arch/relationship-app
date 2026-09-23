@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
@@ -7,6 +7,8 @@ import { writeAudit } from "@/lib/audit";
 import { normalizeSocial } from "@/lib/social-url";
 import { requireOfficeCapability } from "@/lib/office-roles";
 import { teamCustomLayout } from "@/lib/custom-layout";
+import { insertNotification } from "@/lib/notify";
+import { BRAND_NOTICE_TYPE, brandChangeNotice, brandContentChanged } from "@/lib/office-account-notifications";
 
 // Office admin sets the uniform brand (logo / company / website / template /
 // colors & fonts). This page is THE brand source — there is no primary card.
@@ -36,6 +38,11 @@ export async function PATCH(req: NextRequest) {
   if (!office) return NextResponse.json({ error: "No office found." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
+
+  // The whole stored brand as it was, so members can be told afterwards what
+  // this save actually changed on their card (see the end of this handler).
+  // select("*") so a column this schema lacks can't fail the read.
+  const { data: brandBefore } = await admin.from("offices").select("*").eq("id", office.id).maybeSingle();
 
   // The Links tab's CURRENT values, read on their own (best-effort: the columns
   // may predate this schema), so a save that clears or replaces them can take
@@ -339,6 +346,30 @@ export async function PATCH(req: NextRequest) {
   try {
     await propagateBrandToOfficeCards(office.id as string);
   } catch { /* best-effort — a member re-syncs on their next edit */ }
+
+  // Tell each team member whose card this save changed — bell only, one
+  // current line per member (lib/office-account-notifications). Not the person
+  // who made the change. After the response: the admin's save never waits on it.
+  const toTell = verifiedInOffice.filter((id) => id !== user.id);
+  if (toTell.length) {
+    after(async () => {
+      try {
+        const { data: brandAfter } = await admin.from("offices").select("*").eq("id", office.id).maybeSingle();
+        const notice = brandChangeNotice({
+          cardLock: [storedLocks?.template !== false, lockTemplate],
+          linkLock: [storedLocks?.linkDesign === true, lockLinkDesign],
+          contentChanged: brandContentChanged(brandBefore, brandAfter, { card: lockTemplate, link: lockLinkDesign }),
+        });
+        if (!notice) return;
+        for (const uid of toTell) {
+          // Supersede, don't stack: their previous unread brand notice is
+          // replaced by this one, which describes the card as it is now.
+          await admin.from("notifications").delete().eq("user_id", uid).eq("type", BRAND_NOTICE_TYPE).eq("read", false);
+          await insertNotification({ user_id: uid, type: BRAND_NOTICE_TYPE, title: notice.title, body: notice.body });
+        }
+      } catch { /* a notice must never fail a Branding save */ }
+    });
+  }
 
   await writeAudit({
     action: "brand.updated",

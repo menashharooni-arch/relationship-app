@@ -13,9 +13,12 @@ type Admin = ReturnType<typeof getAdminSupabase>;
 // with their own live Pro subscription falls back to "pro", not "free", and
 // telling them they lost paid access they still have is simply false).
 export function officeAccessEndedMessage(fallback: "pro" | "free"): string {
+  // Says what happened to their CARD too — the thing they will notice first.
+  // Every path that sends this (team plan ended, seats cut, switched to Pro)
+  // strips the company branding and hands the card back to them.
   return fallback === "pro"
-    ? "Your team's Office plan changed, so your account reverted to your own Pro plan. Nothing was deleted — reach out to your team admin if this was unexpected."
-    : "Your team's Office plan changed, so your account moved to a Free plan. Nothing was deleted — reach out to your team admin if this was unexpected.";
+    ? "Your team's Office plan changed, so your account is back on your own Pro plan. The company branding came off your card, and your card and contacts are yours — manage them in Settings → Cards and sharing. Reach out to your team admin if this was unexpected."
+    : "Your team's Office plan changed, so your account moved to a Free plan. The company branding came off your card, and your card and contacts are yours — manage them in Settings → Cards and sharing. Reach out to your team admin if this was unexpected.";
 }
 
 // An admin REMOVED this person. Not "the team's plan changed" — nothing about

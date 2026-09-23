@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidUser, redactForPlan } from "@/lib/notification-privacy";
+import { hideForReader, notificationReader } from "@/lib/office-account-notifications";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -43,6 +44,11 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(20));
   }
+
+  // An Office account is never handed referral pitches, nor a team member
+  // billing rows about a subscription they no longer have
+  // (lib/office-account-notifications). Same rule as the dashboard's lists.
+  data = hideForReader(data ?? [], await notificationReader(user.id));
 
   return NextResponse.json(redactForPlan(data ?? [], await isPaidUser(user.id)));
 }

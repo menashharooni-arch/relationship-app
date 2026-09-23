@@ -510,6 +510,17 @@ export async function claimReferralReward(
 // After each successful referred signup: tell the referrer where they stand.
 // 1/3 and 2/3 are progress notes; 3/3 is the claimable "tap here to get it".
 async function notifyReferrerOfSignup(referrerId: string): Promise<void> {
+  // No referral programme on any Office account, owner or team member —
+  // Settings hides it for all of them. A link shared before the Office plan
+  // still brings signups (they keep counting), but nobody on a team is told
+  // "One more to unlock Pro free for one month". The bell also hides older
+  // rows like it (lib/office-account-notifications).
+  try {
+    const { data: acct } = await getAdminSupabase()
+      .from("profiles").select("plan").eq("id", referrerId).maybeSingle();
+    if (acct?.plan === "enterprise") return;
+  } catch { /* unknown plan → carry on as before */ }
+
   const per = REFERRAL.SIGNUPS_PER_REWARD;
   const cap = REFERRAL.MAX_REFERRAL_REWARDS;
   const p = await computeProgress(referrerId);
