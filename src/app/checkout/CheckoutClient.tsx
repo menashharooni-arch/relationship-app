@@ -254,13 +254,13 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
         {!preview && plan === "pro" && (
           <p className="text-gray-500 text-[0.6875rem] mt-3 leading-relaxed">
             {trial
-              ? `First-time subscribers start with a ${TRIAL_DAYS}-day free trial. Card required — billing begins automatically after the trial unless you cancel. Taxes, discounts, and any proration are calculated at checkout.`
-              : "Billing starts today and renews automatically until you cancel. Taxes, discounts, and any proration are calculated at checkout."}
+              ? `First-time subscribers start with a ${TRIAL_DAYS}-day free trial. Card required — billing begins automatically after the trial unless you cancel. Any discounts are applied at checkout.`
+              : "Billing starts today and renews automatically until you cancel. Any discounts are applied at checkout."}
           </p>
         )}
         {plan === "office" && (
           <p className="text-gray-500 text-[0.6875rem] mt-3 leading-relaxed">
-            Your own card counts as seat 1 — {preview ? "invite the rest of your team from the Admin page." : "after payment, invite the rest of your team from the Office dashboard. Taxes and any discounts are calculated at checkout."}
+            Your own card counts as seat 1 — {preview ? "invite the rest of your team from the Admin page." : "after payment, invite the rest of your team from the Admin tab on your dashboard. Any discounts are applied at checkout."}
           </p>
         )}
 

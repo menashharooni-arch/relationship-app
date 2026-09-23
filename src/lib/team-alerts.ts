@@ -112,7 +112,9 @@ export async function announceFirstLeadIfTeammate(userId: string, memberName: st
     const { data: cards } = await admin.from("cards").select("username").eq("user_id", userId);
     const slugs = (cards ?? []).map((c) => c.username as string).filter(Boolean);
     if (!slugs.length) return;
-    const { count } = await admin.from("leads").select("id", { count: "exact", head: true }).in("card_owner", slugs);
+    // Real leads only: the sample contact (lib/demo-contact) made a first
+    // real lead count 2, so this never fired for anyone who kept it.
+    const { count } = await admin.from("leads").select("id", { count: "exact", head: true }).in("card_owner", slugs).not("tags", "cs", "{demo}");
     if (count !== 1) return;
     const { data: already } = await admin
       .from("office_notifications").select("id")

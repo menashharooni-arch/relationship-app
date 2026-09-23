@@ -80,7 +80,7 @@ function built(key: SenderKey, subject: string, html: string) {
 // Unsubscribe link stays exactly where it was.
 function layout(body: string, unsubscribeUrl?: string, prefsUrl?: string) {
   return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>
 <body style="margin:0;padding:0;background:#FAF7F2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#FAF7F2;min-height:100vh;padding:40px 16px;">
 <tr><td align="center">
@@ -156,6 +156,9 @@ export function welcomeEmail(opts: {
   /** An Office team member: contacts go to the team (and its CRM, if the
    *  admin connected one), so the "connect your CRM" step is left out. */
   officeMember?: boolean;
+  /** The account OWNS an office (the Office admin): add the two team steps
+   *  a new admin needs — invite, and check the branding. */
+  officeOwner?: boolean;
   unsubscribeUrl?: string;
   /** Preference centre link for the footer — marketing/lifecycle mail only. */
   prefsUrl?: string;
@@ -178,6 +181,11 @@ export function welcomeEmail(opts: {
       <a href="${safeCardUrl}" style="color:#1D4ED8;font-size:15px;font-weight:600;text-decoration:none;">${cardUrlText}</a>
     `)}
     ${btn(safeCardUrl, "See my live card →")}
+    ${opts.officeOwner ? card(`
+      <p style="margin:0 0 14px;font-weight:700;color:#0f172a;font-size:14px;">Set up your team</p>
+      ${step(1, "Invite your team", `Open ${a(`${APP_URL}/office/admin`, "Admin")} from your dashboard and tap “+ Add team member”. Each person gets an email and builds their own card in about two minutes — your card is seat 1.`)}
+      ${step(2, "Check your team branding", `We started it from your card. Change the logo, company details or design in ${a(`${APP_URL}/office/admin/branding`, "Admin → Branding")} and every teammate's card follows.`, true)}
+    `) : ""}
     ${card(`
       <p style="margin:0 0 14px;font-weight:700;color:#0f172a;font-size:14px;">The best ways to use your SwiftCard</p>
       ${step(1, "Put your Swift Links in your bio", `Your link-in-bio page is live at ${a(safeLinksUrl, linksText)}. Paste it into your Instagram, TikTok and LinkedIn bios \u2014 your photo, socials, links and a Connect button, on one page.`)}
@@ -208,10 +216,11 @@ export function welcomeEmail(opts: {
 //
 // Numbers render from PLAN_LIMITS like every other surface, so this can't
 // drift from the enforcement again.
-function proLossCard() {
+function proLossCard(office = false) {
   return card(`
     <p style="margin:0 0 12px;font-weight:700;color:#0f172a;font-size:14px;">What changes on Free</p>
     <p style="margin:0 0 8px;font-size:13px;color:#475569;">✓ <strong>You keep everything you made</strong> — your card, all your contacts, and your links stay put. Nothing is deleted.</p>
+    ${office ? `<p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Your team's seats end — everyone you invited moves to Free too, and the team dashboard closes</p>` : ""}
     <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• New contacts cap at ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} a month — anything past that is still captured, just locked until you upgrade</p>
     <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Only your first card stays live; any others stop loading for visitors, including their QR codes and NFC tags</p>
     <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Follow-up sequences pause where they are and resume if you upgrade</p>
@@ -257,8 +266,8 @@ export function trialChargeSoonEmail(opts: {
         <table width="100%" cellpadding="0" cellspacing="0">${tableRows}</table>
       </div>
     </div>
-    ${proLossCard()}
-    ${p(`Keeping ${planName}? You don't need to do anything. Want to stay on Free instead? Cancel before ${date} and you won't be charged.`)}
+    ${proLossCard(opts.planName === "Office")}
+    ${p(`Keeping ${planName}? You don't need to do anything. ${opts.planName === "Office" ? "Don't want to continue?" : "Want to stay on Free instead?"} Cancel before ${date} and you won't be charged.`)}
     ${btn(opts.manageUrl, "Manage my plan →")}
   `;
   return built(BILLING_FROM, `Your SwiftCard ${opts.planName || "Pro"} trial ends ${opts.chargeDate}`, layout(body));
@@ -347,11 +356,14 @@ export function receiptEmail(opts: {
   invoiceNumber: string;
   invoiceUrl?: string;
   manageUrl: string;
+  /** Office: the seats this charge covers. */
+  seats?: number;
 }) {
   const safeName = escapeHtml(opts.firstName);
   const safePlanName = escapeHtml(opts.planName);
   const tableRows = [
     row("Plan", safePlanName),
+    ...(opts.seats ? [row("Seats", `${opts.seats} (incl. you)`)] : []),
     row("Amount", escapeHtml(opts.amount)),
     row("Billing", escapeHtml(opts.interval)),
     row("Date", escapeHtml(opts.paymentDate)),
@@ -364,7 +376,7 @@ export function receiptEmail(opts: {
         <span style="font-size:22px;">✅</span>
       </div>
       ${h1(`Payment confirmed`)}
-      ${p(`Thank you, ${safeName}. Your payment was processed successfully. Here's your receipt.`)}
+      ${p(`Thank you${safeName ? `, ${safeName}` : ""}. Your payment was processed successfully. Here's your receipt.`)}
     </div>
     <div style="background:#fff;border:1px solid #E4DDD4;border-radius:16px;overflow:hidden;margin-bottom:24px;">
       <div style="background:#0f172a;padding:16px 24px;">
@@ -402,11 +414,14 @@ export function trialStartedEmail(opts: {
   interval: string;
   firstChargeDate: string;
   manageUrl: string;
+  /** Office: the seats the recurring amount covers. */
+  seats?: number;
 }) {
   const safeName = escapeHtml(opts.firstName);
   const safePlanName = escapeHtml(opts.planName);
   const tableRows = [
     row("Plan", safePlanName),
+    ...(opts.seats ? [row("Seats", `${opts.seats} (incl. you)`)] : []),
     row("Due today", "$0.00"),
     row("First charge", escapeHtml(opts.firstChargeDate)),
     row("Then", `${escapeHtml(opts.amount)} ${escapeHtml(opts.interval.toLowerCase())}`),
@@ -418,7 +433,7 @@ export function trialStartedEmail(opts: {
         <span style="font-size:22px;">🎉</span>
       </div>
       ${h1(`You're on SwiftCard ${safePlanName}`)}
-      ${p(`You're all set, ${safeName}. You haven't been charged — your free period has started.`)}
+      ${p(`You're all set${safeName ? `, ${safeName}` : ""}. You haven't been charged — your free period has started.`)}
     </div>
     <div style="background:#fff;border:1px solid #E4DDD4;border-radius:16px;overflow:hidden;margin-bottom:24px;">
       <div style="background:#0f172a;padding:16px 24px;">
@@ -447,25 +462,38 @@ export function paymentFailedEmail(opts: {
   planName: string;
   amount: string;
   manageUrl: string;
+  /** What happens next. "grace" (a failed renewal) starts the 7-day window;
+   *  "retry" (any other invoice) starts no clock; "trial_ended" means the
+   *  first charge after a free period failed and the plan has already ended. */
+  situation?: "grace" | "retry" | "trial_ended";
 }) {
   const safeName = escapeHtml(opts.firstName);
   const safePlanName = escapeHtml(opts.planName);
+  const situation = opts.situation ?? "grace";
+  const next =
+    situation === "trial_ended"
+      ? `<p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">Your free period has ended</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Because the first charge didn't go through, your ${safePlanName} plan has ended and your account is back on Free${opts.planName === "Office" ? " — your teammates move to Free too" : ""}. Nothing was charged. You can pick a plan again any time.</p>
+      <a href="${safeUrlAttr(opts.manageUrl)}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Choose a plan →</a>`
+      : situation === "retry"
+        ? `<p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">Please update your payment method</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Your plan is still active. Update your card so this charge can go through.</p>
+      <a href="${safeUrlAttr(opts.manageUrl)}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Update billing →</a>`
+        : `<p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">You have 7 days to update your payment method</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Your plan stays fully active during that window while we retry the charge. If it's still unresolved after 7 days, your account will automatically move to the Free plan.</p>
+      <a href="${safeUrlAttr(opts.manageUrl)}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Update billing →</a>`;
   const body = `
     <div style="margin-bottom:24px;">
       <div style="width:48px;height:48px;background:#FEF2F2;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
         <span style="font-size:22px;">⚠️</span>
       </div>
       ${h1(`Your payment didn't go through`)}
-      ${p(`Hey ${safeName} — we tried to charge ${escapeHtml(opts.amount)} for your SwiftCard ${safePlanName} plan, but the payment failed. This can happen with an expired card, insufficient funds, or a bank decline.`)}
+      ${p(`${safeName ? `Hey ${safeName} — w` : "W"}e tried to charge ${escapeHtml(opts.amount)} for your SwiftCard ${safePlanName} plan, but the payment failed. This can happen with an expired card, insufficient funds, or a bank decline.`)}
     </div>
-    ${card(`
-      <p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">You have 7 days to update your payment method</p>
-      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Your plan stays fully active during that window while we retry the charge. If it's still unresolved after 7 days, your account will automatically move to the Free plan.</p>
-      <a href="${safeUrlAttr(opts.manageUrl)}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Update billing →</a>
-    `)}
+    ${card(next)}
     ${p(`If you have any questions, just reply to this email.`)}
   `;
-  return built(BILLING_FROM, `Action needed: your SwiftCard payment failed`, layout(body));
+  return built(BILLING_FROM, situation === "trial_ended" ? `Your SwiftCard ${opts.planName} plan has ended — payment didn't go through` : `Action needed: your SwiftCard payment failed`, layout(body));
 }
 
 export function marketingEmail(opts: {

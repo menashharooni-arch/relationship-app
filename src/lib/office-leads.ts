@@ -124,6 +124,9 @@ async function fetchLeadPage(
     .from("leads")
     .select(select, { count: "exact" })
     .or(officeLeadFilter(slugs, officeLeadTag(officeId)))
+    // Not the sample contact every new card starts with (lib/demo-contact) —
+    // it listed "Jordan Rivera" as the new team's first lead.
+    .not("tags", "cs", "{demo}")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -247,7 +250,8 @@ export async function getOfficeFollowUp(officeId: string): Promise<OfficeFollowU
     .from("leads")
     .select("id, name, created_at, card_owner")
     .in("id", candidateIds)
-    .in("card_owner", slugs);
+    .in("card_owner", slugs)
+    .not("tags", "cs", "{demo}");
   const rows = leads ?? [];
   const intents = await loadIntent(admin, rows.map((l) => ({ id: l.id as string, created_at: l.created_at as string })));
 

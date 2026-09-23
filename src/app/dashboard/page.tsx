@@ -1031,15 +1031,17 @@ export default async function DashboardPage({
           {/* Upgrade success banner. /checkout/success only ever redirects, so
               this is the first render after a completed Pro purchase — and
               therefore the only place we can observe it client-side. */}
-          {params.upgraded && <TrackEvent event="checkout_completed" props={{ plan: "pro" }} />}
+          {params.upgraded && <TrackEvent event="checkout_completed" props={{ plan: isEnterprise ? "office" : "pro" }} />}
           {params.upgraded && stripeTrialDaysLeft <= 0 && (
             <div className="flex items-center gap-3 bg-green-950 border border-green-800/60 rounded-2xl px-5 py-3.5 mb-5">
               <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
                 <svg viewBox="0 0 20 20" fill="#4ade80" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd"/></svg>
               </div>
               <p className="text-green-400 text-sm font-medium">
-                {stripeTrialDaysLeft > 0
-                  ? `Welcome to Pro! Your free trial runs until ${formatBillingDate(stripeTrialEnds)}.`
+                {isEnterprise
+                  ? ownedOffice
+                    ? "Welcome to Office! Your team plan is active — open Admin to invite your team."
+                    : "Welcome to Office! Your plan is now active."
                   : "Welcome to Pro! Your plan is now active."}
               </p>
             </div>

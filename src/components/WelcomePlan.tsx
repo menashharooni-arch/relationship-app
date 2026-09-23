@@ -9,7 +9,8 @@ import PlanCards, { type PaidPlan } from "@/components/PlanCards";
 import FreeDesignChoice from "@/components/FreeDesignChoice";
 import { consumePlanIntent, type PlanIntent } from "@/lib/plan-intent";
 import { detectNativeApp } from "@/lib/platform";
-import { TRIAL_DAYS } from "@/lib/plan";
+import { TRIAL_DAYS, PLAN_PRICES, PLAN_LIMITS } from "@/lib/plan";
+import { formatUsd, seatSubtotalCents } from "@/lib/currency";
 import ReferralGiftPanel from "@/components/ReferralGiftPanel";
 
 // Onboarding step shown once, right after a brand-new account's first card is
@@ -67,8 +68,11 @@ export default function WelcomePlan({
   // (notifications, and the app on the web) → dashboard + tour. Notifications
   // used to be offered ABOVE the plan cards, before the card was even live,
   // and nothing asked again after the plan was chosen.
+  // Office lands on the owner's OWN dashboard with the tour, same as Pro —
+  // never straight into the admin console (owner, 2026-09-22). The team
+  // console is one tap away on the dashboard's Admin tab.
   const [setupNext, setSetupNext] = useState<string | null>(
-    setupFor === "office" ? "/office/admin" : setupFor === "pro" ? LANDING + "&upgraded=true" : null,
+    setupFor ? LANDING + "&upgraded=true" : null,
   );
   function finishSetup() {
     // The web dashboard's "Get the app" popup would repeat the card shown here.
@@ -215,9 +219,12 @@ export default function WelcomePlan({
         }),
       });
       if (res.status === 401) { window.location.href = "/login?next=/welcome"; return; }
-      const { url, error: err } = await res.json();
+      const { url, error: err, message, redirect } = await res.json();
       if (url) { window.location.href = url; return; }
-      setError(err || "Couldn't start checkout. Please try again.");
+      // 409 already_subscribed: this account paid (often in another tab) — go
+      // where the server says, never show the raw error code.
+      if (res.status === 409 && typeof redirect === "string" && redirect.startsWith("/")) { window.location.href = redirect; return; }
+      setError(message || err || "Couldn't start checkout. Please try again.");
       setLoading(null);
     } catch {
       setError("Couldn't reach the server. Please try again.");
@@ -227,6 +234,14 @@ export default function WelcomePlan({
 
   const paidIntent = intent && (intent.plan === "pro" || intent.plan === "office") ? intent : null;
   const planName = paidIntent?.plan === "office" ? "Office" : "Pro";
+  // What they will pay, from plan.ts — the same arithmetic /checkout and
+  // Stripe use (unit price × seats), so this panel never shows another number.
+  const paidSeats = paidIntent?.plan === "office" ? Math.max(PLAN_LIMITS.OFFICE_MIN_SEATS, paidIntent.seats ?? PLAN_LIMITS.OFFICE_MIN_SEATS) : 1;
+  const paidTotal = paidIntent
+    ? paidIntent.plan === "office"
+      ? seatSubtotalCents(paidIntent.annual ? PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS : PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, paidSeats)
+      : paidIntent.annual ? PLAN_PRICES.PRO_ANNUAL_CENTS : PLAN_PRICES.PRO_MONTHLY_CENTS
+    : 0;
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-12">
@@ -250,7 +265,7 @@ export default function WelcomePlan({
               onClick={finishSetup}
               className="mt-6 w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-full transition-colors text-sm"
             >
-              {setupNext === "/office/admin" ? "Go to my Office dashboard →" : "Go to my dashboard →"}
+              Go to my dashboard →
             </button>
           </div>
         ) : (
@@ -261,7 +276,7 @@ export default function WelcomePlan({
               chosen, not before (owner, 2026-09-16; lib/card-active rule 5). */}
           <h1 className="text-white font-bold text-2xl sm:text-3xl">Your account is ready</h1>
           {cardSlug && <p className="text-blue-400 text-sm mt-1.5 font-mono">swiftcard.me/{cardSlug}</p>}
-          <p className="text-gray-400 text-sm mt-3 max-w-md mx-auto">Choose your plan below and your card goes live at this link.</p>
+          <p className="text-gray-400 text-sm mt-3 max-w-md mx-auto">{paidIntent && !pendingFreeConfirm ? "Finish checkout below and your card goes live at this link." : "Choose your plan below and your card goes live at this link."}</p>
         </div>
 
         {/* Plan finalize / chooser */}
@@ -274,10 +289,15 @@ export default function WelcomePlan({
           // that panel was set but never drawn and the link did nothing.
           // They picked a paid plan before signing up → complete payment.
           <div className="max-w-md mx-auto text-center">
+            {canceled && (
+              <p className="mb-5 text-sm text-gray-400 bg-gray-900 border border-gray-800 rounded-xl px-4 py-3">
+                Checkout was cancelled and nothing was charged. Your selection is saved — continue whenever you&apos;re ready.
+              </p>
+            )}
             <h2 className="text-white font-bold text-xl">Complete your {planName} subscription</h2>
-            <p className="text-gray-400 text-sm mt-1.5">You picked {planName}{paidIntent.annual ? " (billed annually)" : ""}{paidIntent.plan === "office" ? ` · ${paidIntent.seats ?? 2} seats` : ""}. Pay securely with Stripe to unlock it.</p>
+            <p className="text-gray-400 text-sm mt-1.5">You picked {planName}{paidIntent.plan === "office" ? ` · ${paidSeats} seats (incl. you)` : ""} · {formatUsd(paidTotal)}/{paidIntent.annual ? "year" : "month"}. Pay securely with Stripe to unlock it.</p>
             <button
-              onClick={() => checkout(paidIntent.plan as PaidPlan, !!paidIntent.annual, paidIntent.seats ?? 2)}
+              onClick={() => checkout(paidIntent.plan as PaidPlan, !!paidIntent.annual, paidSeats)}
               disabled={loading !== null}
               className="sc-dark-sheet mt-5 w-full py-3.5 rounded-full text-sm font-bold text-white transition-colors disabled:opacity-50"
               style={{ background: "var(--rd-aurora)" }}

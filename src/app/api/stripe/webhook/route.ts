@@ -33,6 +33,25 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // that starts with a free trial or promo free days charges $0.00, and sending
 // "Payment confirmed / processed successfully — $0.00" for that is both wrong
 // and silent about when billing actually begins.
+// The name to greet with, or "" for none. profiles.name is blank for every
+// account made through normal signup (the name is typed into the card builder),
+// so billing mail read "Thank you, there." — the welcome email reads the card
+// first for the same reason (lib/welcome-email).
+async function greetingName(userId: string, profileName: string | null | undefined): Promise<string> {
+  try {
+    const { data: firstCard } = await getAdminSupabase()
+      .from("cards")
+      .select("name")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    return ((firstCard?.name as string | null) || profileName || "").trim().split(" ")[0] || "";
+  } catch {
+    return (profileName ?? "").trim().split(" ")[0] || "";
+  }
+}
+
 async function sendReceiptForUser(opts: {
   userId: string;
   planName: string;
@@ -40,6 +59,8 @@ async function sendReceiptForUser(opts: {
   interval: string;
   invoiceUrl?: string | null;
   trialFirstChargeDate?: string | null;
+  /** Office only: seats on the subscription, shown as a receipt row. */
+  seats?: number | null;
 }) {
   const admin = getAdminSupabase();
 
@@ -70,8 +91,8 @@ async function sendReceiptForUser(opts: {
     .maybeSingle();
   if (recentReceipt) return;
 
-  const firstName = profile.name?.split(" ")[0] || "there";
-  const amount = `$${(opts.amountCents / 100).toFixed(2)}`;
+  const firstName = await greetingName(opts.userId, profile.name);
+  const amount =`$${(opts.amountCents / 100).toFixed(2)}`;
   const invoiceNum = `SC-${Date.now().toString().slice(-8)}`;
 
   const manageUrl = `${APP_URL}/settings/flows?billing=1`;
@@ -82,6 +103,7 @@ async function sendReceiptForUser(opts: {
         amount,
         interval: opts.interval,
         firstChargeDate: opts.trialFirstChargeDate,
+        seats: opts.seats ?? undefined,
         manageUrl,
       })
     : receiptEmail({
@@ -95,6 +117,7 @@ async function sendReceiptForUser(opts: {
         }),
         invoiceNumber: invoiceNum,
         invoiceUrl: opts.invoiceUrl ?? undefined,
+        seats: opts.seats ?? undefined,
         manageUrl,
       });
 
@@ -116,7 +139,9 @@ async function sendReceiptForUser(opts: {
   });
 }
 
-async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: number }) {
+type PaymentFailedSituation = "grace" | "retry" | "trial_ended";
+
+async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: number; situation: PaymentFailedSituation }) {
   const admin = getAdminSupabase();
   const { data: profile } = await admin
     .from("profiles")
@@ -129,13 +154,16 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
   const accountEmail = await getAccountEmail(profile.id as string, (profile.email as string) ?? null);
   if (!accountEmail) return;
 
-  const firstName = (profile.name as string)?.split(" ")[0] || "there";
-  const planName = ((profile.plan as string) || "Pro").charAt(0).toUpperCase() + ((profile.plan as string) || "pro").slice(1);
+  const firstName = await greetingName(profile.id as string, profile.name as string | null);
+  // "Office", never the internal "enterprise" id — this said "your SwiftCard
+  // Enterprise plan" to Office owners (the receipts were fixed 2026-09-16).
+  const planName = profile.plan === "enterprise" ? "Office" : "Pro";
   const template = paymentFailedEmail({
     firstName,
     planName,
     amount: `$${(opts.amountCents / 100).toFixed(2)}`,
     manageUrl: `${APP_URL}/settings/flows?billing=1`,
+    situation: opts.situation,
   });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -299,7 +327,14 @@ export async function POST(req: NextRequest) {
               ? new Date(trialEnd * 1000).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
               : "when your free period ends";
           }
-          recurringCents = sub.items?.data?.[0]?.price?.unit_amount ?? null;
+          // unit price × QUANTITY: Office is priced per seat, and quoting one
+          // seat told a 5-seat office "then $3.99 monthly" before charging
+          // $19.95 — in the trial email and in the day-7 charge notice that
+          // exists to state the amount.
+          {
+            const item = sub.items?.data?.[0];
+            recurringCents = item?.price?.unit_amount != null ? item.price.unit_amount * (item.quantity ?? 1) : null;
+          }
         }
       } catch (e) {
         console.error("[stripe] subscription fetch failed:", e);
@@ -486,6 +521,7 @@ export async function POST(req: NextRequest) {
           interval: mapped?.interval === "annual" ? "Annual" : "Monthly",
           invoiceUrl,
           trialFirstChargeDate,
+          seats: isEnterprise ? seats : null,
         });
       } catch (e) {
         console.error("Receipt email error:", e);
@@ -555,6 +591,7 @@ export async function POST(req: NextRequest) {
             planName: profile.plan === "enterprise" ? "Office" : "Pro",
             amountCents: invoice.amount_paid,
             interval: renewalInterval,
+            seats: profile.plan === "enterprise" ? line?.quantity ?? null : null,
             // The renewal handler already HAS the invoice object, so the
             // customer-facing link is right here — no extra fetch.
             invoiceUrl: invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? null,
@@ -584,14 +621,25 @@ export async function POST(req: NextRequest) {
     // this stops the wrong ones being armed in the first place.
     const isCycleInvoice = invoice.billing_reason === "subscription_cycle";
     if (invoice.customer) {
-      try {
-        await sendPaymentFailedEmail({
-          customerId: invoice.customer as string,
-          amountCents: invoice.amount_due,
-        });
-      } catch (e) {
-        console.error("Payment-failed email error:", e);
-      }
+      // The email says what is ACTUALLY about to happen. It used to go out
+      // first, always promising "7 days… your plan stays fully active" — also
+      // to a trial whose first charge failed, which is cancelled a few lines
+      // below in the same minute (for an Office, the whole team with it), and
+      // to non-renewal invoices, where no 7-day clock is ever started.
+      let failedEmailSent = false;
+      const sendFailed = async (situation: PaymentFailedSituation) => {
+        if (failedEmailSent) return;
+        failedEmailSent = true;
+        try {
+          await sendPaymentFailedEmail({
+            customerId: invoice.customer as string,
+            amountCents: invoice.amount_due,
+            situation,
+          });
+        } catch (e) {
+          console.error("Payment-failed email error:", e);
+        }
+      };
       try {
         const admin = getAdminSupabase();
         const { data: profile } = await admin
@@ -631,6 +679,7 @@ export async function POST(req: NextRequest) {
               await reportError("stripe.webhook.never_paid_lookup_failed", e, { eventId: event.id, subscription: invoiceSubId });
             }
             if (neverPaid) {
+              await sendFailed("trial_ended");
               await getStripe().subscriptions.cancel(invoiceSubId);
               return NextResponse.json({ received: true, canceledUnpaidTrial: true });
             }
@@ -653,6 +702,7 @@ export async function POST(req: NextRequest) {
         // just logged (billing audit).
         await reportError("stripe.webhook.grace_period_tracking_failed", e, { eventId: event.id, customerId: invoice.customer });
       }
+      await sendFailed(isCycleInvoice ? "grace" : "retry");
     }
   }
 
@@ -694,8 +744,10 @@ export async function POST(req: NextRequest) {
       // A portal plan swap mid-trial lands here, not on checkout.session.completed,
       // so without this the day-7 notice would quote the OLD price.
       {
-        const trialPrice = sub.items?.data?.[0]?.price;
-        const cents = trialEndIso ? trialPrice?.unit_amount ?? null : null;
+        const trialItem = sub.items?.data?.[0];
+        const trialPrice = trialItem?.price;
+        // × quantity — the whole bill, not one Office seat (see checkout.session.completed).
+        const cents = trialEndIso && trialPrice?.unit_amount != null ? trialPrice.unit_amount * (trialItem?.quantity ?? 1) : null;
         const word = trialEndIso ? (trialPrice?.recurring?.interval === "year" ? "annually" : "monthly") : null;
         if ((cust[TRIAL_CHARGE_CENTS_KEY] ?? null) !== cents) {
           if (cents) cust[TRIAL_CHARGE_CENTS_KEY] = cents;

@@ -104,7 +104,7 @@ async function teamWeek(admin: Admin, team: { ownerId: string; memberIds: string
     if (!s.length) continue;
     const [{ count: v }, { count: l }] = await Promise.all([
       admin.from("card_views").select("id", { count: "exact", head: true }).in("username", viewKeys(s)).gte("viewed_at", since),
-      admin.from("leads").select("id", { count: "exact", head: true }).in("card_owner", s).gte("created_at", since),
+      admin.from("leads").select("id", { count: "exact", head: true }).in("card_owner", s).not("tags", "cs", "{demo}").gte("created_at", since),
     ]);
     const pv = v ?? 0, pl = l ?? 0;
     views += pv; leads += pl;
@@ -166,7 +166,7 @@ export async function GET(req: NextRequest) {
       const since = new Date(now - 7 * DAY).toISOString();
       const [{ data: views }, { count: contacts }] = await Promise.all([
         admin.from("card_views").select("location").in("username", viewKeys(slugs)).gte("viewed_at", since).limit(5000),
-        admin.from("leads").select("id", { count: "exact", head: true }).in("card_owner", slugs).gte("created_at", since),
+        admin.from("leads").select("id", { count: "exact", head: true }).in("card_owner", slugs).not("tags", "cs", "{demo}").gte("created_at", since),
       ]);
       const copy = personalRecapCopy({
         views: views?.length ?? 0,
@@ -198,8 +198,11 @@ export async function GET(req: NextRequest) {
 
       // Leads still New a day on (but not older than a week — stale leads are
       // the Leads tab's job, not a phone's). Only ones not yet announced.
+      // Never the sample contact every new card starts with (lib/demo-contact):
+      // it sent a new owner "1 team lead is waiting" on day one.
       const { data: waiting } = await admin.from("leads").select("id, status")
         .in("card_owner", slugs)
+        .not("tags", "cs", "{demo}")
         .lte("created_at", new Date(now - DAY).toISOString())
         .gte("created_at", new Date(now - 7 * DAY).toISOString())
         .limit(500);
@@ -227,7 +230,7 @@ export async function GET(req: NextRequest) {
       // Team milestones — all-time totals, each round number once, ever.
       const [{ count: totalViews }, { count: totalLeads }] = await Promise.all([
         admin.from("card_views").select("id", { count: "exact", head: true }).in("username", viewKeys(slugs)),
-        admin.from("leads").select("id", { count: "exact", head: true }).in("card_owner", slugs),
+        admin.from("leads").select("id", { count: "exact", head: true }).in("card_owner", slugs).not("tags", "cs", "{demo}"),
       ]);
       const { data: ms } = await admin.from("office_notifications").select("meta")
         .eq("office_id", team.officeId).eq("type", "team_milestone");

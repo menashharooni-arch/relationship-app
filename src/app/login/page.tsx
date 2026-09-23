@@ -29,8 +29,18 @@ export default async function LoginPage({
             {initialMode === "signup" ? "Create your account" : "Welcome back"}
           </h1>
           <p className="text-slate-600 text-sm mt-2">
-            {next
-              ? "Sign in to accept your invitation."
+            {/* Only a team-invite link is an "invitation". Every other `next`
+                (the builder's Create-account gate, a checkout bounce, the
+                app's Office hand-off) read "Sign in to accept your invitation"
+                under "Create your account" — to people nobody had invited. */}
+            {next?.startsWith("/join/")
+              ? initialMode === "signup" ? "Create your account to accept your invitation." : "Sign in to accept your invitation."
+              : next?.startsWith("/checkout")
+                ? "Create your account or sign in to continue to checkout."
+              : next?.startsWith("/welcome") && next.includes("tier=office")
+                ? "Sign in with the account you use in the SwiftCard app to set up Office."
+              : next && initialMode === "signup"
+                ? "Create your account to save your card."
               : isReferral && initialMode === "signup"
                 ? "A friend invited you — your first month of Pro is free."
                 : initialMode === "signup"

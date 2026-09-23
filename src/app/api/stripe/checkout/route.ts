@@ -253,9 +253,13 @@ export async function POST(req: NextRequest) {
     // A brand-new account paying from /welcome goes BACK to /welcome on cancel:
     // its card isn't live yet, and /checkout ("Review your order", no Free
     // option) stranded it there (2026-09-16 website audit).
+    // Both carry the selection (plan, interval, seats, promo): /welcome used to
+    // get a bare ?canceled=1 and reopened on a reset chooser — Pro tab on a
+    // phone, 2 seats, monthly, promo gone — for someone who had picked Office.
+    const selection = `plan=${planKey}&interval=${interval}${isOffice ? `&seats=${quantity}` : ""}${promoCode && /^[A-Z0-9_-]{1,40}$/.test(promoCode) ? `&promo=${promoCode}` : ""}`;
     const cancelPath = successPath.startsWith("/welcome")
-      ? "/welcome?canceled=1"
-      : `/checkout?plan=${planKey}&interval=${interval}${isOffice ? `&seats=${quantity}` : ""}&canceled=1`;
+      ? `/welcome?${selection}&canceled=1`
+      : `/checkout?${selection}&canceled=1`;
 
     // Reuse the existing Stripe customer so re-subscribing doesn't create
     // duplicates — and re-sync its email to the AUTH signup email, since a

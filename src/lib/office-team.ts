@@ -175,7 +175,7 @@ export async function getTeamOverview(
   const countLeads = async (from: string, to?: string) => {
     if (!allSlugs.length) return 0;
     let q = admin.from("leads").select("*", { count: "exact", head: true })
-      .in("card_owner", allSlugs).gte("created_at", from);
+      .in("card_owner", allSlugs).not("tags", "cs", "{demo}").gte("created_at", from);
     if (to) q = q.lt("created_at", to);
     const { count } = await q;
     return count ?? 0;
@@ -208,7 +208,7 @@ export async function getTeamOverview(
     const [v, l] = await Promise.all([
       admin.from("card_views").select("username, viewed_at").in("username", viewKeys(allSlugs))
         .order("viewed_at", { ascending: false }).limit(ACTIVITY_SCAN_CAP),
-      admin.from("leads").select("card_owner, created_at").in("card_owner", allSlugs)
+      admin.from("leads").select("card_owner, created_at").in("card_owner", allSlugs).not("tags", "cs", "{demo}")
         .order("created_at", { ascending: false }).limit(ACTIVITY_SCAN_CAP),
     ]);
     for (const r of v.data ?? []) noteNewest(r.username as string, r.viewed_at as string);

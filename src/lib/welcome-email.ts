@@ -95,13 +95,17 @@ export async function sendWelcomeEmail(userId: string, accountEmail: string | nu
     const unsub = unsubUrl(prefsRow?.unsubscribe_token as string | undefined ?? "");
     // A team member (on an office they do not own) gets no "connect your CRM"
     // step — their contacts belong to the team.
-    let officeMember = false;
-    if (profile.office_id) {
-      const { data: owned } = await admin.from("offices").select("id").eq("owner_id", userId).maybeSingle();
-      officeMember = !owned;
-    }
+    // The Office OWNER instead gets the two team-setup steps (invite, check
+    // the branding). Asked of offices directly: the owner's own profile need
+    // not carry office_id.
+    // A failed lookup only loses the extra team steps, never the email.
+    const owned = await admin.from("offices").select("id").eq("owner_id", userId).limit(1).maybeSingle()
+      .then((r) => r.data, () => null);
+    const officeOwner = !!owned;
+    const officeMember = !!profile.office_id && !owned;
     const template = welcomeEmail({
       officeMember,
+      officeOwner,
       firstName,
       cardUrl: `${APP_URL}/${slug}`,
       unsubscribeUrl: unsub,

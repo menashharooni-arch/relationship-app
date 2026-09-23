@@ -22,7 +22,7 @@ export const officeDocs = defineDocs([
     answer:
       "The purple \"Admin\" link in the dashboard top bar (or the Admin tab in the mobile bottom bar) opens /office/admin. Its tabs are Team, Analytics (/office/admin/analytics), Leads (/office/admin/leads) and Branding (/office/admin/branding), plus a \"Billing\" tab for the owner that opens Settings → Plan and billing (seats, payment method, invoices). Branding only appears for people allowed to change it. \"← My dashboard\" in the header takes you back to your own side.",
     detail:
-      "The link only appears for people who can actually open the console — the office owner, or a teammate with a role that grants it. A brand-new Office subscriber is first asked to \"Name your team\" and is then sent to their own dashboard, not into the console, which surprises people; they get in via the Admin link afterwards. Old bookmarks to /office, /office/admin/team, /office/admin/cards and /office/admin/invite all now land on the Team tab, because Overview, Cards and Invite were folded into it.",
+      "The link only appears for people who can actually open the console — the office owner, or a teammate with a role that grants it. A brand-new Office subscriber lands on their own dashboard (with the guided tour), not in the console, which surprises people; the team is created for them at payment, named after the company on their card, and they get in via the Admin link. The console runs its own short tour the first time. Only if the team was not created yet does the console ask them to \"Name your team\" first. Old bookmarks to /office, /office/admin/team, /office/admin/cards and /office/admin/invite all now land on the Team tab, because Overview, Cards and Invite were folded into it.",
   },
   {
     id: "invite-teammate",
@@ -158,8 +158,8 @@ export const officeDocs = defineDocs([
     audience: ["office-admin"],
     triggers: ["tour", "walkthrough", "replay tour", "team notifications", "admin bell", "notifications"],
     answer:
-      "The purple \"Tour\" pill at the top of the Team tab replays a short walkthrough of all four tabs. The bell in the console header is a separate, deliberately quiet inbox: it only carries someone joining the team, someone leaving, and a declined invitation.",
+      "The purple \"Tour\" pill at the top of the Team tab replays a short walkthrough of all four tabs. The bell in the console header is the team's own inbox (see \"Team notifications\"): who joined or left, invitations declined or expired, team leads still New after a day, a teammate's first lead, team milestones and Monday's recap.",
     detail:
-      "The team bell does not carry leads, card views or milestones — those stay on your personal dashboard's bell. This is the console's own tour, separate from the main product one.",
+      "Individual leads and card views stay on each person's own bell — the team bell only carries the team-level events above, and the sample contact every new card starts with never counts as a team lead. This is the console's own tour, separate from the main product one.",
   },
 ]);

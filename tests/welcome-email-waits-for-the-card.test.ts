@@ -41,6 +41,7 @@ let alreadySent: Row | null = null;
 const inserted: Row[] = [];
 const sentEmails: Row[] = [];
 let authEmail: string | null = "signup@example.com";
+let ownedOffice: Row | null = null;
 
 vi.mock("@/lib/supabase-admin", () => ({
   getAdminSupabase: () => ({
@@ -73,6 +74,9 @@ vi.mock("@/lib/supabase-admin", () => ({
       if (table === "email_preferences") {
         return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { unsubscribe_token: "tok" } }) }) }) };
       }
+      if (table === "offices") {
+        return { select: () => ({ eq: () => ({ limit: () => ({ maybeSingle: async () => ({ data: ownedOffice }) }) }) }) };
+      }
       throw new Error("unexpected table " + table);
     },
   }),
@@ -98,6 +102,7 @@ beforeEach(() => {
   profile = settled({ name: "Dana Ellis", username: "dana-legacy" });
   alreadySent = null;
   authEmail = "signup@example.com";
+  ownedOffice = null;
   inserted.length = 0;
   sentEmails.length = 0;
 });
@@ -161,6 +166,18 @@ describe("the moment the first card exists", () => {
     expect(await sendWelcomeWhenCardLive("u1", "signup@example.com")).toBe("sent");
     expect(sentEmails).toHaveLength(1);
     expect(sentEmails[0].subject).toMatch(/Your SwiftCard is live/);
+    expect(String(sentEmails[0].html)).not.toContain("Set up your team");
+  });
+
+  // A new Office admin got the single-user email with nothing about the team
+  // they had just paid for (2026-09-22 office sign-up review).
+  it("tells an Office OWNER how to set up the team", async () => {
+    ownedOffice = { id: "office-1" };
+    expect(await sendWelcomeWhenCardLive("u1", "signup@example.com")).toBe("sent");
+    const html = String(sentEmails[0].html);
+    expect(html).toContain("Set up your team");
+    expect(html).toContain("/office/admin");
+    expect(html).toContain("/office/admin/branding");
   });
 
   it("greets with the name on the CARD, not the empty profile name", async () => {

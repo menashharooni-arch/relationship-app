@@ -123,7 +123,8 @@ async function countViews(admin: ReturnType<typeof getAdminSupabase>, usernames:
 
 async function countLeads(admin: ReturnType<typeof getAdminSupabase>, usernames: string[]): Promise<number> {
   if (!usernames.length) return 0;
-  const { count } = await admin.from("leads").select("*", { count: "exact", head: true }).in("card_owner", usernames);
+  // Not the sample contact every new card starts with (lib/demo-contact).
+  const { count } = await admin.from("leads").select("*", { count: "exact", head: true }).in("card_owner", usernames).not("tags", "cs", "{demo}");
   return count ?? 0;
 }
 
@@ -177,7 +178,7 @@ export async function getMemberDetail(userId: string): Promise<MemberDetail | nu
     countLeads(admin, usernames),
     countViewsSince(admin, usernames, 30),
     usernames.length
-      ? admin.from("leads").select("id, name, email, created_at, card_owner").in("card_owner", usernames)
+      ? admin.from("leads").select("id, name, email, created_at, card_owner").in("card_owner", usernames).not("tags", "cs", "{demo}")
           .order("created_at", { ascending: false }).limit(10).then((r) => r.data ?? [])
       : Promise.resolve([]),
   ]);
@@ -476,6 +477,7 @@ export async function getRecentLeadsForSlugs(
     .from("leads")
     .select("id, name, email, created_at, card_owner")
     .in("card_owner", slugs)
+    .not("tags", "cs", "{demo}")
     .gte("created_at", since)
     .lt("created_at", until)
     .order("created_at", { ascending: false })
