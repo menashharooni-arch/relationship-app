@@ -13,6 +13,7 @@ import {
   type IapPackage,
 } from "@/lib/iap";
 import { TRIAL_DAYS } from "@/lib/plan";
+import { useIapOffer } from "@/lib/use-iap-price";
 import { detectNativeApp } from "@/lib/platform";
 
 // Short, countable unlocks for the sheet — no prices, no numbers that could
@@ -129,13 +130,16 @@ function useIapStatus(): IapStatus {
 export default function IapSubscribeButton({
   className = "",
   label = "Upgrade to Pro",
-  sublabel = `${TRIAL_DAYS}-day free trial`,
+  sublabel,
   onPurchased,
   onNeedsAccount,
 }: {
   className?: string;
   label?: string;
-  /** Small second line under the label; pass "" to hide. */
+  /** Small second line under the label; pass "" to hide. Omitted, it names
+   *  the free trial only when StoreKit confirms this Apple ID gets one — it
+   *  used to say "14-day free trial" to everyone, including accounts the sheet
+   *  then charged from day one. */
   sublabel?: string;
   /** Called after a successful purchase (entitlement synced). Default: reload
    *  so every plan-gated surface re-reads the profile. */
@@ -149,6 +153,8 @@ export default function IapSubscribeButton({
 }) {
   const status = useIapStatus();
   const [open, setOpen] = useState(false);
+  const { trial } = useIapOffer();
+  const line = sublabel ?? (trial === true ? `${TRIAL_DAYS}-day free trial` : "");
 
   const needsAccount = status === "needs-account";
   if (status === "unavailable" || (needsAccount && !onNeedsAccount)) return null;
@@ -166,7 +172,7 @@ export default function IapSubscribeButton({
         style={{ background: "var(--rd-aurora)", boxShadow: "0 8px 22px -10px rgba(37,99,235,0.85), inset 0 1px 0 rgba(255,255,255,0.28)" }}
       >
         <span className="relative z-[4]">{label}</span>
-        {sublabel && <span className="relative z-[4] text-[0.625rem] font-semibold text-white/85">{sublabel}</span>}
+        {line && <span className="relative z-[4] text-[0.625rem] font-semibold text-white/85">{line}</span>}
         <span className="rd-glisten-sweep" aria-hidden="true" />
       </button>
       {open && !needsAccount && <PaywallSheet onClose={() => setOpen(false)} onPurchased={onPurchased} />}

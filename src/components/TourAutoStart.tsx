@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { startTour, tourCompleted } from "@/lib/tour";
+import { startTour, tourCompleted, TOUR_RUNNING } from "@/lib/tour";
 import { appStoreReady } from "@/lib/app-store";
 import { detectNativeApp } from "@/lib/platform";
 import { afterAiConsent } from "@/lib/ai-consent-sequence";
@@ -21,8 +21,12 @@ import { afterAiConsent } from "@/lib/ai-consent-sequence";
 // tour=1 is still honoured on its own for the "Take a tour" entry points, which
 // replay it deliberately for an existing user.
 //
-// Only fires for someone who hasn't taken the tour yet, and only once —
-// startTour marks it via the TourBanner/localStorage flags.
+// Only fires for someone who hasn't taken the tour yet. Completion is recorded
+// when the tour ENDS (Finish / Skip / Escape → endTour), not when it starts —
+// so a tour already running in this tab is left alone: the dashboard steps
+// keep ?welcome=1 / ?tour=1 in the URL, and a reload (or pull-to-refresh in
+// the app) used to call startTour() again and throw them back to step 1. The
+// GuidedTour host resumes a running tour from sessionStorage on its own.
 //
 // For a brand-new account the AppStorePopup ("Continue on the web" / "Download
 // on the App Store") shows first. The tour must NOT start underneath it — it
@@ -36,6 +40,7 @@ export default function TourAutoStart() {
     const requested = params.get("tour") === "1" || params.get("welcome") === "1";
     if (!requested) return;
     if (tourCompleted()) return;
+    try { if (sessionStorage.getItem(TOUR_RUNNING) === "1") return; } catch { /* storage blocked — start as usual */ }
 
     // Will the app-store popup show first? It appears on a welcome load until
     // it's been seen once (its own localStorage guard).

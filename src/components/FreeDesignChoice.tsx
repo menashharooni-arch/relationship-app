@@ -54,6 +54,9 @@ export default function FreeDesignChoice({
 }) {
   const native = useIsNativeApp();
   const { trial } = useIapOffer();
+  // Apple's answer AND the account's: null (StoreKit still answering) used to
+  // promise the free trial — the same rule as the Pro plan card.
+  const offersTrial = trial === true && trialEligible;
 
   return (
     <div className="max-w-md mx-auto">
@@ -105,12 +108,12 @@ export default function FreeDesignChoice({
         <>
           <IapSubscribeButton
             className="!mt-4 !w-full !py-3.5 !text-sm !font-bold"
-            label={trial === false ? "Keep my card exactly like this — get Pro" : `Keep my card exactly like this — ${TRIAL_DAYS} days free`}
-            sublabel={trial === false ? "Billed by Apple" : "then billed by Apple"}
+            label={offersTrial ? `Keep my card exactly like this — ${TRIAL_DAYS} days free` : "Keep my card exactly like this — get Pro"}
+            sublabel={offersTrial ? "then billed by Apple" : "Billed by Apple"}
             onPurchased={onIapPurchased}
           />
           <p className="text-gray-400 text-[0.625rem] text-center mt-2 leading-snug">
-            {trial === false ? "Renews automatically · cancel anytime in your Apple account" : `${TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account`}
+            {offersTrial ? `${TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account` : "Renews automatically · cancel anytime in your Apple account"}
           </p>
         </>
       )}

@@ -26,6 +26,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { TRIAL_CHARGE_CENTS_KEY, TRIAL_CHARGE_INTERVAL_KEY, TRIAL_ENDS_KEY } from "./billing-state";
 import { getAccountEmail } from "./account-email";
+import { greetingFirstName } from "./greeting-name";
 import { trialChargeSoonEmail } from "./email-templates";
 import { reportError } from "./report-error";
 
@@ -83,6 +84,11 @@ export async function sendTrialChargeNotices(
     // Keyed to the DATE, not a boolean: a trial that gets extended is a new
     // charge date and deserves a fresh notice.
     if (cust._trialChargeWarnedFor === endsAt) continue;
+    // Cancelled during the trial: nothing is going to be charged, and "your
+    // subscription starts then on the card you added — $4.99" to someone who
+    // just cancelled reads as if the cancel didn't work. Not stamped, so
+    // pressing "Keep subscription" before the date still gets the notice.
+    if (cust._cancelAtPeriodEnd === true) continue;
 
     result.considered += 1;
     if (msLeft < LATE_MS) result.late += 1;
@@ -103,7 +109,7 @@ export async function sendTrialChargeNotices(
       typeof cust[TRIAL_CHARGE_INTERVAL_KEY] === "string" ? (cust[TRIAL_CHARGE_INTERVAL_KEY] as string) : undefined;
 
     const tpl = trialChargeSoonEmail({
-      firstName: (u.name as string)?.split(" ")[0] || "there",
+      firstName: (await greetingFirstName(supabase, u.id as string, u.name as string | null)) || "there",
       // "Office", never the internal "enterprise" id — the product never uses
       // that word to a customer (same rule as receipts).
       planName: u.plan === "enterprise" ? "Office" : "Pro",

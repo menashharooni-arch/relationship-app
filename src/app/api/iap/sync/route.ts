@@ -69,7 +69,13 @@ export async function POST() {
     return skipped("rc_unreachable");
   }
 
-  if (!active) return NextResponse.json({ ok: true, applied: "none" });
+  // The client only calls this once StoreKit itself reports the entitlement
+  // active (purchaseIap / restoreIap), so "not active" here is RevenueCat's
+  // REST view lagging the purchase — the same situation as the skips above,
+  // and it gets the same treatment. Answering a bare "none" left a buyer whose
+  // four polls all lagged with no plan recorded: "Your card is live!", then the
+  // dashboard sent them back to Choose your plan. Still grants nothing.
+  if (!active) return skipped("not_active_yet");
 
   const admin = getAdminSupabase();
   const { data: profile } = await admin

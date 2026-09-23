@@ -118,7 +118,8 @@ describe("the wiring", () => {
   it.each([
     ["src/components/TourAutoStart.tsx", /afterAiConsent\(\(\) => startTour\(\)\)/],
     ["src/components/office/AdminTourAutoStart.tsx", /afterAiConsent\(\(\) => startAdminTour\(\)\)/],
-    ["src/components/TourBanner.tsx", /afterAiConsent\(\(\) => \{ pending = setTimeout\(\(\) => setShow\(true\), 1500\)/],
+    // The banner re-checks that the tour isn't already running before it shows.
+    ["src/components/TourBanner.tsx", /afterAiConsent\(\(\) => \{ pending = setTimeout\(\(\) => \{ if \(!tourRunning\(\)\) setShow\(true\); \}, 1500\)/],
   ])("%s waits for the AI question", (file, pattern) => {
     expect(strip(read(file))).toMatch(pattern);
   });

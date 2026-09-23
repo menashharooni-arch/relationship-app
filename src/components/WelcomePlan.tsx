@@ -97,6 +97,15 @@ export default function WelcomePlan({
     setIntent(detectNativeApp() ? null : presetIntent);
   }, [presetIntent]);
 
+  // Back from Stripe's page restores this one from the back/forward cache
+  // exactly as it was left: every button disabled on "Redirecting to
+  // checkout…", with nothing to reset it. Clear the busy state on that return.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) setLoading(null); };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   // NATIVE: the Office card sends people OUT to swiftcard.me to set up their
   // team (PlanCards NativeOffice). When they come back the plan may be settled
   // — re-ask the server, which sends a paid account on to its dashboard instead
@@ -295,7 +304,14 @@ export default function WelcomePlan({
               </p>
             )}
             <h2 className="text-white font-bold text-xl">Complete your {planName} subscription</h2>
-            <p className="text-gray-400 text-sm mt-1.5">You picked {planName}{paidIntent.plan === "office" ? ` · ${paidSeats} seats (incl. you)` : ""} · {formatUsd(paidTotal)}/{paidIntent.annual ? "year" : "month"}. Pay securely with Stripe to unlock it.</p>
+            {/* The 14-day trial is the offer /pricing sold them. It used to show
+                only in the fine print, under "Pay securely with Stripe to
+                unlock it" — which reads as a charge today. */}
+            <p className="text-gray-400 text-sm mt-1.5">
+              {paidIntent.plan === "pro" && trialEligible
+                ? <>You picked Pro · free for your first {TRIAL_DAYS} days, then {formatUsd(paidTotal)}/{paidIntent.annual ? "year" : "month"}. Add a card with Stripe to start your trial.</>
+                : <>You picked {planName}{paidIntent.plan === "office" ? ` · ${paidSeats} seats (incl. you)` : ""} · {formatUsd(paidTotal)}/{paidIntent.annual ? "year" : "month"}. Pay securely with Stripe to unlock it.</>}
+            </p>
             <button
               onClick={() => checkout(paidIntent.plan as PaidPlan, !!paidIntent.annual, paidSeats)}
               disabled={loading !== null}
@@ -332,7 +348,9 @@ export default function WelcomePlan({
             {giftPanel}
             <FreeDesignChoice
               changes={proDesignChanges}
-              onKeepWithTrial={() => checkout("pro", false, 1)}
+              // Keep the billing period they picked on /pricing — this always
+              // started a MONTHLY subscription, even for an annual buyer.
+              onKeepWithTrial={() => checkout("pro", paidIntent?.plan === "pro" && !!paidIntent.annual, 1)}
               trialEligible={offerTrial}
               onContinueFree={confirmFree}
               onIapPurchased={goFree}

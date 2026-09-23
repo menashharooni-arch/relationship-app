@@ -89,6 +89,16 @@ export default function PricingPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // The plan buttons navigate away with a full page load, leaving `loading`
+  // set. Back from the card builder restores this page from the back/forward
+  // cache exactly as it was left — both buttons disabled on "Loading…" and
+  // nothing to reset them.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) setLoading(null); };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
+
   async function applyPromo() {
     if (!promo.code.trim()) return;
     setPromo((p) => ({ ...p, status: "checking", message: "" }));
@@ -210,7 +220,13 @@ export default function PricingPage() {
               {/* "Free for your first 14 days, then $X" — owner-approved
                   2026-08-19; the word Free IS the price block, the real price
                   stated plainly under it. */}
-              {annual ? (
+              {/* An account that has had its free Pro period sees the plain
+                  price — the same branch PlanCards uses. "Free for your first
+                  14 days" above a "billing starts today" button contradicted
+                  itself. */}
+              {!trialOk ? (
+                <div className="flex items-end gap-1"><span className="text-[2.6rem] font-bold text-white leading-none">{annual ? `$${PRO_ANNUAL}` : `$${PRO_MONTHLY}`}</span><span className="text-white/80 text-sm mb-1">/ {annual ? "year" : "month"}</span></div>
+              ) : annual ? (
                 <ProTrialPrice price={`$${PRO_ANNUAL}`} period="year" note={`~$${money(PRO_ANNUAL / 12)}/mo · Save 10%`} />
               ) : (
                 <ProTrialPrice price={`$${PRO_MONTHLY}`} period="month" />

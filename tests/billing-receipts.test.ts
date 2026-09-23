@@ -36,7 +36,8 @@ describe("the receipt's invoice button goes somewhere the customer can reach", (
       interval: "Monthly", paymentDate: "January 1, 2027", invoiceNumber: "SC-1",
       manageUrl: "https://swiftcard.me/x",
     });
-    expect(without.html).not.toContain("Download invoice PDF");
+    expect(withUrl.html).toContain("View invoice");
+    expect(without.html).not.toContain("View invoice");
   });
 });
 

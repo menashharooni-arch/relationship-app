@@ -6,7 +6,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getAccountEmail } from "@/lib/account-email";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS, isPaidPlan } from "@/lib/plan";
-import { isFreeDays, promoFitsPurchase } from "@/lib/promo";
+import { isFreeDays, isGrantCode, promoFitsPurchase } from "@/lib/promo";
 import { priceIdForPlan, type BillingInterval } from "@/lib/subscription";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
@@ -150,21 +150,53 @@ export async function POST(req: NextRequest) {
       // Scope: an "Office launch" code must not take money off a Pro
       // subscription, and an annual-only code must not apply to a monthly one
       // (owner, 2026-09-17). Checked against what is actually being bought.
+      //
+      // max_uses is NOT checked here for someone who already holds a
+      // redemption: their own redemption is one of the uses it counts. Checking
+      // it again refused the code to the very person it counted — a code with
+      // max_uses 1 could never apply, and the last person under any cap paid
+      // full price after /pricing had shown them the discount.
       const usable =
         !!promo &&
+        !isGrantCode(promo) &&
         (!promo.expires_at || new Date(promo.expires_at as string) > new Date()) &&
-        (promo.max_uses == null || (promo.uses_count as number) < (promo.max_uses as number)) &&
         promoFitsPurchase(promo, { plan: isOffice ? "office" : "pro", interval });
 
       if (usable) {
         // Did this user actually redeem it? Without this, knowing the string is
         // enough — which is exactly the hole we're closing.
-        const { data: redemption } = await admin
+        let { data: redemption } = await admin
           .from("promo_code_redemptions")
           .select("id, consumed_at")
           .eq("code_id", promo!.id as string)
           .eq("user_id", user.id)
           .maybeSingle();
+
+        // No redemption yet: the code was typed on /pricing BEFORE this account
+        // existed (the redeem route previews it for a visitor, it can't record
+        // it) and rode the URL through the card builder and signup. Record it
+        // now, under exactly the rules /api/promo/redeem applies — the cap, who
+        // the code is for, and one redemption per account (the UNIQUE
+        // constraint; a lost race just finds no row and pays full price).
+        if (!redemption) {
+          const underCap = promo!.max_uses == null || (promo!.uses_count as number) < (promo!.max_uses as number);
+          const target = (promo!.plan_target as string | null) ?? "all";
+          const forThisAccount =
+            target === "all" ||
+            (target === "free" && !isPaidPlan(profile.plan)) ||
+            (target === "pro" && isPaidPlan(profile.plan));
+          if (underCap && forThisAccount) {
+            const { data: inserted } = await admin
+              .from("promo_code_redemptions")
+              .insert({ code_id: promo!.id, user_id: user.id })
+              .select("id, consumed_at")
+              .maybeSingle();
+            if (inserted) {
+              redemption = inserted;
+              await admin.from("promo_codes").update({ uses_count: (promo!.uses_count as number) + 1 }).eq("id", promo!.id as string);
+            }
+          }
+        }
 
         // consumed_at is the whole point: this used to gate on the row merely
         // EXISTING, and nothing ever marked it spent. So one redeemed "N days

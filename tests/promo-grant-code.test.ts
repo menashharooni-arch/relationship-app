@@ -58,7 +58,9 @@ describe("grant codes — what the redeem route must guarantee", () => {
 
   it("records the redemption before handing anything out", () => {
     const redemption = route.indexOf("promo_code_redemptions");
-    const grant = route.indexOf("isGrantCode(promo)");
+    // The LAST check is the one that hands the plan out. An earlier one — the
+    // signed-out preview — only refuses a grant code (there is no account).
+    const grant = route.lastIndexOf("isGrantCode(promo)");
     expect(redemption).toBeGreaterThan(-1);
     expect(grant).toBeGreaterThan(redemption);
   });

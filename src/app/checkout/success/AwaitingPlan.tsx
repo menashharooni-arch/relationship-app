@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 // Shown for the few seconds between Stripe sending the buyer back and Stripe's
 // webhook actually giving them the plan. Re-asks the server every two seconds;
@@ -29,13 +30,16 @@ export default function AwaitingPlan({ planName, fallbackHref }: {
         <div className="h-9 w-9 mx-auto mb-5 animate-spin rounded-full border-2 border-gray-700 border-t-blue-500" />
         <h1 className="text-white font-bold text-xl">Setting up your {planName} plan…</h1>
         <p className="text-gray-400 text-sm mt-2 leading-relaxed">
-          Your payment went through. This usually takes a few seconds — please keep this page open.
+          {/* Not "Your payment went through": most Pro checkouts start a free
+              trial and charge $0.00 today. */}
+          Checkout is complete. This usually takes a few seconds — please keep this page open.
         </p>
         {slow && (
           <p className="text-gray-500 text-xs mt-5 leading-relaxed">
             Still confirming with our payment provider. You can safely{" "}
             <button type="button" onClick={() => window.location.reload()} className="text-blue-400 underline">refresh</button>
-            {" "}— you won&apos;t be charged twice.
+            {" "}— you won&apos;t be charged twice. If it still hasn&apos;t finished,{" "}
+            <Link href="/contact" className="text-blue-400 underline">contact us</Link> and we&apos;ll sort it out.
           </p>
         )}
       </div>

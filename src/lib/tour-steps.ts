@@ -207,7 +207,7 @@ const STEP_DEFS: TourStepDef[] = [
     // never reaches this box at all. Office counts as paid (isPaidPlan covers
     // enterprise), so office members do get it. It now sits top-right of the box
     // on BOTH viewports, which is why this needs no phone/desktop hedge.
-    body: "All your cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. + Add card is in the top right. Free has one; Pro is unlimited.",
+    body: "All your cards. Pick one and the dashboard follows it — once you have more than one, tap the arrow beside the selected card on a phone to see the rest. + Add card is in the top right. Free has one; Pro is unlimited.",
     placement: "bottom",
     bodyFor: (ctx) =>
       ctx.tier === "free"
@@ -219,8 +219,8 @@ const STEP_DEFS: TourStepDef[] = [
         : ctx.isOfficeMember
           ? "Your company card — the one your team set up for you. Everything on this dashboard follows it."
         : ctx.tier === "office"
-          ? "Your company cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. + Add card is in the top right."
-          : "All your cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. + Add card is in the top right. Pro gives you unlimited cards.",
+          ? "Your company cards. Pick one and the dashboard follows it — once you have more than one, tap the arrow beside the selected card on a phone to see the rest. + Add card is in the top right."
+          : "All your cards. Pick one and the dashboard follows it — once you have more than one, tap the arrow beside the selected card on a phone to see the rest. + Add card is in the top right. Pro gives you unlimited cards.",
   },
   {
     id: "your-card",
@@ -286,7 +286,10 @@ const STEP_DEFS: TourStepDef[] = [
     path: DASH,
     anchor: "quick-contacts",
     title: "Quick Contacts",
-    body: "One row per contact with Call, Text, and Email buttons — each opens your phone's own dialer, Messages, or mail app with their info filled in. Tap a name to open the full contact.",
+    // The section opens on the Notifications view (the dashboard default), so
+    // the rows this used to describe as if they were on screen are one tap
+    // away — say where they are rather than pointing at a notifications list.
+    body: "Your people, right on the dashboard. Switch to Contacts for one row per person with Call, Text, and Email buttons — each opens your phone's own dialer, Messages, or mail app with their info filled in. Tap a name to open the full contact.",
     placement: "top",
   },
   {
@@ -351,12 +354,15 @@ const STEP_DEFS: TourStepDef[] = [
     // are gone, so the step says so outright rather than just listing verbs.
     // The office-member variant finally reaches something: this section used to
     // be hidden from sub-users entirely, which made that branch unreachable.
-    body: "This is where you edit a card — open it, rename it, remove it, or add another.",
+    // The section holds Edit (details, design, links, nickname) and Delete —
+    // there is no add or open control here; new cards come from "+ Add card"
+    // on the dashboard.
+    body: "This is where you edit a card — tap Edit to change its details, design, links, or nickname, or remove a card you no longer need.",
     placement: "bottom",
     bodyFor: (ctx) =>
       ctx.isOfficeMember
         ? "This is where you edit your company card — your name, title, photo and links. Your company's branding stays locked."
-        : "This is where you edit a card — open it, rename it, remove it, or add another.",
+        : "This is where you edit a card — tap Edit to change its details, design, links, or nickname, or remove a card you no longer need.",
   },
   {
     id: "settings-help",

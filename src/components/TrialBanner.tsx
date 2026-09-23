@@ -11,12 +11,15 @@ import { useIsNativeApp } from "@/lib/platform";
 // but the "Keep Pro →" /pricing CTA is a selling surface and must never render
 // inside the Capacitor shell. Web is byte-identical (native is false on SSR and
 // first paint).
-export default function TrialBanner({ daysLeft, isTrial, billedFrom }: {
+export default function TrialBanner({ daysLeft, isTrial, billedFrom, canceled = false }: {
   daysLeft: number;
   isTrial: boolean;
   /** A Stripe trial: the subscription STARTS on this date (it does not fall
    *  back to Free), so the banner says so and points at billing, not /upgrade. */
   billedFrom?: string;
+  /** A Stripe trial the person has cancelled: nothing will be charged, so the
+   *  banner must not keep saying the subscription starts on that date. */
+  canceled?: boolean;
 }) {
   const native = useIsNativeApp();
   const urgent = daysLeft <= 3;
@@ -36,7 +39,9 @@ export default function TrialBanner({ daysLeft, isTrial, billedFrom }: {
         <p className={`text-sm font-medium ${urgent ? "text-amber-300" : "text-blue-200"}`}>
           {label} — <span className="font-bold">{days}</span>
           <span className={`${billedFrom ? "block sm:inline" : "hidden sm:inline"} text-gray-400 font-normal`}>
-            {billedFrom
+            {billedFrom && canceled
+              ? ` · you cancelled, so you won’t be charged. You move to Free on ${billedFrom}. Nothing gets deleted.`
+              : billedFrom
               ? ` · your subscription starts ${billedFrom}. Cancel anytime before then.`
               : " · then you move to Free. Nothing gets deleted."}
           </span>

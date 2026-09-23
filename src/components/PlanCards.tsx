@@ -108,6 +108,7 @@ export default function PlanCards({
       <div className="max-w-md mx-auto flex flex-col gap-4">
         <NativePro
           features={PLAN_FEATURES.pro}
+          trialEligible={trialEligible}
           onPurchased={onIapPurchased}
           onNeedsAccount={onCreateAccountForPro}
         />
@@ -265,10 +266,16 @@ export default function PlanCards({
  */
 function NativePro({
   features,
+  trialEligible,
   onPurchased,
   onNeedsAccount,
 }: {
   features: readonly string[];
+  /** The caller's account-level answer (false: already had a free Pro period,
+   *  or a friend's free month is on offer instead — WelcomePlan's offerTrial).
+   *  The web card honoured it; this one ignored it, so the app showed "Start
+   *  my free month" and "Try Pro free for 14 days" side by side. */
+  trialEligible?: boolean;
   onPurchased?: () => void;
   /** Guest (signed-out) shell: start account creation instead of a purchase —
    *  there is no account to attribute a subscription to yet. */
@@ -276,6 +283,11 @@ function NativePro({
 }) {
   // Prices from StoreKit; the trial only for an Apple ID that can get it.
   const { monthly: price, annual, trial } = useIapOffer();
+  // Only promise the trial once StoreKit has confirmed one for this Apple ID
+  // AND the account may have it. `trial` is null while StoreKit is still
+  // answering (or never answers), and the button used to read "Try Pro free
+  // for 14 days" in exactly that state — then Apple's sheet said Subscribe.
+  const offersTrial = trial === true && trialEligible !== false;
   return (
     <div className="relative rounded-[28px] p-7 flex flex-col overflow-hidden" style={{ background: "var(--rd-aurora)", boxShadow: "0 40px 90px -30px rgba(37,99,235,0.6)" }}>
       <div className="absolute inset-0 opacity-25" style={{ background: "radial-gradient(120% 90% at 20% -10%, rgba(255,255,255,0.6), transparent 55%)" }} />
@@ -283,7 +295,7 @@ function NativePro({
       <div className="relative z-[2] flex flex-col flex-1">
         <p className="text-[1.35rem] font-extrabold tracking-tight text-black mb-3">Pro</p>
         {price ? (
-          trial
+          offersTrial
             ? <ProTrialPrice price={price} period="month" />
             : <div className="flex items-end gap-1"><span className="text-[2.4rem] font-bold text-white leading-none">{price}</span><span className="text-white/80 text-sm mb-1">/ month</span></div>
         ) : null}
@@ -294,15 +306,15 @@ function NativePro({
         </ul>
         <IapSubscribeButton
           className="!w-full !py-3.5 !text-sm !bg-white !text-[#2450d8]"
-          label={trial === false ? "Get Pro →" : `Try Pro free for ${TRIAL_DAYS} days →`}
-          sublabel={trial === false ? "Billed by Apple · monthly or yearly" : `${TRIAL_DAYS} days free, then billed by Apple`}
+          label={offersTrial ? `Try Pro free for ${TRIAL_DAYS} days →` : "Get Pro →"}
+          sublabel={offersTrial ? `${TRIAL_DAYS} days free, then billed by Apple` : "Billed by Apple · monthly or yearly"}
           onPurchased={onPurchased}
           onNeedsAccount={onNeedsAccount}
         />
         <p className="text-white/70 text-[0.6875rem] text-center mt-2.5 leading-relaxed">
-          {trial === false
-            ? "Renews automatically · cancel anytime in your Apple account"
-            : `${TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account`}
+          {offersTrial
+            ? `${TRIAL_DAYS} days free for new subscribers · renews automatically · cancel anytime in your Apple account`
+            : "Renews automatically · cancel anytime in your Apple account"}
         </p>
       </div>
       <span className="rd-glisten-sweep" aria-hidden="true" />

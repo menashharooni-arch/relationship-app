@@ -922,7 +922,10 @@ export default async function DashboardPage({
 
           {/* Free-Pro grant countdown */}
           {onAppGrant && trialDaysLeft > 0 && <TrialBanner daysLeft={trialDaysLeft} isTrial={isTrialGrant} />}
-          {!onAppGrant && stripeTrialDaysLeft > 0 && <TrialBanner daysLeft={stripeTrialDaysLeft} isTrial billedFrom={formatBillingDate(stripeTrialEnds)} />}
+          {/* canceled: a trial cancelled from Plan and billing keeps its end date
+              (_trialEndsAt) but will charge nothing — it must stop saying
+              "your subscription starts <date>". */}
+          {!onAppGrant && stripeTrialDaysLeft > 0 && <TrialBanner daysLeft={stripeTrialDaysLeft} isTrial billedFrom={formatBillingDate(stripeTrialEnds)} canceled={profileCust._cancelAtPeriodEnd === true} />}
 
           {/* First-run guided-tour invitation — only on the ?tour=1/?welcome=1
               load right after the first card is created (the banner reads the

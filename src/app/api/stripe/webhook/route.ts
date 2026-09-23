@@ -19,6 +19,10 @@ import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { ledgerAdd, ledgerHas, recordProTrialStarted } from "@/lib/trial-ledger";
 import { EVER_PAID_KEY, PRO_ENDED_PENDING_KEY, TRIAL_CHARGE_CENTS_KEY, TRIAL_CHARGE_INTERVAL_KEY, TRIAL_ENDS_KEY, anyInvoiceActuallyPaid, proEndedNotice, stripeTrialEndIso } from "@/lib/billing-state";
 import { revalidateCardPage, revalidateUserCards } from "@/lib/card-page-data";
+// The name billing mail greets with — the card's name first, since
+// profiles.name is blank for normal signups ("Thank you, there."). Shared with
+// the day-7 trial notice so both read it the same way.
+import { greetingFirstName } from "@/lib/greeting-name";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -33,25 +37,6 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // that starts with a free trial or promo free days charges $0.00, and sending
 // "Payment confirmed / processed successfully — $0.00" for that is both wrong
 // and silent about when billing actually begins.
-// The name to greet with, or "" for none. profiles.name is blank for every
-// account made through normal signup (the name is typed into the card builder),
-// so billing mail read "Thank you, there." — the welcome email reads the card
-// first for the same reason (lib/welcome-email).
-async function greetingName(userId: string, profileName: string | null | undefined): Promise<string> {
-  try {
-    const { data: firstCard } = await getAdminSupabase()
-      .from("cards")
-      .select("name")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    return ((firstCard?.name as string | null) || profileName || "").trim().split(" ")[0] || "";
-  } catch {
-    return (profileName ?? "").trim().split(" ")[0] || "";
-  }
-}
-
 async function sendReceiptForUser(opts: {
   userId: string;
   planName: string;
@@ -61,6 +46,9 @@ async function sendReceiptForUser(opts: {
   trialFirstChargeDate?: string | null;
   /** Office only: seats on the subscription, shown as a receipt row. */
   seats?: number | null;
+  /** Stripe's invoice number, so "Receipt #" matches what the customer sees
+   *  in the billing portal (it used to be an invented SC-<timestamp>). */
+  invoiceNumber?: string | null;
 }) {
   const admin = getAdminSupabase();
 
@@ -72,7 +60,10 @@ async function sendReceiptForUser(opts: {
   // Receipt goes to the ACCOUNT (auth) email, not profiles.email (which can be
   // the card's public contact address).
   const accountEmail = await getAccountEmail(opts.userId, profile?.email ?? null);
-  if (!profile || !accountEmail || prefs?.receipt_emails === false) return;
+  // The receipts switch mutes RECEIPTS. The trial-start email is the first
+  // charge's disclosure (date and amount), so it goes regardless — the same
+  // rule as the day-7 notice (lib/trial-notice).
+  if (!profile || !accountEmail || (prefs?.receipt_emails === false && !opts.trialFirstChargeDate)) return;
 
   // Guard against a duplicate send: if the webhook handler is retried after a
   // partial failure (e.g. a later step in the same event threw, or Stripe
@@ -91,9 +82,9 @@ async function sendReceiptForUser(opts: {
     .maybeSingle();
   if (recentReceipt) return;
 
-  const firstName = await greetingName(opts.userId, profile.name);
+  const firstName = await greetingFirstName(admin, opts.userId, profile.name);
   const amount =`$${(opts.amountCents / 100).toFixed(2)}`;
-  const invoiceNum = `SC-${Date.now().toString().slice(-8)}`;
+  const invoiceNum = opts.invoiceNumber || `SC-${Date.now().toString().slice(-8)}`;
 
   const manageUrl = `${APP_URL}/settings/flows?billing=1`;
   const template = opts.trialFirstChargeDate
@@ -154,7 +145,7 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
   const accountEmail = await getAccountEmail(profile.id as string, (profile.email as string) ?? null);
   if (!accountEmail) return;
 
-  const firstName = await greetingName(profile.id as string, profile.name as string | null);
+  const firstName = await greetingFirstName(admin, profile.id as string, profile.name as string | null);
   // "Office", never the internal "enterprise" id — this said "your SwiftCard
   // Enterprise plan" to Office owners (the receipts were fixed 2026-09-16).
   const planName = profile.plan === "enterprise" ? "Office" : "Pro";
@@ -312,41 +303,66 @@ export async function POST(req: NextRequest) {
       let trialFirstChargeDate: string | null = null;
       let recurringCents: number | null = null;
       let trialEndsAt: string | null = null;
-      try {
-        if (session.subscription) {
-          const sub = await getStripe().subscriptions.retrieve(session.subscription as string, { expand: ["default_payment_method"] });
-          const pm = sub.default_payment_method as Stripe.PaymentMethod | null;
-          paymentFingerprint = pm?.card?.fingerprint ?? null;
-          trialEndsAt = stripeTrialEndIso(sub);
-          // trial_end is the moment billing starts. Also treat a $0.00 total
-          // as a trial even if trial_end is somehow absent — a "receipt" for
-          // nothing is never the right email.
-          const trialEnd = sub.trial_end ?? null;
-          if (trialEnd || (session.amount_total ?? 0) === 0) {
-            trialFirstChargeDate = trialEnd
-              ? new Date(trialEnd * 1000).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
-              : "when your free period ends";
-          }
-          // unit price × QUANTITY: Office is priced per seat, and quoting one
-          // seat told a 5-seat office "then $3.99 monthly" before charging
-          // $19.95 — in the trial email and in the day-7 charge notice that
-          // exists to state the amount.
-          {
-            const item = sub.items?.data?.[0];
-            recurringCents = item?.price?.unit_amount != null ? item.price.unit_amount * (item.quantity ?? 1) : null;
-          }
+      if (session.subscription) {
+        // One retry, then fail the delivery. This used to be swallowed, and
+        // a single failed lookup then sent a trial customer a "Payment
+        // confirmed — $0.00" receipt, never recorded the trial (no ledger
+        // entry, no day-7 charge notice, no dashboard trial banner) and
+        // nothing ever retried. Nothing has been written yet at this point,
+        // so a 500 here costs only a short wait: Stripe redelivers and the
+        // whole event runs again with the subscription in hand.
+        const retrieveSub = () => getStripe().subscriptions.retrieve(session.subscription as string, { expand: ["default_payment_method"] });
+        let sub: Stripe.Subscription;
+        try {
+          sub = await retrieveSub();
+        } catch {
+          sub = await retrieveSub();
         }
-      } catch (e) {
-        console.error("[stripe] subscription fetch failed:", e);
+        const pm = sub.default_payment_method as Stripe.PaymentMethod | null;
+        paymentFingerprint = pm?.card?.fingerprint ?? null;
+        trialEndsAt = stripeTrialEndIso(sub);
+        // trial_end is the moment billing starts. Also treat a $0.00 total
+        // as a trial even if trial_end is somehow absent — a "receipt" for
+        // nothing is never the right email.
+        const trialEnd = sub.trial_end ?? null;
+        if (trialEnd || (session.amount_total ?? 0) === 0) {
+          trialFirstChargeDate = trialEnd
+            ? new Date(trialEnd * 1000).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+            : "when your free period ends";
+        }
+        // unit price × QUANTITY: Office is priced per seat, and quoting one
+        // seat told a 5-seat office "then $3.99 monthly" before charging
+        // $19.95 — in the trial email and in the day-7 charge notice that
+        // exists to state the amount.
+        {
+          const item = sub.items?.data?.[0];
+          recurringCents = item?.price?.unit_amount != null ? item.price.unit_amount * (item.quantity ?? 1) : null;
+        }
+        // …but a trial's FIRST charge is not always the list price: checkout
+        // can pair the trial with a coupon (a /pricing promo, or a Stripe
+        // promotion code typed on Stripe's page), and the trial email and the
+        // day-7 notice — which Visa requires to state the amount — quoted
+        // the undiscounted price. Stripe's own preview of the invoice the
+        // trial will end with is the amount that will actually be taken.
+        if (trialEnd) {
+          try {
+            const upcoming = await getStripe().invoices.createPreview({ subscription: sub.id });
+            if (typeof upcoming.amount_due === "number" && upcoming.amount_due > 0) recurringCents = upcoming.amount_due;
+          } catch { /* keep the list price — right unless a discount applies */ }
+        }
       }
 
-      // The customer-facing invoice link. Absent on a $0.00 trial checkout,
-      // which is fine — the trial email doesn't show an invoice button.
+      // The customer-facing invoice link, and Stripe's own number for it, so
+      // the receipt's "Receipt #" is one the customer can find in the portal.
+      // Absent on a $0.00 trial checkout, which is fine — the trial email
+      // doesn't show an invoice button.
       let invoiceUrl: string | null = null;
+      let invoiceNumber: string | null = null;
       try {
         if (session.invoice) {
           const inv = await getStripe().invoices.retrieve(session.invoice as string);
           invoiceUrl = inv.hosted_invoice_url ?? inv.invoice_pdf ?? null;
+          invoiceNumber = inv.number ?? null;
         }
       } catch (e) {
         console.error("[stripe] invoice fetch failed:", e);
@@ -526,6 +542,7 @@ export async function POST(req: NextRequest) {
             : session.amount_total,
           interval: mapped?.interval === "annual" ? "Annual" : "Monthly",
           invoiceUrl,
+          invoiceNumber,
           trialFirstChargeDate,
           seats: isEnterprise ? seats : null,
         });
@@ -555,6 +572,11 @@ export async function POST(req: NextRequest) {
         .eq("stripe_customer_id", invoice.customer as string)
         .single();
 
+      // The first money after a free trial arrives as an ordinary
+      // "subscription_cycle" invoice, and its receipt said "Monthly renewal" —
+      // for a subscription that had never been paid for. Read before the
+      // trial marker is cleared just below.
+      let firstChargeAfterTrial = false;
       if (profile?.id) {
         // Payment recovered — clear the grace-period clock so a future failure
         // starts fresh instead of inheriting an already-elapsed window. Cleared
@@ -567,6 +589,7 @@ export async function POST(req: NextRequest) {
         // later failed renewal gets the 7-day grace (see payment_failed). A
         // $0.00 trial-start invoice does not count.
         const becamePaying = (invoice.amount_paid ?? 0) > 0 && cust[EVER_PAID_KEY] !== true;
+        firstChargeAfterTrial = becamePaying && typeof cust[TRIAL_ENDS_KEY] === "string";
         if (cust._paymentFailedAt || becamePaying) {
           const rest = { ...cust };
           delete rest._paymentFailedAt;
@@ -591,7 +614,10 @@ export async function POST(req: NextRequest) {
           const line = invoice.lines?.data?.[0];
           const priceDetail = line?.pricing?.price_details?.price;
           const renewalPriceId = typeof priceDetail === "string" ? priceDetail : priceDetail?.id;
-          const renewalInterval = planFromPriceId(renewalPriceId)?.interval === "annual" ? "Annual renewal" : "Monthly renewal";
+          const annualRenewal = planFromPriceId(renewalPriceId)?.interval === "annual";
+          const renewalInterval = firstChargeAfterTrial
+            ? (annualRenewal ? "Annual · first payment after your free trial" : "Monthly · first payment after your free trial")
+            : (annualRenewal ? "Annual renewal" : "Monthly renewal");
           await sendReceiptForUser({
             userId: profile.id,
             planName: profile.plan === "enterprise" ? "Office" : "Pro",
@@ -601,6 +627,7 @@ export async function POST(req: NextRequest) {
             // The renewal handler already HAS the invoice object, so the
             // customer-facing link is right here — no extra fetch.
             invoiceUrl: invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? null,
+            invoiceNumber: invoice.number ?? null,
           });
         } catch (e) {
           console.error("Renewal receipt error:", e);

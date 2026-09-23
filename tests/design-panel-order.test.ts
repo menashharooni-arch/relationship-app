@@ -182,7 +182,9 @@ describe("Custom design is shown everywhere and opens only for Pro and Office", 
   it("still lets a guest and a Free first card try colours and fonts", () => {
     // The plan preview is the point of those flows; only Custom design is held
     // back, so designUnlocked must survive.
-    expect(src).toMatch(/const designUnlocked = isPro \|\| guest \|\| isFirstCard;/);
+    // (A signed-in buyer from a plan CTA is added on the end — they pay for
+    // this card next, like a guest from the same button.)
+    expect(src).toMatch(/const designUnlocked = isPro \|\| guest \|\| isFirstCard \|\| \(!!presetPlan && !postCheckout\);/);
   });
 });
 

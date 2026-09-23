@@ -37,10 +37,15 @@ export default function ScanToConnectButton({ url }: { url: string }) {
       {/* Portaled to <body>: an ancestor with a transform becomes the containing
           block for position:fixed and would cage this overlay inside the card
           panel. CardPreviewDownload puts a scale() transform on the card node a
-          few levels up, so this is not hypothetical. */}
+          few levels up, so this is not hypothetical.
+          Above the guided tour (masks z-[9998], tooltip z-[10000]): the tour's
+          "Your SwiftCard — try it" step invites exactly this tap, and at z-100
+          the QR opened UNDER the tour's mask — visible only through the
+          spotlight hole, its tap-outside-to-close area swallowed by the mask,
+          and still covering the card for every step after it. */}
       {open && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+          className="fixed inset-0 z-[10001] flex items-center justify-center p-6"
           style={{ background: "rgba(0,0,0,0.8)" }}
           onClick={(e) => e.target === e.currentTarget && setOpen(false)}
         >

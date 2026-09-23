@@ -265,7 +265,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // card is created (see the plan-choice modal below). A plan-specific CTA
   // (?plan=pro/office, presetPlan below) already has a fixed target plan, so it
   // skips this extra choice.
-  const designUnlocked = isPro || guest || isFirstCard;
+  // A SIGNED-IN buyer who came from a plan CTA (/pricing → ?plan=pro|office)
+  // is on the way to paying for exactly this card, so they get the same
+  // unlocked design a signed-out visitor from the same button gets. They used
+  // to be the one case left locked: isFirstCard is false for a plan entry, so
+  // the Pro look was greyed out in the builder they were about to pay for.
+  const designUnlocked = isPro || guest || isFirstCard || (!!presetPlan && !postCheckout);
   // …but Custom design is NOT part of that preview, for anyone. It opens only
   // for an account that pays — Pro or Office (owner, 2026-09-18: "The only
   // time someone can ever access custom design is in the actual dashboard if
@@ -848,6 +853,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       if (cust.customLayout && typeof cust.customLayout === "object") {
         setCustomLayout(cust.customLayout as CustomLayout);
       }
+      // Both used to reset on a mid-build reload, and the next autosave then
+      // overwrote the stored value with the default.
+      if (cust.logoShape === "circle") setLogoShape("circle");
+      if (cust.hideCardLink === true) setShowCardLinkBtn(false);
       // Style keys ride alongside the known customization fields. Reuse the
       // plan module's list rather than a parallel one, so a new design key
       // can't be added there and silently dropped here.
@@ -950,6 +959,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           ...templateStyleState,
           ...linkStyleState,
           ...(showCardLinkBtn ? {} : { hideCardLink: true }),
+          // The Circle logo shape — picked here or in the homepage card /
+          // signature builders — was never written to the draft, so the claim
+          // saved every guest's card as "Original".
+          ...(logoShape === "circle" ? { logoShape: "circle" as const } : {}),
           photoUrl: null,
           ...(template === "custom" ? { customLayout } : {}),
         },
@@ -961,7 +974,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     });
   }, [guest, step, username, cardLabel, name, company, title, primaryPhone, email, website,
       socials, template, bio, links, address, cleanPhones, fax, templateStyleState,
-      linkStyleState, customLayout, logoUrl, headshotUrl, showCardLinkBtn]);
+      linkStyleState, customLayout, logoUrl, headshotUrl, showCardLinkBtn, logoShape]);
 
   /**
    * `design` overrides the design state for THIS save.
@@ -975,6 +988,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     planChoice?: { plan: "pro" | "office"; annual: boolean; seats: number },
     design?: { template: string; templateStyleState: TemplateStyle; linkStyleState: SwiftLinkStyle },
     referralMonth = false,
+    /** Just bought Pro in the app (StoreKit) from this builder's plan gate.
+     *  The server may not have the Apple grant yet, so the card must say Pro
+     *  itself — see chosenPlan below. */
+    iapPurchased = false,
   ) {
     const saveTemplate = design?.template ?? template;
     const saveTemplateStyle = design?.templateStyleState ?? templateStyleState;
@@ -1038,7 +1055,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
           // A first card saved from the plan gate WITHOUT a paid pick is the
           // Free choice — say so, so the server records the plan as decided
           // (api/cards) and the dashboard does not send them back to choose.
-          ...(planChoice ? { chosenPlan: planChoice.plan } : referralMonth ? { chosenPlan: "pro" } : showAuthedFirstCardGate ? { chosenPlan: "free" } : {}),
+          // An in-app purchase is a Pro pick too. It used to fall through to
+          // "free" (the gate is still showing), so when Apple's grant hadn't
+          // reached the server yet the card was saved with its Pro design
+          // stripped and Free recorded as the plan they chose — for someone
+          // who had just paid.
+          ...(planChoice ? { chosenPlan: planChoice.plan } : referralMonth || iapPurchased ? { chosenPlan: "pro" } : presetPlan && !postCheckout ? { chosenPlan: presetPlan } : showAuthedFirstCardGate ? { chosenPlan: "free" } : {}),
         }),
       });
     } catch {
@@ -2236,7 +2258,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 onKeepWithTrial={keepDesignWithTrial}
                 onContinueFree={confirmFreeDesignAndCreate}
                 trialEligible={trialEligible}
-                onIapPurchased={() => { setShowPlan(false); setPendingFreeConfirm(false); handleCreate(); }}
+                onIapPurchased={() => { setShowPlan(false); setPendingFreeConfirm(false); handleCreate(undefined, undefined, false, true); }}
                 busy={status === "loading"}
               />
             ) : (
@@ -2254,7 +2276,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 freeLabel="Continue with Free →"
                 // Native IAP: the entitlement is synced before this fires, so the
                 // server keeps the Pro design; no checkout hop, straight to save.
-                onIapPurchased={() => { setShowPlan(false); handleCreate(); }}
+                onIapPurchased={() => { setShowPlan(false); handleCreate(undefined, undefined, false, true); }}
                 // onCreateAccountForPro is gone: it only ever existed for a
                 // guest on native, and a guest no longer sees this gate at all.
               />

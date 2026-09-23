@@ -370,6 +370,9 @@ export function receiptEmail(opts: {
     row("Receipt #", escapeHtml(opts.invoiceNumber)),
   ].join("");
 
+  // "View invoice", not "Download invoice PDF": invoiceUrl is Stripe's hosted
+  // invoice PAGE (which offers the PDF), so the old label promised a download
+  // and opened a web page.
   const body = `
     <div style="margin-bottom:24px;">
       <div style="width:48px;height:48px;background:#EEF2FF;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
@@ -387,7 +390,7 @@ export function receiptEmail(opts: {
         <table width="100%" cellpadding="0" cellspacing="0">${tableRows}</table>
       </div>
     </div>
-    ${opts.invoiceUrl ? btn(safeUrlAttr(opts.invoiceUrl), "Download invoice PDF →") : ""}
+    ${opts.invoiceUrl ? btn(safeUrlAttr(opts.invoiceUrl), "View invoice →") : ""}
     ${card(`
       <p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">Manage your subscription</p>
       <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Cancel, change plan, or update payment info at any time.</p>

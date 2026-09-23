@@ -2,19 +2,57 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isRateLimited } from "@/lib/rate-limit";
-import { promoLabel, scopeLabel, durationLabel, promoScopeMessage, isGrantCode } from "@/lib/promo";
+import { clientIp } from "@/lib/client-ip";
+import { promoLabel, scopeLabel, durationLabel, promoScopeMessage, isGrantCode, type PromoRow } from "@/lib/promo";
 import { PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
 import { provisionOfficeForOwner } from "@/lib/office-billing-sync";
 
+// What the person is shown about a code — one shape for the signed-in
+// redemption and the signed-out preview, so /pricing describes a code the same
+// way whichever one it got.
+//
+// NOTE: stripe_coupon_id is deliberately NOT returned. It used to be, and the
+// client then handed it to /api/stripe/checkout, which passed it straight to
+// Stripe unvalidated — so a coupon id lifted from the URL of a shared checkout
+// link applied to anyone's purchase, bypassing max_uses, expiry, plan_target
+// and the per-user single-use rule. Checkout now takes the CODE and re-resolves
+// it server-side; the client never sees a Stripe id.
+function promoPayload(promo: PromoRow & Record<string, unknown>) {
+  return {
+    code: promo.code,
+    description: promo.description,
+    discount_type: promo.discount_type,
+    discount_percent: promo.discount_percent,
+    discount_amount: promo.discount_amount,
+    free_days: promo.free_days ?? null,
+    applies_to: promo.applies_to ?? "any",
+    interval_target: promo.interval_target ?? "any",
+    duration: promo.duration ?? "once",
+    duration_months: promo.duration_months ?? null,
+    // What to show the person: "30% off Pro only · the first 3 months".
+    label: promoLabel(promo),
+    scope: scopeLabel(promo),
+    scope_message: promoScopeMessage(promo),
+    duration_label: durationLabel(promo),
+  };
+}
+
 // POST /api/promo/redeem — user redeems a promo code
+//
+// Signed OUT it only PREVIEWS the code. /pricing is where codes are typed, and
+// most people typing one there have no account yet: this route used to answer
+// them 401 and /pricing printed "Unauthorized" under the box, so no new
+// customer could ever use a code. Now a visitor sees what the code is worth,
+// the code rides the URL through the card builder and signup, and
+// /api/stripe/checkout records the redemption for the new account — under the
+// same rules as below — at the moment they buy.
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // Promo codes are short admin-typed strings, not high-entropy tokens —
-  // cap guesses per account.
-  if (await isRateLimited(`promo-redeem:${user.id}`, 10, 10 * 60 * 1000)) {
+  // cap guesses per account, or per address for a visitor with no account.
+  if (await isRateLimited(user ? `promo-redeem:${user.id}` : `promo-preview:${clientIp(req)}`, 10, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many attempts — try again in a few minutes." }, { status: 429 });
   }
 
@@ -43,6 +81,21 @@ export async function POST(req: NextRequest) {
   // Check uses cap
   if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
     return NextResponse.json({ error: "This promo code has reached its usage limit" }, { status: 410 });
+  }
+
+  if (!user) {
+    // A grant code switches a plan on for an ACCOUNT, and there isn't one yet.
+    if (isGrantCode(promo)) {
+      return NextResponse.json(
+        { error: "Create your free account first, then enter this code again to switch it on." },
+        { status: 401 },
+      );
+    }
+    // "Accounts that already subscribe" — a visitor with no account isn't one.
+    if (promo.plan_target === "pro") {
+      return NextResponse.json({ error: "This code is for accounts that already subscribe." }, { status: 403 });
+    }
+    return NextResponse.json({ success: true, preview: true, promo: promoPayload(promo) });
   }
 
   // Check if user already redeemed it
@@ -165,30 +218,6 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // NOTE: stripe_coupon_id is deliberately NOT returned any more. It used to be,
-  // and the client then handed it to /api/stripe/checkout, which passed it
-  // straight to Stripe unvalidated — so a coupon id lifted from the URL of a
-  // shared checkout link applied to anyone's purchase, bypassing max_uses,
-  // expiry, plan_target and the per-user single-use rule. Checkout now takes the
-  // CODE and re-resolves it server-side; the client never sees a Stripe id.
-  return NextResponse.json({
-    success: true,
-    promo: {
-      code: promo.code,
-      description: promo.description,
-      discount_type: promo.discount_type,
-      discount_percent: promo.discount_percent,
-      discount_amount: promo.discount_amount,
-      free_days: promo.free_days ?? null,
-      applies_to: promo.applies_to ?? "any",
-      interval_target: promo.interval_target ?? "any",
-      duration: promo.duration ?? "once",
-      duration_months: promo.duration_months ?? null,
-      // What to show the person: "30% off Pro only · the first 3 months".
-      label: promoLabel(promo),
-      scope: scopeLabel(promo),
-      scope_message: promoScopeMessage(promo),
-      duration_label: durationLabel(promo),
-    },
-  });
+  // (Never the Stripe coupon id — see promoPayload.)
+  return NextResponse.json({ success: true, promo: promoPayload(promo) });
 }

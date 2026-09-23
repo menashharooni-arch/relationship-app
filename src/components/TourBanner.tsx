@@ -13,9 +13,10 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { startTour, tourCompleted, TOUR_END_EVENT, TOUR_START_EVENT } from "@/lib/tour";
+import { startTour, tourCompleted, TOUR_END_EVENT, TOUR_RUNNING, TOUR_START_EVENT } from "@/lib/tour";
 import { afterAiConsent } from "@/lib/ai-consent-sequence";
 import { detectNativeApp } from "@/lib/platform";
+import { appStoreReady } from "@/lib/app-store";
 
 export default function TourBanner() {
   const [show, setShow] = useState(false);
@@ -36,9 +37,23 @@ export default function TourBanner() {
     let pending: ReturnType<typeof setTimeout> | null = null;
     let armT: ReturnType<typeof setTimeout> | null = null;
     let cancelWait = () => {};
-    const arm = () => { cancelWait = afterAiConsent(() => { pending = setTimeout(() => setShow(true), 1500); }); };
+    // Re-checked when the timer fires: in the app this arms at the same 500ms
+    // point as TourAutoStart, which registers first — so the tour's start event
+    // arrived BEFORE `pending` existed, cancelled nothing, and the invite then
+    // appeared behind the running tour, pushing the dashboard down under it.
+    const tourRunning = () => { try { return sessionStorage.getItem(TOUR_RUNNING) === "1"; } catch { return false; } };
+    const arm = () => { cancelWait = afterAiConsent(() => { pending = setTimeout(() => { if (!tourRunning()) setShow(true); }, 1500); }); };
+    // On the web a new account's welcome load can open the "Your account is
+    // ready" App Store popup first. TourAutoStart waits for it to close; this
+    // didn't, so the invite appeared behind the popup and vanished again when
+    // the tour started. Same test TourAutoStart uses.
+    let popupPending = false;
+    try {
+      popupPending = !detectNativeApp() && appStoreReady() && params.get("welcome") === "1" && localStorage.getItem("sc_appstore_seen") !== "1";
+    } catch { /* storage blocked — treat as no popup */ }
     if (firstRun && !tourCompleted()) {
       if (detectNativeApp()) armT = setTimeout(arm, 500);
+      else if (popupPending) window.addEventListener("sc:appstore-done", arm, { once: true });
       else arm();
     }
     // If the tour finishes/skips elsewhere, hide the banner too.
@@ -49,6 +64,7 @@ export default function TourBanner() {
     window.addEventListener(TOUR_START_EVENT, onEnd);
     return () => {
       if (armT) clearTimeout(armT);
+      window.removeEventListener("sc:appstore-done", arm);
       cancelWait();
       if (pending) clearTimeout(pending);
       window.removeEventListener(TOUR_END_EVENT, onEnd);
