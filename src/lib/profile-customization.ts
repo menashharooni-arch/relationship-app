@@ -26,6 +26,28 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 
 const MAX_ATTEMPTS = 3;
 
+/**
+ * JSON with object keys SORTED, so two equal values compare equal.
+ *
+ * The read-back compared JSON.stringify of what was written with what came
+ * back — but a jsonb column does not keep key order (it stores shorter keys
+ * first), so {"period","leads","drafts"} came back as {"leads","drafts",
+ * "period"} and EVERY write of an object looked lost. It was retried, and for
+ * the monthly counter each retry added one more: every contact a Free account
+ * captured counted three times — 12/5 after four contacts, locking them from
+ * the third (2026-09-23 notification review, reproduced on production).
+ */
+export function canonicalJson(value: unknown): string {
+  const norm = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(norm);
+    if (v && typeof v === "object") {
+      return Object.fromEntries(Object.keys(v as Record<string, unknown>).sort().map((k) => [k, norm((v as Record<string, unknown>)[k])]));
+    }
+    return v;
+  };
+  return JSON.stringify(norm(value ?? null));
+}
+
 export type CustomizationWrite =
   | { ok: true; customization: Record<string, unknown> }
   | { ok: false };
@@ -52,9 +74,9 @@ export async function mutateCustomization<T>(
       .from("profiles").select("customization").eq("id", userId).maybeSingle();
     const customization = (data?.customization ?? {}) as Record<string, unknown>;
 
-    const before = JSON.stringify(customization[key] ?? null);
+    const before = canonicalJson(customization[key]);
     const next = mutate(customization[key] as T | undefined, customization);
-    const wanted = JSON.stringify(next ?? null);
+    const wanted = canonicalJson(next);
     if (wanted === before) return { ok: true, customization };
 
     const updated = { ...customization, [key]: next };
@@ -64,7 +86,7 @@ export async function mutateCustomization<T>(
     const { data: after } = await admin
       .from("profiles").select("customization").eq("id", userId).maybeSingle();
     const stored = (after?.customization ?? {}) as Record<string, unknown>;
-    if (JSON.stringify(stored[key] ?? null) === wanted) {
+    if (canonicalJson(stored[key]) === wanted) {
       return { ok: true, customization: stored };
     }
     // Someone else rewrote the column underneath us. Go round again against

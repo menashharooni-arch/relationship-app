@@ -438,7 +438,9 @@ describe("the timezone the whole thing depends on", () => {
   it("survives another writer rewriting the shared customization column", () => {
     const writer = read("src/lib/profile-customization.ts");
     // Reads back what it wrote, and goes again against the fresh object.
-    expect(writer).toMatch(/JSON\.stringify\(stored\[key\] \?\? null\) === wanted/);
+    // Compared key-order-insensitively (2026-09-23): jsonb reorders keys, and a
+    // plain JSON.stringify comparison saw every object write as lost.
+    expect(writer).toMatch(/canonicalJson\(stored\[key\]\) === wanted/);
     expect(writer).toMatch(/for \(let attempt = 0; attempt < MAX_ATTEMPTS; attempt\+\+\)/);
     // The push prefs and the free monthly meters are both written through it —
     // an open-coded read-modify-write next door would reintroduce the bug.
