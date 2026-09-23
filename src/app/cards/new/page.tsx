@@ -177,7 +177,11 @@ export default async function NewCardPage({
         phone: brand?.phone ?? null,
         fax: brand?.fax ?? null,
         address: brand?.address ?? null,
-        lockDesign: brand?.lockTemplate ?? false,
+        // Locked only when the office has a look to lock TO. lockTemplate
+        // defaults on for every brand (even one that only set links or a
+        // company name), which hid the design controls behind "your
+        // organization keeps every card matching" while nothing was applied.
+        lockDesign: !!brand?.lockTemplate && !!(brand?.template || brand?.design),
         // ── The Swift Links half of the brand ──────────────────────────
         // Content the office set (applied and read-only for the member),
         // plus whether the office holds the page's LOOK.
@@ -185,6 +189,7 @@ export default async function NewCardPage({
         linkBio: brand?.linkBio ?? null,
         linkInstagram: brand?.linkInstagram ?? null,
         lockLinkDesign: brand?.lockLinkDesign ?? false,
+        linkDesign: brand?.linkDesign ?? null,
         // The locked look, so the sub-user's live preview matches the office
         // template + colors/fonts while they build (not only after saving).
         template: brand?.template ?? null,

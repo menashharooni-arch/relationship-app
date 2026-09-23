@@ -201,7 +201,7 @@ export default async function DashboardPage({
   // An unaccepted team invite for this email: the person reached the dashboard
   // without tapping the invite link (installed the app first, or signed in on
   // the web). Only looked up for accounts that aren't already Office members.
-  const pendingInvite = isEnterprise ? null : await findPendingInviteForEmail(user.email);
+  const pendingInvite = isEnterprise ? null : await findPendingInviteForEmail(user.email, user.id);
 
   // The plan step, once, for every NEW account (owner, 2026-09-16: start on
   // Free unless they choose Pro at the plan step — and they must get to see
@@ -247,7 +247,7 @@ export default async function DashboardPage({
             exists. */}
         <TourContextPersist
           tier={isEnterprise ? "office" : isPro ? "pro" : "free"}
-          isOfficeMember={false}
+          isOfficeMember={isEnterprise && !!profile.office_id}
           hasCards={false}
         />
         <div className="sc-top-stripe fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
@@ -275,7 +275,7 @@ export default async function DashboardPage({
                   not a personal card — that would be the wrong card. */}
               <PendingInviteBanner officeName={pendingInvite.officeName} token={pendingInvite.token} primary />
               <Link href="/cards/new?add=1" className="mt-6 text-xs text-gray-500 hover:text-gray-300 transition-colors">
-                Not part of {pendingInvite.officeName}? Create a personal card instead
+                Not part of {pendingInvite.officeName ?? "this team"}? Create a personal card instead
               </Link>
             </>
           ) : (
@@ -886,7 +886,7 @@ export default async function DashboardPage({
       </nav>
 
       <MobileNavGate showAdmin={canSeeOfficeAdmin} showSite={isAdmin} />
-      <HelpWidget floating />
+      <HelpWidget floating member={isOfficeMember} />
       {/* pb-36 on mobile (was pb-24): the floating help bubble is fixed at
           bottom-20 and is 52px tall, so it covers the band 80px–132px up from
           the bottom of the viewport. pb-24 ended the content at 96px — inside

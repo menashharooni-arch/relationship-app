@@ -8,12 +8,16 @@ type Props = {
   plan: string;
   isPro: boolean;
   defaultOpen?: boolean;
+  /** What to say about billing: "below" when this page has a Billing section,
+   *  "team" for a team member whose seat their office pays for (there is no
+   *  Billing section and nothing to manage), "none" otherwise. */
+  billingNote?: "below" | "team" | "none";
 };
 
 // Account basics (email, card count, current plan at a glance). Subscription
 // management — Change Plan / Cancel / Keep / seats — lives in its own Billing
 // section (BillingManager), so this stays a simple read-only summary.
-export default function GeneralSettings({ email, cardCount, plan, isPro, defaultOpen = false }: Props) {
+export default function GeneralSettings({ email, cardCount, plan, isPro, defaultOpen = false, billingNote = "below" }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const planLabel = plan === "enterprise" ? "Office" : isPro ? "Pro" : "Free";
   const ref = useRef<HTMLDivElement>(null);
@@ -64,7 +68,8 @@ export default function GeneralSettings({ email, cardCount, plan, isPro, default
               {planLabel}
             </span>
           </div>
-          <p className="text-gray-600 text-[0.6875rem] pt-2">Manage your subscription in the Billing section below.</p>
+          {billingNote === "below" && <p className="text-gray-600 text-[0.6875rem] pt-2">Manage your subscription in the Billing section below.</p>}
+          {billingNote === "team" && <p className="text-gray-600 text-[0.6875rem] pt-2">Your plan is provided by your team — nothing to manage or pay.</p>}
         </div>
       )}
     </div>

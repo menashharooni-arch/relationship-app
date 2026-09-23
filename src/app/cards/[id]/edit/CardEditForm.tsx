@@ -110,7 +110,7 @@ export type OrgManaged = {
   ownerInherited?: boolean;
 };
 
-type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; trialEligible?: boolean; isPrimary?: boolean; org?: OrgManaged | null; linkedinEnabled?: boolean; /** Server-chosen opening tab — the LinkedIn return leg opens "design". */ initialTab?: TabId };
+type Props = { card: Card; photoUrl?: string | null; logoUrl?: string | null; isPro?: boolean; trialEligible?: boolean; isPrimary?: boolean; org?: OrgManaged | null; linkedinEnabled?: boolean; /** Just joined a team (?joined=1): saving goes on to the dashboard tour. */ tourAfterSave?: boolean; /** Server-chosen opening tab — the LinkedIn return leg opens "design". */ initialTab?: TabId };
 
 // Small "who owns this field" tag shown next to org-controlled values.
 function ManagedTag({ owner }: { owner?: boolean }) {
@@ -128,7 +128,7 @@ function ManagedTag({ owner }: { owner?: boolean }) {
 // guest-auth-flow contract no useGuestDraft/requireAuth wiring is needed here.
 // Guest mode lives in NewCardWizard.
 
-export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, trialEligible = false, isPrimary = false, org = null, linkedinEnabled = false, initialTab }: Props) {
+export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, trialEligible = false, isPrimary = false, org = null, linkedinEnabled = false, initialTab, tourAfterSave = false }: Props) {
   const saveUrl = isPrimary ? "/api/profile" : `/api/cards/${card.id}`;
   const logoCardId = isPrimary ? undefined : card.id;
   const router = useRouter();
@@ -514,7 +514,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
         const slugNow = okJson.renamedTo || card.username;
         // Show the "Saved" confirmation briefly, then return to THIS card's
         // dashboard (not the bare picker).
-        setTimeout(() => { router.push(`/dashboard?card=${encodeURIComponent(slugNow)}`); }, 1000);
+        // A teammate who just joined (?joined=1) goes on to the tour — the
+        // banner above told them "save, and your dashboard is ready", and
+        // saving used to be the one exit that skipped it.
+        setTimeout(() => { router.push(`/dashboard?card=${encodeURIComponent(slugNow)}${tourAfterSave ? "&tour=1" : ""}`); }, 1000);
       } else {
         // Surface the server's plain-English reason when it gives one (e.g. an
         // org-managed field was changed) instead of a bare "Error".

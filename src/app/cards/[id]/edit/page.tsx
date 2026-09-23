@@ -83,7 +83,11 @@ export default async function CardEditPage({
         phone: brand?.phone ?? null,
         fax: brand?.fax ?? null,
         address: brand?.address ?? null,
-        lockDesign: brand?.lockTemplate ?? false,
+        // Locked only when the office has a look to lock TO. lockTemplate
+        // defaults on for every brand (even one that only set links or a
+        // company name), which hid the design controls behind "your
+        // organization keeps every card matching" while nothing was applied.
+        lockDesign: !!brand?.lockTemplate && !!(brand?.template || brand?.design),
         // ── The Swift Links half of the brand ──────────────────────────
         // Content the office set (applied and read-only for the member),
         // plus whether the office holds the page's LOOK.
@@ -124,12 +128,22 @@ export default async function CardEditPage({
       {claim === "1" && <GuestDraftClaim />}
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <DashboardLink card={card.username} className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-            </svg>
-            Dashboard
-          </DashboardLink>
+          {joined ? (
+            // Just joined: every way out of here leads to the tour.
+            <Link href={`/dashboard?card=${encodeURIComponent(card.username as string)}&tour=1`} className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+              Dashboard
+            </Link>
+          ) : (
+            <DashboardLink card={card.username} className="text-gray-500 hover:text-white text-sm transition-colors flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+              Dashboard
+            </DashboardLink>
+          )}
         </div>
 
         <div className="mb-6">
@@ -141,8 +155,12 @@ export default async function CardEditPage({
           {joined && (
             <div className="mt-3 rounded-xl border border-purple-500/25 bg-purple-500/[0.06] px-4 py-3">
               <p className="text-sm font-semibold text-purple-200">You&apos;ve joined your team</p>
-              <p className="text-xs text-gray-400 mt-1 leading-relaxed">This card now carries your company&apos;s branding. Check your details, save, and your dashboard is ready.</p>
-              <Link href="/dashboard?tour=1" className="inline-block mt-2 text-xs font-semibold text-purple-300 hover:text-purple-200">Go to my dashboard →</Link>
+              <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                {brand?.logoUrl || brand?.company || brand?.template
+                  ? "This card now carries your company's branding. Check your details and save — then take a quick tour of your dashboard."
+                  : "This is now your company card — your organization manages the company details. Check your details and save — then take a quick tour of your dashboard."}
+              </p>
+              <Link href={`/dashboard?card=${encodeURIComponent(card.username as string)}&tour=1`} className="inline-block mt-2 text-xs font-semibold text-purple-300 hover:text-purple-200">Go to my dashboard →</Link>
             </div>
           )}
           <p className="text-gray-500 text-sm mt-1">/{card.username}</p>
@@ -157,6 +175,7 @@ export default async function CardEditPage({
           trialEligible={trialEligible}
           org={org}
           linkedinEnabled={!!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)}
+          tourAfterSave={joined}
         />
       </div>
 

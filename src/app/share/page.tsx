@@ -117,7 +117,7 @@ export default async function SharePage({
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-10 pb-24 md:pb-10">
       <MobileNavGate showAdmin={showOfficeAdmin} />
-      <HelpWidget floating />
+      <HelpWidget floating member={!!officeSubUser} />
 
       {/* Top accent stripe */}
       <div className="sc-top-stripe fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />

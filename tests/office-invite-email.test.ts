@@ -89,6 +89,41 @@ describe("office invite email", () => {
   it("falls back to a safe host label when the invite URL is unparseable", () => {
     expect(invite({ inviteUrl: "not-a-url" }).html).toContain("This link goes to swiftcard.me");
   });
+
+  // Unknown inviter name / unknown company: the old stand-in strings were read
+  // as words in the sentence — "A invited you…", "create your your new team
+  // digital business card", "added you to the your new team team".
+  it("an inviter with no name on file is never a fragment like 'A'", () => {
+    const e = invite({ ownerFirst: null });
+    expect(e.subject).toBe("You're invited to create your Acme Realty digital business card");
+    expect(e.html).toContain("You've been added to the <strong>Acme Realty</strong> team on SwiftCard");
+    expect(e.html).toContain("because a team admin entered your email address");
+    expect(e.fromName).toBe("Acme Realty");
+  });
+
+  it("an office with no company name reads as a sentence, not a placeholder", () => {
+    const e = invite({ officeName: null });
+    expect(e.subject).toBe("Dana invited you to create your company digital business card");
+    expect(e.html).toContain("Dana added you to their team on SwiftCard");
+    expect(e.html).not.toMatch(/your new team|My Office|the\s+team/);
+    expect(e.html).toContain("Sent by SwiftCard · New York, NY");
+    expect(e.fromName).toBe("Dana");
+  });
+
+  it("neither known: plain SwiftCard From, still a real sentence", () => {
+    const e = invite({ ownerFirst: null, officeName: null });
+    expect(e.subject).toBe("You're invited to create your company digital business card");
+    expect(e.html).toContain("You've been added to a team on SwiftCard");
+    expect(senderFrom(e.fromName, "support")).toBe("SwiftCard <support@swiftcard.me>");
+  });
+
+  it("a company already named '… Team' doesn't get a second 'team'", () => {
+    expect(invite({ officeName: "Sales Team" }).html).toContain("the <strong>Sales Team</strong> on SwiftCard");
+  });
+
+  it("tells Apple users to share their email so the app can find the invite", () => {
+    expect(invite().html).toContain("Choose <strong>Share My Email</strong>");
+  });
 });
 
 // ── App Store badge: added to the invite on 2026-09-02, removed again on
@@ -109,7 +144,7 @@ describe("office invite App Store badge", () => {
 
   it("the paths that make the app door safe are in place", () => {
     const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
-    expect(read("src/app/onboarding/page.tsx")).toContain('intent === "signin" && !(await findPendingInviteForEmail(user.email))');
+    expect(read("src/app/onboarding/page.tsx")).toContain('intent === "signin" && !(await findPendingInviteForEmail(user.email, user.id))');
     expect(read("src/app/welcome/page.tsx")).toContain("if (invite) redirect(`/join/${encodeURIComponent(invite.token)}`)");
     expect(read("src/components/JoinSignIn.tsx")).toContain("if (native) {");
     expect(read("src/components/JoinButton.tsx")).toContain("/cards/${json.firstCardId}/edit?joined=1");

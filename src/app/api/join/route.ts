@@ -1,13 +1,14 @@
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS } from "@/lib/plan";
-import { getOfficeBrand, applyBrandToUserCards, stripBrandFromUserCards } from "@/lib/office-brand";
+import { getOfficeBrand, applyBrandToUserCards, stripBrandFromUserCards, type OfficeBrand } from "@/lib/office-brand";
+import { sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { isInviteExpired } from "@/lib/office-invite";
 import { writeAudit } from "@/lib/audit";
 import { notifyOffice, displayLabelFrom } from "@/lib/office-notify";
 import { alertTeam } from "@/lib/team-alerts";
 import { insertNotification } from "@/lib/notify";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 
 const OFFICE_MIN_SEATS = PLAN_LIMITS.OFFICE_MIN_SEATS;
 
@@ -280,9 +281,21 @@ export async function POST(req: Request) {
     }
     const brand = await getOfficeBrand(officeId);
     if (brand) await applyBrandToUserCards(user.id, brand);
+    // Company-level fields are the organization's from here on — the editor
+    // no longer shows them to a member and PATCH discards them. So whatever an
+    // existing card carried that the office does NOT set (their old company,
+    // logo, website, fax, address — typically from a card built on the site
+    // before accepting) would sit on the company card with no way to change
+    // it, while the editor says the organization manages it. Clear exactly
+    // those; everything the office sets was just applied above.
+    await clearUnmanagedCompanyFields(admin, user.id, brand);
   } catch { /* best-effort — the next card edit applies the overlay anyway */ }
 
   await writeAudit({ action: "invite.accepted", actorId: user.id, orgId: officeId, targetId: user.email ?? user.id });
+
+  // Whether they already have a card: join has just branded every card they
+  // own, so sending them to build ANOTHER one made a second company card.
+  const { data: existingCard } = await admin.from("cards").select("id").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
 
   // Team inbox (admin bell): a genuinely important event — someone JOINED. And
   // for each office this user just LEFT, tell that office too. Only when THIS
@@ -303,7 +316,13 @@ export async function POST(req: Request) {
       title: `${joinerLabel} joined your team`,
       body: user.email ? `${user.email} accepted their invitation and is now on your team.` : "A new teammate accepted their invitation.",
       meta: { userId: user.id },
-      push: { body: `Their card is live — your team is now ${teamSize}.` },
+      // Only "their card is live" when it is: a first-time joiner goes on to
+      // BUILD their card after this, and the push arrived while they hadn't.
+      push: {
+        body: existingCard
+          ? `Their card is live — your team is now ${teamSize}.`
+          : `They're setting up their card now — your team is now ${teamSize}.`,
+      },
       skipPushFor: [user.id],
     });
     for (const r of oldRows ?? []) {
@@ -338,9 +357,12 @@ export async function POST(req: Request) {
     }).catch(() => {});
   }
 
-  // Whether they already have a card: join has just branded every card they
-  // own, so sending them to build ANOTHER one made a second company card.
-  const { data: existingCard } = await admin.from("cards").select("id").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
+  // Their card is live under the team from this moment, so this is when
+  // "Your SwiftCard is live" belongs. A card built on the site before
+  // accepting never got it: the claim skipped it (no plan chosen yet) and
+  // nothing after the join ever sent it. Once per account (email_logs), so a
+  // first-time joiner still gets it from card creation instead.
+  if (existingCard) after(() => sendWelcomeWhenCardLive(user.id, user.email));
 
   return NextResponse.json({
     ok: true,
@@ -348,4 +370,33 @@ export async function POST(req: Request) {
     hasPersonalSubscription,
     firstCardId: (existingCard?.id as string | undefined) ?? null,
   });
+}
+
+// Blank the company-level fields on a new member's cards that the office does
+// NOT set (the ones it does set were just applied). Scoped to office cards —
+// join flags all of the member's cards — and to the member's own id.
+async function clearUnmanagedCompanyFields(
+  admin: ReturnType<typeof getAdminSupabase>,
+  userId: string,
+  brand: OfficeBrand | null,
+): Promise<void> {
+  const top: Record<string, unknown> = {};
+  if (!brand?.logoUrl) top.logo_url = null;
+  if (!brand?.company) top.company = "";
+  if (!brand?.website) top.website = "";
+  const dropFax = !brand?.fax;
+  const dropAddress = !brand?.address;
+  const { data: cards } = await admin
+    .from("cards")
+    .select("id, customization")
+    .eq("user_id", userId)
+    .eq("is_office_card", true);
+  for (const c of cards ?? []) {
+    const cust = { ...((c.customization as Record<string, unknown> | null) ?? {}) };
+    let custChanged = false;
+    if (dropFax && "fax" in cust) { delete cust.fax; custChanged = true; }
+    if (dropAddress && "address" in cust) { delete cust.address; custChanged = true; }
+    const update = custChanged ? { ...top, customization: cust } : top;
+    if (Object.keys(update).length) await admin.from("cards").update(update).eq("id", c.id);
+  }
 }

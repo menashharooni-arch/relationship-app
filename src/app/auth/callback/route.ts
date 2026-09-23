@@ -42,6 +42,15 @@ export async function GET(request: NextRequest) {
     const { data: exchanged, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
     if (exchangeError) {
       console.error("[auth/callback] code exchange failed:", exchangeError.message);
+      // A team invite's emailed sign-in link opened in another browser (the
+      // code verifier lives only in the one that asked) or opened twice: back
+      // to the invite, which explains it and can send a fresh link — not the
+      // generic login page, where the invite was lost and the only message
+      // talked about building a card.
+      const inviteNext = safeNextPath(next);
+      if (inviteNext && /^\/join\/[^/?#]+$/.test(inviteNext)) {
+        return NextResponse.redirect(new URL(`${inviteNext}?link=expired`, origin));
+      }
       return NextResponse.redirect(new URL("/login?error=oauth", origin));
     }
 

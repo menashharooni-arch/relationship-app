@@ -22,6 +22,9 @@ type GoogleIdConfig = {
   // wasn't told to expect ("nonce and nonce in id_token should either both
   // exist or not"). Pass the RAW nonce separately to signInWithIdToken.
   nonce?: string;
+  // Pre-selects this account in Google's chooser (the invited address on a
+  // team invite), so the invitee doesn't sign in with their personal Gmail.
+  login_hint?: string;
 };
 
 type GoogleId = {

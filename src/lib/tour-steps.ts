@@ -174,7 +174,7 @@ const STEP_DEFS: TourStepDef[] = [
     body: "Every new contact, save, and milestone across ALL your cards lands here — each tagged with the card it came from. They stay unread until you mark them read.",
     placement: "bottom",
     bodyFor: (ctx) =>
-      ctx.tier === "free"
+      ctx.tier === "free" || ctx.isOfficeMember
         ? "Every new contact, save, and milestone on your card lands here. They stay unread until you mark them read."
         : "Every new contact, save, and milestone across ALL your cards lands here — each tagged with the card it came from. They stay unread until you mark them read.",
   },
@@ -212,6 +212,12 @@ const STEP_DEFS: TourStepDef[] = [
     bodyFor: (ctx) =>
       ctx.tier === "free"
         ? "Your card. Free includes one — upgrade to Pro for unlimited cards."
+        // A team member holds exactly ONE card, the company card: no arrow is
+        // drawn, "+ Add card" is hidden for members, and /cards/new sends them
+        // back here — so the office wording below described three things
+        // they would never see.
+        : ctx.isOfficeMember
+          ? "Your company card — the one your team set up for you. Everything on this dashboard follows it."
         : ctx.tier === "office"
           ? "Your company cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. + Add card is in the top right."
           : "All your cards. Pick one and the dashboard follows it — on a phone, tap the arrow beside the selected card to see the rest. + Add card is in the top right. Pro gives you unlimited cards.",
@@ -388,6 +394,12 @@ const STEP_DEFS: TourStepDef[] = [
     path: SETTINGS,
     section: "profile",
     anchor: "settings-general",
+    // A member's contacts may already go to the TEAM's CRM, and the page itself
+    // warns that connecting their own sends them elsewhere — so don't pitch it.
+    bodyFor: (ctx) =>
+      ctx.isOfficeMember
+        ? "If your team connects a CRM, your new contacts go there automatically. Your own tools can be connected here too."
+        : "Connect Salesforce, GoHighLevel, Pipedrive, HubSpot, Google Contacts or Zapier so new leads sync to your tools automatically.",
     title: "General",
     body: "Your email, cards, and current plan at a glance.",
     placement: "bottom",

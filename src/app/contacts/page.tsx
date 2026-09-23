@@ -198,7 +198,7 @@ export default async function ContactsPage({
   return (
     <div className="sc-app min-h-screen bg-gray-950 flex flex-col pb-16 md:pb-0">
       <MobileNavGate showAdmin={showOfficeAdmin} />
-      <HelpWidget floating />
+      <HelpWidget floating member={!!officeSubUser} />
       {/* Top accent stripe */}
       <div className="sc-top-stripe fixed top-0 left-0 right-0 z-40 h-0.5 bg-gradient-to-r from-blue-600 via-violet-500 to-blue-400" />
 

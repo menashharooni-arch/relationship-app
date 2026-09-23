@@ -40,7 +40,7 @@ export default async function WelcomePage({
   // an open invite for this address who built a card first (the app's "Get
   // Started") goes to Join, not to "choose your plan". (2026-09-16 audit.)
   if (!isPaidPlan(profile?.plan)) {
-    const invite = await findPendingInviteForEmail(user.email);
+    const invite = await findPendingInviteForEmail(user.email, user.id);
     if (invite) redirect(`/join/${encodeURIComponent(invite.token)}`);
   }
 

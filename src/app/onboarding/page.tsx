@@ -45,7 +45,7 @@ export default async function OnboardingPage({
     // has no account yet by design (their admin only invited them). Turning
     // them away sent them in a loop; provision and take them to Join instead
     // (inviteLanding below). (2026-09-16 journey audit.)
-    if (intent === "signin" && !(await findPendingInviteForEmail(user.email))) {
+    if (intent === "signin" && !(await findPendingInviteForEmail(user.email, user.id))) {
       try { await supabase.auth.signOut(); } catch { /* best-effort */ }
       // Preserve a same-origin continuation (e.g. a guest's card-draft claim) so
       // it survives the bounce and resumes once they create the account.
@@ -155,17 +155,17 @@ export default async function OnboardingPage({
 
     // Brand-new account → return to a pending guest editor (to claim the draft)
     // if we have one, otherwise the dashboard with the App Store prompt.
-    redirect(safeNext ?? (await inviteLanding(user.email)) ?? "/dashboard?welcome=1");
+    redirect(safeNext ?? (await inviteLanding(user.email, user.id)) ?? "/dashboard?welcome=1");
   }
 
-  redirect(safeNext ?? (await inviteLanding(user.email)) ?? "/dashboard");
+  redirect(safeNext ?? (await inviteLanding(user.email, user.id)) ?? "/dashboard");
 }
 
 // Someone with an unaccepted team invite for this email who signed in some
 // other way (typically: installed the iPhone app first, then Google) goes to
 // the Join step, not to a dashboard that asks them to build a personal card.
 // A tapped invite link arrives with ?next=/join/… and never reaches this.
-async function inviteLanding(email: string | null | undefined): Promise<string | null> {
-  const invite = await findPendingInviteForEmail(email);
+async function inviteLanding(email: string | null | undefined, userId: string): Promise<string | null> {
+  const invite = await findPendingInviteForEmail(email, userId);
   return invite ? `/join/${encodeURIComponent(invite.token)}` : null;
 }

@@ -10,6 +10,7 @@ import { writeAudit } from "@/lib/audit";
 import { INVITE_TTL_MS, isInviteExpired } from "@/lib/office-invite";
 import { requireOfficeCapability } from "@/lib/office-roles";
 import { getOfficeBrand } from "@/lib/office-brand";
+import { officeCompanyName } from "@/lib/office-display-name";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -223,8 +224,7 @@ export async function POST(req: Request) {
   // The card is the reliable source, which is exactly why the logo already
   // falls back to it. Name and company now use the same ladder.
   let brandLogoUrl: string | null = null;
-  let ownerCardName: string | null = null;
-  let ownerCardCompany: string | null = null;
+  let inviterCardName: string | null = null;
   let brandCompany: string | null = null;
   try {
     const brand = await getOfficeBrand(office.id as string);
@@ -232,25 +232,42 @@ export async function POST(req: Request) {
     brandCompany = (brand?.company as string | null) || null;
     const { data: ownerCard } = await admin
       .from("cards")
-      .select("logo_url, name, company")
+      .select("logo_url")
       .eq("user_id", ctx.ownerId)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
-    ownerCardName = (ownerCard?.name as string | null) || null;
-    ownerCardCompany = (ownerCard?.company as string | null) || null;
     if (!brandLogoUrl) brandLogoUrl = (ownerCard?.logo_url as string | null) ?? null;
+    // The person who pressed Send — an office ADMIN can invite too, and the
+    // email used to name the OWNER while its Reply-To went to the admin, so
+    // "Alex entered your email address" was false and replies went to someone
+    // the body never mentioned.
+    const { data: inviterCard } = await admin
+      .from("cards")
+      .select("name")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    inviterCardName = (inviterCard?.name as string | null) || null;
   } catch { /* a nicety, never block the invite */ }
 
-  // "A colleague" rather than "Your team": whatever we fall back to is read as
-  // a person's name in "X invited you", and "Your" is not a name.
-  const ownerFirst = ((ownerProfile?.name as string | null) || ownerCardName || "A colleague").split(" ")[0];
-  // The company the invitee will recognise: what the admin set on Branding,
-  // then what the owner's own card says, then the stored office name — and
-  // never the "My Office" placeholder, which means nothing to the recipient.
-  const storedOfficeName = (office.name as string | null) || null;
-  const officeDisplayName =
-    brandCompany || ownerCardCompany || (storedOfficeName && storedOfficeName !== "My Office" ? storedOfficeName : null) || "your new team";
+  // The caller's own profile name first (for the owner that is ownerProfile).
+  const { data: inviterProfile } = user.id === ctx.ownerId
+    ? { data: ownerProfile }
+    : await admin.from("profiles").select("name").eq("id", user.id).maybeSingle();
+  // First word, and null — not a stand-in word — when there is no name: the
+  // old fallback phrase was split to its first word and sent "A invited
+  // you…". The builder has its own wording for an unnamed inviter.
+  const ownerFirst = ((inviterProfile?.name as string | null) || inviterCardName || "").trim().split(/\s+/)[0] || null;
+  // The company the invitee will recognise — the same ladder the /join page
+  // and the dashboard banner use (lib/office-display-name): Branding, the
+  // owner's card, the stored name; never a placeholder like "My Office".
+  const officeDisplayName = await officeCompanyName(office.id as string, {
+    brandCompany,
+    storedName: (office.name as string | null) || null,
+    ownerId: ctx.ownerId,
+  });
 
   // contactUnsubUrl throws when no signing secret is configured (deliberate
   // fail-closed on SIGNING — never sign with a public constant). Degrade to "no
@@ -270,7 +287,7 @@ export async function POST(req: Request) {
     inviteUrl,
     brandLogoUrl,
     unsubscribeUrl: inviteUnsubUrl,
-    inviteEmail: email,
+    inviteEmail: email.trim().toLowerCase(),
   });
 
   // Through the shared layer rather than a second resend.emails.send() call.

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { isRateLimited } from "@/lib/rate-limit";
 import { aiConsentAllowsFor } from "@/lib/ai-consent-server";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { KNOWLEDGE } from "@/lib/knowledge";
 import { buildPrompt, instantAnswer, type Scope } from "@/lib/knowledge/retrieval";
 import {
@@ -27,6 +28,15 @@ import {
 export { NATIVE_RULES, NATIVE_FALLBACK };
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+
+// Team members (office sub-users). Any plan/billing question gets this answer
+// before the knowledge base can hand them upgrade instructions; everything else
+// is answered normally, with MEMBER_RULES added to the LLM's instructions.
+const MEMBER_PLAN_QUESTION = /\b(upgrad\w*|pro plan|go pro|plans?|pric\w*|cost\w*|billing|bill|subscri\w*|pay\w*|trial|invoice|receipt|refund|cancel\w*|charge\w*)\b/i;
+const MEMBER_PLAN_ANSWER =
+  "Your SwiftCard plan comes with your team seat — your organization covers it, so there's nothing for you to upgrade, choose or pay. For anything about the team's plan, ask your team admin.";
+const MEMBER_RULES = `
+IMPORTANT — TEAM MEMBER SESSION: This user is a member of a company team (an Office seat). Their plan is provided and paid for by their organization: NEVER suggest upgrading, choosing a plan, starting a trial, or paying, and never quote prices. They have exactly one card, their company card, and cannot create another — for more, they ask their team admin. Their company details (company name, logo, website, office phone, fax, address) and, when the team locks it, the card design are managed by their organization; they edit their own name, title, photo, phone numbers, bio and personal links.`;
 
 /**
  * Kept as a named export because tests/help-guardrail.test.ts pins the native
@@ -84,6 +94,14 @@ export async function POST(req: NextRequest) {
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   if (!lastUser) return NextResponse.json({ error: "No question provided." }, { status: 400 });
 
+  // A TEAM MEMBER's plan is their seat: there is nothing for them to upgrade,
+  // choose or pay, and the knowledge base's plan answers are written for
+  // someone who can. Resolved from the session, never from the request.
+  const member = !isAdmin && !!(await getOfficeSubUserContext(user.id).catch(() => null));
+  if (member && MEMBER_PLAN_QUESTION.test(lastUser.content)) {
+    return NextResponse.json({ reply: MEMBER_PLAN_ANSWER });
+  }
+
   // 1) Answer instantly from the knowledge base (free, always works).
   //    Native sessions get the native-safe answer for any commerce doc.
   const local = instantAnswer(KNOWLEDGE, lastUser.content, scope);
@@ -101,7 +119,7 @@ export async function POST(req: NextRequest) {
       convo,
       question: lastUser.content,
       scope,
-      extraRules: native ? NATIVE_RULES : "",
+      extraRules: [native ? NATIVE_RULES : "", member ? MEMBER_RULES : ""].filter(Boolean).join("\n"),
     });
     const reply = await aiComplete(prompt, { maxTokens: 700 });
     if (reply) return NextResponse.json({ reply });

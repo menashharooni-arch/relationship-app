@@ -43,28 +43,44 @@ const ADMIN_SUGGESTIONS = [
   "How do I see per-person analytics?",
 ];
 
+// A TEAM MEMBER (office sub-user): their seat is the plan, and they hold one
+// company card — so "How do I upgrade to Pro?" and "How do I create a card?"
+// were the two wrong questions to put in their mouth. The server answers them
+// as a member too (api/ai/help resolves it from the session).
+const MEMBER_GREETING: Msg = {
+  role: "assistant",
+  content:
+    "Hi! I'm your SwiftCard assistant. Ask me where to find something or how to do it — e.g. \"Where do I change my card design?\", \"How do I share my card?\", or \"Where are my contacts?\"",
+};
+
+const MEMBER_SUGGESTIONS = [
+  "Where do I change my card design?",
+  "How do I share my card?",
+  "Where are my contacts?",
+];
+
 type Area = "app" | "office-admin";
 
 // Two presentations of the same assistant:
 //   default  — the full-width "Need help?" button used inline on Settings.
 //   floating — a chatbot bubble pinned bottom-right on app pages (sits above
 //              the mobile bottom nav; the open panel overlays it).
-export default function HelpWidget({ floating = false, area = "app" }: { floating?: boolean; area?: Area }) {
+export default function HelpWidget({ floating = false, area = "app", member = false }: { floating?: boolean; area?: Area; member?: boolean }) {
   const isAdmin = area === "office-admin";
   const [open, setOpen] = useState(false);
   // Hydration-safe native detection (false on SSR and first client paint) — the
   // module-level isNativeApp constant must never be read during render, or the
   // shell's first render mismatches the server HTML (platform.ts's own warning).
   const native = useIsNativeApp();
-  const [messages, setMessages] = useState<Msg[]>(() => [isAdmin ? ADMIN_GREETING : GREETING]);
+  const [messages, setMessages] = useState<Msg[]>(() => [isAdmin ? ADMIN_GREETING : member ? MEMBER_GREETING : GREETING]);
   useEffect(() => {
     // Swap in the no-selling greeting once the shell reveals itself — but only
     // while the conversation is still just the greeting. The admin greeting has
     // no pricing copy, so it's already native-safe and never swapped.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time greeting swap once native detection resolves
-    if (native && !isAdmin) setMessages((prev) => (prev.length === 1 ? [NATIVE_GREETING] : prev));
-  }, [native, isAdmin]);
-  const suggestions = isAdmin ? ADMIN_SUGGESTIONS : native ? NATIVE_SUGGESTIONS : SUGGESTIONS;
+    if (native && !isAdmin && !member) setMessages((prev) => (prev.length === 1 ? [NATIVE_GREETING] : prev));
+  }, [native, isAdmin, member]);
+  const suggestions = isAdmin ? ADMIN_SUGGESTIONS : member ? MEMBER_SUGGESTIONS : native ? NATIVE_SUGGESTIONS : SUGGESTIONS;
   // The admin console is purple-themed; the app assistant is blue.
   const accentBtn = isAdmin ? "bg-purple-600 hover:bg-purple-500" : "bg-blue-600 hover:bg-blue-500";
   const accentShadow = isAdmin ? "shadow-purple-900/40" : "shadow-blue-900/40";

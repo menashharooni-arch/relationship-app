@@ -221,6 +221,7 @@ export default async function FlowSettingsPage({
             cardCount={cards?.length ?? 0}
             plan={profile.plan ?? "free"}
             isPro={isPro}
+            billingNote={isOfficeSubUser && !showBilling ? "team" : showBilling ? "below" : "none"}
             defaultOpen
           />
           {/* Sign out lives HERE, not in the top-right corner of every app
@@ -416,7 +417,7 @@ export default async function FlowSettingsPage({
       icon: I.help,
       content: (
         <div data-tour="settings-help" className="space-y-3">
-          <HelpWidget />
+          <HelpWidget member={isOfficeSubUser} />
           <TakeTourButton />
           {/* Self-activating with the App Store listing (null while in
               review), for EVERY plan including office sub-users — a durable

@@ -67,11 +67,12 @@ describe("the wizard's top control goes BACK once there is a step behind you", (
   });
 
   it("looks identical to the link it replaced, so nothing moves on the page", () => {
-    // ONE class string for all three branches — Back, Home and Dashboard. They
-    // are the same slot in the same place; a second literal here is how they
-    // drift apart. Measured on production: same x, same y, same height, same
-    // font, same colour, same 2rem gap to the content below.
-    expect(topControl.split("className={topControlCls}").length - 1).toBe(3);
+    // ONE class string for all four branches — Back, Home, the "card is live"
+    // Dashboard (which carries the tour) and Dashboard. They are the same slot
+    // in the same place; a second literal here is how they drift apart.
+    // Measured on production: same x, same y, same height, same font, same
+    // colour, same 2rem gap to the content below.
+    expect(topControl.split("className={topControlCls}").length - 1).toBe(4);
     expect(topControl).not.toMatch(/className="text-gray-500/);
   });
 

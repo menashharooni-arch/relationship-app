@@ -38,22 +38,27 @@ describe("the invite email names a real person and a real company", () => {
     // EMPTY is the real default: verified against production, every account
     // created through normal signup has profiles.name = "".
     expect(route).not.toMatch(/\?\?\s*"Your team"/);
-    expect(route).toContain('|| "A colleague"');
+    // Nor any stand-in word: `|| "A colleague").split(" ")[0]` sent "A invited
+    // you…". An unknown name is null and the builder words around it.
+    expect(route).not.toContain('"A colleague"');
+    expect(route).toMatch(/\.split\(\/\\s\+\/\)\[0\] \|\| null/);
   });
 
-  it("falls back to the owner's CARD, which is where the wizard writes a name", () => {
-    expect(route).toContain("ownerCardName");
-    expect(route).toContain("ownerCardCompany");
+  it("names the person who SENT it, falling back to their CARD", () => {
+    // An office admin can invite; the email named the owner while replies
+    // went to the admin.
+    expect(route).toContain("inviterCardName");
+    expect(route).toMatch(/\.eq\("user_id", user\.id\)/);
     // Uses `||`, not `??` — an empty string is the case that has to be caught.
-    expect(route).toMatch(/ownerProfile\?\.name as string \| null\) \|\| ownerCardName/);
+    expect(route).toMatch(/inviterProfile\?\.name as string \| null\) \|\| inviterCardName/);
   });
 
   it("never sends the placeholder office name to a recipient", () => {
     // offices.name is seeded from profiles.company, which is also empty, so it
     // became the literal string "My Office" — which appeared in the subject
     // line, the From header, the body and the accept page's H1.
-    expect(route).toContain("officeDisplayName");
-    expect(route).toMatch(/!== "My Office"/);
+    expect(route).toContain("officeCompanyName(");
+    expect(read("src/lib/office-display-name.ts")).toMatch(/=== "My Office"/);
     expect(route).toContain('officeName: officeDisplayName');
   });
 });

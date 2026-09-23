@@ -38,6 +38,10 @@ type Props = {
    *  who has no account yet to Create-account (Task 4) instead of provisioning
    *  one. "signup" (or undefined) provisions normally. */
   intent?: "signin" | "signup";
+  /** The account to pre-select in Google's chooser. The team-invite page
+   *  passes the invited address: picking any other Google account there makes
+   *  a second SwiftCard account that the invite then refuses. */
+  loginHint?: string;
 };
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -47,7 +51,7 @@ const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 // the component can't sit on "loading" forever.
 type Phase = "loading" | "ready" | "authenticating" | "error" | "unavailable";
 
-export default function GoogleSignInButton({ redirectTo, className, oneTap = false, intent }: Props) {
+export default function GoogleSignInButton({ redirectTo, className, oneTap = false, intent, loginHint }: Props) {
   const btnRef = useRef<HTMLDivElement>(null);
   // Read at credential-callback time (via ref) so switching the Sign-in/Create
   // tab doesn't re-initialise the Google button. Kept current via an effect
@@ -159,6 +163,7 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
           cancel_on_tap_outside: true,
           use_fedcm_for_prompt: true,
           nonce: hashedNonce,
+          ...(loginHint ? { login_hint: loginHint } : {}),
         });
         if (btnRef.current) {
           btnRef.current.replaceChildren(); // clear any prior render (no innerHTML)
@@ -188,7 +193,7 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
       });
 
     return () => { cancelled = true; };
-  }, [redirectTo, oneTap]);
+  }, [redirectTo, oneTap, loginHint]);
 
   return (
     <div className={className}>

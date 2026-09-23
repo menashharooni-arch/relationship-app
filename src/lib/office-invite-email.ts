@@ -1,4 +1,5 @@
 import { escapeHtml } from "@/lib/escape";
+import { INVITE_TTL_MS } from "@/lib/office-invite";
 
 // ── Office invite email ──────────────────────────────────────────────────────
 // Pure builder: no IO, so tests assert the real bytes instead of grepping the
@@ -14,9 +15,17 @@ import { escapeHtml } from "@/lib/escape";
 
 export type InviteEmail = { subject: string; html: string; fromName: string };
 
+// Every sentence below has a version for "we don't know" — no name on the
+// inviter's account, no company anywhere — because the old single-string
+// fallbacks read as words in the sentence: "A colleague" was cut to its first
+// word and sent as "A invited you…", and "your new team" produced "create your
+// your new team digital business card" and "added you to the your new team
+// team". Pass null; never pass a placeholder.
 export function buildInviteEmail(opts: {
-  ownerFirst: string;
-  officeName: string;
+  /** The inviting admin's first name, or null when their account has none. */
+  ownerFirst: string | null;
+  /** The company (lib/office-display-name), or null when none is known. */
+  officeName: string | null;
   inviteeFirst?: string | null;
   inviteUrl: string;
   brandLogoUrl?: string | null;
@@ -25,10 +34,21 @@ export function buildInviteEmail(opts: {
   /** The invited address, so the "get the app" line can say which email to use. */
   inviteEmail?: string | null;
 }): InviteEmail {
-  const owner = escapeHtml(opts.ownerFirst);
-  const office = escapeHtml(opts.officeName);
+  const ownerRaw = opts.ownerFirst?.trim() || null;
+  const officeRaw = opts.officeName?.trim() || null;
+  const owner = ownerRaw ? escapeHtml(ownerRaw) : null;
+  const office = officeRaw ? escapeHtml(officeRaw) : null;
   const first = opts.inviteeFirst ? escapeHtml(opts.inviteeFirst) : null;
   const logo = opts.brandLogoUrl ? escapeHtml(opts.brandLogoUrl) : null;
+  const ttlDays = Math.round(INVITE_TTL_MS / (24 * 60 * 60 * 1000));
+  // "the Sales Team team" — a company already named "… Team" takes no second one.
+  const teamPhrase = office
+    ? `the <strong>${office}</strong>${/\bteam$/i.test(officeRaw!) ? "" : " team"}`
+    : owner ? "their team" : "a team";
+  const addedLine = owner
+    ? `${owner} added you to ${teamPhrase} on SwiftCard and invited you to create your company digital business card.`
+    : `You've been added to ${teamPhrase} on SwiftCard and invited to create your company digital business card.`;
+  const why = `You received this because ${owner ?? "a team admin"} entered your email address when adding you to ${office ?? "their team"}.`;
   // Printed as visible text so the recipient can see where the button goes
   // before clicking it — the thing that separates a legitimate invite from the
   // credential-harvest template that shares its shape.
@@ -43,24 +63,27 @@ export function buildInviteEmail(opts: {
   const html = `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
         ${logo
-          ? `<img src="${logo}" width="56" height="56" alt="${office}" style="border-radius:10px;display:block;margin:0 0 20px;" />`
-          : `<div style="margin:0 0 20px;"><span style="font-size:20px;font-weight:800;color:#111827;">${office}</span></div>`}
+          ? `<img src="${logo}" width="56" height="56" alt="${office ?? ""}" style="border-radius:10px;display:block;margin:0 0 20px;" />`
+          : office ? `<div style="margin:0 0 20px;"><span style="font-size:20px;font-weight:800;color:#111827;">${office}</span></div>` : ""}
         <h2 style="font-size:22px;font-weight:700;color:#111;margin:0 0 10px;">${first ? `${first}, you're` : "You're"} invited</h2>
         <p style="color:#444;font-size:15px;line-height:1.5;margin:0 0 24px;">
-          ${owner} added you to the <strong>${office}</strong> team on SwiftCard and invited you to create your company digital business card. It takes 2 minutes.
+          ${addedLine} It takes 2 minutes.
         </p>
         <a href="${opts.inviteUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:100px;font-size:15px;">Create my card →</a>
-        <p style="color:#999;font-size:12px;margin-top:14px;">This link goes to ${escapeHtml(host)}. The invite expires in 14 days.</p>
+        <p style="color:#999;font-size:12px;margin-top:14px;">This link goes to ${escapeHtml(host)}. The invite expires in ${ttlDays} days.</p>
         ${/* The app is a real second door now (2026-09-16): signing in there
             with this address (email, Google or Apple) finds the invite and goes
             straight to Join, because onboarding, the dashboard and /welcome all
             route a pending invite there, so it no longer strands anyone. */ ""}
         <p style="color:#444;font-size:14px;line-height:1.5;margin:20px 0 0;">
           Prefer your phone? Get the <strong>SwiftCard</strong> app from the App Store and create your account with <strong>${opts.inviteEmail ? escapeHtml(opts.inviteEmail) : "this email address"}</strong>. Your invite will be waiting.
+          ${/* Hide My Email gives the account a relay address no invite can be
+              matched to, so the app-first door finds the invite only when
+              Apple shares the real address. */ ""}Signing in with Apple? Choose <strong>Share My Email</strong> so your invite can find you.
         </p>
-        <p style="color:#999;font-size:12px;margin-top:24px;">You received this because ${owner} entered your email address when adding you to ${office}. If you didn't expect it, you can ignore this email${opts.unsubscribeUrl ? " or unsubscribe below" : ""}.</p>
+        <p style="color:#999;font-size:12px;margin-top:24px;">${why} If you didn't expect it, you can ignore this email${opts.unsubscribeUrl ? " or unsubscribe below" : ""}.</p>
         <p style="color:#b6bcc6;font-size:11px;margin:0;line-height:1.6;">
-          Sent by SwiftCard on behalf of ${office} · New York, NY${
+          Sent by SwiftCard${office ? ` on behalf of ${office}` : ""} · New York, NY${
             opts.unsubscribeUrl
               ? `<br><a href="${escapeHtml(opts.unsubscribeUrl)}" style="color:#b6bcc6;text-decoration:underline;">Unsubscribe from SwiftCard emails</a>`
               : ""}
@@ -69,12 +92,13 @@ export function buildInviteEmail(opts: {
     `;
 
   return {
-    subject: `${opts.ownerFirst} invited you to create your ${opts.officeName} digital business card`,
+    subject: `${ownerRaw ? `${ownerRaw} invited you` : "You're invited"} to create your ${officeRaw ? `${officeRaw} ` : "company "}digital business card`,
     // Reconciles the From header with the body's claim and gives the recipient a
     // name they actually recognise. Previously the header said "SwiftCard" while
     // the body said "<Owner> invited you" — a stranger recognised neither.
     // Sanitized downstream by senderFrom(); never concatenate this yourself.
-    fromName: `${opts.ownerFirst} (${opts.officeName})`,
+    // Empty when neither is known, which leaves the From as plain "SwiftCard".
+    fromName: ownerRaw && officeRaw ? `${ownerRaw} (${officeRaw})` : ownerRaw ?? officeRaw ?? "",
     html,
   };
 }

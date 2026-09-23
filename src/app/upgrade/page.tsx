@@ -5,6 +5,7 @@ import UpgradeClient from "./UpgradeClient";
 import { isPaidPlan } from "@/lib/plan";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
 import { trialHistoryFor } from "@/lib/trial-ledger";
+import { findPendingInviteForEmail } from "@/lib/pending-invite";
 
 export const metadata = { title: "Upgrade — SwiftCard" };
 
@@ -45,6 +46,16 @@ export default async function UpgradePage({
     !profile?.stripe_subscription_id &&
     (profile?.customization as { _planSource?: string } | null)?._planSource !== "apple";
   if (isPaidPlan(plan) && !onGrant) redirect("/settings/flows?billing=1#billing");
+
+  // Invited to a team: their seat is the plan, so there is nothing to sell.
+  // An invitee with a Free card who built another through the site's builder
+  // hit the one-card cap on claim and was sent HERE, to pay — the one thing a
+  // team member is never asked to do. Join instead; accepting turns the card
+  // they already have into their company card.
+  if (!isPaidPlan(plan)) {
+    const invite = await findPendingInviteForEmail(user.email, user.id);
+    if (invite) redirect(`/join/${encodeURIComponent(invite.token)}`);
+  }
 
   const trialEligible = await isProTrialEligible(
     profile?.stripe_customer_id as string | null,

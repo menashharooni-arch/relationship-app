@@ -13,8 +13,8 @@ describe("a pending team invite finds the person by email", () => {
   it("onboarding sends a fresh account with an invite to Join, not to a personal card", () => {
     const s = code("src/app/onboarding/page.tsx");
     expect(s).toContain("findPendingInviteForEmail");
-    expect(s).toMatch(/redirect\(safeNext \?\? \(await inviteLanding\(user\.email\)\) \?\? "\/dashboard\?welcome=1"\)/);
-    expect(s).toMatch(/redirect\(safeNext \?\? \(await inviteLanding\(user\.email\)\) \?\? "\/dashboard"\)/);
+    expect(s).toMatch(/redirect\(safeNext \?\? \(await inviteLanding\(user\.email, user\.id\)\) \?\? "\/dashboard\?welcome=1"\)/);
+    expect(s).toMatch(/redirect\(safeNext \?\? \(await inviteLanding\(user\.email, user\.id\)\) \?\? "\/dashboard"\)/);
   });
 
   it("the dashboard shows the invite on both the empty and the normal screen", () => {
@@ -22,13 +22,19 @@ describe("a pending team invite finds the person by email", () => {
     expect(s).toContain("<PendingInviteBanner officeName={pendingInvite.officeName} token={pendingInvite.token} primary />");
     expect(s).toContain("{pendingInvite && <PendingInviteBanner");
     // Office members never see it — they already have a seat.
-    expect(s).toContain("isEnterprise ? null : await findPendingInviteForEmail(user.email)");
+    expect(s).toContain("isEnterprise ? null : await findPendingInviteForEmail(user.email, user.id)");
   });
 
   it("the lookup only returns live, pending invites for the exact address", () => {
     const s = code("src/lib/pending-invite.ts");
     expect(s).toContain('.eq("status", "pending")');
-    expect(s).toContain('.ilike("invite_email", addr)');
+    // Exact: ILIKE's `_` and `%` are escaped, so j_smith@ can't match jasmith@.
+    expect(s).toContain('.ilike("invite_email", likeExact(addr))');
+    expect(s).toMatch(/replace\(\/\[\\\\%_\]\/g/);
+    // Only invites that can actually be accepted: the office still pays, and
+    // the person doesn't own a team of their own.
+    expect(s).toContain('owner?.plan !== "enterprise"');
+    expect(s).toContain('.eq("owner_id", userId)');
     expect(s).toContain("isInviteExpired");
   });
 

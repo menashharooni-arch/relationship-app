@@ -15,9 +15,19 @@ import { useIsNativeApp } from "@/lib/platform";
 // The email is fixed to the invited address — the join API only accepts the
 // invite under that email anyway, so offering a free-text field would just
 // let people sign in as the wrong account and hit a dead end.
-export default function JoinSignIn({ token, inviteEmail }: { token: string; inviteEmail: string }) {
+//
+// `linkFailed`: /auth/callback sends an invitee back here (?link=expired) when
+// an emailed link couldn't sign them in — it was opened in a different browser
+// from the one that asked for it (the sign-in is tied to that browser), or it
+// was already used. They used to land on the generic login page, invite lost,
+// with a message about "the device where you built your card".
+export default function JoinSignIn({ token, inviteEmail, linkFailed = false }: { token: string; inviteEmail: string; linkFailed?: boolean }) {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    linkFailed
+      ? "That sign-in link didn't work here — it has to be opened in the same browser that asked for it, and only once. Send a new one below."
+      : "",
+  );
 
   const nextPath = `/join/${token}`;
   const native = useIsNativeApp();
@@ -66,7 +76,7 @@ export default function JoinSignIn({ token, inviteEmail }: { token: string; invi
         <p className="text-white font-semibold text-sm">Check your email</p>
         <p className="text-gray-500 text-xs mt-1.5 leading-relaxed">
           We sent a sign-in link to <span className="text-gray-300 font-medium">{inviteEmail}</span>.
-          Open it on this device and you&apos;ll land right back here to accept.
+          Open it in this same browser and you&apos;ll land right back here to accept.
         </p>
         <button type="button" onClick={sendLink} className="text-blue-400 hover:text-blue-300 text-xs mt-3 transition-colors">
           Didn&apos;t get it? Send again
@@ -106,7 +116,7 @@ export default function JoinSignIn({ token, inviteEmail }: { token: string; invi
       </p>
 
       {/* Google — the invited address's Google account signs them straight in. */}
-      <GoogleSignInButton redirectTo={nextPath} />
+      <GoogleSignInButton redirectTo={nextPath} loginHint={inviteEmail} />
 
       <div className="flex items-center gap-3" role="presentation">
         <span className="h-px flex-1 bg-gray-800" />

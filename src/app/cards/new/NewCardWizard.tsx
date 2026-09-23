@@ -122,6 +122,8 @@ export type OrgManaged = {
   linkInstagram: string | null;
   /** "Keep every Swift Links page matching" — the page's LOOK is the office's. */
   lockLinkDesign: boolean;
+  /** That look, so the preview shows it while lockLinkDesign is on. */
+  linkDesign?: Record<string, unknown> | null;
   // The office's locked look — so the sub-user's LIVE PREVIEW shows the real
   // template + colors/fonts while they build, not a default that only snaps to
   // the brand after saving. Only meaningful when lockDesign is true.
@@ -316,23 +318,31 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // brand so the live preview shows the real template + colors/fonts from the
   // first render — not the default that only snapped to the brand after saving.
   // (Unlocked office / non-office: the visitor designs freely, as before.)
+  // An UNLOCKED office starts its members from the company look too — they may
+  // change it, but a teammate's first card opening on the stock classic-pro
+  // instead of the company's own template read as "the branding didn't load".
   const [template, setTemplate] = useState(
-    designLocked && org?.template ? org.template : (validPresetTemplate ?? "classic-pro")
+    org?.template ? org.template : (validPresetTemplate ?? "classic-pro")
   );
   const [customLayout, setCustomLayout] = useState<CustomLayout>(
-    designLocked && org?.customLayout ? (org.customLayout as CustomLayout) : buildPreset(DEFAULT_PRESET)
+    org?.template === "custom" && org?.customLayout ? (org.customLayout as CustomLayout) : buildPreset(DEFAULT_PRESET)
   );
   // Preset-template styling (Pro). All fields optional → template defaults apply.
-  // Seeded from the office design when locked (see the template seed above).
+  // Seeded from the office design (see the template seed above).
   const [templateStyleState, setTemplateStyleState] = useState<TemplateStyle>(
-    designLocked && org?.design ? (org.design as TemplateStyle) : {}
+    org?.design ? (org.design as TemplateStyle) : {}
   );
   function patchTemplateStyle(patch: Partial<TemplateStyle>) {
     setTemplateStyleState((prev) => ({ ...prev, ...patch }));
   }
   // "Social design" — the Swift Links PAGE's look (step 4). Separate keys from
   // the card's style above, so styling one surface never restyles the other.
-  const [linkStyleState, setLinkStyleState] = useState<SwiftLinkStyle>({});
+  // Seeded from the office's page look while it holds that look, so step 4's
+  // "Your organization sets this page's look" sits beside a preview that
+  // actually shows it (it showed the default look).
+  const [linkStyleState, setLinkStyleState] = useState<SwiftLinkStyle>(
+    () => (linkDesignLocked && org?.linkDesign ? (org.linkDesign as SwiftLinkStyle) : {}),
+  );
   function patchLinkStyle(patch: Partial<SwiftLinkStyle>) {
     setLinkStyleState((prev) => ({ ...prev, ...patch }));
   }
@@ -433,6 +443,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   const [showCardLinkBtn, setShowCardLinkBtn] = useState(true);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
+  // Step 1's one required field, flagged in place when Next finds it empty.
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [nameMissing, setNameMissing] = useState(false);
   // Native-only: when a Free user hits the card cap we can't send them to the
   // /upgrade selling screen (forbidden in-app), so we show a neutral notice
   // instead. Stays false on web, so the web flow (router.push("/upgrade")) is
@@ -662,6 +675,11 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   function goNextFrom1() {
     if (!name.trim()) {
       setError("Full name is required.");
+      // The message renders beside the Next button, a phone-screen or more
+      // below the field it is about. Take them to the field.
+      setNameMissing(true);
+      nameInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      nameInputRef.current?.focus({ preventScroll: true });
       return;
     }
     if (!username) {
@@ -684,7 +702,8 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     // was created — it read as "the website didn't save".
     website,
     linkedin: socials.linkedin,
-    instagram: socials.instagram,
+    // The company's Instagram when the office sets it — what the card will carry.
+    instagram: instagramManaged ? (org?.linkInstagram ?? "") : socials.instagram,
     twitter: socials.twitter,
     tiktok: socials.tiktok,
     snapchat: socials.snapchat,
@@ -719,7 +738,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     ? "Both added"
     : logoUrl ? "Logo added · add a headshot"
     : headshotUrl ? (org ? "Headshot added" : "Headshot added · add a logo")
-    : "Add your logo and headshot";
+    : org ? "Add your headshot" : "Add your logo and headshot";
   const PreviewTemplate = template === "custom" ? CustomCard : (PRESET_TEMPLATES.find((t) => t.id === template)?.Component ?? ClassicPro);
   const customSelected = template === "custom";
   // On the design step the custom designer IS a live card you edit by touching
@@ -1047,7 +1066,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         return;
       }
       creatingRef.current = false; // allow retry
-      setError(data.error || "Something went wrong.");
+      // `message` is the sentence; `error` is a machine code ("invalid",
+      // "team_card_limit") that used to be shown to the person as-is.
+      setError(data.message || data.error || "Something went wrong.");
       setStatus("error");
       return;
     }
@@ -1139,17 +1160,22 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
       handle={username || "yourname"}
       company={company}
       title={title}
-      bio={bio}
+      // An office member's page carries what the server puts there on create:
+      // the company bio and Instagram when the office sets them, and the
+      // company's pinned links ahead of their own. The preview used to show
+      // only what they typed, so "Your organization's links are already on
+      // your page" sat beside a page with none of them.
+      bio={bioManaged ? (org?.linkBio ?? "") : bio}
       photoUrl={headshotUrl}
       // Same value saved as the card's logo_url below, so the hero's
       // headshot → logo → initials fallback previews exactly as it renders.
       logoUrl={logoUrl}
       socials={{
-        instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
+        instagram: instagramManaged ? (org?.linkInstagram ?? "") : socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
         twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,
         youtube: socials.youtube, website,
       }}
-      links={links}
+      links={officeLinks?.length ? [...(officeLinks as CardLink[]), ...links.filter((l) => !isOfficeRow(l))] : links}
       paid={designUnlocked}
       showCardLink={showCardLinkBtn}
     />
@@ -1277,6 +1303,19 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             </svg>
             Home
           </Link>
+        ) : step === 5 ? (
+          // The card is live: this corner exit goes where the big "Continue"
+          // button goes — the dashboard WITH the tour for a first card — and
+          // records that notifications were just offered. It used to be a
+          // plain dashboard link, so a first-timer who tapped it (an invited
+          // teammate most of all: their seat skips every plan step) landed
+          // with no tour and got the notification question asked twice.
+          <Link href={doneHref} onClick={markPushAsked} className={topControlCls}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            Dashboard
+          </Link>
         ) : (
           <DashboardLink className={topControlCls}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1394,6 +1433,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               </div>
             )}
 
+            {/* Nothing prepared yet: say who owns the company half, instead of
+                it silently not being there. */}
+            {org && !(orgCompany || orgWebsite || orgPhone || orgFax || orgAddress || orgLogo) && (
+              <p className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] px-4 py-3 text-gray-400 text-xs leading-relaxed">
+                Your organization adds the company details — name, logo, website and office contact — to every team card. You just add your own.
+              </p>
+            )}
+
             {/* Company-level fields are the ORGANIZATION's territory for a
                 sub-user — hidden whether or not the admin filled them in, so a
                 member can never add their own company info. (Owner decision,
@@ -1408,7 +1455,25 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Full name <span className="text-red-500">*</span></label>
-              <input type="text" placeholder="John Smith" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+              <input
+                ref={nameInputRef}
+                type="text"
+                placeholder="John Smith"
+                maxLength={120}
+                value={name}
+                aria-invalid={nameMissing || undefined}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  // The error sat under the Next button and stayed there after
+                  // the name was filled in (2026-09-22 signup review).
+                  if (nameMissing && e.target.value.trim()) { setNameMissing(false); setError(""); }
+                }}
+                className={`${inputCls}${nameMissing ? " ring-2 ring-red-500/70 border-red-500" : ""}`}
+              />
+              {/* A member has no company field, which is where this hint lives
+                  for everyone else — so they never saw their card's address
+                  until the card was already live. */}
+              {org && <p className="text-gray-600 text-xs mt-1">Card URL: swiftcard.me/{prettyUsername || "your-name"}</p>}
             </div>
             {!org && (
               <div>
@@ -1560,19 +1625,30 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             {/* Swiftlinks bio */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-medium text-gray-400">Swiftlinks bio</label>
-                <span className="text-[0.625rem] font-semibold text-blue-400">Tip: be descriptive</span>
+                <label className="block text-xs font-medium text-gray-400">Swift Links bio</label>
+                {/* The office can write one bio for the whole team, and the
+                    server puts it on the card when it's created — so an
+                    editable box here quietly threw the member's words away
+                    (the editor already shows it read-only; now both agree). */}
+                {bioManaged
+                  ? <ManagedTag />
+                  : <span className="text-[0.625rem] font-semibold text-blue-400">Tip: be descriptive</span>}
               </div>
               <textarea
-                value={bio}
+                value={bioManaged ? (org?.linkBio ?? "") : bio}
                 onChange={(e) => setBio(e.target.value)}
+                readOnly={bioManaged}
                 rows={3}
                 placeholder="e.g. Austin realtor helping first-time buyers find their dream home — 10+ years, 200+ closings. Let's talk!"
-                className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                className={`w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors resize-none ${bioManaged ? "opacity-70 cursor-default" : ""}`}
               />
-              <p className="text-gray-600 text-[0.6875rem] mt-1">
-                Shows at the top of your Swift Links — the first thing visitors read. Say <strong className="text-gray-400">who you help, what you do, and why they should reach out</strong>. Descriptive bios get more taps.
-              </p>
+              {bioManaged ? (
+                <p className="text-gray-600 text-[0.6875rem] mt-1">Your company writes one bio for the whole team.</p>
+              ) : (
+                <p className="text-gray-600 text-[0.6875rem] mt-1">
+                  Shows at the top of your Swift Links — the first thing visitors read. Say <strong className="text-gray-400">who you help, what you do, and why they should reach out</strong>. Descriptive bios get more taps.
+                </p>
+              )}
             </div>
 
             {/* Social links (website lives on step 1 — it's card information) */}
@@ -1581,11 +1657,17 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               <p className="text-gray-600 text-[0.6875rem] mb-3">Type your username for each one — we build the link. Pasting a full profile URL works too.</p>
               <div className="space-y-3">
                 {SOCIALS.map(({ key, label, placeholder }) => {
-                  const linked = socials[key].trim().length > 0;
+                  // Instagram is the ONE social an office can set; the server
+                  // puts the company's on the card. Every other one stays theirs.
+                  const managed = key === "instagram" && instagramManaged;
+                  const linked = !managed && socials[key].trim().length > 0;
                   return (
                     <div key={key}>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="block text-xs text-gray-500">{label}</label>
+                        <label className="block text-xs text-gray-500">
+                          {label}
+                          {managed && <span className="ml-1.5 align-middle"><ManagedTag /></span>}
+                        </label>
                         {linked && socialUrl(key, socials[key]) && (
                           <a href={socialUrl(key, socials[key])!} target="_blank" rel="noopener noreferrer"
                             className="flex items-center gap-1 text-[0.625rem] font-semibold text-blue-400 hover:text-blue-300">
@@ -1597,17 +1679,20 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                       <input
                         type="text"
                         placeholder={placeholder}
-                        value={socials[key]}
+                        value={managed ? (org?.linkInstagram ?? "") : socials[key]}
                         onChange={(e) => setSocial(key, e.target.value)}
                         onBlur={() => normalizeOnBlur(key)}
-                        className={inputCls}
+                        readOnly={managed}
+                        className={`${inputCls} ${managed ? "opacity-70 cursor-default" : ""}`}
                       />
                       {/* Say where this will actually go. "Open link" above tells
                           you nothing until you click it, and nobody clicks it
                           while typing — so a wrong handle stayed invisible until
                           a visitor hit the 404. This also surfaces the guesses:
                           "John Doe" becomes linkedin.com/in/john-doe. */}
-                      {linked && socialDestination(key, socials[key]) ? (
+                      {managed ? (
+                        <p className="text-gray-600 text-[0.6875rem] mt-1">Your page shows the company Instagram.</p>
+                      ) : linked && socialDestination(key, socials[key]) ? (
                         <p className="text-gray-600 text-[0.6875rem] mt-1">
                           Opens <span className="text-gray-400 font-medium break-all">{socialDestination(key, socials[key])}</span>
                         </p>
@@ -1792,7 +1877,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             )}
             <div className="mb-1">
               <h1 className="text-2xl font-bold text-white">Card design</h1>
-              <p className="text-gray-400 text-sm mt-1">Add your logo and headshot, then pick a design.</p>
+              <p className="text-gray-400 text-sm mt-1">{org ? (designLocked ? "Add your headshot — your organization sets the logo and the design." : "Add your headshot, then pick a design. Your organization sets the logo.") : "Add your logo and headshot, then pick a design."}</p>
             </div>
 
             {/* Photos — open while something is missing (always, for a new
