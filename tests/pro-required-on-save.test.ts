@@ -82,7 +82,8 @@ describe("the save is actually gated", () => {
   });
 
   it("the escape hatch re-enters the same save, it does not duplicate it", () => {
-    expect(FORM).toContain("handleSave({ allowFreeConversion: true })");
+    // Same save, with the converted Free design passed in (2026-09-23).
+    expect(FORM).toContain("handleSave({ allowFreeConversion: true, design: applyFreeDesign() })");
   });
 
   // A click event is not an options object; binding handleSave directly would

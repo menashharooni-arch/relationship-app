@@ -14,7 +14,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DashboardLink from "@/components/DashboardLink";
 import { PlanGate } from "@/components/PlanGate";
-import { PLAN_LIMITS, proFeaturesInUse, proLinkFeaturesInUse } from "@/lib/plan";
+import { PLAN_LIMITS, proFeaturesInUse, proLinkFeaturesInUse, convertCustomizationToFreeClosest, LINK_STYLE_KEYS } from "@/lib/plan";
+import { freeSafeLook, DEFAULT_SWIFTLINK_LOOK } from "@/lib/swiftlink-looks";
 import ProRequiredDialog from "@/components/ProRequiredDialog";
 import ImageUpload from "@/components/ImageUpload";
 import LogoSuggest from "@/components/LogoSuggest";
@@ -127,6 +128,9 @@ function ManagedTag({ owner }: { owner?: boolean }) {
 // Note: editing is auth-only — a guest has no existing card to edit — so per the
 // guest-auth-flow contract no useGuestDraft/requireAuth wiring is needed here.
 // Guest mode lives in NewCardWizard.
+
+/** The three pieces of a card's look that "Save without them" converts. */
+type FreeDesign = { template: string; templateStyleState: TemplateStyle; linkStyleState: SwiftLinkStyle };
 
 export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, trialEligible = false, isPrimary = false, org = null, linkedinEnabled = false, initialTab, tourAfterSave = false }: Props) {
   const saveUrl = isPrimary ? "/api/profile" : `/api/cards/${card.id}`;
@@ -404,7 +408,56 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   // card on their live link with nothing having told them why.
   const [proBlock, setProBlock] = useState<string[] | null>(null);
 
-  async function handleSave(opts?: { allowFreeConversion?: boolean }) {
+  /**
+   * "Save without them": the Free version of this card's design, applied to the
+   * editor AND handed straight to the save. It used to send the Pro design as-is and let
+   * the server hide it — correct for the live card, but the editor reopened with
+   * the Pro finish still selected and asked the same question on every later
+   * Save (2026-09-23 free-account review). Same converter the builder's Free
+   * step uses (NewCardWizard applyFreeDesignConversion); the Swift Links half
+   * mirrors sanitizeCustomizationForPlan. Links themselves are content and are
+   * not touched.
+   */
+  function applyFreeDesign(): FreeDesign {
+    const result = convertCustomizationToFreeClosest({ ...templateStyleState, ...(template === "custom" ? { customLayout } : {}) }, template);
+    const c = result.customization;
+    const ts: TemplateStyle = {
+      accentColor: c.accentColor as string | undefined,
+      bgColor: c.bgColor as string | undefined,
+      surfaceColor: c.surfaceColor as string | undefined,
+      textColor: c.textColor as string | undefined,
+      infoColor: c.infoColor as string | undefined,
+      fontFamily: c.fontFamily as string | undefined,
+      finish: c.finish as string | undefined,
+      panelMedia: c.panelMedia as string | undefined,
+      panelMediaType: c.panelMediaType as string | undefined,
+      panelMediaPoster: c.panelMediaPoster as string | undefined,
+      panelDim: typeof c.panelDim === "number" ? c.panelDim : undefined,
+    };
+    const ls: SwiftLinkStyle = { ...linkStyleState };
+    for (const k of LINK_STYLE_KEYS) delete (ls as Record<string, unknown>)[k];
+    if (ls.linkLook) {
+      const safe = freeSafeLook(ls.linkLook);
+      ls.linkLook = safe === DEFAULT_SWIFTLINK_LOOK && ls.linkLook !== DEFAULT_SWIFTLINK_LOOK ? undefined : safe;
+    }
+    setTemplate(result.template);
+    setTemplateStyleState(ts);
+    setLinkStyleState(ls);
+    return { template: result.template, templateStyleState: ts, linkStyleState: ls };
+  }
+
+  // What is on screen right now — the design a normal Save writes.
+  const stateDesign: FreeDesign = { template, templateStyleState, linkStyleState };
+
+  async function handleSave(opts?: {
+    allowFreeConversion?: boolean;
+    /** Save this design instead of what is on state (applyFreeDesign — React
+     *  state set in the same click is not readable yet). */
+    design?: FreeDesign;
+  }) {
+    // Same names as the state they stand in for, so every line below reads
+    // exactly as it always has.
+    const { template, templateStyleState, linkStyleState } = opts?.design ?? stateDesign;
     if (!name.trim()) {
       setTab("content");
       setError("Full name is required.");
@@ -1396,7 +1449,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
           trialEligible={trialEligible}
           busy={status === "saving"}
           onCancel={() => setProBlock(null)}
-          onSaveWithoutPro={() => handleSave({ allowFreeConversion: true })}
+          onSaveWithoutPro={() => handleSave({ allowFreeConversion: true, design: applyFreeDesign() })}
         />
       )}
     </div>

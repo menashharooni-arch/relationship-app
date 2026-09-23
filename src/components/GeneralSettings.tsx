@@ -68,7 +68,9 @@ export default function GeneralSettings({ email, cardCount, plan, isPro, default
               {planLabel}
             </span>
           </div>
-          {billingNote === "below" && <p className="text-gray-600 text-[0.6875rem] pt-2">Manage your subscription in the Billing section below.</p>}
+          {/* Named as it is on screen — there is no "Billing" section — and
+              true for Free too, which has no subscription to "manage". */}
+          {billingNote === "below" && <p className="text-gray-600 text-[0.6875rem] pt-2">{isPro ? "Manage your subscription" : "See or change your plan"} under Plan and billing below.</p>}
           {billingNote === "team" && <p className="text-gray-600 text-[0.6875rem] pt-2">Your plan is provided by your team — nothing to manage or pay.</p>}
         </div>
       )}

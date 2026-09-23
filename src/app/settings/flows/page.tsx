@@ -446,7 +446,10 @@ export default async function FlowSettingsPage({
                   <p className="text-white text-sm font-semibold">Rate SwiftCard</p>
                   <p className="text-gray-500 text-xs mt-0.5">A quick App Store review helps other people find us.<span className="hidden md:inline"> Best on iPhone.</span></p>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                {/* flex-wrap, not shrink-0: at 390px the link + badge were
+                    wider than the card and the badge hung past its edge
+                    (2026-09-23 free-account review). */}
+                <div className="flex items-center gap-3 flex-wrap">
                   <RateUsLink
                     placement="settings"
                     className="text-xs font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-full px-4 py-2 transition-colors"

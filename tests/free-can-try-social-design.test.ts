@@ -134,7 +134,11 @@ describe("both halves reach the same dialog", () => {
     // Same dialog as the card's, unchanged.
     expect(src).toMatch(/setProBlock\(proFeatures\)/);
     expect(src).toMatch(/<ProRequiredDialog/);
-    expect(src).toMatch(/onSaveWithoutPro=\{\(\) => handleSave\(\{ allowFreeConversion: true \}\)\}/);
+    // "Save without them" converts the editor to the Free design and saves
+    // exactly that (2026-09-23: it used to save the Pro design and leave the
+    // editor showing it, so every later Save asked again).
+    expect(src).toMatch(/onSaveWithoutPro=\{\(\) => handleSave\(\{ allowFreeConversion: true, design: applyFreeDesign\(\) \}\)\}/);
+    expect(src).toMatch(/const \{ template, templateStyleState, linkStyleState \} = opts\?\.design \?\? stateDesign;/);
   });
 
   it("the card checker is untouched — it decides what every card renders as", () => {
