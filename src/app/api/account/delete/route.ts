@@ -7,6 +7,7 @@ import { reportError } from "@/lib/report-error";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
 import { tearDownOfficeForOwner } from "@/lib/office-billing-sync";
 import { revokeAppleTokensOnDelete } from "@/lib/apple-revoke";
+import { revalidateUserCards } from "@/lib/card-page-data";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -74,6 +75,11 @@ export async function POST(req: NextRequest) {
       },
     })
     .eq("id", user.id);
+
+  // Take the public card pages down NOW. They are cached per slug for 60s, and
+  // in that minute a deleted card's page still carried its owner's name and
+  // company in the <title> and link-preview tags (2026-09-23 review).
+  await revalidateUserCards(user.id);
 
   // AN OFFICE OWNER: release the team NOW. The Stripe webhook that normally
   // does this finds the office by stripe_subscription_id, which was cleared

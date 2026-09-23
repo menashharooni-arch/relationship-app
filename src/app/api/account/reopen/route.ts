@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { revalidateUserCards } from "@/lib/card-page-data";
 
 const GRACE_DAYS = 30;
 
@@ -32,6 +33,8 @@ export async function POST() {
   delete restored._deleted;
   delete restored._deletion;
   await admin.from("profiles").update({ customization: restored }).eq("id", user.id);
+  // The public card pages come back now, not a minute later.
+  await revalidateUserCards(user.id);
 
   return NextResponse.json({ ok: true });
 }
