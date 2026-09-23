@@ -132,8 +132,11 @@ describe("in-app signup and first-card flow", () => {
     expect(cards).toContain('export const NATIVE_OFFICE_PATH = "/welcome?tier=office";');
     expect(cards).toMatch(/useState<PlanTier>\(initialTier\)/);
     const page = read2("src/app/welcome/page.tsx");
-    // Safari has no session: the tier must survive the /login hop.
-    expect(page).toMatch(/encodeURIComponent\("\/welcome\?tier=office"\)/);
+    // Safari has no session: the tier must survive the /login hop. Since
+    // 2026-09-22 the whole selection survives it (tier, plan, seats, canceled…),
+    // so tier is one of the keys carried rather than a hard-coded path.
+    expect(page).toMatch(/for \(const k of \["tier", [^\]]*\] as const\)/);
+    expect(page).toMatch(/redirect\(`\/login\?next=\$\{encodeURIComponent\(back\)\}`\)/);
     expect(page).toMatch(/initialTier=\{officeTier \? "office" : "pro"\}/);
     // Back in the app, the plan is re-checked — but only after the Office
     // button was really used, so a StoreKit sheet can never trigger it.
