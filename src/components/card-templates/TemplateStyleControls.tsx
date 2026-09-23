@@ -227,7 +227,9 @@ function Swatches({
         any color{proTag && <ProTag />}
         <input
           type="color"
-          value={isHex(value) ? value : fallbackHex}
+          // Photo First's default ground is a GRADIENT, which a colour input
+          // cannot hold (console: "does not conform to the required format").
+          value={isHex(value) ? value : isHex(fallbackHex) ? fallbackHex : "#4f46e5"}
           onChange={(e) => onPick(e.target.value)}
           className="sc-tap-sq w-7 h-7 rounded bg-transparent border border-gray-700 cursor-pointer"
         />
