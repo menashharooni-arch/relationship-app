@@ -702,6 +702,15 @@ export async function seedBrandFromOwnersFirstCard(officeId: string, ownerId: st
     const v = cust[key as string];
     if (v !== undefined && v !== null && v !== "") linkDesign[key as string] = v;
   }
+  // Only what BRANDING needs. A header photo the owner uploaded for their own
+  // Swift Links page ("custom") is usually a picture of them — copied, it would
+  // headline every teammate's page. Left out: members' headers fall back to
+  // Auto (each person's own photo), and the admin can still set a company
+  // header on the Branding → Links tab. "photo"/"logo"/"initials" are rules
+  // each page applies to its OWN data, so they carry over as chosen.
+  if (linkDesign.linkHeroContent === "custom") delete linkDesign.linkHeroContent;
+  delete linkDesign.linkHeroImage;
+  delete linkDesign.linkHeroMediaType;
   const update: Record<string, unknown> = {
     brand_logo_url: (card.logo_url as string | null) ?? null,
     brand_company: (card.company as string | null) || null,

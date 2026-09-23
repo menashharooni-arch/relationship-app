@@ -202,3 +202,41 @@ describe("the Teams page sells Office", () => {
     expect(uses).toBe(2);
   });
 });
+
+describe("the owner's first card becomes the office brand — the branding half only", () => {
+  const seed = () => {
+    const c = code("src/lib/office-brand.ts");
+    return c.slice(c.indexOf("export async function seedBrandFromOwnersFirstCard"), c.indexOf("export async function stripBrandFromUserCards"));
+  };
+
+  it("copies company, logo, website, office phone, fax, address, card and Swift Links design", () => {
+    const s = seed();
+    for (const k of ["brand_logo_url", "brand_company", "brand_website", "brand_template", "brand_phone", "brand_fax", "brand_address", "brand_design", "brand_link_design"]) {
+      expect(s).toContain(`${k}:`);
+    }
+    // the company number is the one labelled office — never their mobile
+    expect(s).toContain('p?.label === "office"');
+  });
+
+  it("never copies anything personal: name, title, photo, email, mobile, own header photo", () => {
+    const s = seed();
+    expect(s).toContain('.select("id, logo_url, company, website, template, customization")');
+    expect(s).not.toMatch(/photo_url|\bname\b:|\btitle\b:|brand_email/);
+    expect(s).toContain("withoutFaceImage(cust.customLayout");
+    expect(s).toContain('if (linkDesign.linkHeroContent === "custom") delete linkDesign.linkHeroContent;');
+    expect(s).toContain("delete linkDesign.linkHeroImage;");
+  });
+
+  it("runs on every path an office comes into being, or its owner's first card does", () => {
+    expect(code("src/lib/office-billing-sync.ts")).toContain("seedBrandFromOwnersFirstCard(officeId, ownerId)");
+    expect(code("src/app/api/cards/route.ts")).toContain("seedBrandFromOwnersFirstCard(owned.id as string, user.id)");
+    expect(code("src/lib/office-admin-guard.ts")).toContain("seedBrandFromOwnersFirstCard(");
+  });
+
+  it("the Branding page says it was prefilled, until the first save", () => {
+    const p = code("src/app/office/admin/branding/page.tsx");
+    expect(p).toContain("We started this from your card");
+    expect(p).toContain("locks?.saved !== true");
+    expect(p).toContain("Your name, title, photo, mobile and email stay on your card only.");
+  });
+});

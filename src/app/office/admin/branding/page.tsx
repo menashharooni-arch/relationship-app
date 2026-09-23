@@ -9,6 +9,12 @@ export default async function OfficeBrandingPage() {
   const { office, officeId, caps } = await requireOfficeAdmin();
   if (!office || !officeId) redirect("/office/admin");
   if (!caps.canBrand) redirect("/office/admin");
+  const locks = office.brand_locks as { saved?: boolean } | null;
+  const d = office.brand_design as Record<string, unknown> | null;
+  const prefilled = locks?.saved !== true && !!(
+    office.brand_company || office.brand_logo_url || office.brand_website || office.brand_template ||
+    office.brand_phone || office.brand_address || (d && Object.keys(d).length)
+  );
 
   return (
     <div>
@@ -45,6 +51,21 @@ export default async function OfficeBrandingPage() {
           Your own cards are yours — they stay exactly as you designed them.
         </p>
       </div>
+
+      {/* Prefilled from the owner's first card (lib/office-brand
+          seedBrandFromOwnersFirstCard) and not yet saved here: say so, so the
+          admin reviews it instead of re-entering everything, and knows what
+          was deliberately left behind. Gone after the first save. */}
+      {prefilled && (
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl px-4 py-3 mb-5">
+          <p className="text-sm text-blue-200 font-medium">We started this from your card</p>
+          <p className="text-xs text-blue-200/80 mt-1 leading-relaxed">
+            Your company name, logo, website, office phone, fax, address, card design and Swift Links design are
+            filled in from the card you made. Your name, title, photo, mobile and email stay on your card only.
+            Your team&apos;s cards use it as it is now — check it over, change anything you like, and tap <strong>Save</strong>.
+          </p>
+        </div>
+      )}
 
       <div data-tour="admin-branding-form"><OfficeBranding office={office} /></div>
     </div>
