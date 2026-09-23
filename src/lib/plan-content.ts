@@ -25,7 +25,8 @@ export const PLAN_FEATURES = {
     "1 digital business card",
     "5 new leads a month",
     "2 additional links on your Swift Links page",
-    "3 AI follow-up drafts a month",
+    // "3 AI follow-up drafts a month" removed (owner, 2026-09-23): AI
+    // follow-ups are Pro-only, and nothing ever delivered that allowance.
     "All 6 templates · QR, link & NFC",
     "Swift Signature — your card in every email",
     // Was "Contacts CRM + day-1 follow-up email". Nothing sends that: the only

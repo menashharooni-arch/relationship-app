@@ -3,8 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
-import { PLAN_LIMITS, isPaidPlan } from "@/lib/plan";
-import { readUsage, bumpUsage } from "@/lib/usage";
+import { isPaidPlan } from "@/lib/plan";
 import { aiComplete, hasAiProvider } from "@/lib/ai";
 import { aiConsentBlock } from "@/lib/ai-consent-server";
 
@@ -40,16 +39,16 @@ export async function POST(req: NextRequest) {
   // Only the owner of the lead may generate messages for it.
   if (!lead || !usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
-  // Free plan gets a monthly "taste" of AI drafts (resets on the 1st); Pro/Office unlimited.
+  // AI follow-up drafts are Pro-only (owner, 2026-09-23) — there is no Free
+  // allowance. Pro/Office unlimited.
   const paid = isPaidPlan(profile?.plan);
-  const usedDrafts = readUsage(profile?.customization).drafts;
-  if (!paid && usedDrafts >= PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH) {
+  if (!paid) {
     return NextResponse.json(
       {
         // Additive machine code for native; web keeps using message/error/upgrade.
-        code: "AI_DRAFTS_LIMIT_REACHED",
+        code: "AI_DRAFTS_PRO_ONLY",
         error: "upgrade",
-        message: `You've used your ${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH} free AI drafts this month. Upgrade to Pro for unlimited AI follow-ups and automated sequences.`,
+        message: "AI follow-up drafts are a Pro feature. Upgrade to Pro to have AI write your follow-ups.",
         upgrade: "/upgrade",
         messages: [],
       },
@@ -107,15 +106,11 @@ Return ONLY valid JSON: ${isText ? `{"messages":["m1","m2","m3"]}` : `{"subject"
     const out = Array.isArray(parsed.messages) ? parsed.messages.slice(0, 3) : [];
     const subject = isText ? null : (typeof parsed.subject === "string" ? parsed.subject.trim() : null);
 
-    // Count this draft against the Free monthly taste limit.
-    if (!paid && out.length > 0) {
-      await bumpUsage(adminSupabase, user.id, profile?.customization as Record<string, unknown> | null, "drafts");
-    }
-
     return NextResponse.json({
       messages: out,
       subject,
-      aiDraftsRemaining: paid ? null : Math.max(0, PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH - (usedDrafts + 1)),
+      // Kept in the response shape for older clients; paid is unlimited.
+      aiDraftsRemaining: null,
     });
   } catch {
     return NextResponse.json({ messages: [] });

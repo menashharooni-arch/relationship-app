@@ -1,7 +1,7 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan } from "@/lib/plan";
 import { hasMarkedPlace, redactLegacyPlace, redactPlaces, stripLocationMarks } from "@/lib/location-privacy";
-import { redactNames, stripNameMarks } from "@/lib/contact-privacy";
+import { hasMarkedName, redactNames, stripNameMarks } from "@/lib/contact-privacy";
 
 // The one place a notification row is prepared for a browser.
 //
@@ -34,7 +34,19 @@ export function redactForPlan<T extends NotificationRow>(rows: T[], paid: boolea
     // gets blocks the app blurs — decided here, on read, so an upgrade reveals
     // every name the account was already told about.
     const title = typeof raw.title === "string" ? (paid ? stripNameMarks(raw.title) : redactNames(raw.title)) : raw.title;
-    const row = title === raw.title ? raw : { ...raw, title };
+    let row = title === raw.title ? raw : { ...raw, title };
+    // The contact's id goes with their name. A Free row whose name was blocked
+    // out still carried `lead_id`, and tapping it opened THAT contact on the
+    // Contacts page — the name the blur was hiding, one tap away. Without the
+    // id the row opens the contacts list, like any row that names no one.
+    if (!paid && "lead_id" in row && (
+      (typeof raw.title === "string" && hasMarkedName(raw.title)) ||
+      (typeof raw.body === "string" && hasMarkedName(raw.body))
+    )) {
+      const rest: Record<string, unknown> = { ...row };
+      delete rest.lead_id;
+      row = rest as T;
+    }
     const rawBody = typeof row.body === "string" ? row.body : null;
     if (!rawBody) return row;
     const body = paid ? stripNameMarks(rawBody) : redactNames(rawBody);

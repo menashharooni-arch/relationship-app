@@ -7,6 +7,20 @@
 // caller doesn't own all deny (the routes answer 404 so ids aren't enumerable).
 // Type predicate so a `if (!ownsLead(...)) return 404` guard narrows the lead to
 // non-null for the rest of the handler.
+import { LOCKED_LEAD_TAG } from "@/lib/plan";
+
+/**
+ * Is this lead past the Free monthly cap (tagged sc-locked)? Its details are
+ * exactly what the cap withholds: the dashboard and Contacts page filter it out
+ * and leads/vcard answers "not found" for it on a Free account. Every route that
+ * READS or CONTACTS a lead by id has to hold the same line, or the id alone (it
+ * rides in the new-contact push link) opens the contact the list is hiding.
+ * Callers pair it with the account's plan: a paid account sees every lead.
+ */
+export function isLockedLead(lead: { tags?: unknown } | null | undefined): boolean {
+  return !!lead && Array.isArray(lead.tags) && (lead.tags as unknown[]).includes(LOCKED_LEAD_TAG);
+}
+
 export function ownsLead<T extends { card_owner?: string | null }>(
   ownerUsernames: string[],
   lead: T | null | undefined,

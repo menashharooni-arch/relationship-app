@@ -33,7 +33,6 @@ const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 const PLACEHOLDERS: Record<string, () => string> = {
   "limit.cards": () => String(PLAN_LIMITS.FREE_CARD_LIMIT),
   "limit.leads": () => String(PLAN_LIMITS.FREE_LEADS_PER_MONTH),
-  "limit.drafts": () => String(PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH),
   "limit.links": () => String(PLAN_LIMITS.FREE_MAX_LINKS),
   "limit.seats": () => String(PLAN_LIMITS.OFFICE_MIN_SEATS),
   "limit.freeMonthDays": () => String(FREE_MONTH_DAYS),
@@ -114,10 +113,11 @@ export function pricingFacts(): string {
  */
 export function limitFacts(): string {
   return `PLAN LIMITS (the real enforced numbers):
-- Free: ${PLAN_LIMITS.FREE_CARD_LIMIT} card; ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads per month; ${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH} AI follow-up drafts per month; ${PLAN_LIMITS.FREE_MAX_LINKS} additional Swift Links buttons. The monthly meters reset on the 1st and are counted per ACCOUNT, so deleting a card does not reset them.
+- Free: ${PLAN_LIMITS.FREE_CARD_LIMIT} card; ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads per month; ${PLAN_LIMITS.FREE_MAX_LINKS} additional Swift Links buttons. The monthly meters reset on the 1st and are counted per ACCOUNT, so deleting a card does not reset them.
 - Leads captured beyond the monthly cap are still captured and stored — they are hidden until the account is on a paid plan, never discarded.
 - Pro and Office remove all of those limits.
 - The AI business-card scanner is Pro-only. There is no free scan allowance.
+- AI-written follow-ups (AI follow-up drafts) are Pro-only. Free gets none — there is no monthly AI allowance.
 - Office requires at least ${PLAN_LIMITS.OFFICE_MIN_SEATS} seats.
 - Referral and promo rewards grant ${FREE_MONTH_DAYS} days of Pro at a time.`;
 }

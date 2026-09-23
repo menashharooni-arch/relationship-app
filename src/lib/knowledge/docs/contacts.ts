@@ -105,7 +105,7 @@ export const contactsDocs = defineDocs([
     answer:
       "When someone you already have as a contact opens your card again, the notification names them (\"Priya re-opened your card\") and tapping it opens their contact. Each contact has an \"Alert me when they come back\" switch under the Call / Share / Save buttons; turning it off keeps their visits in the bell and in their history but stops the phone alert.",
     detail:
-      "SwiftCard only recognises someone who shared their details with you from that phone or computer, or who opened a personal link you sent them. If a named notification was about the wrong person, tap \"Wrong person?\" on it in the dashboard's Notifications list, then Confirm: that device is no longer tied to the contact, those visits come off their history, and the notification is removed. If two different people have shared their details from the same device (a shared iPad, say), SwiftCard names neither of them. Contacts marked Not interested or Closed never set off a phone alert. On the Free plan the name is blurred and the alert says \"A contact re-opened your card\".",
+      "SwiftCard only recognises someone who shared their details with you from that phone or computer, or who opened a personal link you sent them. If a named notification was about the wrong person, tap \"Wrong person?\" on it in the dashboard's Notifications list, then Confirm: that device is no longer tied to the contact, those visits come off their history, and the notification is removed. If two different people have shared their details from the same device (a shared iPad, say), SwiftCard names neither of them. Contacts marked Not interested or Closed never set off a phone alert. On the Free plan the name is blurred and the alert says \"A contact re-opened your card\"; where you met them still shows, but tapping the alert opens the Notifications list rather than the contact, and there is no \"Wrong person?\" on it.",
   },
   {
     id: "hot-warm-contacts",
@@ -132,7 +132,7 @@ export const contactsDocs = defineDocs([
     answer:
       "Open a contact → \"Contact info / Presets\" tab → \"FOLLOW-UP AUTOMATIONS\". Email and Text are separate switches and you can run either or both. Flip one on, choose a cadence — Light (2 touches), Medium (3) or Aggressive (4) — and SwiftCard writes and sends the messages for you. Automated sequences are a Pro feature.",
     detail:
-      "The messages are AI-written from that contact's \"Where did you meet?\" and Notes, so a contact with neither gets generic copy — fill those in first. A channel with nothing to send to is disabled (\"No email on file for this contact\"). Texts only send if that person ticked the SMS consent box themselves when they shared their info; without it the text channel cannot be switched on, whatever the plan. Free accounts get a small monthly allowance of AI drafts ({limit.drafts} a month) but not the automated sending.",
+      "The messages are AI-written from that contact's \"Where did you meet?\" and Notes, so a contact with neither gets generic copy — fill those in first. A channel with nothing to send to is disabled (\"No email on file for this contact\"). Texts only send if that person ticked the SMS consent box themselves when they shared their info; without it the text channel cannot be switched on, whatever the plan. Free accounts get no AI-written messages at all — AI drafting is Pro-only.",
   },
   {
     id: "export-contacts",

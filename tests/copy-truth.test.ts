@@ -49,6 +49,10 @@ describe("the Free plan does not advertise a follow-up nothing sends", () => {
     expect(free, "the automated sender is hard-gated on isPaidPlan").not.toMatch(/day-1 follow-up/i);
   });
 
+  it("Free does not advertise AI follow-up drafts (Pro-only)", () => {
+    expect(PLAN_FEATURES.free.join(" | ")).not.toMatch(/AI follow-up/i);
+  });
+
   it("Free still advertises the CRM it does have", () => {
     expect(PLAN_FEATURES.free.join(" | ")).toMatch(/Contacts CRM/);
   });

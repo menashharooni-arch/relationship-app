@@ -53,8 +53,8 @@ const CONTRACTS: Contract[] = [
   },
   {
     file: "src/app/api/ai/suggest-messages/route.ts",
-    code: "AI_DRAFTS_LIMIT_REACHED",
-    messageParts: ["free AI drafts this month. Upgrade to Pro for unlimited AI follow-ups and automated sequences."],
+    code: "AI_DRAFTS_PRO_ONLY",
+    messageParts: ["AI follow-up drafts are a Pro feature. Upgrade to Pro to have AI write your follow-ups."],
   },
   {
     file: "src/app/api/scanner/route.ts",

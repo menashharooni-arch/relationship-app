@@ -60,6 +60,7 @@ import { backfillCardPhotos } from "@/lib/card-media";
 import { buildCardData } from "@/lib/card-data";
 import AddCardButton from "@/components/AddCardButton";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
+import { trialHistoryFor } from "@/lib/trial-ledger";
 import EventTagChip from "@/components/EventTagChip";
 import { activeEvent } from "@/lib/event-tag";
 import FollowUpFirst, { type FollowUpItem } from "@/components/FollowUpFirst";
@@ -162,10 +163,11 @@ export default async function DashboardPage({
   // Free and never subscribed → no Stripe customer → true with no network call.
   const trialEligible = isPro
     ? false
-    : await isProTrialEligible(profile.stripe_customer_id as string | null, undefined, {
-        proTrialStartedAt: (profile as { pro_trial_started_at?: string | null }).pro_trial_started_at,
-        accountEmail: user.email,
-      });
+    // trialHistoryFor, exactly like /upgrade, /checkout and the checkout API:
+    // a hand-built history here left out `referralGiftOffered`, so an account
+    // with a friend's free month on offer was promised a 14-day trial that
+    // checkout then refused.
+    : await isProTrialEligible(profile.stripe_customer_id as string | null, undefined, await trialHistoryFor(user.id, user.email));
 
   // App-level Pro grant (14-day reverse trial or a stacked referral/free month):
   // plan is pro, with an expiry, and NO real Stripe subscription behind it.

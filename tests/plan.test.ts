@@ -62,9 +62,12 @@ describe("PLAN_LIMITS — Free plan (keep in sync with plan-content.ts)", () => 
     expect(PLAN_LIMITS.FREE_MAX_LINKS).toBe(2);
   });
 
-  it("Free gets 5 leads and 3 AI drafts a month", () => {
+  it("Free gets 5 leads a month", () => {
     expect(PLAN_LIMITS.FREE_LEADS_PER_MONTH).toBe(5);
-    expect(PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH).toBe(3);
+  });
+
+  it("has no free AI-draft allowance — AI follow-ups are Pro-only", () => {
+    expect(PLAN_LIMITS).not.toHaveProperty("FREE_AI_DRAFTS_PER_MONTH");
   });
 
   it("has no free scan allowance — the card scanner is Pro-only", () => {

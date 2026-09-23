@@ -157,6 +157,27 @@ describe("a contact's name is Pro, decided on read", () => {
     expect(pro.body).toBe("Priya Shah re-opened your card.");
   });
 
+  it("Free does not receive the contact's id either — tapping must not open them", () => {
+    const withId = { ...row, lead_id: "11111111-1111-1111-1111-111111111111" };
+    const [free] = redactForPlan([withId], false);
+    expect(free).not.toHaveProperty("lead_id");
+    const [pro] = redactForPlan([withId], true);
+    expect(pro.lead_id).toBe(withId.lead_id);
+  });
+
+  it("where they met stays readable on Free — only the name is withheld", () => {
+    const met = { ...row, body: `${markName("Priya Shah")} (met at RE/MAX Summit) re-opened your card.` };
+    const [free] = redactForPlan([met], false);
+    expect(free.body).toContain("(met at RE/MAX Summit)");
+    expect(free.body).not.toContain("Priya");
+  });
+
+  it("a Free push for a returning contact opens the notification, not the contact", () => {
+    const src = readFileSync(join(process.cwd(), "src/app/api/card-events/route.ts"), "utf8");
+    expect(src).toMatch(/url: returning && isPaidPlan\(owner\.plan/);
+    expect(src).toMatch(/&view=notifications/);
+  });
+
   it("the lock screen reads naturally without the name", () => {
     expect(genericNames(`Your link to ${markName("Priya")} was opened.`)).toBe("Your link to a contact was opened.");
     expect(redactNames(markName("Al"))).not.toContain("Al");

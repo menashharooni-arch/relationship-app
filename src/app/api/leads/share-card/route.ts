@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
+import { isLockedLead } from "@/lib/lead-access";
+import { isPaidUser } from "@/lib/notification-privacy";
 import { isPaidPlan } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
 import { resolveCardMeta } from "@/lib/resolve-card";
@@ -88,6 +90,11 @@ export async function POST(req: NextRequest) {
   const owned = await getOwnerUsernames(user.id);
   if (!owned.includes(lead.card_owner as string)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // A contact locked behind the Free cap is hidden from this account; it cannot
+  // be sent to by id either (lib/lead-access isLockedLead).
+  if (isLockedLead(lead) && !(await isPaidUser(user.id))) {
+    return NextResponse.json({ error: "Contact not found" }, { status: 404 });
   }
 
   // "Stop texting me" outranks a Share. The other two send routes

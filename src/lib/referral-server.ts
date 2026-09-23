@@ -114,7 +114,9 @@ async function grantReferrerReward(userId: string, months: number): Promise<void
   if (!p) return;
   // An Apple subscriber is paying too — never hand them an app grant, whose
   // expiry would later downgrade the subscription they're still paying for.
-  if (isApplePaid(p.customization)) return;
+  // Throw rather than return: the caller releases the claimed signups on a
+  // throw, so a race past its own Apple check can never burn them silently.
+  if (isPaidPlan(p.plan) && isApplePaid(p.customization)) throw new Error("referral_apple_subscriber");
 
   const payingNow = isPaidPlan(p.plan) && !!p.stripe_subscription_id && !p.plan_expires_at;
   if (payingNow && p.stripe_customer_id) {
@@ -423,6 +425,22 @@ export async function claimReferralReward(
         ? `You've already claimed all ${REFERRAL.MAX_REFERRAL_REWARDS} referral months — thanks for spreading the word!`
         : `No free month ready yet — ${per - before.progressInBatch} more signup${per - before.progressInBatch === 1 ? "" : "s"} to go.`,
     };
+  }
+
+  // An App Store subscriber: Apple bills them, and there is no way to put a
+  // free month on an Apple subscription (and an app-level grant would later
+  // downgrade the subscription they are still paying for). This used to fall
+  // through, mark the signups as used, and say "Pro is active for the next
+  // month" while nothing was granted. Refuse BEFORE anything is consumed, so
+  // the months stay saved for if their Pro ever moves off the App Store.
+  {
+    const { data: acct } = await admin.from("profiles").select("plan, customization").eq("id", userId).maybeSingle();
+    if (acct && isPaidPlan(acct.plan as string | null) && isApplePaid(acct.customization)) {
+      return {
+        ok: false,
+        error: "Your Pro is billed through the App Store, which can't take a free-month credit, so nothing was used up. Your earned months stay saved.",
+      };
+    }
   }
 
   // Consume the OLDEST unclaimed valid signups for this claim.

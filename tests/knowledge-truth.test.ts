@@ -107,7 +107,7 @@ describe("no plan facts are hardcoded in doc prose", () => {
     const facts = derivedFacts({ commerce: true });
     expect(facts).toContain(`$${(PLAN_PRICES.PRO_MONTHLY_CENTS / 100).toFixed(2)}`);
     expect(facts).toContain(`${PLAN_LIMITS.FREE_LEADS_PER_MONTH} new leads per month`);
-    expect(facts).toContain(`${PLAN_LIMITS.FREE_AI_DRAFTS_PER_MONTH} AI follow-up drafts`);
+    expect(facts).toContain("AI-written follow-ups (AI follow-up drafts) are Pro-only");
     expect(facts).toContain(`${TRIAL_DAYS}-day free trial`);
     expect(facts).toContain(`at least ${PLAN_LIMITS.OFFICE_MIN_SEATS} seats`);
   });

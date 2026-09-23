@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
-import { ownsLead } from "@/lib/lead-access";
+import { isLockedLead, ownsLead } from "@/lib/lead-access";
+import { isPaidUser } from "@/lib/notification-privacy";
 import { deliverToLead } from "@/lib/messaging";
 import { isPaidPlan } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
@@ -16,10 +17,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const admin = getAdminSupabase();
   const [{ data: lead }, usernames] = await Promise.all([
-    admin.from("leads").select("card_owner").eq("id", id).single(),
+    admin.from("leads").select("card_owner, tags").eq("id", id).single(),
     getOwnerUsernames(user.id),
   ]);
   if (!ownsLead(usernames, lead)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // A contact locked behind the Free cap is hidden everywhere else; so is its thread.
+  if (isLockedLead(lead) && !(await isPaidUser(user.id))) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Table may not exist before the migration is run — degrade to empty thread.
   const { data: messages } = await admin
@@ -66,6 +69,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     getOwnerUsernames(user.id),
   ]);
   if (!ownsLead(usernames, lead)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // Messaging a contact the Free cap is hiding would reach someone whose details
+  // the account cannot see — the lock has to hold on send as well as on read.
+  if (isLockedLead(lead) && !(await isPaidUser(user.id))) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // An explicit DECLINE blocks SMS here too — see the same guard in
   // /api/sms/send. Only the SMS channel is blocked: this route is email-first,

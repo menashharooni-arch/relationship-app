@@ -21,6 +21,8 @@ import { resolveKnownContact, touchContactDevice } from "@/lib/known-contact";
 import { bindViaLink, isContactToken } from "@/lib/contact-links";
 import { contactReturnNotice, isLockedContact, isReturnVisit } from "@/lib/contact-return-notify";
 import { isPaidPlan } from "@/lib/plan";
+import { isLockedLead } from "@/lib/lead-access";
+import { isPaidUser } from "@/lib/notification-privacy";
 import { loadIntent } from "@/lib/intent-load";
 import { readPushPrefs } from "@/lib/push-policy";
 import { notifyVisit, visitKey } from "@/lib/visit-notify";
@@ -655,9 +657,14 @@ export async function POST(req: NextRequest) {
               // whichever card the owner last had selected, which on a
               // multi-card account could be the wrong one. A returning contact
               // opens THEIR contact, the same screen a new lead's push opens.
-              url: returning
+              // Pro only: on Free the name is the thing being withheld, and
+              // opening their contact would print it. A Free tap lands on the
+              // notification itself, where the name stays blurred.
+              url: returning && isPaidPlan(owner.plan as string | null)
                 ? `${APP_URL}/contacts?card=${encodeURIComponent(card_owner_username)}&lead=${returning.leadId}`
-                : `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner_username)}`,
+                : returning
+                  ? `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner_username)}&view=notifications`
+                  : `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner_username)}`,
             },
           });
           // Mirror this conversation notification to the owner's CRM. The CRM
@@ -791,12 +798,17 @@ export async function GET(req: NextRequest) {
     if (leadId) {
       const { data: lead } = await admin
         .from("leads")
-        .select("visitor_id, email, phone, card_owner")
+        .select("visitor_id, email, phone, card_owner, tags")
         .eq("id", leadId)
         .maybeSingle();
       // Scoped to this owner's cards — a lead id from someone else's account
       // must not return their visitor's activity.
       if (!lead || !usernames.includes(lead.card_owner as string)) {
+        return NextResponse.json([], { status: 200 });
+      }
+      // A contact locked behind the Free cap is hidden from this account, and
+      // its events carry the name and email the lock withholds.
+      if (isLockedLead(lead) && !(await isPaidUser(user.id))) {
         return NextResponse.json([], { status: 200 });
       }
       visitorId = (lead.visitor_id as string | null) ?? null;
