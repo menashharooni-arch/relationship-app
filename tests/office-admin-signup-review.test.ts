@@ -135,3 +135,13 @@ describe("the rest of the journey", () => {
     expect(w).toContain("if (planWriteError) throw new Error(");
   });
 });
+
+describe("a granted Office ends for the whole team", () => {
+  it("grant expiry releases the team, like a cancelled subscription", () => {
+    const r = code("src/lib/referral-server.ts");
+    const fn = r.slice(r.indexOf("export async function expireFreeMonths"));
+    expect(fn).toMatch(/if \(u\.plan === "enterprise"\) \{\s*await tearDownOfficeForOwner\(admin, u\.id as string\)/);
+    // only after the conditional downgrade actually wrote (paid rows skipped)
+    expect(fn.indexOf("tearDownOfficeForOwner")).toBeGreaterThan(fn.indexOf("if (!(wrote ?? []).length) continue;"));
+  });
+});

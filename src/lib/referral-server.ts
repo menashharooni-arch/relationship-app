@@ -6,6 +6,8 @@ import { isPaidPlan } from "./plan";
 import { REFERRAL, freeMonthDays, sourceGrantsFreeMonth, isSignupSource } from "./referral";
 import { insertNotification } from "./notify";
 import { markProEnded } from "./pro-ended";
+import { tearDownOfficeForOwner } from "./office-billing-sync";
+import { reportError } from "./report-error";
 import { after } from "next/server";
 
 
@@ -597,6 +599,16 @@ export async function expireFreeMonths(): Promise<DowngradedUser[]> {
       .lte("plan_expires_at", new Date().toISOString())
       .select("id");
     if (!(wrote ?? []).length) continue;
+    // A granted OFFICE (a tester code, lib/promo) ends like a cancelled one:
+    // release the team. Without this only the owner went to Free, and every
+    // invited member kept plan "enterprise" and an active membership forever.
+    // Reached only for unpaid grants — Stripe and Apple subscribers are
+    // skipped above.
+    if (u.plan === "enterprise") {
+      await tearDownOfficeForOwner(admin, u.id as string).catch((e) =>
+        reportError("office.grant-expiry-teardown-failed", e, { ownerId: u.id }).catch(() => {}),
+      );
+    }
     // Same "Pro ended — choose" prompt as every other end of Pro. The cron
     // sends its own notification and email wording, so no second notice here.
     await markProEnded(u.id as string, { wasTrial, notify: false });
