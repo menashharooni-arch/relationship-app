@@ -15,6 +15,22 @@ import { INVITE_TTL_MS } from "@/lib/office-invite";
 
 export type InviteEmail = { subject: string; html: string; fromName: string };
 
+// An image an email client will actually show. SVG isn't one — Gmail strips
+// it and Outlook draws an empty box — and data:/javascript: URLs are blocked
+// outright. A company logo that fails this is left out and the email uses its
+// company-name header instead of a broken image. (Uploads are re-encoded to
+// PNG/JPEG, but the brand's logo field accepts any URL.)
+export function emailSafeImageUrl(url: string | null | undefined): string | null {
+  const u = (url ?? "").trim();
+  if (!/^https?:\/\//i.test(u)) return null;
+  try {
+    if (/\.svgz?$/i.test(new URL(u).pathname)) return null;
+  } catch {
+    return null;
+  }
+  return u;
+}
+
 // Every sentence below has a version for "we don't know" — no name on the
 // inviter's account, no company anywhere — because the old single-string
 // fallbacks read as words in the sentence: "A colleague" was cut to its first
@@ -39,7 +55,8 @@ export function buildInviteEmail(opts: {
   const owner = ownerRaw ? escapeHtml(ownerRaw) : null;
   const office = officeRaw ? escapeHtml(officeRaw) : null;
   const first = opts.inviteeFirst ? escapeHtml(opts.inviteeFirst) : null;
-  const logo = opts.brandLogoUrl ? escapeHtml(opts.brandLogoUrl) : null;
+  const safeLogo = emailSafeImageUrl(opts.brandLogoUrl);
+  const logo = safeLogo ? escapeHtml(safeLogo) : null;
   const ttlDays = Math.round(INVITE_TTL_MS / (24 * 60 * 60 * 1000));
   // "the Sales Team team" — a company already named "… Team" takes no second one.
   const teamPhrase = office
@@ -99,6 +116,58 @@ export function buildInviteEmail(opts: {
     // Sanitized downstream by senderFrom(); never concatenate this yourself.
     // Empty when neither is known, which leaves the From as plain "SwiftCard".
     fromName: ownerRaw && officeRaw ? `${ownerRaw} (${officeRaw})` : ownerRaw ?? officeRaw ?? "",
+    html,
+  };
+}
+
+// ── The invite's sign-in email ───────────────────────────────────────────────
+// Sent when an invitee taps "Email me a sign-in link" on /join. It used to be
+// Supabase's stock template — "Your sign-in link / Follow the link below to
+// sign in", no SwiftCard, no company, nothing to say why it arrived — landing a
+// minute after a branded invite and looking like phishing next to it. Now it
+// is ours: the same company header as the invite, and it says what it's for.
+//
+// `signInUrl` goes to /auth/confirm, which verifies the link on the server, so
+// it works on any device — not only in the browser that asked for it.
+export function buildJoinSignInEmail(opts: {
+  officeName: string | null;
+  brandLogoUrl?: string | null;
+  signInUrl: string;
+  inviteEmail: string;
+}): { subject: string; html: string; fromName: string } {
+  const officeRaw = opts.officeName?.trim() || null;
+  const office = officeRaw ? escapeHtml(officeRaw) : null;
+  const safeLogo = emailSafeImageUrl(opts.brandLogoUrl);
+  const logo = safeLogo ? escapeHtml(safeLogo) : null;
+  const email = escapeHtml(opts.inviteEmail);
+  const host = (() => {
+    try {
+      return new URL(opts.signInUrl).host;
+    } catch {
+      return "swiftcard.me";
+    }
+  })();
+  const joining = office ? `your <strong>${office}</strong> team` : "your team";
+
+  const html = `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#fff;">
+        ${logo
+          ? `<img src="${logo}" width="56" height="56" alt="${office ?? ""}" style="border-radius:10px;display:block;margin:0 0 20px;" />`
+          : office ? `<div style="margin:0 0 20px;"><span style="font-size:20px;font-weight:800;color:#111827;">${office}</span></div>` : ""}
+        <h2 style="font-size:22px;font-weight:700;color:#111;margin:0 0 10px;">Your sign-in link</h2>
+        <p style="color:#444;font-size:15px;line-height:1.5;margin:0 0 24px;">
+          Tap the button to sign in as <strong>${email}</strong> and finish joining ${joining} on SwiftCard. No password needed.
+        </p>
+        <a href="${escapeHtml(opts.signInUrl)}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:100px;font-size:15px;">Sign in and join →</a>
+        <p style="color:#999;font-size:12px;margin-top:14px;">This link goes to ${escapeHtml(host)}. It works once, on any device, and expires soon — if it has, open your invite again and send a new one.</p>
+        <p style="color:#999;font-size:12px;margin-top:24px;">You got this because someone asked for a sign-in link on your ${office ? `${office} ` : ""}team invitation. If it wasn't you, ignore this email — nobody can sign in without it.</p>
+        <p style="color:#b6bcc6;font-size:11px;margin:0;line-height:1.6;">Sent by SwiftCard${office ? ` on behalf of ${office}` : ""} · New York, NY</p>
+      </div>
+    `;
+
+  return {
+    subject: officeRaw ? `Your sign-in link to join ${officeRaw} on SwiftCard` : "Your SwiftCard sign-in link",
+    fromName: officeRaw ?? "",
     html,
   };
 }

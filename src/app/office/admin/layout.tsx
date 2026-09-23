@@ -7,6 +7,10 @@ import HelpWidget from "@/components/HelpWidget";
 import MobileNavGate from "@/components/MobileNavGate";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
 import { listOfficeNotifications } from "@/lib/office-notify";
+import { DisplayClockProvider } from "@/components/DisplayClock";
+import TimezoneCookie from "@/components/TimezoneCookie";
+import { safeTimeZone } from "@/lib/tz-days";
+import { cookies } from "next/headers";
 
 // Every /office/admin page inherits this shell: the Office gate + one consistent
 // nav, so each area is a proper page instead of one crammed scroll.
@@ -21,6 +25,11 @@ export default async function OfficeAdminLayout({ children }: { children: React.
   // Team-inbox notifications for the header bell — office-scoped, separate table
   // from the personal dashboard bell. Empty when the office isn't set up yet.
   const teamNotifications = officeId ? await listOfficeNotifications(officeId) : [];
+
+  // The request's time and the viewer's zone for components/DisplayClock.
+  // eslint-disable-next-line react-hooks/purity -- a server component renders once per request; this IS the request's time, handed to the client so hydration can match it
+  const renderedAt = Date.now();
+  const viewerTimeZone = safeTimeZone((await cookies()).get("sc_tz")?.value);
 
   // `sc-app` puts the console inside the app's theme system, like the
   // dashboard. Without it the shell was dark no matter what: in the app's
@@ -60,7 +69,18 @@ export default async function OfficeAdminLayout({ children }: { children: React.
       </header>
 
       {/* pb clears the mobile tab bar; md+ keeps the original spacing. */}
-      <main className="max-w-6xl mx-auto px-5 pt-6 pb-28 md:pb-16">{children}</main>
+      {/* The request's time and the viewer's zone, so the console's client
+          tables format "Invited Sep 22" / "5 minutes ago" identically on the
+          server and while hydrating (components/DisplayClock). */}
+      <main className="max-w-6xl mx-auto px-5 pt-6 pb-28 md:pb-16">
+        <DisplayClockProvider now={renderedAt} timeZone={viewerTimeZone}>
+          {children}
+        </DisplayClockProvider>
+      </main>
+      {/* Reports the browser's zone (sc_tz) for the next server render, so an
+          admin who opens the console before ever visiting the dashboard is
+          still formatted in their own zone from the second load on. */}
+      <TimezoneCookie />
       {/* The same bottom tab bar as the rest of the app (Admin tab lit here),
           so a phone user can move between the console and their own dashboard
           without hunting for the small header link. */}

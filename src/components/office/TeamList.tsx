@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { relativeTime, shortDate } from "@/lib/relative-time";
+import { useDisplayClock } from "@/components/DisplayClock";
 // MEMBER_STATUS_LABEL comes from lib/member-status, NOT lib/office-team:
 // office-team reaches for the service-role database client, and importing a
 // value from it here would put that module on this client bundle's path. The
@@ -102,6 +103,7 @@ function Drawer({ person, appUrl, caps, onClose }: {
   person: TeamPerson; appUrl: string; caps: Caps; onClose: () => void;
 }) {
   const [qr, setQr] = useState(false);
+  const clock = useDisplayClock();
   const cardUrl = person.username ? `${appUrl}/${person.username}` : null;
   const hasCard = person.totalCards > 0;
 
@@ -155,7 +157,7 @@ function Drawer({ person, appUrl, caps, onClose }: {
           </div>
 
           <p className="text-xs text-gray-500 mb-5">
-            Last active: <span className="text-gray-300">{person.lastActiveAt ? relativeTime(person.lastActiveAt) : "No activity yet"}</span>
+            Last active: <span className="text-gray-300">{person.lastActiveAt ? relativeTime(person.lastActiveAt, clock.now) : "No activity yet"}</span>
           </p>
 
           {!hasCard ? (
@@ -216,6 +218,10 @@ export default function TeamList({ people, invites, appUrl, caps }: {
   people: TeamPerson[]; invites: TeamInvite[]; appUrl: string; caps: Caps;
 }) {
   const [open, setOpen] = useState<TeamPerson | null>(null);
+  // Hydration-safe times (components/DisplayClock): a UTC server printing
+  // "Invited Sep 23" to a New York browser printing "Invited Sep 22" was
+  // React error 418 on every evening load of this page.
+  const clock = useDisplayClock();
 
   return (
     <>
@@ -255,7 +261,7 @@ export default function TeamList({ people, invites, appUrl, caps }: {
                 <span className="lg:hidden text-gray-600 text-[0.6875rem]">Leads </span>{p.leads.toLocaleString("en-US")}
               </p>
               <p className="col-span-4 lg:col-span-2 text-xs text-gray-500">
-                {p.lastActiveAt ? relativeTime(p.lastActiveAt) : "No activity yet"}
+                {p.lastActiveAt ? relativeTime(p.lastActiveAt, clock.now) : "No activity yet"}
               </p>
               <div className="col-span-6 lg:col-span-2"><StatusChip status={p.status} /></div>
               <div className="col-span-6 lg:col-span-2 flex lg:justify-end">
@@ -281,7 +287,7 @@ export default function TeamList({ people, invites, appUrl, caps }: {
                   <p className="text-[0.6875rem] text-gray-600">
                     {inv.status === "invite_expired"
                       ? "Invitation expired"
-                      : `Invited ${shortDate(inv.sentAt)}`}
+                      : `Invited ${shortDate(inv.sentAt, clock.timeZone)}`}
                   </p>
                 </div>
               </div>

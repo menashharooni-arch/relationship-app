@@ -126,7 +126,9 @@ export default function MarketingClient() {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(promoSend),
       });
       const d = await res.json();
-      setPromoSendResult(res.ok ? `Sent to ${d.sent} users · ${d.skipped} skipped` : d.error || "Send failed");
+      setPromoSendResult(res.ok
+        ? `Sent to ${d.sent} users · ${d.skipped} skipped${d.teamMembersSkipped ? ` · ${d.teamMembersSkipped} team members left out (their company pays for their plan)` : ""}`
+        : d.error || "Send failed");
     } catch {
       setPromoSendResult("Network error — please try again.");
     } finally {
@@ -330,6 +332,12 @@ export default function MarketingClient() {
                   ≈ {recipientCount} recipients{optedOut ? ` · ${optedOut} opted out of marketing` : ""}
                 </p>
               )}
+              {/* A broadcast is a product update and reaches everyone in the
+                  segment — team members on a company's Office plan included.
+                  An offer belongs in a promo-code send, which leaves them out. */}
+              <p className="text-gray-600 text-[0.6875rem] mt-1">
+                Broadcasts are product updates and include team members on a company&apos;s Office plan. For an offer or upgrade pitch, send a promo code instead — team members are left out of those automatically.
+              </p>
             </div>
             <div>
               <label className="text-xs text-gray-400 block mb-1">Subject *</label>
@@ -697,6 +705,7 @@ export default function MarketingClient() {
                   <option value="pro">Pro + Office{counts ? ` (${counts.pro})` : ""}</option>
                   <option value="all">All users{counts ? ` (${counts.all})` : ""}</option>
                 </select>
+                <p className="text-gray-600 text-[0.6875rem] mt-1">Team members on a company&apos;s Office plan are always left out — their company pays for their plan.</p>
               </div>
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Headline</label>

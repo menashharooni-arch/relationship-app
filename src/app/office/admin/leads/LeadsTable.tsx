@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { relativeTime } from "@/lib/relative-time";
+import { useDisplayClock } from "@/components/DisplayClock";
 // The status vocabulary comes from lib/lead-status, NOT lib/office-leads:
 // office-leads reaches for the service-role database client, and importing a
 // value from it here would put that module on this client bundle's path.
@@ -56,6 +57,8 @@ export default function LeadsTable({
   const [person, setPerson] = useState<string>("all");
   const [followUp, setFollowUp] = useState<"all" | FollowUpState>("all");
   const [query, setQuery] = useState("");
+  // Hydration-safe "x ago" (components/DisplayClock).
+  const clock = useDisplayClock();
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -244,7 +247,7 @@ export default function LeadsTable({
                     </span>
                   </div>
                   <p className="col-span-6 lg:col-span-2 text-xs text-gray-600 whitespace-nowrap">
-                    {relativeTime(l.created_at)}
+                    {relativeTime(l.created_at, clock.now)}
                   </p>
                 </div>
               );

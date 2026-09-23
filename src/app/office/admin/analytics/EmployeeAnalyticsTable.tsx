@@ -6,6 +6,7 @@ import DownloadLink from "@/components/DownloadLink";
 import type { EmployeeMetrics } from "@/lib/office-analytics";
 import { computeConversionRate, defaultEmployeeSort } from "@/lib/office-analytics-metrics";
 import { relativeTime } from "@/lib/relative-time";
+import { useDisplayClock } from "@/components/DisplayClock";
 
 type Row = EmployeeMetrics & { conversionRate: number | null };
 type SortKey = keyof Pick<
@@ -31,6 +32,8 @@ const COLUMNS: { key: SortKey; label: string; hint: string }[] = [
 // office/admin/leads/LeadsTable.tsx, extended with real click-to-sort columns.
 export default function EmployeeAnalyticsTable({ employees, range }: { employees: EmployeeMetrics[]; range: string }) {
   const [query, setQuery] = useState("");
+  // Hydration-safe "x ago" (components/DisplayClock).
+  const clock = useDisplayClock();
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -129,7 +132,7 @@ export default function EmployeeAnalyticsTable({ employees, range }: { employees
                     {r.conversionRate == null ? "—" : `${(r.conversionRate * 100).toFixed(1)}%`}
                   </td>
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                    {r.lastActivityAt ? relativeTime(r.lastActivityAt) : "No activity yet"}
+                    {r.lastActivityAt ? relativeTime(r.lastActivityAt, clock.now) : "No activity yet"}
                   </td>
                 </tr>
               ))}

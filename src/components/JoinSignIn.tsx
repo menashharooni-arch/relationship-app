@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import Link from "next/link";
 import { useIsNativeApp } from "@/lib/platform";
@@ -10,22 +9,22 @@ import { useIsNativeApp } from "@/lib/platform";
 // invitee (owner request): no detour to the login page, no password.
 //   • Google — one tap with the invited email's Google account, or
 //   • a passwordless email link sent to the INVITED address.
-// Both land back on /join/<token> (via /auth/callback, which provisions a
-// brand-new account through /onboarding first), where they accept the invite.
+// Both land back on /join/<token> (Google via /onboarding; the email link via
+// /auth/confirm, which provisions a brand-new account through /onboarding
+// first), where they accept the invite.
 // The email is fixed to the invited address — the join API only accepts the
 // invite under that email anyway, so offering a free-text field would just
 // let people sign in as the wrong account and hit a dead end.
 //
-// `linkFailed`: /auth/callback sends an invitee back here (?link=expired) when
-// an emailed link couldn't sign them in — it was opened in a different browser
-// from the one that asked for it (the sign-in is tied to that browser), or it
-// was already used. They used to land on the generic login page, invite lost,
-// with a message about "the device where you built your card".
+// `linkFailed`: /auth/confirm sends an invitee back here (?link=expired) when
+// an emailed link couldn't sign them in — it expired or was already used.
+// They used to land on the generic login page, invite lost, with a message
+// about "the device where you built your card".
 export default function JoinSignIn({ token, inviteEmail, linkFailed = false }: { token: string; inviteEmail: string; linkFailed?: boolean }) {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState(
     linkFailed
-      ? "That sign-in link didn't work here — it has to be opened in the same browser that asked for it, and only once. Send a new one below."
+      ? "That sign-in link has expired or was already used. Send yourself a new one below."
       : "",
   );
 
@@ -36,25 +35,20 @@ export default function JoinSignIn({ token, inviteEmail, linkFailed = false }: {
     setStatus("sending");
     setError("");
     try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: inviteEmail,
-        options: {
-          // New invitees get an account created by the link itself — that's the
-          // whole point: no password, no signup form.
-          shouldCreateUser: true,
-          // The CURRENT origin, not a hardcoded APP_URL: the magic link must
-          // return to the same host that requested it — the PKCE code-verifier
-          // cookie lives there, so a preview-deploy request redirected to prod
-          // would fail its code exchange.
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
-        },
+      // Our own route, not signInWithOtp: it sends a SwiftCard email branded
+      // like the invite (not Supabase's bare "Your sign-in link"), always to the
+      // invited address read from the invite itself, and its link is verified
+      // on the server (/auth/confirm) — so it works on whatever device or
+      // browser the email is opened in. A brand-new invitee's account is
+      // created by the link, as before: no password, no signup form.
+      const res = await fetch("/api/join/sign-in-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
       });
-      if (otpError) {
-        setError(otpError.message);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error ?? "Couldn't send the link — please try again.");
         setStatus("error");
         return;
       }
@@ -76,7 +70,7 @@ export default function JoinSignIn({ token, inviteEmail, linkFailed = false }: {
         <p className="text-white font-semibold text-sm">Check your email</p>
         <p className="text-gray-500 text-xs mt-1.5 leading-relaxed">
           We sent a sign-in link to <span className="text-gray-300 font-medium">{inviteEmail}</span>.
-          Open it in this same browser and you&apos;ll land right back here to accept.
+          Open it on any device and you&apos;ll land right back on your invite to accept.
         </p>
         <button type="button" onClick={sendLink} className="text-blue-400 hover:text-blue-300 text-xs mt-3 transition-colors">
           Didn&apos;t get it? Send again

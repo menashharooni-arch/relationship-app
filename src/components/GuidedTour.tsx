@@ -24,6 +24,20 @@ const PAD = 8;        // spotlight padding around the element
 const GAP = 14;       // gap between spotlight and tooltip
 const TIP_W = 340;    // tooltip width (also used for clamping)
 const FIND_TRIES = 24; // ~2.9s of polling before giving up on a missing element
+// While the route's loading skeleton is still up, the page hasn't arrived —
+// nothing on it can be "missing" yet. Those polls don't spend FIND_TRIES, up
+// to this cap (~20s) so a page that never finishes can't hold the tour forever.
+const LOADING_WAITS = 165;
+
+// Every route skeleton (PortalSkeleton, the dashboard's loading switch) marks
+// itself <main aria-busy="true">. The tour navigates with router.push, and
+// with a loading.tsx the pathname flips to the new route as soon as the
+// SKELETON shows — so the anchor search used to run its 2.9s against a page
+// still being rendered on the server, and on a slow load (Settings, most of
+// all) it gave up and skipped a step that was about to appear.
+function routeStillLoading(): boolean {
+  return !!document.querySelector('main[aria-busy="true"]');
+}
 // Route pushes for one step before we treat its page as unreachable. Small on
 // purpose: a page that redirects away bounces on the FIRST attempt, and every
 // retry is a wasted navigation the user watches.
@@ -245,6 +259,7 @@ export default function GuidedTour({
     }
 
     let tries = 0;
+    let loadingWaits = 0;
     let cancelled = false;
     let cleanupClick: (() => void) | undefined;
 
@@ -261,6 +276,10 @@ export default function GuidedTour({
           el.addEventListener("click", onClick, { capture: true });
           cleanupClick = () => el.removeEventListener("click", onClick, { capture: true } as EventListenerOptions);
         }
+        return;
+      }
+      if (routeStillLoading() && ++loadingWaits < LOADING_WAITS) {
+        window.setTimeout(tryFind, 120);
         return;
       }
       if (++tries >= FIND_TRIES) {

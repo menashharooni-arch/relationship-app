@@ -45,9 +45,12 @@ export function isWithin(iso: string | null | undefined, ms: number, now: number
 
 // "Jul 12" style — for invite-sent dates where the calendar day matters more
 // than the distance.
-export function shortDate(iso: string | null | undefined): string {
+// `timeZone` — pass one whenever the output is rendered on BOTH the server and
+// the client (see components/DisplayClock): without it each side uses its own
+// zone, and the server's UTC day is tomorrow for an American evening.
+export function shortDate(iso: string | null | undefined, timeZone?: string): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(timeZone ? { timeZone } : {}) });
 }

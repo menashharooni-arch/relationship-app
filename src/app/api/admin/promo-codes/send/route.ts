@@ -7,6 +7,7 @@ import { getAccountEmailMap } from "@/lib/account-email";
 import { emailOptOutSet, isEmailOptedOut } from "@/lib/messaging";
 import { canSendMarketing } from "@/lib/marketing-consent";
 import { preferenceCenterUrl } from "@/lib/email-token";
+import { officeTeamMemberIds } from "@/lib/office-team-members";
 
 // POST /api/admin/promo-codes/send — email a promo code to targeted users.
 // Same session-based admin gate as the rest of the console.
@@ -64,6 +65,20 @@ export async function POST(req: NextRequest) {
   else if (segment === "pro") q = q.in("plan", ["pro", "enterprise"]);
   const { data: profiles } = await q;
 
+  // TEAM MEMBERS never get a plan offer. Their plan is a seat their company
+  // pays for, so "N days of SwiftCard Pro, free" is an offer they cannot use —
+  // and the app itself never asks a team member to choose a plan or pay.
+  // (The "pro" segment is pro+enterprise, and "all" has no plan filter, so
+  // both reached them.) Fail closed: no exclusion list, no send.
+  let teamMembers: Set<string>;
+  try {
+    teamMembers = await officeTeamMemberIds(admin);
+  } catch {
+    return NextResponse.json({ error: "Couldn't load the team-member list, so nothing was sent. Try again." }, { status: 500 });
+  }
+  const targets = (profiles ?? []).filter((p) => !teamMembers.has(p.id as string));
+  const teamMembersSkipped = (profiles?.length ?? 0) - targets.length;
+
   const resend = new Resend(process.env.RESEND_API_KEY);
   // Send to each user's ACCOUNT (auth) email, not profiles.email (which can be
   // the card's public contact address).
@@ -74,7 +89,7 @@ export async function POST(req: NextRequest) {
   // in one invocation is a timeout risk that can strand a send half-finished.
   const prefsById = new Map<string, { marketing_emails?: boolean | null; unsubscribe_token?: string | null }>();
   {
-    const ids = (profiles ?? []).map((p) => p.id as string);
+    const ids = targets.map((p) => p.id as string);
     for (let i = 0; i < ids.length; i += 500) {
       const { data: rows } = await admin
         .from("email_preferences")
@@ -90,14 +105,14 @@ export async function POST(req: NextRequest) {
   // unsubscribe promised we'd stop emailing that address; it was only ever
   // honoured by the lead/follow-up senders, never here.
   const contactOptOuts = await emailOptOutSet(
-    (profiles ?? []).map((p) => authEmails.get(p.id) ?? (p.email as string | null)),
+    targets.map((p) => authEmails.get(p.id) ?? (p.email as string | null)),
   );
 
   let sent = 0;
   let skipped = 0;
   const errors: string[] = [];
 
-  for (const profile of profiles ?? []) {
+  for (const profile of targets) {
     const recipient = authEmails.get(profile.id) ?? profile.email;
     if (!recipient) { skipped++; continue; }
 
@@ -162,5 +177,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ sent, skipped, errors });
+  return NextResponse.json({ sent, skipped, teamMembersSkipped, errors });
 }
