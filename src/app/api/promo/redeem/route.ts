@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isRateLimited } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { promoLabel, scopeLabel, durationLabel, promoScopeMessage, isGrantCode, type PromoRow } from "@/lib/promo";
-import { PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
+import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
+import { revalidateUserCards } from "@/lib/card-page-data";
 import { provisionOfficeForOwner } from "@/lib/office-billing-sync";
 
 // What the person is shown about a code — one shape for the signed-in
@@ -210,6 +211,14 @@ export async function POST(req: NextRequest) {
         console.error("[promo] office provision failed for grant:", e);
       }
     }
+
+    // The plan is settled, so the account's cards go live now and the
+    // "Your SwiftCard is live" email is finally true — exactly what the Stripe
+    // webhook and the App Store sync do at this moment. Without it a granted
+    // account never got its welcome email, while the "Your card is live!"
+    // screen told them "We also sent you an email with your link".
+    await revalidateUserCards(user.id);
+    after(() => sendWelcomeWhenCardLive(user.id, user.email));
 
     return NextResponse.json({
       success: true,

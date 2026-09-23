@@ -297,7 +297,9 @@ export default function GuidedTour({
     tipW: number;
     tipH: number;
     sig: string;              // last-applied layout signature (bail when equal)
-  }>({ el: null, radius: "12px", tipStep: -1, tipW: TIP_W, tipH: 160, sig: "" });
+    nudgedStep: number;       // step the page was already nudged for (once each)
+    nudgeT?: ReturnType<typeof setTimeout>;
+  }>({ el: null, radius: "12px", tipStep: -1, tipW: TIP_W, tipH: 160, sig: "", nudgedStep: -1 });
 
   function startLoop() {
     stopLoop();
@@ -417,7 +419,29 @@ export default function GuidedTour({
       else if (fitsAbove) above();
       else if (fitsRight) right();
       else if (fitsLeft) left_();
-      else { top = clamp(y1 + GAP, H - th); left = clamp(r.left + r.width / 2 - tw / 2, W - tw); }
+      else {
+        top = clamp(y1 + GAP, H - th); left = clamp(r.left + r.width / 2 - tw / 2, W - tw);
+        // Nothing fits with the target where scrollIntoView left it (centred),
+        // but target and tooltip DO fit stacked. On a phone the "Your SwiftCard —
+        // try it" card is ~310px tall: centred, the tooltip was clamped over the
+        // card's lower half — over the very Scan to connect button the step asks
+        // them to tap. Once the scroll has settled, move the page up just enough
+        // for the tooltip to sit underneath (once per step; the next frame lays
+        // out "below" with the new rect).
+        if (m.nudgedStep !== idxRef.current && (y1 - y0) + GAP + th + 16 <= H) {
+          if (m.nudgeT) clearTimeout(m.nudgeT);
+          m.nudgeT = setTimeout(() => {
+            const t = targetRef.current;
+            if (!t || m.nudgedStep === idxRef.current) return;
+            const rr = t.getBoundingClientRect();
+            const need = rr.bottom + PAD + GAP + m.tipH + 8 - window.innerHeight;
+            if (need > 0 && rr.top - PAD - need >= 64) {
+              m.nudgedStep = idxRef.current;
+              window.scrollBy({ top: need, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+            }
+          }, 400);
+        }
+      }
 
       tipEl.style.left = `${Math.round(left!)}px`;
       tipEl.style.top = `${Math.round(top!)}px`;

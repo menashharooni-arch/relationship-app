@@ -111,7 +111,9 @@ const STEP_DEFS: TourStepDef[] = [
     path: DASH,
     anchor: "nav-dashboard",
     title: "Dashboard",
-    body: "Your home base — traffic, contacts, and card, all in one place. You're on it now.",
+    // On a phone this spotlights the tab bar's "Home" tab, under a step titled
+    // "Dashboard" — so the copy names both.
+    body: "Your home base — traffic, contacts, and card, all in one place. You're on it now. On a phone it's the Home tab.",
     placement: "bottom",
   },
   {
