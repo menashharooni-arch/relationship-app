@@ -9,7 +9,7 @@ import { armWatchdogLoop, isContinuous, CONTINUOUS_AGENTS } from "@/lib/agent-wa
 // that is what makes PAUSE take effect mid-run). Run/Start-All dispatch the
 // GitHub Actions workflows via the REST API using a fine-grained PAT
 // (GITHUB_AGENTS_TOKEN, actions:write on this repo) set in Vercel env.
-const REPO = process.env.AGENTS_GITHUB_REPO || "menashharooni-arch/relationship-app";
+const REPO = process.env.AGENTS_GITHUB_REPO || "swiftcard/relationship-app";
 
 // Comms log: the owner's orders and Atlas's acknowledgments, written at the
 // moment the real action happens. Never throws — comms must not break controls.

@@ -9,7 +9,7 @@ import { firstName } from "@/lib/agent-org";
 // its own GitHub Actions run (agent-chat.yml) — one run per responder, so
 // "@everyone" costs one run per agent. Replies land back in agent_chat from
 // the runner; this route only writes the owner's side and the orders.
-const REPO = process.env.AGENTS_GITHUB_REPO || "menashharooni-arch/relationship-app";
+const REPO = process.env.AGENTS_GITHUB_REPO || "swiftcard/relationship-app";
 const CHAT_WORKFLOW = "agent-chat.yml";
 
 async function dispatchChatTurn(responder: string): Promise<{ ok: boolean; status: number }> {

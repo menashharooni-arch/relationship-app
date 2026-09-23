@@ -12,7 +12,7 @@ import { sb, partyOf } from "./agentkit.mjs";
 
 export const ORG = JSON.parse(readFileSync(new URL("../org.json", import.meta.url), "utf8")).parties;
 export const CONFIG = JSON.parse(readFileSync(new URL("../config.json", import.meta.url), "utf8"));
-const REPO = process.env.GITHUB_REPOSITORY ?? "menashharooni-arch/relationship-app";
+const REPO = process.env.GITHUB_REPOSITORY ?? "swiftcard/relationship-app";
 
 /** The party id a responder speaks as ("seo" → "jake", "manager" → "atlas", "maya" → "maya"). */
 export function partyOfResponder(responder) {

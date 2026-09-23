@@ -14,7 +14,7 @@ import agentConfig from "../../marketing-agents/config.json";
 // cron. `concurrency` on the workflow means arming an already-live watch is a
 // harmless no-op, so this can be called freely.
 
-const REPO = process.env.AGENTS_GITHUB_REPO || "menashharooni-arch/relationship-app";
+const REPO = process.env.AGENTS_GITHUB_REPO || "swiftcard/relationship-app";
 const WATCHDOG_WORKFLOW = "agent-watchdog.yml";
 
 /** The agent_ids that watch continuously rather than on a cadence. */

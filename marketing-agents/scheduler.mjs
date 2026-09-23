@@ -37,7 +37,7 @@ for (const r of rows) {
   if (!isDue(schedule, prior?.[0]?.started_at ?? null, new Date())) continue;
   const wf = config.agents[r.agent_id]?.workflow;
   if (!wf) continue;
-  const res = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY ?? "menashharooni-arch/relationship-app"}/actions/workflows/${wf}/dispatches`, {
+  const res = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY ?? "swiftcard/relationship-app"}/actions/workflows/${wf}/dispatches`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: "application/vnd.github+json" },
     body: JSON.stringify({ ref: "main", inputs: { trigger: "schedule" } }),

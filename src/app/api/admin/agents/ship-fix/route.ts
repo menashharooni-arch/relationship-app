@@ -16,7 +16,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 // It can therefore never merge arbitrary PRs, and never merges code whose
 // tests aren't green.
 
-const REPO = process.env.AGENTS_GITHUB_REPO || "menashharooni-arch/relationship-app";
+const REPO = process.env.AGENTS_GITHUB_REPO || "swiftcard/relationship-app";
 const GH = "https://api.github.com";
 
 function ghHeaders() {

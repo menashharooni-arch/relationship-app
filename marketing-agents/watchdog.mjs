@@ -32,7 +32,7 @@ import { pollMediaPool } from "./lib/media-pool.mjs";
 const config = JSON.parse(readFileSync(new URL("./config.json", import.meta.url), "utf8"));
 const TICK_SEC = Number(process.env.WATCHDOG_TICK_SEC || 60);
 const BUDGET_MIN = Number(process.env.WATCHDOG_BUDGET_MIN || 330); // 5h30m; job cap is 6h
-const REPO = process.env.GITHUB_REPOSITORY ?? "menashharooni-arch/relationship-app";
+const REPO = process.env.GITHUB_REPOSITORY ?? "swiftcard/relationship-app";
 const WATCHDOGS = Object.keys(DETECTORS).filter((id) => config.agents[id]?.continuous);
 
 // The original four probe on every tick (a down site must be caught within a
