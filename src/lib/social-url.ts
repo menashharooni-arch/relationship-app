@@ -7,6 +7,9 @@ function escapeSpaces(url: string): string {
 
 // Build a valid profile URL from whatever was stored: a full URL, a platform URL
 // (e.g. "instagram.com/x"), an "@handle", or a bare handle.
+/** Networks whose handles are one word: a space is never valid in them. */
+const HANDLE_ONLY = new Set(["instagram", "twitter", "tiktok", "snapchat", "youtube"]);
+
 export function socialUrl(platform: string, raw?: string | null): string | null {
   if (!raw) return null;
   const v = raw.trim();
@@ -47,6 +50,11 @@ export function socialUrl(platform: string, raw?: string | null): string | null 
   if (/\s/.test(handle) && (platform === "linkedin" || platform === "facebook")) {
     handle = handle.toLowerCase().replace(/\s+/g, "-");
   }
+  // Instagram, X, TikTok, Snapchat and YouTube handles can never contain a
+  // space, so a spaced value ("Sam Builder") built a link that opens nothing.
+  // Closing the gap gives the likeliest handle and at least a valid URL
+  // (2026-09-22 signup review). Here, at render, so stored rows are covered.
+  if (/\s/.test(handle) && HANDLE_ONLY.has(platform)) handle = handle.replace(/\s+/g, "");
 
   switch (platform) {
     case "linkedin":
@@ -99,7 +107,8 @@ export function normalizeSocial(raw: string, platform: string): string {
     }
     return v;
   }
-  return v.startsWith("@") ? v : `@${v.replace(/^@/, "")}`;
+  // One-word handle networks: close any spaces up (see socialUrl).
+  return `@${v.replace(/^@/, "").replace(/\s+/g, "")}`;
 }
 
 /**

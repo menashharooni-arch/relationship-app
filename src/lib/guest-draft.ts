@@ -49,10 +49,10 @@ function newId(): string {
   return `d_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
-function readStorage(): GuestDraft | null {
+function readStorage(key: string = GUEST_DRAFT_KEY): GuestDraft | null {
   if (!storageAvailable()) return null;
   try {
-    const raw = localStorage.getItem(GUEST_DRAFT_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as GuestDraft;
     if (!parsed || parsed.kind !== "card" || typeof parsed.id !== "string") return null;
@@ -65,80 +65,112 @@ function readStorage(): GuestDraft | null {
 
 // In-memory copy so rapid saves merge without a storage round-trip; the debounced
 // flush persists it. requireAuth flushes synchronously before it navigates.
-let mem: GuestDraft | null = null;
-let flushTimer: ReturnType<typeof setTimeout> | null = null;
+// Kept PER KEY: the guest draft and a signed-in account's own draft (see
+// accountDraftKey) never share a copy.
+const mems = new Map<string, GuestDraft | null>();
+const flushTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-export function loadDraft(): GuestDraft | null {
-  if (mem) return mem;
-  mem = readStorage();
-  return mem;
-}
-
-function writeNow(draft: GuestDraft): void {
+function writeNow(draft: GuestDraft, key: string = GUEST_DRAFT_KEY): void {
   if (!storageAvailable()) return;
   try {
-    localStorage.setItem(GUEST_DRAFT_KEY, JSON.stringify(draft));
+    localStorage.setItem(key, JSON.stringify(draft));
   } catch {
     /* quota / private mode — the in-memory copy still carries the session */
   }
 }
 
+/**
+ * The draft store for one key. The guest builder uses GUEST_DRAFT_KEY (the
+ * functions below are exactly this for that key). A SIGNED-IN builder uses its
+ * own account's key, so a refresh no longer throws away a card being built by
+ * someone who already has an account (2026-09-22 signup review) — and because
+ * the key carries the account id, one account's unfinished card can never be
+ * offered to another account on the same browser, and it is never "claimed".
+ */
+export function draftStore(key: string) {
+  const load = (): GuestDraft | null => {
+    if (mems.has(key)) return mems.get(key) ?? null;
+    const d = readStorage(key);
+    mems.set(key, d);
+    return d;
+  };
+  const flush = (): void => {
+    const t = flushTimers.get(key);
+    if (t) { clearTimeout(t); flushTimers.delete(key); }
+    const m = mems.get(key);
+    if (m) writeNow(m, key);
+  };
+  const save = (partial: Partial<GuestDraft>): void => {
+    const base: GuestDraft =
+      mems.get(key) ??
+      readStorage(key) ?? {
+        id: newId(),
+        kind: "card",
+        payload: {},
+        images: {},
+        step: 1,
+        updatedAt: Date.now(),
+      };
+    const next: GuestDraft = {
+      ...base,
+      ...partial,
+      // payload/images are full snapshots from the editor — replace, don't merge.
+      payload: partial.payload ?? base.payload,
+      images: partial.images ?? base.images,
+      id: base.id || newId(),
+      kind: "card",
+      updatedAt: Date.now(),
+    };
+    mems.set(key, next);
+    // Debounce the actual localStorage write — the editor calls this on every
+    // keystroke.
+    const t = flushTimers.get(key);
+    if (t) clearTimeout(t);
+    if (typeof setTimeout !== "undefined") {
+      flushTimers.set(key, setTimeout(() => {
+        flushTimers.delete(key);
+        const m = mems.get(key);
+        if (m) writeNow(m, key);
+      }, 400));
+    } else {
+      writeNow(next, key);
+    }
+  };
+  const clear = (): void => {
+    mems.set(key, null);
+    const t = flushTimers.get(key);
+    if (t) { clearTimeout(t); flushTimers.delete(key); }
+    if (!storageAvailable()) return;
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  };
+  return { load, save, clear, flush };
+}
+
+/** A signed-in account's own unfinished-card key. */
+export function accountDraftKey(userId: string): string {
+  return `swiftcard_card_draft:${userId}`;
+}
+
+const guestStore = draftStore(GUEST_DRAFT_KEY);
+
+export function loadDraft(): GuestDraft | null {
+  return guestStore.load();
+}
+
 export function flushDraft(): void {
-  if (flushTimer) {
-    clearTimeout(flushTimer);
-    flushTimer = null;
-  }
-  if (mem) writeNow(mem);
+  guestStore.flush();
 }
 
 export function saveDraft(partial: Partial<GuestDraft>): void {
-  const base: GuestDraft =
-    mem ??
-    readStorage() ?? {
-      id: newId(),
-      kind: "card",
-      payload: {},
-      images: {},
-      step: 1,
-      updatedAt: Date.now(),
-    };
-
-  mem = {
-    ...base,
-    ...partial,
-    // payload/images are full snapshots from the editor — replace, don't merge.
-    payload: partial.payload ?? base.payload,
-    images: partial.images ?? base.images,
-    id: base.id || newId(),
-    kind: "card",
-    updatedAt: Date.now(),
-  };
-
-  // Debounce the actual localStorage write — the editor calls this on every
-  // keystroke.
-  if (flushTimer) clearTimeout(flushTimer);
-  if (typeof setTimeout !== "undefined") {
-    flushTimer = setTimeout(() => {
-      flushTimer = null;
-      if (mem) writeNow(mem);
-    }, 400);
-  } else if (mem) {
-    writeNow(mem);
-  }
+  guestStore.save(partial);
 }
 
 export function clearDraft(): void {
-  mem = null;
-  if (flushTimer) {
-    clearTimeout(flushTimer);
-    flushTimer = null;
-  }
-  if (!storageAvailable()) return;
-  try {
-    localStorage.removeItem(GUEST_DRAFT_KEY);
-  } catch {
-    /* ignore */
-  }
+  guestStore.clear();
 }
 
 export function hasPendingDraft(): boolean {
@@ -158,8 +190,9 @@ export const CLAIM_CONSENT_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 export function markClaimConsent(): void {
   const draft = loadDraft();
   if (!draft) return;
-  mem = { ...draft, claimRequestedAt: Date.now() };
-  writeNow(mem);
+  const consented = { ...draft, claimRequestedAt: Date.now() };
+  mems.set(GUEST_DRAFT_KEY, consented);
+  writeNow(consented);
 }
 
 // True when the pending draft carries fresh, explicit save-consent.
@@ -212,7 +245,7 @@ export function useGuestDraft(): {
 
   const save = useCallback((p: Partial<GuestDraft>) => {
     saveDraft(p);
-    setDraft(mem);
+    setDraft(loadDraft());
   }, []);
 
   const clear = useCallback(() => {

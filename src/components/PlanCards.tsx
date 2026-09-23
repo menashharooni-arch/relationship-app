@@ -137,7 +137,10 @@ export default function PlanCards({
   return (
     <div>
       {/* Monthly / annual toggle — matches the Pricing page */}
-      <div className="flex justify-center mb-8">
+      {/* On a phone with the Free tab open the switch changes nothing on
+          screen, so it is hidden — `invisible`, not removed, so the tabs below
+          do not jump when switching (2026-09-22 signup review). */}
+      <div className={`flex justify-center mb-8 ${isMobile && mobileTier === "free" ? "invisible" : ""}`} aria-hidden={isMobile && mobileTier === "free" ? true : undefined}>
         {/* Theme classes (gray-*), not white/NN: this chooser renders on /welcome
             and the builder's plan gate, which are LIGHT for most people, and
             the light theme remaps gray-* but not white-with-opacity — the

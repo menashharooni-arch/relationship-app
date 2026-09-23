@@ -9,6 +9,7 @@ import { isProTrialEligible } from "@/lib/trial-eligibility";
 import { trialHistoryFor } from "@/lib/trial-ledger";
 import { findPendingInviteForEmail } from "@/lib/pending-invite";
 import { referralGiftPending } from "@/lib/referral-server";
+import { cardSlug as slugFor, prettyCardSlug } from "@/lib/slug";
 
 // Post-signup onboarding step. A brand-new account lands here right after its
 // first card is claimed (GuestDraftClaim → /welcome?card=slug): turn on
@@ -89,7 +90,7 @@ export default async function WelcomePage({
   // test can see it, because the code looks right.
   const { data: card } = await getAdminSupabase()
     .from("cards")
-    .select("template, customization, username")
+    .select("template, customization, username, name, company")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -104,7 +105,16 @@ export default async function WelcomePage({
       ]
     : [];
 
-  const cardSlug = typeof sp.card === "string" && sp.card ? sp.card : ((card?.username as string | undefined) ?? null);
+  const rawSlug = typeof sp.card === "string" && sp.card ? sp.card : ((card?.username as string | undefined) ?? null);
+  // Shown the way the builder shows it — "AaronLavi-MalveCapital", not
+  // "aaronlavi-malvecapital" — and by the same rule: only when that IS this
+  // card's link (routes are case-insensitive). The two "Your card is live!"
+  // screens disagreed on this (2026-09-22 signup review).
+  const cardName = (card?.name as string | null) ?? "";
+  const cardCompany = (card?.company as string | null) ?? "";
+  const cardSlug = rawSlug && card?.username === rawSlug && cardName && slugFor(cardName, cardCompany) === rawSlug
+    ? prettyCardSlug(cardName, cardCompany)
+    : rawSlug;
   // Same eligibility check /checkout uses, so /welcome never promises a trial
   // checkout won't grant.
   let trialEligible = true;

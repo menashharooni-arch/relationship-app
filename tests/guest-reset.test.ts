@@ -193,9 +193,11 @@ describe("resetGuestFlow wiring", () => {
     const src = read("src/app/cards/new/NewCardWizard.tsx");
     expect(src).toContain("Continue your card");
     expect(src).toContain("Start a new card");
-    // Discarding happens only in the "Start a new card" handler.
-    expect(src.match(/clearDraft\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(1);
-    expect(src).toMatch(/function startNewCard\(\)\s*\{\s*clearDraft\(\);/);
+    // Discarding happens only in the "Start a new card" handler. Since
+    // 2026-09-23 the builder works through `drafts` (the guest draft, or a
+    // signed-in account's own) rather than the guest-only clearDraft().
+    expect(src.match(/drafts\.clear\(\)/g)?.length ?? 0).toBeGreaterThanOrEqual(1);
+    expect(src).toMatch(/function startNewCard\(\)\s*\{\s*drafts\.clear\(\);/);
   });
 
   it("Start a new card really is blank — no 'Use what you already entered?' offer (owner, 2026-09-16)", () => {

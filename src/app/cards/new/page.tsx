@@ -26,6 +26,7 @@ const Wizard = NewCardWizard as ComponentType<{
   walletEnabled?: boolean;
   org?: OrgManaged | null;
   linkedinEnabled?: boolean;
+  draftOwner?: string | null;
 }>;
 
 // Guests may build a full card here WITHOUT an account — no login wall while
@@ -208,6 +209,7 @@ export default async function NewCardPage({
         walletEnabled={hasWalletConfig()}
         org={org}
         linkedinEnabled={!!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)}
+        draftOwner={authedAdd && user ? user.id : null}
       />
     </>
   );

@@ -69,3 +69,34 @@ describe("/welcome after the plan is chosen", () => {
     expect(confirm).not.toMatch(/router\.refresh|location\.reload/);
   });
 });
+
+describe("the two \"Your card is live!\" screens agree", () => {
+  const w = code("src/app/cards/new/NewCardWizard.tsx");
+  const plan = code("src/components/WelcomePlan.tsx");
+
+  it("one button label everywhere", () => {
+    expect(w).toContain("Go to my dashboard →");
+    expect(w).not.toContain("Continue to dashboard →");
+    expect(plan).toContain("Go to my dashboard →");
+  });
+
+  it("the builder says the email went out only when it did — the account's first card", () => {
+    expect(w).toMatch(/\{\(isFirstCard \|\| tourOnDone \|\| postCheckout\) && \(\s*<p[^>]*>We also sent you an email with your link\.<\/p>/);
+  });
+
+  it("/welcome shows the link the way the builder does (AaronLavi-MalveCapital), only when it is this card's", () => {
+    const p = code("src/app/welcome/page.tsx");
+    expect(p).toMatch(/\.select\("template, customization, username, name, company"\)/);
+    expect(p).toMatch(/slugFor\(cardName, cardCompany\) === rawSlug\s*\?\s*prettyCardSlug\(cardName, cardCompany\)\s*:\s*rawSlug/);
+  });
+});
+
+describe("Monthly / Annual on the Free tab", () => {
+  it("hidden — space kept, so nothing jumps — on a phone with Free open; desktop unchanged", () => {
+    for (const f of ["src/components/PlanCards.tsx", "src/app/pricing/page.tsx"]) {
+      const c = code(f);
+      expect(c, f).toMatch(/\$\{isMobile && mobileTier === "free" \? "invisible" : ""\}/);
+      expect(c, f).toMatch(/aria-hidden=\{isMobile && mobileTier === "free" \? true : undefined\}/);
+    }
+  });
+});

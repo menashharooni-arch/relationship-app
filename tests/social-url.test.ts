@@ -47,6 +47,21 @@ describe("normalizeSocial", () => {
   it("returns empty string for empty input", () => {
     expect(normalizeSocial("   ", "instagram")).toBe("");
   });
+
+  // 2026-09-22 signup review: "Sam Builder" typed into Instagram was stored
+  // as "@Sam Builder" and built instagram.com/Sam%20Builder — a dead link.
+  it("closes spaces in one-word handle networks, at save and at render", () => {
+    for (const p of ["instagram", "tiktok", "twitter", "snapchat"]) {
+      expect(normalizeSocial("Sam Builder", p), p).toBe("@SamBuilder");
+    }
+    expect(socialUrl("instagram", "@Sam Builder")).toBe("https://instagram.com/SamBuilder");
+    expect(socialUrl("tiktok", "Sam Builder")).toBe("https://tiktok.com/@SamBuilder");
+    expect(socialUrl("youtube", "My Channel")).toBe("https://youtube.com/@MyChannel");
+    // LinkedIn / Facebook keep their hyphenated-name rule.
+    expect(socialUrl("linkedin", "John Doe")).toBe("https://linkedin.com/in/john-doe");
+    // An unspaced handle is untouched.
+    expect(normalizeSocial("@aaron", "instagram")).toBe("@aaron");
+  });
 });
 
 // The user-reported LinkedIn breakage: a pasted URL must stay linkable, and a

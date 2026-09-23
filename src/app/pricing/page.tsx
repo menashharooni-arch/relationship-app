@@ -180,7 +180,9 @@ export default function PricingPage() {
             </div>
 
             {/* Monthly / Annual toggle */}
-            <div className="mt-8 inline-flex items-center gap-4 rounded-full px-5 py-2.5 border border-slate-200 bg-slate-50" data-reveal="fade">
+            {/* Hidden (space kept) on a phone with the Free tab open, where it
+                changes nothing — same rule as PlanCards. */}
+            <div className={`mt-8 inline-flex items-center gap-4 rounded-full px-5 py-2.5 border border-slate-200 bg-slate-50 ${isMobile && mobileTier === "free" ? "invisible" : ""}`} aria-hidden={isMobile && mobileTier === "free" ? true : undefined} data-reveal="fade">
               <span className={`text-sm font-medium transition-colors ${!annual ? "text-slate-900 font-bold" : "text-slate-600"}`}>Monthly</span>
               <button onClick={() => setAnnual(!annual)} aria-label="Toggle annual billing" aria-pressed={annual} className="relative w-11 h-6 rounded-full transition-colors duration-200" style={{ background: annual ? "#2563EB" : "#cbd5e1" }}>
                 <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200" style={{ transform: annual ? "translateX(22px)" : "translateX(2px)" }} />

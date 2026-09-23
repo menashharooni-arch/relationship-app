@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ImageUpload";
@@ -28,7 +28,7 @@ import type { CardAddress, CardData, CardLink, CardPhone, PhoneLabel, CustomLayo
 import { socialUrl, socialDestination } from "@/lib/social-url";
 import { SOCIAL_INPUTS, socialHint } from "@/lib/social-input";
 import { cardSlug, prettyCardSlug } from "@/lib/slug";
-import { useGuestDraft, saveDraft, loadDraft, clearDraft, draftHasWork, type GuestDraft } from "@/lib/guest-draft";
+import { useGuestDraft, draftHasWork, draftStore, accountDraftKey, GUEST_DRAFT_KEY, type GuestDraft } from "@/lib/guest-draft";
 import { resetMarketingSketch } from "@/lib/guest-reset";
 import { consumePrefill, hasSketchContent, PREFILL_STYLE_KEYS, PREFILL_LINK_STYLE_KEYS, PREFILL_CARD_MEDIA_KEYS, PREFILL_LINK_MEDIA_KEYS, type CardPrefill } from "@/lib/prefill";
 // Shared with the edit form + server so a social typed here connects to the
@@ -148,7 +148,7 @@ function ManagedTag() {
 // server wrapper (cards/new/page.tsx) passes guest={!user}. Every change is
 // snapshotted to a localStorage draft; the "Create card" action is gated behind
 // auth (requireAuth) and the draft is claimed → real card after they sign in.
-export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, trialEligible = true, referralGift = false, tourOnDone = false, org = null, linkedinEnabled = false }: {
+export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, trialEligible = true, referralGift = false, tourOnDone = false, org = null, linkedinEnabled = false, draftOwner = null }: {
   isPro: boolean;
   /** A friend's free month is waiting (server-resolved): offered in the plan gate. */
   referralGift?: boolean;
@@ -172,6 +172,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   org?: OrgManaged | null;
   /** LinkedIn OAuth configured — enables "Suggest my headshot". */
   linkedinEnabled?: boolean;
+  /** Signed in: the account id whose own unfinished-card draft this builder
+   *  keeps (lib/guest-draft accountDraftKey). Null for a guest. */
+  draftOwner?: string | null;
 }) {
   const router = useRouter();
   // After a paid checkout the success page routes the OWNER here to create their
@@ -203,6 +206,16 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // Set when a fresh entry finds an unfinished card — shows the "Continue your
   // card / Start a new card" question instead of the form (see restoreDraft).
   const [resumeChoice, setResumeChoice] = useState<GuestDraft | null>(null);
+  // WHOSE unfinished card this builder keeps. A guest's lives under the guest
+  // key (claimed into the account after sign-up). A signed-in account now keeps
+  // its OWN, keyed by account id: a refresh used to throw a half-built card
+  // away (2026-09-22 signup review). Never for an Office member — their company
+  // half comes from the organization, and restoring over it would undo that.
+  const canDraft = guest || (!!draftOwner && !org);
+  const drafts = useMemo(
+    () => draftStore(guest || !draftOwner ? GUEST_DRAFT_KEY : accountDraftKey(draftOwner)),
+    [guest, draftOwner],
+  );
   // A mini-builder sketch that arrived while that question was open.
   const heldPrefillRef = useRef<CardPrefill | null>(null);
   // Synchronous in-flight guard for card creation. The `disabled` prop only
@@ -362,7 +375,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     // An unfinished card is waiting and the visitor hasn't said what to do with
     // it yet: hold the sketch until they answer "Continue your card / Start a
     // new card" (see resumeChoice below). Applying it now would mix two cards.
-    if (guest && !resumesSilently() && draftHasWork(loadDraft())) {
+    if (canDraft && !resumesSilently() && draftHasWork(drafts.load())) {
       heldPrefillRef.current = p;
       return;
     }
@@ -779,12 +792,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   };
 
   useEffect(() => {
-    if (!guest) { hydratedRef.current = true; applyLiPhoto(); return; }
+    if (!canDraft) { hydratedRef.current = true; applyLiPhoto(); return; }
     let live = true;
     // Async so the setState calls aren't synchronous inside the effect body;
     // the autosave effect below runs first and no-ops on !hydratedRef.
     (async () => {
-      const draft = loadDraft();
+      const draft = drafts.load();
       if (!live) return;
 
       if (draft && draftHasWork(draft)) {
@@ -802,7 +815,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         }
       } else if (draft) {
         // Opened once, nothing entered — not worth a question later.
-        clearDraft();
+        drafts.clear();
       }
       hydratedRef.current = true;
       applyLiPhoto();
@@ -811,7 +824,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     // validPresetTemplate is read as a snapshot of the URL this page opened
     // with; it can't change without a navigation that remounts the wizard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guest]);
+  }, [guest, canDraft, drafts]);
 
   // ── "Continue your card" / "Start a new card" ─────────────────────────────
   // Owner rule 2026-09-16: every "Get started free"-style button on the site
@@ -898,7 +911,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   }
 
   function startNewCard() {
-    clearDraft();
+    drafts.clear();
     setResumeChoice(null);
     const held = heldPrefillRef.current;
     heldPrefillRef.current = null;
@@ -935,11 +948,14 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   }, []);
 
   useEffect(() => {
-    if (!guest) return;
+    if (!canDraft) return;
     // Never write before the restore has run, or the empty first render wipes
     // the very draft we're about to load.
     if (!hydratedRef.current) return;
-    saveDraft({
+    // Step 5 is "Your card is live!" — the card exists. Saving here would put
+    // the finished card straight back as an "unfinished" one.
+    if (step >= 5) return;
+    drafts.save({
       step,
       payload: {
         username, label: cardLabel, name, company, title,
@@ -972,7 +988,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
         ...(headshotUrl ? { photo: headshotUrl } : {}),
       },
     });
-  }, [guest, step, username, cardLabel, name, company, title, primaryPhone, email, website,
+  }, [guest, canDraft, drafts, step, username, cardLabel, name, company, title, primaryPhone, email, website,
       socials, template, bio, links, address, cleanPhones, fax, templateStyleState,
       linkStyleState, customLayout, logoUrl, headshotUrl, showCardLinkBtn, logoShape]);
 
@@ -1098,6 +1114,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     // Remember the slug the server actually saved (it may have been deduped).
     const savedUsername = (data?.card?.username as string | undefined) || username;
     setCreatedUsername(savedUsername);
+    // Created — the account's unfinished-card draft is done with. (A guest's
+    // is cleared by the claim, which is what creates their card.)
+    if (!guest) drafts.clear();
     // The card exists and is serving — the single most important funnel step.
     track("card_creation_completed");
     track("card_published", { cardId: (data?.card?.id as string | undefined) });
@@ -1871,6 +1890,13 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             <div>
               <h1 className="text-2xl font-bold text-white">Your card is live!</h1>
               <p className="text-blue-400 text-sm mt-1 font-mono">swiftcard.me/{createdUsername ? (cardSlug(name, company) === createdUsername ? prettyUsername : createdUsername) : prettyUsername}</p>
+              {/* The account's first card is when "Your SwiftCard is live" goes
+                  out (lib/welcome-email: once per account, card + plan) — the
+                  same line the /welcome version of this screen shows. A later
+                  card sends nothing, so it says nothing. */}
+              {(isFirstCard || tourOnDone || postCheckout) && (
+                <p className="text-gray-400 text-sm mt-3">We also sent you an email with your link.</p>
+              )}
             </div>
 
             <EnablePushButton />
@@ -1882,7 +1908,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
               onClick={() => { markPushAsked(); router.push(doneHref); }}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-base py-4 rounded-full transition-colors"
             >
-              Continue to dashboard →
+              Go to my dashboard →
             </button>
           </div>
         )}
