@@ -295,7 +295,7 @@ export async function POST(req: Request) {
 
   // Whether they already have a card: join has just branded every card they
   // own, so sending them to build ANOTHER one made a second company card.
-  const { data: existingCard } = await admin.from("cards").select("id").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
+  const { data: existingCard } = await admin.from("cards").select("id, name").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
 
   // Team inbox (admin bell): a genuinely important event — someone JOINED. And
   // for each office this user just LEFT, tell that office too. Only when THIS
@@ -303,7 +303,9 @@ export async function POST(req: Request) {
   // never doubles the entry. Best-effort; the notify helper swallows its own
   // errors so accept is never blocked.
   if (didActivate) {
-    const joinerLabel = displayLabelFrom(member.invite_name as string | null, user.email);
+    // The name the admin typed, else the name on a card they already built,
+    // else their address — "Riley Chen joined", not "riley.c4 joined".
+    const joinerLabel = displayLabelFrom((member.invite_name as string | null) || (existingCard?.name as string | null), user.email);
     // Also to the admins' phones (team_alert, ≤2 a day — lib/team-alerts):
     // a new person on the team is news an owner wants, and it happens a
     // handful of times, not twenty times a day.
