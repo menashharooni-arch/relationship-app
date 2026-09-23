@@ -6,6 +6,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { decideRcEvent, type PlanSource, appleGrantPatch, sandboxEventAllowed } from "@/lib/iap-entitlement";
 import { recordProTrialStarted } from "@/lib/trial-ledger";
 import { markProEnded } from "@/lib/pro-ended";
+import { rcProActive } from "@/lib/revenuecat-rest";
 
 // ── RevenueCat webhook: the durable path from an App Store purchase to the
 //    profiles.plan column ─────────────────────────────────────────────────────
@@ -25,6 +26,86 @@ import { markProEnded } from "@/lib/pro-ended";
 // Source-guarding lives in lib/iap-entitlement.ts — Apple events can never
 // downgrade a Stripe-paying customer.
 
+const UID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Only Supabase uids are ever set as app_user_id. Anonymous RC ids
+ *  ($RCAnonymousID:...) and anything else can't map to a profile. */
+function realUids(list: unknown): string[] {
+  return (Array.isArray(list) ? list : [])
+    .filter((v): v is string => typeof v === "string" && UID.test(v));
+}
+
+type Admin = ReturnType<typeof getAdminSupabase>;
+
+/**
+ * Run one lifecycle decision against one account: sandbox gate, profile
+ * lookup, decideRcEvent, then the grant or revoke write. `eventType` is the
+ * RevenueCat type the decision is made AS (a transfer's losing side is decided
+ * as an EXPIRATION, its receiving side as a RENEWAL).
+ */
+async function applyEvent(
+  admin: Admin,
+  uid: string,
+  eventType: string,
+  opts: { environment?: string; periodType?: string },
+): Promise<string> {
+  // Sandbox events (a $0 purchase by a sandbox Apple ID — how App Review tests,
+  // and how anyone with a sandbox tester account could farm free Pro) only
+  // count for the designated review/test accounts. The auth lookup runs on the
+  // rare sandbox path only.
+  if (opts.environment?.toUpperCase() === "SANDBOX") {
+    const { data: authUser } = await admin.auth.admin.getUserById(uid);
+    if (!sandboxEventAllowed(authUser?.user?.email)) return "sandbox_not_allowed";
+  }
+
+  const { data: profile, error } = await admin
+    .from("profiles")
+    .select("id, plan, customization, stripe_subscription_id, office_id")
+    .eq("id", uid)
+    .maybeSingle();
+  if (error) throw new Error(`lookup_failed: ${error.message}`);
+  if (!profile) return "no_profile";
+
+  const customization = { ...((profile.customization as Record<string, unknown> | null) ?? {}) };
+  const decision = decideRcEvent({
+    eventType,
+    currentPlan: (profile.plan as string | null) ?? null,
+    planSource: customization._planSource as PlanSource | undefined,
+    hasStripeSubscription: !!profile.stripe_subscription_id,
+    isOfficeMember: !!profile.office_id,
+  });
+
+  if (decision.action === "grant") {
+    await admin
+      .from("profiles")
+      .update(appleGrantPatch(customization))
+      .eq("id", profile.id);
+    // Apple's intro offer is the Pro trial in the app. Apple enforces one per
+    // Apple ID itself; recording it here stops the WEB offering a second one.
+    if (opts.periodType?.toUpperCase() === "TRIAL") {
+      const { data: authUser } = await admin.auth.admin.getUserById(profile.id as string);
+      await recordProTrialStarted(profile.id as string, authUser?.user?.email ?? null);
+    }
+    // The plan is settled: cards go live now, and the welcome email can go.
+    await revalidateUserCards(profile.id as string);
+    after(() => sendWelcomeWhenCardLive(profile.id as string));
+    return "grant";
+  }
+
+  if (decision.action === "revoke") {
+    delete customization._planSource;
+    await admin
+      .from("profiles")
+      .update({ plan: "free", customization })
+      .eq("id", profile.id);
+    // Same "Pro ended — choose" experience as a Stripe cancellation.
+    await markProEnded(profile.id as string, { wasTrial: opts.periodType?.toUpperCase() === "TRIAL" });
+    return "revoke";
+  }
+
+  return "ignore";
+}
+
 export async function POST(req: NextRequest) {
   const expected = process.env.REVENUECAT_WEBHOOK_TOKEN;
   if (!expected) {
@@ -39,80 +120,75 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   const event = body?.event as
-    | { type?: string; app_user_id?: string; original_app_user_id?: string; environment?: string; period_type?: string }
+    | {
+        type?: string;
+        app_user_id?: string;
+        original_app_user_id?: string;
+        environment?: string;
+        period_type?: string;
+        cancel_reason?: string;
+        transferred_from?: unknown;
+        transferred_to?: unknown;
+      }
     | undefined;
   if (!event?.type) return NextResponse.json({ error: "no_event" }, { status: 400 });
-
-  // Anonymous RC ids ($RCAnonymousID:...) can appear on events that predate
-  // identification; there is no profile to map them to. Acknowledge so RC
-  // stops retrying — the post-login RENEWAL/transfer events carry the real id.
-  const uid = [event.app_user_id, event.original_app_user_id].find(
-    (v) => typeof v === "string" && v.length > 0 && !v.startsWith("$RCAnonymousID:"),
-  );
-  if (!uid) return NextResponse.json({ ok: true, skipped: "anonymous" });
-  // Only Supabase uids are ever set as app_user_id; anything else can't map
-  // to a profile, and a 500 here would make RC retry it forever.
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) {
-    return NextResponse.json({ ok: true, skipped: "not_a_uid" });
-  }
-
+  const type = event.type.toUpperCase();
   const admin = getAdminSupabase();
 
-  // Sandbox events (a $0 purchase by a sandbox Apple ID — how App Review tests,
-  // and how anyone with a sandbox tester account could farm free Pro) only
-  // count for the designated review/test accounts. The auth lookup runs on the
-  // rare sandbox path only.
-  if (event.environment?.toUpperCase() === "SANDBOX") {
-    const { data: authUser } = await admin.auth.admin.getUserById(uid);
-    if (!sandboxEventAllowed(authUser?.user?.email)) {
-      return NextResponse.json({ ok: true, skipped: "sandbox_not_allowed" });
+  try {
+    // ── Restore on a different SwiftCard account ─────────────────────────────
+    // "Restore Purchases" while signed in to account B, with the Apple ID that
+    // bought Pro on account A, moves the subscription to B. RevenueCat reports
+    // that as TRANSFER, which carries transferred_from / transferred_to and NO
+    // app_user_id — so it used to be skipped as "anonymous". B was granted by
+    // the in-app sync, and A kept Pro for good: every later EXPIRATION goes to
+    // B only, and nothing else ever looks at A. One subscription could unlock
+    // any number of accounts.
+    if (type === "TRANSFER") {
+      const applied: Record<string, string> = {};
+      for (const uid of realUids(event.transferred_from)) {
+        // Take Pro off only if RevenueCat agrees this account has none left
+        // (unknown → trust the event: the transfer is RevenueCat's own word).
+        if ((await rcProActive(uid)) === true) { applied[uid] = "still_active"; continue; }
+        applied[uid] = await applyEvent(admin, uid, "EXPIRATION", { environment: event.environment });
+      }
+      for (const uid of realUids(event.transferred_to)) {
+        applied[uid] = await applyEvent(admin, uid, "RENEWAL", { environment: event.environment });
+      }
+      return NextResponse.json({ ok: true, transfer: applied });
     }
-  }
 
-  const { data: profile, error } = await admin
-    .from("profiles")
-    .select("id, plan, customization, stripe_subscription_id, office_id")
-    .eq("id", uid)
-    .maybeSingle();
-  if (error) return NextResponse.json({ error: "lookup_failed" }, { status: 500 });
-  if (!profile) return NextResponse.json({ ok: true, skipped: "no_profile" });
+    const uid = [event.app_user_id, event.original_app_user_id].find(
+      (v) => typeof v === "string" && v.length > 0 && !v.startsWith("$RCAnonymousID:"),
+    );
+    // Anonymous RC ids can appear on events that predate identification; there
+    // is no profile to map them to. Acknowledge so RC stops retrying.
+    if (!uid) return NextResponse.json({ ok: true, skipped: "anonymous" });
+    // A 500 here would make RC retry it forever.
+    if (!UID.test(uid)) return NextResponse.json({ ok: true, skipped: "not_a_uid" });
 
-  const customization = { ...((profile.customization as Record<string, unknown> | null) ?? {}) };
-  const decision = decideRcEvent({
-    eventType: event.type,
-    currentPlan: (profile.plan as string | null) ?? null,
-    planSource: customization._planSource as PlanSource | undefined,
-    hasStripeSubscription: !!profile.stripe_subscription_id,
-    isOfficeMember: !!profile.office_id,
-  });
-
-  if (decision.action === "grant") {
-    await admin
-      .from("profiles")
-      .update(appleGrantPatch(customization))
-      .eq("id", profile.id);
-    // Apple's intro offer is the Pro trial in the app. Apple enforces one per
-    // Apple ID itself; recording it here stops the WEB offering a second one.
-    if (event.period_type?.toUpperCase() === "TRIAL") {
-      const { data: authUser } = await admin.auth.admin.getUserById(profile.id as string);
-      await recordProTrialStarted(profile.id as string, authUser?.user?.email ?? null);
+    // ── Refunds ───────────────────────────────────────────────────────────────
+    // Apple support refunding the purchase ends access, but RevenueCat reports
+    // it as a CANCELLATION (cancel_reason CUSTOMER_SUPPORT) — the same event
+    // type as "auto-renew switched off, access continues", which is correctly
+    // ignored. Nothing promised an EXPIRATION would follow, so a refunded buyer
+    // could keep Pro. Ask RevenueCat: only a definite "no longer active"
+    // revokes; anything unclear leaves the plan to the normal EXPIRATION.
+    if (type === "CANCELLATION" && event.cancel_reason?.toUpperCase() === "CUSTOMER_SUPPORT") {
+      if ((await rcProActive(uid)) === false) {
+        const applied = await applyEvent(admin, uid, "EXPIRATION", { environment: event.environment, periodType: event.period_type });
+        return NextResponse.json({ ok: true, applied, reason: "refund" });
+      }
+      return NextResponse.json({ ok: true, applied: "ignore", reason: "refund_still_active" });
     }
-    // The plan is settled: cards go live now, and the welcome email can go.
-    await revalidateUserCards(profile.id as string);
-    after(() => sendWelcomeWhenCardLive(profile.id as string));
-    return NextResponse.json({ ok: true, applied: "grant" });
-  }
 
-  if (decision.action === "revoke") {
-    delete customization._planSource;
-    await admin
-      .from("profiles")
-      .update({ plan: "free", customization })
-      .eq("id", profile.id);
-    // Same "Pro ended — choose" experience as a Stripe cancellation.
-    await markProEnded(profile.id as string, { wasTrial: event.period_type?.toUpperCase() === "TRIAL" });
-    return NextResponse.json({ ok: true, applied: "revoke" });
+    const applied = await applyEvent(admin, uid, type, { environment: event.environment, periodType: event.period_type });
+    if (applied === "sandbox_not_allowed" || applied === "no_profile") {
+      return NextResponse.json({ ok: true, skipped: applied });
+    }
+    return NextResponse.json({ ok: true, applied });
+  } catch {
+    // A failed lookup must be retried by RevenueCat, not acknowledged.
+    return NextResponse.json({ error: "lookup_failed" }, { status: 500 });
   }
-
-  return NextResponse.json({ ok: true, applied: "ignore" });
 }

@@ -93,7 +93,9 @@ describe("one Pro trial per person", () => {
   });
 
   it("an Apple intro offer counts as the trial too", () => {
-    expect(read("src/app/api/iap/revenuecat/route.ts")).toMatch(/period_type\?\.toUpperCase\(\) === "TRIAL"[\s\S]*recordProTrialStarted/);
+    // (the event's period_type reaches applyEvent as opts.periodType)
+    expect(read("src/app/api/iap/revenuecat/route.ts")).toMatch(/periodType: event\.period_type/);
+    expect(read("src/app/api/iap/revenuecat/route.ts")).toMatch(/periodType\?\.toUpperCase\(\) === "TRIAL"[\s\S]*recordProTrialStarted/);
     expect(read("src/app/api/iap/sync/route.ts")).toContain('backing?.period_type === "trial"');
   });
 

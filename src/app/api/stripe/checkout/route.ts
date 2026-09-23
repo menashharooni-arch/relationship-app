@@ -221,6 +221,45 @@ export async function POST(req: NextRequest) {
 
     const stripe = getStripe();
 
+    // ── The webhook gap: a checkout that already went through ────────────────
+    // The paid-plan guard above reads `plan` / `stripe_subscription_id`, which
+    // only exist once Stripe's webhook has run — seconds after payment, longer
+    // on a slow delivery. A second checkout in that gap (another tab, Back from
+    // "Setting up…", a double-tapped plan button on a different page) created a
+    // SECOND subscription, and the webhook then cancelled the first outright:
+    // no proration, no refund — a no-trial buyer paid twice. So ask Stripe
+    // directly: did this account complete a subscription checkout in the last
+    // hour that is still alive? If so, send them to wait for it instead.
+    try {
+      const accountEmail = await getAccountEmail(user.id, profile.email as string | null);
+      const recent = await stripe.checkout.sessions.list({
+        status: "complete",
+        created: { gte: Math.floor(Date.now() / 1000) - 3600 },
+        limit: 10,
+        ...(profile.stripe_customer_id
+          ? { customer: profile.stripe_customer_id as string }
+          : accountEmail ? { customer_details: { email: accountEmail } } : {}),
+      });
+      for (const s of recent.data) {
+        if (s.client_reference_id !== user.id || s.mode !== "subscription" || !s.subscription) continue;
+        const sub = typeof s.subscription === "string" ? await stripe.subscriptions.retrieve(s.subscription) : s.subscription;
+        if (["active", "trialing", "past_due", "incomplete"].includes(sub.status)) {
+          return NextResponse.json(
+            {
+              error: "already_subscribed",
+              message: "Your subscription is already going through — one moment while we set it up.",
+              redirect: `/checkout/success?plan=${(s.metadata?.seats ? "office" : "pro")}&session_id=${s.id}`,
+            },
+            { status: 409 },
+          );
+        }
+      }
+    } catch (e) {
+      // Never block a purchase on this lookup; the webhook's supersede logic is
+      // still there behind it.
+      console.error("[checkout] recent-session check failed:", e instanceof Error ? e.message : e);
+    }
+
     // Opt-in Pro trial (TRIAL_DAYS) for FIRST-TIME subscribers only. The card is
     // collected at checkout and Stripe bills automatically when the trial ends
     // unless they cancel. Eligibility lives in lib/trial-eligibility — the SAME
