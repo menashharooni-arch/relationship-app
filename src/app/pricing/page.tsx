@@ -73,6 +73,9 @@ export default function PricingPage() {
 
   const [annual, setAnnual] = useState(false);
   const [seats, setSeats] = useState<number>(OFFICE_MIN_SEATS);
+  // What is being TYPED in the Custom box, clamped only on blur. Clamping each
+  // keystroke turned the "1" of "12" into 2, so 10–19 could not be typed.
+  const [seatsDraft, setSeatsDraft] = useState<string | null>(null);
   const [loading, setLoading] = useState<"pro" | "enterprise" | null>(null);
   const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
   const [promo, setPromo] = useState<PromoState>({ code: "", status: "idle", message: "" });
@@ -280,8 +283,9 @@ export default function PricingPage() {
               </div>
               <div className="mt-2 flex items-center gap-2">
                 <label htmlFor="office-seats" className="text-xs text-slate-500">Custom:</label>
-                <input id="office-seats" aria-label="Number of team seats" type="number" min={OFFICE_MIN_SEATS} value={seats}
-                  onChange={(e) => setSeats(Math.max(OFFICE_MIN_SEATS, Math.floor(Number(e.target.value) || OFFICE_MIN_SEATS)))}
+                <input id="office-seats" aria-label="Number of team seats" type="number" min={OFFICE_MIN_SEATS} value={seatsDraft ?? seats}
+                  onChange={(e) => { setSeatsDraft(e.target.value); const n = Math.floor(Number(e.target.value)); if (n >= OFFICE_MIN_SEATS) setSeats(n); }}
+                  onBlur={() => setSeatsDraft(null)}
                   className="w-20 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 bg-white border border-slate-200 focus:outline-none" />
                 <span className="text-xs text-slate-500">users</span>
               </div>
