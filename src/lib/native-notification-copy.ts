@@ -14,6 +14,9 @@ export const NATIVE_BODY_REMAP: Record<string, string> = {
   pro_ended:
     "Your account is on the Free plan now. Your dashboard shows what changes and lets you choose which card stays live — nothing has been deleted.",
   // Stored as "…paused until you upgrade" — purchase language (2026-09-22 audit).
+  // The Free contact-limit heads-up (api/leads): the web version names Pro.
+  lead_cap_reached:
+    "Anyone else who shares their info this month is still saved — nothing is lost. Your free contacts reset on the 1st.",
   plan_downgraded:
     "Your account is back on the Free plan. Extra cards are offline and follow-up sequences are paused — nothing has been deleted.",
 };

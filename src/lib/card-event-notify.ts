@@ -1,4 +1,4 @@
-import { getSourceLabel } from "@/lib/source-labels";
+import { sourcePhrase } from "@/lib/source-labels";
 import { locationPhrase } from "@/lib/location-display";
 import type { GeoAccuracy } from "@/lib/request-geo";
 import { ordinal } from "@/lib/contact-return-notify";
@@ -119,7 +119,8 @@ export function cardEventNotice(input: {
     // The source is worth naming on a save (it tells the owner which QR, link
     // or NFC tag is working) but not on a view, where it is just noise on the
     // most frequent notification they get.
-    const from = source && source !== "direct_link" ? ` from ${getSourceLabel(source)}` : "";
+    // "from a QR code", not "from QR code scan" (lib/source-labels sourcePhrase).
+    const from = sourcePhrase(source);
     return {
       // The TYPE stays "contact_saved": it is the VISIT_RANK key, the push
       // category lookup and the CRM event name, and renaming it would be a

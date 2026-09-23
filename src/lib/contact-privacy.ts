@@ -37,9 +37,9 @@ export function stripNameMarks(text: string): string {
 
 /** Free, in the app: blocks the app will blur. The name never leaves the server. */
 export function redactNames(text: string): string {
-  return text.replace(MARKED, (_, name: string) =>
-    markPlace(REDACT_CHAR.repeat(Math.min(Math.max(name.trim().length, 3), 10))),
-  );
+  // One fixed width, like places: sized to the name, it told a Free account
+  // how long the hidden first name was (2026-09-23 notification review).
+  return text.replace(MARKED, () => markPlace(REDACT_CHAR.repeat(7)));
 }
 
 /** Free, on a lock screen: "a contact", capitalised at the start of a sentence. */

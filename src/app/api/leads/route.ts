@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { syncLeadToAllCrms, sendLeadToZapier } from "@/lib/crm-sync";
-import { getSourceLabel } from "@/lib/source-labels";
+import { getSourceLabel, sourcePhrase } from "@/lib/source-labels";
 import { PLAN_LIMITS, LOCKED_LEAD_TAG, isPaidPlan } from "@/lib/plan";
 import { readUsage, bumpUsage } from "@/lib/usage";
 import { cardIsOffline, cardWithinPlanLimit, ownerIsDeleted } from "@/lib/card-active";
@@ -15,6 +15,7 @@ import { reportError } from "@/lib/report-error";
 export const maxDuration = 60;
 import { clientIp } from "@/lib/client-ip";
 import { notifyVisit } from "@/lib/visit-notify";
+import { insertNotification } from "@/lib/notify";
 import { announceFirstLeadIfTeammate } from "@/lib/team-alerts";
 import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveGeo } from "@/lib/request-geo";
@@ -197,9 +198,12 @@ export async function POST(req: NextRequest) {
     // the owner's dashboard until they upgrade; unlocked instantly when they do).
     // The counter lives on the ACCOUNT so deleting/remaking a card can't reset it.
     let locked = false;
+    // This lead is the month's LAST free one — see the heads-up below.
+    let lastFreeLead = false;
     if (!isPaidPlan(ownerProfile?.plan) && ownerProfile?.id) {
       const usedThisMonth = readUsage(ownerProfile.customization).leads;
       locked = usedThisMonth >= PLAN_LIMITS.FREE_LEADS_PER_MONTH;
+      lastFreeLead = usedThisMonth + 1 === PLAN_LIMITS.FREE_LEADS_PER_MONTH;
       await bumpUsage(admin, ownerProfile.id, ownerProfile.customization as Record<string, unknown> | null, "leads");
     }
 
@@ -319,8 +323,8 @@ export async function POST(req: NextRequest) {
 
     // Tell the card owner (non-blocking).
     if (ownerProfile?.id) {
-      const sourceLabel = source ? getSourceLabel(source) : null;
-      const sourceStr = sourceLabel && source !== "direct_link" ? ` from ${sourceLabel}` : "";
+      // A sentence, not a column heading: "from a QR code" (lib/source-labels).
+      const sourceStr = sourcePhrase(source);
       // A locked lead (over the free monthly cap) gets a TEASER notification —
       // it must not reveal the contact's name/details, or that would bypass the
       // lock. It's a conversion nudge instead.
@@ -403,6 +407,22 @@ export async function POST(req: NextRequest) {
       // An Office TEAMMATE's first lead ever → their admins hear about it
       // (lib/team-alerts). Never each lead after that: those stay with the
       // teammate, so a busy team cannot flood the admin's phone.
+      // THE HEADS-UP, once a month at most (2026-09-23 notification review).
+      // The next contact used to arrive locked with no warning at all. Bell
+      // only — never a push: it is news about the plan, not about a person.
+      // The app shows its own wording (lib/native-notification-copy).
+      if (lastFreeLead) {
+        const cap = PLAN_LIMITS.FREE_LEADS_PER_MONTH;
+        after(insertNotification({
+          user_id: ownerProfile.id as string,
+          card_owner,
+          type: "lead_cap_reached",
+          title: `That's ${cap} of ${cap} new contacts this month`,
+          // Accurate to lib/lead-access: a contact past the cap stays held until
+          // the account is paid; the reset on the 1st frees NEW contacts only.
+          body: "Anyone else who shares their info this month is still saved — nothing is lost, and Pro opens every one of them. Your free contacts reset on the 1st.",
+        }).then(() => undefined).catch((e) => reportError("leads.cap_notice", e)));
+      }
       after(announceFirstLeadIfTeammate(ownerProfile.id as string, (cardRow?.name as string | null) || (ownerProfile.name as string | null) || null));
     }
 

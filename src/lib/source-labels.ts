@@ -20,6 +20,32 @@ export const SOURCE_LABELS: Record<string, string> = {
   unknown: "Not tracked",
 };
 
+/**
+ * " from a QR code" — how a source reads INSIDE a notification sentence.
+ *
+ * The labels above are column headings ("QR code scan", "NFC tap", "Card
+ * link"), and pasted into a sentence they read wrong: "Someone downloaded your
+ * contact card from QR code scan" (2026-09-23 notification review). Empty for
+ * no source and for a plain card link, which is not news. Leading space
+ * included, so callers can drop it straight in.
+ */
+const SOURCE_PHRASES: Record<string, string> = {
+  qr_code: "from a QR code",
+  nfc_card: "from an NFC tap",
+  email_signature: "from your Swift Signature",
+  swift_links: "from your Swift Links",
+  apple_wallet: "from Apple Wallet",
+  text_message: "from a text message",
+  instagram_bio: "from your Instagram bio",
+};
+export function sourcePhrase(source: string | null | undefined): string {
+  if (!source || source === "direct_link" || source === "unknown") return "";
+  const p = SOURCE_PHRASES[source];
+  if (p) return ` ${p}`;
+  const label = SOURCE_LABELS[source];
+  return label ? ` from ${label}` : "";
+}
+
 export function getSourceLabel(source: string | null | undefined): string {
   if (!source) return "Not tracked";
   return SOURCE_LABELS[source] ?? source.replace(/_/g, " ");

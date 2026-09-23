@@ -138,7 +138,9 @@ export function locationPhrase(
       return phrase(` near ${place(raw)}`);
     case "region": {
       const { head } = splitLabel(raw);
-      return phrase(` in the ${place(head)} area`);
+      // A region already named as an area ("San Francisco Bay Area") read
+      // "in the San Francisco Bay Area area" (2026-09-23 notification review).
+      return /\barea$/i.test(head.trim()) ? phrase(` in the ${place(head)}`) : phrase(` in the ${place(head)} area`);
     }
     case "country": {
       const code = raw.toUpperCase();

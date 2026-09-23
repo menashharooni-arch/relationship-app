@@ -4,6 +4,10 @@ import { join } from "node:path";
 import { cardEventNotice } from "@/lib/card-event-notify";
 import { teaseLocation, stripLocationMarks } from "@/lib/location-privacy";
 import { NATIVE_BODY_REMAP, NATIVE_HIDDEN_TYPES } from "@/lib/native-notification-copy";
+import { sourcePhrase } from "@/lib/source-labels";
+import { locationPhrase } from "@/lib/location-display";
+import { redactPlaces, redactLegacyPlace, redactPlaceLabel } from "@/lib/location-privacy";
+import { redactNames, markName } from "@/lib/contact-privacy";
 
 // ── Notifications people want to open (owner, 2026-09-22) ────────────────────
 //
@@ -84,5 +88,59 @@ describe("the app never shows selling or billing copy in a notification", () => 
     expect(panel).toMatch(/useIsNativeApp\(\)/);
     expect(panel).toMatch(/NATIVE_HIDDEN_TYPES\.has\(n\.type\)/);
     expect(panel).toMatch(/NATIVE_BODY_REMAP\[n\.type\]/);
+  });
+});
+
+// ── 2026-09-23 notification review ──────────────────────────────────────────
+
+describe("notification sentences read like sentences", () => {
+  it("a source is a phrase, not a column heading", () => {
+    expect(sourcePhrase("qr_code")).toBe(" from a QR code");
+    expect(sourcePhrase("nfc_card")).toBe(" from an NFC tap");
+    expect(sourcePhrase("direct_link")).toBe("");
+    expect(sourcePhrase(null)).toBe("");
+    const n = cardEventNotice({ eventType: "downloaded_vcard", source: "qr_code" })!;
+    expect(n.body).toBe("Someone downloaded your contact card from a QR code.");
+    expect(n.body).not.toContain("QR code scan");
+  });
+
+  it("a region already called an area is not an 'area area'", () => {
+    expect(locationPhrase("San Francisco Bay Area, US", "region")).toBe(" in the San Francisco Bay Area");
+    expect(locationPhrase("New York, US", "region")).toBe(" in the New York area");
+  });
+});
+
+describe("a hidden place or name gives nothing away — not even its length", () => {
+  it("every place is the same width", () => {
+    const a = redactPlaces(cardEventNotice({ eventType: "viewed_card", location: "Waco, TX", geoAccuracy: "city" })!.body);
+    const b = redactPlaces(cardEventNotice({ eventType: "viewed_card", location: "San Francisco Bay Area, US", geoAccuracy: "region" })!.body);
+    expect(a.match(/█+/)![0].length).toBe(b.match(/█+/)![0].length);
+    expect(redactLegacyPlace("Someone viewed your card near Waco, TX.").match(/█+/)![0].length).toBe(8);
+    expect(redactPlaceLabel("Zzyzx, California")!.match(/█+/)![0].length).toBe(8);
+  });
+
+  it("every hidden contact name is the same width", () => {
+    expect(redactNames(`${markName("Al")} re-opened your card`).match(/█+/)![0].length)
+      .toBe(redactNames(`${markName("Christopher")} re-opened your card`).match(/█+/)![0].length);
+  });
+});
+
+describe("the last free contact of the month is announced, once, in the bell", () => {
+  const route = code("src/app/api/leads/route.ts");
+
+  it("fires exactly when this lead is the month's last free one", () => {
+    expect(route).toMatch(/lastFreeLead = usedThisMonth \+ 1 === PLAN_LIMITS\.FREE_LEADS_PER_MONTH;/);
+    expect(route).toMatch(/if \(lastFreeLead\) \{[\s\S]{0,200}insertNotification\(\{[\s\S]{0,120}type: "lead_cap_reached"/);
+  });
+
+  it("never reaches a phone — a bell row with no push category, and the morning catch-up does not replay it", () => {
+    const block = route.slice(route.indexOf("if (lastFreeLead) {"), route.indexOf("if (lastFreeLead) {") + 900);
+    expect(block).not.toMatch(/pushCategory|sendPushToUser|notifyVisit/);
+    expect(code("src/app/api/push/catchup/route.ts")).not.toContain("lead_cap_reached");
+  });
+
+  it("says only what is true — held contacts open with Pro; the reset frees new ones", () => {
+    expect(route).toContain("nothing is lost, and Pro opens every one of them. Your free contacts reset on the 1st.");
+    expect(NATIVE_BODY_REMAP.lead_cap_reached).toBe("Anyone else who shares their info this month is still saved — nothing is lost. Your free contacts reset on the 1st.");
   });
 });

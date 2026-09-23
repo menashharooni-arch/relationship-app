@@ -34,7 +34,13 @@ export const PLACE_MARK = "⁢";
 
 /** The block used for a redacted place. Blurred in the app; already unreadable without. */
 const REDACT_CHAR = "█";
-const REDACT_MAX = 12;
+/**
+ * Every hidden place is the SAME width. Sized to the name, the blocks told a
+ * Free account how long the place was — eight for "New York", four for
+ * "Waco" (2026-09-23 notification review). The lock screen already uses one
+ * fixed shape (teaseLocation); the app now matches.
+ */
+const REDACTED_PLACE = REDACT_CHAR.repeat(8);
 
 export function markPhrase(fragment: string): string {
   return `${PHRASE_MARK}${fragment}${PHRASE_MARK}`;
@@ -89,7 +95,7 @@ export function teaseLocation(text: string): string {
 export function redactPlaces(text: string): string {
   return text.replace(
     new RegExp(`${PLACE_MARK}([^${PLACE_MARK}]*)${PLACE_MARK}`, "g"),
-    (_, name: string) => markPlace(REDACT_CHAR.repeat(Math.min(Math.max(name.trim().length, 3), REDACT_MAX))),
+    () => markPlace(REDACTED_PLACE),
   );
 }
 
@@ -104,7 +110,7 @@ export function redactPlaces(text: string): string {
 export function redactPlaceLabel(label: string | null | undefined): string | null {
   const raw = (label ?? "").trim();
   if (!raw) return null;
-  return markPlace(REDACT_CHAR.repeat(Math.min(Math.max(raw.length, 3), REDACT_MAX)));
+  return markPlace(REDACTED_PLACE);
 }
 
 /**
@@ -143,6 +149,6 @@ const LEGACY_TAIL = /(\s)(near\s+|in\s+the\s+|in\s+)([^.!?]+?)(\s+area)?([.!?]?)
 
 export function redactLegacyPlace(text: string): string {
   return text.replace(LEGACY_TAIL, (_m, space: string, prep: string, name: string, area = "", end = "") =>
-    `${space}${prep}${markPlace(REDACT_CHAR.repeat(Math.min(Math.max(name.trim().length, 3), REDACT_MAX)))}${area}${end}`,
+    `${space}${prep}${markPlace(REDACTED_PLACE)}${area}${end}`,
   );
 }
