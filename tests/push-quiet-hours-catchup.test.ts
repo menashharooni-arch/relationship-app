@@ -25,6 +25,8 @@ let subscriptions: Row[] = [];
 let profile: Row = {};
 let catchupMarks: Row[] = [];
 let notifications: Row[] = [];
+let leads: Row[] = [];
+let hotLeadIds = new Set<string>();
 const inserted: Row[] = [];
 const pushes: Row[] = [];
 
@@ -56,6 +58,11 @@ vi.mock("@/lib/supabase-admin", () => ({
         };
         return { select: () => q };
       }
+      if (table === "leads") {
+        // The contacts behind held return alerts: status + tags decide whether
+        // the morning may name them (2026-09-23 audit).
+        return { select: () => ({ in: async () => ({ data: leads }) }) };
+      }
       throw new Error("unexpected table " + table);
     },
   }),
@@ -63,6 +70,12 @@ vi.mock("@/lib/supabase-admin", () => ({
 
 vi.mock("@/lib/push", () => ({
   sendPushToUser: async (userId: string, payload: Row) => { pushes.push({ userId, ...payload }); },
+}));
+
+// "Only Hot contacts": the tier comes from lib/intent-load, played from here.
+vi.mock("@/lib/intent-load", () => ({
+  loadIntent: async (_admin: unknown, rows: { id: string }[]) =>
+    new Map(rows.map((r) => [r.id, { tier: hotLeadIds.has(r.id) ? "hot" : "cold" }])),
 }));
 
 import { GET } from "@/app/api/push/catchup/route";
@@ -89,11 +102,81 @@ beforeEach(() => {
   notifications = [
     { type: "new_lead", title: "New contact: Dana Whitfield", body: "Dana Whitfield shared their info with you.", card_owner: "dana-card", created_at: "2026-09-11T02:40:00.000Z" },
   ];
+  leads = [];
+  hotLeadIds = new Set();
   inserted.length = 0;
   pushes.length = 0;
 });
 
 afterEach(() => { vi.useRealTimers(); });
+
+// ── The contacts the owner silenced stay silent in the morning too ──────────
+//
+// Muting a contact, closing them, or "Only Hot contacts" all hold the alert
+// from the phone by stripping its push category at produce time. The bell row
+// carries no trace of that, and the catch-up is built from bell rows — so
+// until 2026-09-23 the morning announced exactly the contact the owner had
+// just silenced.
+describe("a silenced contact is not announced at 8am", () => {
+  const returned = (leadId: string) => ({
+    type: "contact_returned", title: "Priya re-opened your card", body: "Priya re-opened your card.",
+    card_owner: "dana-card", lead_id: leadId, created_at: "2026-09-11T03:00:00.000Z",
+  });
+
+  it("a contact muted in the contact panel", async () => {
+    notifications = [returned("L1")];
+    leads = [{ id: "L1", status: "new", tags: ["alerts-muted"], created_at: "2026-09-01T00:00:00.000Z" }];
+    const res = await run();
+    expect(await res.json()).toMatchObject({ nothingHeld: 1, sent: 0 });
+    expect(pushes).toHaveLength(0);
+  });
+
+  it("a contact marked Not interested or Closed", async () => {
+    for (const status of ["not_interested", "dissolved"]) {
+      pushes.length = 0;
+      notifications = [returned("L1")];
+      leads = [{ id: "L1", status, tags: [], created_at: "2026-09-01T00:00:00.000Z" }];
+      await run();
+      expect(pushes).toHaveLength(0);
+    }
+  });
+
+  it("under 'Only Hot contacts', a contact who isn't Hot — while a Hot one still comes", async () => {
+    profile = { plan: "pro", customization: { _push: { timezone: "America/New_York", returningHotOnly: true } } };
+    notifications = [returned("L1")];
+    leads = [{ id: "L1", status: "new", tags: [], created_at: "2026-09-01T00:00:00.000Z" }];
+    await run();
+    expect(pushes).toHaveLength(0);
+
+    catchupMarks = [];
+    hotLeadIds = new Set(["L1"]);
+    await run();
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]).toMatchObject({ category: "contact_return", title: "Priya re-opened your card" });
+  });
+
+  it("an ordinary contact is announced as before, and the rest of the night with them", async () => {
+    notifications = [
+      returned("L1"),
+      { type: "card_viewed", title: "Card viewed", body: "Someone viewed your card.", card_owner: "dana-card", created_at: "2026-09-11T05:00:00.000Z" },
+    ];
+    leads = [{ id: "L1", status: "new", tags: [], created_at: "2026-09-01T00:00:00.000Z" }];
+    await run();
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]).toMatchObject({ category: "contact_return", body: "Plus 1 more while you were away." });
+  });
+
+  it("a muted contact drops out of the count too — the lead still goes, alone", async () => {
+    notifications = [
+      { type: "new_lead", title: "New contact: Dana Whitfield", body: "Dana Whitfield shared their info with you.", card_owner: "dana-card", created_at: "2026-09-11T02:40:00.000Z" },
+      returned("L1"),
+    ];
+    leads = [{ id: "L1", status: "new", tags: ["alerts-muted"], created_at: "2026-09-01T00:00:00.000Z" }];
+    await run();
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]).toMatchObject({ category: "new_lead", body: "Dana Whitfield shared their info with you." });
+  });
+});
 
 describe("who the 8am catch-up is for", () => {
   it("sends the news that was held, to the person whose local time is 8am", async () => {

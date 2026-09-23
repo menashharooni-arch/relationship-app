@@ -20,6 +20,7 @@ import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveGeo } from "@/lib/request-geo";
 import { attachVisitIdentity, resolveVisitIdentity } from "@/lib/visit-identity";
 import { bindFormDevice } from "@/lib/known-contact";
+import { markName } from "@/lib/contact-privacy";
 import { activeEvent } from "@/lib/event-tag";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -340,9 +341,16 @@ export async function POST(req: NextRequest) {
       // leads… Upgrade to Pro") — marketing, which push-policy.ts forbids, in
       // the one slot that should carry news. State the fact; the app explains
       // the cap when they open it.
-      const title = `New contact: ${name}`;
+      // A LOCKED lead's name is exactly what the cap withholds — the Contacts
+      // page does not list them at all — yet this row used to print it. The
+      // name is wrapped in the same NAME mark a returning contact's is
+      // (lib/contact-privacy.ts): a Free bell shows blocks the app blurs (and,
+      // on the web, "See who and where →"), an upgrade reveals every name the
+      // account was already told about, and the lock screen says nothing.
+      const shown = locked ? markName(name) : name;
+      const title = `New contact: ${shown}`;
       const body = locked
-        ? `${name} shared their info — open to unlock.`
+        ? `${shown} shared their info — open to unlock.`
         : `${name} shared their info with you${sourceStr}.`;
       // THE SAME PERSON THE VIEW TRACKER SAW. /api/card-events keys a visit on
       // resolveVisitIdentity — the httpOnly sc_vid cookie first, the page's own
@@ -381,10 +389,13 @@ export async function POST(req: NextRequest) {
             //
             // The lock screen shows the useful thing: their number. A LOCKED
             // lead is the one case where we have nothing to show — the details
-            // are exactly what is being withheld — so it says what happened,
-            // never "Upgrade to Pro", which is a sales message on a phone.
+            // are exactly what is being withheld, the name included — so it
+            // says what happened, never "Upgrade to Pro", which is a sales
+            // message on a phone. Its own title too: the marked one above
+            // would reach a Free lock screen as "New contact: a contact".
+            ...(locked ? { pushTitle: "New contact" } : {}),
             pushBody: locked
-              ? `${name} shared their info — open to unlock.`
+              ? "Someone shared their info — open to unlock."
               : (phone ? `${phone}${company ? ` · ${company}` : ""}` : (email ?? "Tap to save")),
           },
         }).catch((e) => reportError("leads.notify", e)),

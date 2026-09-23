@@ -4,6 +4,8 @@ import { sendPushToUser } from "@/lib/push";
 import {
   localHour, quietWindowStart, readPushPrefs, QUIET_END_HOUR, type PushCategory,
 } from "@/lib/push-policy";
+import { contactMayPush } from "@/lib/contact-return-notify";
+import { loadIntent } from "@/lib/intent-load";
 
 // ── The morning after quiet hours ────────────────────────────────────────────
 //
@@ -165,7 +167,7 @@ export async function GET(req: NextRequest) {
       // does not need to be told again at 8.
       const { data: rows } = await admin
         .from("notifications")
-        .select("type, title, body, card_owner, created_at")
+        .select("type, title, body, card_owner, created_at, lead_id")
         .eq("user_id", userId)
         .eq("read", false)
         // The real 10pm boundary in their zone, not `now − 10h`: a cron that
@@ -174,12 +176,41 @@ export async function GET(req: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(50);
 
-      const held = (rows ?? [])
+      let held = (rows ?? [])
         .map((r) => ({ row: r, category: CATEGORY_FOR_TYPE[r.type as string] }))
         .filter((x): x is { row: typeof x.row; category: PushCategory } =>
           // A category switched OFF is a decision the person made; the morning
           // must not be a way around it.
           Boolean(x.category) && prefs[x.category] !== false);
+
+      // ── The contacts the owner silenced ─────────────────────────────────
+      // A contact marked Not interested / Closed, one muted in the contact
+      // panel ("Alert me when they come back" off), or — under "Only Hot
+      // contacts" — one who isn't Hot, is held from the phone at produce time
+      // by stripping the push category (card-events, contact-return-notify).
+      // The bell row carries no trace of that, so read back naively this
+      // morning would announce exactly the contact they silenced. Same rules,
+      // re-applied. A read failure keeps the old behaviour rather than
+      // dropping the whole night.
+      const contactRows = held.filter((x) => x.category === "contact_return" && x.row.lead_id);
+      if (contactRows.length) {
+        try {
+          const ids = [...new Set(contactRows.map((x) => String(x.row.lead_id)))];
+          const { data: leads } = await admin.from("leads").select("id, status, tags, created_at").in("id", ids);
+          const byId = new Map((leads ?? []).map((l) => [l.id as string, l]));
+          const intent = prefs.returningHotOnly
+            ? await loadIntent(admin, (leads ?? []).map((l) => ({ id: l.id as string, created_at: String(l.created_at) })), now)
+            : null;
+          const allowed = (leadId: string): boolean => {
+            const l = byId.get(leadId);
+            if (!l) return true;
+            if (!contactMayPush({ status: l.status as string | null, tags: (l.tags as string[] | null) ?? [] })) return false;
+            if (intent && intent.get(leadId)?.tier !== "hot") return false;
+            return true;
+          };
+          held = held.filter((x) => x.category !== "contact_return" || !x.row.lead_id || allowed(String(x.row.lead_id)));
+        } catch { /* keep every held row */ }
+      }
 
       if (!held.length) { counts.nothingHeld++; continue; }
 

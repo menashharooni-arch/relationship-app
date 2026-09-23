@@ -159,10 +159,19 @@ describe("the words fit the device", () => {
     expect(iphone.sub).toMatch(/download/i);
   });
 
+  it("after a 'Don't Allow': says notifications are off, and points at iPhone Settings", () => {
+    const c = pushAskCopy("phone", { denied: true });
+    expect(c.title).toBe("Notifications are off for SwiftCard");
+    expect(c.sub).toMatch(/iPhone Settings/);
+    expect(c.sub).toMatch(/next contact/i);
+  });
+
   it("never a sales line", () => {
     for (const d of ["phone", "computer", "iphone-browser"] as const) {
-      const c = pushAskCopy(d);
-      expect(`${c.title} ${c.sub}`).not.toMatch(/\bpro\b|upgrade|\$|free trial/i);
+      for (const denied of [false, true]) {
+        const c = pushAskCopy(d, { denied });
+        expect(`${c.title} ${c.sub}`).not.toMatch(/\bpro\b|upgrade|\$|free trial/i);
+      }
     }
   });
 });
@@ -203,9 +212,9 @@ describe("one ask on screen, and every way of saying no is honoured", () => {
 
   it("only where this device can act: the switch where it works, the app on an iPhone browser", () => {
     const src = read("src/components/PushAskCallout.tsx");
-    expect(src).toMatch(/const deviceCanAct = state === "idle" \|\| \(state === "ios-install" && !!APP_STORE_URL\);/);
+    expect(src).toMatch(/const deviceCanAct = state === "idle" \|\| \(state === "ios-install" && !!APP_STORE_URL\) \|\| deniedInApp;/);
     expect(src).toMatch(/const askable = deviceCanAct && !askStopped\(\) && !askPushOn\(\) && !askSnoozed\(\) && decision !== false;/);
-    expect(src).toMatch(/const mode: PushAsk\["mode"\] = state === "ios-install" \? "app" : "switch";/);
+    expect(src).toMatch(/const mode: PushAsk\["mode"\] = state === "ios-install" \? "app" : deniedInApp \? "settings" : "switch";/);
     // Going to the App Store is the answer: that reminder is done.
     expect(src).toContain("<AppStoreBadge onClick={() => laterAsk(id)} />");
   });
@@ -216,10 +225,42 @@ describe("one ask on screen, and every way of saying no is honoured", () => {
     expect(btn).toContain("Add to Home Screen");
   });
 
-  it("a 'Don't Allow' at the device's own prompt ends it — from ANY switch; a denial already in place does not fire", () => {
+  // Owner, 2026-09-23: a "Don't Allow" at the phone's prompt no longer ends the
+  // reminders. iOS asks once per install, so the only road back is Settings —
+  // and the reminder under the next important notification carries that
+  // button, within the same budget.
+  it("a 'Don't Allow' at the device's own prompt does NOT end it — only 'Don't ask again' and switching off do", () => {
     const btn = read("src/components/EnablePushButton.tsx");
-    expect(btn).toMatch(/if \(state === "working"\) \{ askedHere\.current = true; return; \}/);
-    expect(btn).toMatch(/if \(state === "denied" && askedHere\.current\) \{\s*\n\s*askedHere\.current = false;\s*\n\s*stopAsk\(\);/);
+    expect(btn).not.toMatch(/askedHere/);
+    // stopAsk is called exactly once: from turnedOffOnPurpose.
+    expect((btn.match(/stopAsk\(\)/g) ?? []).length).toBe(1);
+    expect(btn).toMatch(/const turnedOffOnPurpose = \(\) => stopAsk\(\);/);
+  });
+
+  it("in the app, a denied phone still gets the reminder — with the Settings button, not a switch", () => {
+    const src = read("src/components/PushAskCallout.tsx");
+    expect(src).toMatch(/const deniedInApp = state === "denied" && detectNativeApp\(\);/);
+    expect(src).toMatch(/deniedInApp \? "settings" : "switch"/);
+    expect(src).toMatch(/\|\| deniedInApp;/);
+    expect(src).toContain('<EnablePushButton compact={ask.mode === "settings"} onDone={() => confirmEnabledFromAsk(id)} />');
+    expect(src).toMatch(/pushAskCopy\(device, \{ denied: ask\.mode === "settings" \}\)/);
+    // The compact button is the same one Settings shows, and it is the ONLY
+    // thing rendered in that mode — no amber paragraph under a reminder.
+    const btn = read("src/components/EnablePushButton.tsx");
+    expect(btn).toMatch(/if \(compact\) return openSettings;/);
+    expect(btn).toContain('window.location.href = "app-settings:"');
+  });
+
+  it("coming back from Settings allowed turns push on by itself — and only when they went there from here", () => {
+    const btn = read("src/components/EnablePushButton.tsx");
+    expect(btn).toMatch(/wentToSettings\.current = true;/);
+    expect(btn).toMatch(/if \(state !== "denied" \|\| !detectNativeApp\(\)\) return;/);
+    expect(btn).toMatch(/const cameFromHere = wentToSettings\.current;\s*\n\s*wentToSettings\.current = false;\s*\n\s*const perm = await recheck\(\);\s*\n\s*if \(perm !== "granted" \|\| !cameFromHere\) return;\s*\n\s*await enableAndReport\(\);/);
+    expect(btn).toMatch(/document\.addEventListener\("visibilitychange", onVisible\);/);
+    // recheck never prompts: checkPermissions only, requestPermissions stays in enable().
+    const hook = btn.slice(btn.indexOf("const recheck"), btn.indexOf("async function enable"));
+    expect(hook).toContain("checkPermissions()");
+    expect(hook).not.toContain("requestPermissions");
   });
 
   it("switching push OFF on purpose ends it — sign-out does not", () => {

@@ -53,6 +53,21 @@ beforeAll(async () => {
   writeFileSync(join(tmp, "plangate-stub.tsx"), `
     export function GateCopy({ copy }: any) { return copy; }
   `);
+  // The iPhone app's push plugin, answered from window.__capPerm ("prompt" |
+  // "granted" | "denied") so a test can play the OS: deny once, then "flip
+  // Allow in Settings" by changing it and firing visibilitychange.
+  writeFileSync(join(tmp, "cap-push-stub.ts"), `
+    const w = window as any;
+    export const PushNotifications = {
+      checkPermissions: async () => ({ receive: w.__capPerm ?? "prompt" }),
+      requestPermissions: async () => { w.__capAsks = (w.__capAsks ?? 0) + 1; return { receive: w.__capPerm ?? "prompt" }; },
+      addListener: async (name: string, cb: (e: any) => void) => {
+        (w.__capListeners = w.__capListeners ?? {})[name] = cb;
+        return { remove() { delete w.__capListeners[name]; } };
+      },
+      register: async () => { w.__capListeners?.registration?.({ value: "abcdef0123456789abcdef0123456789" }); },
+    };
+  `);
   writeFileSync(join(tmp, "entry.tsx"), `
     import { createRoot } from "react-dom/client";
     import { createElement as h, Fragment } from "react";
@@ -98,6 +113,7 @@ beforeAll(async () => {
       "next/navigation": join(tmp, "nav-stub.tsx"),
       // SeeWhoLink (the Free "See who and where →" line) uses next/link.
       "next/link": join(tmp, "link-stub.tsx"),
+      "@capacitor/push-notifications": join(tmp, "cap-push-stub.ts"),
       "@/components/PlanGate": join(tmp, "plangate-stub.tsx"),
       "@": resolve("src"),
     },
@@ -140,6 +156,8 @@ type Opts = {
   light?: boolean;
   /** An iPhone Safari TAB: no web push at all until "Add to Home Screen". */
   iphoneBrowser?: boolean;
+  /** The iPhone APP (Capacitor shell), with the OS permission in this state. */
+  native?: "prompt" | "granted" | "denied";
 };
 
 const IPHONE_SAFARI =
@@ -186,13 +204,20 @@ async function rig(o: Opts): Promise<Rig> {
   });
 
   // The browser's push machinery, answered the way a real browser would.
-  await page.addInitScript(({ permission, answer, alreadySubscribed, iphoneBrowser }) => {
+  await page.addInitScript(({ permission, answer, alreadySubscribed, iphoneBrowser, native }) => {
     if (iphoneBrowser) {
       // What an iPhone Safari tab really has: no PushManager at all.
       delete (window as unknown as Record<string, unknown>).PushManager;
       return;
     }
     const w = window as unknown as Record<string, unknown>;
+    if (native) {
+      // The shell: lib/platform detectNativeApp() reads Capacitor.isNativePlatform,
+      // EnablePushButton reads isPluginAvailable; the plugin itself is the stub.
+      w.Capacitor = { isNativePlatform: () => true, isPluginAvailable: () => true };
+      w.__capPerm = native;
+      return;
+    }
     w.__permissionAsks = 0;
     let perm = permission;
     const sub = {
@@ -223,7 +248,7 @@ async function rig(o: Opts): Promise<Rig> {
       configurable: true,
       value: { ready: Promise.resolve(reg), register: async () => reg },
     });
-  }, { permission: o.permission ?? "default", answer: o.answer ?? "granted", alreadySubscribed: !!o.alreadySubscribed, iphoneBrowser: !!o.iphoneBrowser });
+  }, { permission: o.permission ?? "default", answer: o.answer ?? "granted", alreadySubscribed: !!o.alreadySubscribed, iphoneBrowser: !!o.iphoneBrowser, native: o.native ?? null });
 
   await page.goto(`${ORIGIN}/`);
   // After load: an init script runs before <html> exists.
@@ -350,13 +375,53 @@ describe("every answer is respected", () => {
     await r.page.context().close();
   });
 
-  it("'Don't Allow' at the browser's own prompt ends every reminder", async () => {
+  // Owner, 2026-09-23: a "Don't Allow"/"Block" at the device's own prompt is
+  // no longer "never again". On the web there is no button that can undo it,
+  // so the reminder simply goes away here; nothing is stopped.
+  it("'Block' at the browser's own prompt hides the reminder here — and ends nothing", async () => {
     const r = await rig({ notifs: [LEAD], answer: "denied" });
     await openBell(r.page);
     await r.page.waitForSelector("[data-push-ask]");
     await r.page.click('[data-push-ask] [role="switch"]');
     await r.page.waitForSelector("[data-push-ask]", { state: "detached" });
-    expect(r.asks).toContainEqual({ action: "stop" });
+    expect(r.asks).not.toContainEqual({ action: "stop" });
+    expect(r.subscribes).toBe(0);
+    await r.page.context().close();
+  });
+
+  it("in the app after 'Don't Allow': the reminder offers iPhone Settings, and coming back allowed turns push on", async () => {
+    const r = await rig({ notifs: [LEAD], native: "denied" });
+    await openBell(r.page);
+    await r.page.waitForSelector('[data-push-ask="settings"]');
+    expect(await reminders(r.page)).toBe(1);
+    expect(await r.page.locator('[data-push-ask] [role="switch"]').count()).toBe(0);
+    expect(await r.page.textContent("[data-push-ask]")).toContain("Notifications are off for SwiftCard");
+    const open = r.page.locator("[data-push-ask] >> text=Open iPhone Settings");
+    expect(await open.count()).toBe(1);
+    // A reminder like any other: claimed once, within the same budget.
+    expect(claims(r)).toEqual([{ id: LEAD.id }]);
+    // Tap it (app-settings: goes nowhere in Chromium), flip Allow "in
+    // Settings", come back to the app.
+    await open.click();
+    await r.page.evaluate(() => {
+      (window as unknown as { __capPerm: string }).__capPerm = "granted";
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await r.page.waitForSelector("[data-push-ask] >> text=You're set", { timeout: 8000 });
+    expect(r.subscribes).toBe(1);
+    expect(r.asks).not.toContainEqual({ action: "stop" });
+    await r.page.context().close();
+  });
+
+  it("in the app, coming back allowed WITHOUT having gone to Settings from the reminder shows the switch, not a surprise", async () => {
+    const r = await rig({ notifs: [LEAD], native: "denied" });
+    await openBell(r.page);
+    await r.page.waitForSelector('[data-push-ask="settings"]');
+    await r.page.evaluate(() => {
+      (window as unknown as { __capPerm: string }).__capPerm = "granted";
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await r.page.waitForSelector('[data-push-ask="switch"] [role="switch"]');
     expect(r.subscribes).toBe(0);
     await r.page.context().close();
   });

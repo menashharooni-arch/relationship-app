@@ -26,9 +26,12 @@
 //             iPhone browser tab cannot get web push without "Add to Home
 //             Screen", so there the reminder points to the app instead.
 //   • EACH gets at most PUSH_ASK_MAX reminders, PUSH_ASK_GAP_MS apart.
-//   • NEVER AGAIN, anywhere, once they chose "Don't ask again", tapped "Don't
-//     Allow" at the phone's own prompt, or switched push OFF themselves — "if
-//     they really don't want push notifications on, they don't want it on."
+//   • NEVER AGAIN, anywhere, once they chose "Don't ask again" or switched
+//     push OFF themselves — "if they really don't want push notifications on,
+//     they don't want it on." A "Don't Allow" at the phone's own prompt is
+//     NOT that (owner, 2026-09-23): iOS asks once per install, often in the
+//     middle of building a card, so the reminder still comes — with the
+//     Settings button that is the only road back (PushAskCallout "settings").
 //
 // The ledger lives on profiles.customization._pushAsk, written through
 // mutateCustomization (read-back verified), next to — not inside — _push, whose
@@ -194,8 +197,21 @@ export function pushAlreadyOn(endpoints: string[], platform: AskPlatform): boole
 /** Which device the reminder is on — it decides both the words and the button. */
 export type AskDevice = "phone" | "computer" | "iphone-browser";
 
-/** The ask's words, for the device it is on. */
-export function pushAskCopy(device: AskDevice): { title: string; sub: string } {
+/**
+ * The ask's words, for the device it is on.
+ *
+ * `denied`: the phone said "Don't Allow" once (iOS asks once per install and
+ * never again), so the only road back is the Settings app. Owner, 2026-09-23:
+ * still remind them — at the same moment, within the same budget — but with
+ * the button that actually works there. Never a price, never "Pro".
+ */
+export function pushAskCopy(device: AskDevice, opts: { denied?: boolean } = {}): { title: string; sub: string } {
+  if (opts.denied) {
+    return {
+      title: "Notifications are off for SwiftCard",
+      sub: "Turn them on in iPhone Settings so the next contact reaches your phone.",
+    };
+  }
   if (device === "iphone-browser") {
     // An iPhone browser tab cannot receive web push without "Add to Home
     // Screen". The app is the real answer — and most people already have it,

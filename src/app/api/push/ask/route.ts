@@ -53,8 +53,8 @@ export async function GET(req: NextRequest) {
  * { id }                     — may the ask show on this notification? Records it.
  * { action: "later", id }    — "Not now" on that one.
  * { action: "snooze" }       — "Not now" on the dashboard box: a quiet period.
- * { action: "stop" }         — never again ("Don't ask again", a "Don't Allow"
- *                              at the phone's own prompt, or switching push off).
+ * { action: "stop" }         — never again ("Don't ask again", or switching
+ *                              push off on purpose).
  */
 export async function POST(req: NextRequest) {
   const supabase = await createClient();

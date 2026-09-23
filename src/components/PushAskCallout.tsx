@@ -25,9 +25,16 @@ import {
 //     one tap, right here ("switch");
 //   • an iPhone browser tab — no switch can work there: web push on iPhone
 //     needs "Add to Home Screen" first. The app is the real answer (and most
-//     people already have it), so it points there ("app").
+//     people already have it), so it points there ("app");
+//   • the iPhone app after a "Don't Allow" — iOS asks once per install and
+//     never again, so the switch cannot help; the one road back is the
+//     Settings app, and the reminder carries that button ("settings"). Owner,
+//     2026-09-23: a new contact is still the moment to ask, and this is the
+//     ask that can actually work there. Same budget, same "Not now" and
+//     "Don't ask again". A browser that blocked notifications has no such
+//     button, so the web keeps to Settings' written guidance.
 
-export type PushAsk = { show: boolean; confirming: boolean; id: string | null; mode: "switch" | "app" };
+export type PushAsk = { show: boolean; confirming: boolean; id: string | null; mode: "switch" | "app" | "settings" };
 
 /**
  * Whether the reminder shows on `candidateId` in `surface`.
@@ -43,8 +50,11 @@ export function usePushAsk(surface: AskSurface, candidateId: string | null, visi
   const [state] = usePushState();
   useAskStore();
 
-  const mode: PushAsk["mode"] = state === "ios-install" ? "app" : "switch";
-  const deviceCanAct = state === "idle" || (state === "ios-install" && !!APP_STORE_URL);
+  // "denied" is only reachable after usePushState's effect has run, so the
+  // native check behind it never runs on the server or the hydrating paint.
+  const deniedInApp = state === "denied" && detectNativeApp();
+  const mode: PushAsk["mode"] = state === "ios-install" ? "app" : deniedInApp ? "settings" : "switch";
+  const deviceCanAct = state === "idle" || (state === "ios-install" && !!APP_STORE_URL) || deniedInApp;
   const confirming = !!candidateId && askEnabledFor() === candidateId;
   const decision = candidateId ? askDecision(candidateId) : undefined;
   const askable = deviceCanAct && !askStopped() && !askPushOn() && !askSnoozed() && decision !== false;
@@ -70,7 +80,7 @@ export default function PushAskCallout({ ask, tone = "bell" }: { ask: PushAsk; t
   const device: AskDevice = ask.mode === "app"
     ? "iphone-browser"
     : detectNativeApp() || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ? "phone" : "computer";
-  const copy = pushAskCopy(device);
+  const copy = pushAskCopy(device, { denied: ask.mode === "settings" });
 
   return (
     // Inset to the text column of the row above it (dot + gap), same colour as
@@ -89,9 +99,10 @@ export default function PushAskCallout({ ask, tone = "bell" }: { ask: PushAsk; t
               // Going to the App Store IS the answer — this reminder is done.
               <AppStoreBadge onClick={() => laterAsk(id)} />
             ) : (
-              // A "Don't Allow" at the device's own prompt ends every reminder
-              // on every device — EnablePushButton records that itself.
-              <EnablePushButton onDone={() => confirmEnabledFromAsk(id)} />
+              // The switch, or — after a "Don't Allow" — just the Open iPhone
+              // Settings button (compact). Either way EnablePushButton reports
+              // the moment push is on, and this reminder says "You're set".
+              <EnablePushButton compact={ask.mode === "settings"} onDone={() => confirmEnabledFromAsk(id)} />
             )}
           </div>
           <div className="mt-2 flex items-center gap-4">

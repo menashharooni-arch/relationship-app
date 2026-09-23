@@ -4,6 +4,8 @@ import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan } from "@/l
 import { officeLeadTag } from "@/lib/office-leads";
 import { writeAudit } from "@/lib/audit";
 import { requireOfficeCapability } from "@/lib/office-roles";
+import { insertNotification } from "@/lib/notify";
+import { officeAccessEndedMessage } from "@/lib/office-billing-sync";
 import { NextResponse } from "next/server";
 
 // DELETE ?id=<member_id> — remove an active member, OR revoke a pending invite.
@@ -108,6 +110,17 @@ export async function DELETE(req: Request) {
     // Best-effort, separate like the webhook paths (column may not exist in
     // older schemas — must never block the critical plan revert above).
     await supabase.from("profiles").update({ plan_expires_at: null }).eq("id", member.user_id);
+    // Tell them. Every AUTOMATED way off a team says so in the bell
+    // (office_seat_trimmed, office_subscription_ended, office_plan_downgraded);
+    // an admin pressing Remove was the one path that said nothing — the
+    // person's card, QR, NFC tag and wallet pass went dark in silence (2026-09-23
+    // audit). Same type and words as the teardown cascade, bell only.
+    await insertNotification({
+      user_id: member.user_id,
+      type: "office_plan_downgraded",
+      title: "Your Office access ended",
+      body: officeAccessEndedMessage(plan),
+    }).catch(() => {});
     // De-brand: the ex-member's live cards must not keep the office logo /
     // company (only fields still matching the office brand are cleared).
     try {

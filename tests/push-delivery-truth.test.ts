@@ -227,9 +227,9 @@ describe("turning notifications on", () => {
   });
 
   it("a dismissed prompt is not 'blocked' — on the web or in the app", () => {
-    expect(webBranch).toMatch(/if \(perm === "denied"\) \{ setState\("denied"\); return false; \}/);
-    expect(src).toMatch(/if \(perm\.receive === "denied"\) \{ setState\("denied"\); return false; \}/);
-    expect(src).toMatch(/if \(perm\.receive !== "granted"\) \{ setState\("idle"\); return false; \}/);
+    expect(webBranch).toMatch(/if \(perm === "denied"\) \{ setDeviceState\("denied"\); return false; \}/);
+    expect(src).toMatch(/if \(perm\.receive === "denied"\) \{ setDeviceState\("denied"\); return false; \}/);
+    expect(src).toMatch(/if \(perm\.receive !== "granted"\) \{ setDeviceState\("idle"\); return false; \}/);
   });
 
   it("the web path checks the server answer and reports failures, like the native path", () => {

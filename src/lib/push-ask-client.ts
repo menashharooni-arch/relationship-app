@@ -123,8 +123,9 @@ export function snoozeAsk(): void {
 }
 
 /**
- * Never again: "Don't ask again", a "Don't Allow" at the device's own prompt,
- * or switching push off on purpose. Everything on screen retires at once from
+ * Never again: "Don't ask again", or switching push off on purpose (a "Don't
+ * Allow" at the phone's prompt is not this — see lib/push-ask.ts). Everything
+ * on screen retires at once from
  * the flag here; every later session, on every device, retires from the
  * server's record (GET /api/push/ask). Deliberately NOT written to the box's
  * device-wide localStorage key: that key outlives an account switch, and one

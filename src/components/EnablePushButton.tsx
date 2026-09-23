@@ -4,7 +4,7 @@
 // step, settings). Registers the service worker, asks permission, and stores
 // the subscription so the server can send contact alerts + view milestones.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { detectNativeApp } from "@/lib/platform";
 import { notePushOn, stopAsk } from "@/lib/push-ask-client";
 
@@ -123,16 +123,63 @@ function detectEnv() {
 // re-tapping fixes it; only an update does.
 type FailReason = "old-build" | null;
 
-export function usePushState(): [State, () => Promise<boolean>, FailReason] {
-  const [state, setState] = useState<State>("loading");
+/**
+ * What the OS says right now, asked again. Native only: after a "Don't Allow"
+ * the person can flip the switch in the Settings app and come back, and the
+ * state computed on mount would still say "denied". Moves the state to "idle"
+ * the moment the OS allows again; leaves it alone otherwise.
+ */
+type Recheck = () => Promise<"granted" | "denied" | "other">;
+
+// ── ONE device state for every switch on the page ────────────────────────────
+//
+// Whether this device can receive pushes is a fact about the DEVICE, not about
+// a component. Kept per instance, the reminder under a notification (which
+// reads the state to choose its words) and the switch inside it (which changes
+// the state when tapped) each had their own copy: a "Don't Allow" answered in
+// the switch left the reminder still saying "tap the switch", and coming back
+// from Settings allowed updated one and not the other. A module-level store,
+// read through useSyncExternalStore, keeps every instance on one truth.
+let deviceState: State = "loading";
+const deviceListeners = new Set<() => void>();
+function setDeviceState(next: State | ((s: State) => State)): void {
+  const v = typeof next === "function" ? next(deviceState) : next;
+  if (v === deviceState) return;
+  deviceState = v;
+  for (const l of [...deviceListeners]) l();
+}
+function subscribeDevice(l: () => void): () => void {
+  deviceListeners.add(l);
+  return () => { deviceListeners.delete(l); };
+}
+const getDeviceState = () => deviceState;
+const getServerDeviceState = (): State => "loading";
+
+export function usePushState(): [State, () => Promise<boolean>, FailReason, Recheck] {
+  const state = useSyncExternalStore(subscribeDevice, getDeviceState, getServerDeviceState);
   const [reason, setReason] = useState<FailReason>(null);
+
+  const recheck: Recheck = async () => {
+    if (!detectNativeApp() || !nativePushAvailable()) return "other";
+    try {
+      const { PushNotifications } = await import("@capacitor/push-notifications");
+      const perm = await PushNotifications.checkPermissions();
+      if (perm.receive === "granted") {
+        setDeviceState((s) => (s === "denied" ? "idle" : s));
+        return "granted";
+      }
+      if (perm.receive === "denied") { setDeviceState("denied"); return "denied"; }
+      return "other";
+    } catch {
+      return "other";
+    }
+  };
 
   useEffect(() => {
     const { supported, iosNeedsInstall, native } = detectEnv();
     if (native) {
       if (!nativePushAvailable()) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time environment check on mount
-        setState("native");
+        setDeviceState("native");
         return;
       }
       // Native APNs path: subscribed = OS permission granted AND we registered
@@ -141,11 +188,11 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
         try {
           const { PushNotifications } = await import("@capacitor/push-notifications");
           const perm = await PushNotifications.checkPermissions();
-          if (perm.receive === "denied") { setState("denied"); return; }
+          if (perm.receive === "denied") { setDeviceState("denied"); return; }
           let stored: string | null = null;
           try { stored = localStorage.getItem(APNS_ENDPOINT_KEY); } catch { /* ignore */ }
           const on = perm.receive === "granted" && !!stored;
-          setState(on ? "subscribed" : "idle");
+          setDeviceState(on ? "subscribed" : "idle");
           // Only for the account that enabled push on this device — never bind
           // a device to an account that did not ask (lib/push-device.ts).
           if (on && stored) {
@@ -155,22 +202,22 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
             if (uid && owner === uid) reconfirmSubscription({ endpoint: stored, p256dh: "apns", auth: "apns" });
           }
         } catch {
-          setState("native");
+          setDeviceState("native");
         }
       })();
       return;
     }
     if (!supported) {
        
-      setState(iosNeedsInstall ? "ios-install" : "unsupported");
+      setDeviceState(iosNeedsInstall ? "ios-install" : "unsupported");
       return;
     }
-    if (Notification.permission === "denied") { setState("denied"); return; }
+    if (Notification.permission === "denied") { setDeviceState("denied"); return; }
     if (Notification.permission === "granted") {
       navigator.serviceWorker.ready
         .then((reg) => reg.pushManager.getSubscription())
         .then((sub) => {
-          setState(sub ? "subscribed" : "idle");
+          setDeviceState(sub ? "subscribed" : "idle");
           // Sign-out and account switches unsubscribe the browser itself
           // (unbindDevicePush), so a live subscription here belongs to whoever
           // is signed in now.
@@ -179,14 +226,14 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
             reconfirmSubscription({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth });
           }
         })
-        .catch(() => setState("idle"));
+        .catch(() => setDeviceState("idle"));
     } else {
-      setState("idle");
+      setDeviceState("idle");
     }
   }, []);
 
   async function enable(): Promise<boolean> {
-    setState("working");
+    setDeviceState("working");
     setReason(null);
 
     // Native APNs path (Capacitor shell with the PushNotifications plugin).
@@ -199,11 +246,11 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
         // "granted" simply switches push on, "denied" can only be changed in
         // the Settings app (the denied state below links straight there).
         const perm = await PushNotifications.requestPermissions();
-        if (perm.receive === "denied") { setState("denied"); return false; }
+        if (perm.receive === "denied") { setDeviceState("denied"); return false; }
         // Anything else that is not "granted" means the sheet was put away
         // without an answer. iOS will ask again, so stay tappable — this used
         // to show the permanent "go to Settings" message for a swipe.
-        if (perm.receive !== "granted") { setState("idle"); return false; }
+        if (perm.receive !== "granted") { setDeviceState("idle"); return false; }
 
         // Both listeners must be ATTACHED before register() is called, and the
         // attach is asynchronous (it crosses the JS↔native bridge). The plugin
@@ -233,7 +280,7 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
           // being offline for as long as this was swallowed.
           reportPushFailure(`native registration failed: ${result.error ?? "unknown"}`);
           if (/aps-environment/.test(result.error ?? "")) setReason("old-build");
-          setState("error");
+          setDeviceState("error");
           return false;
         }
 
@@ -252,7 +299,7 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
         });
         if (!res.ok) {
           reportPushFailure(`subscribe returned ${res.status}`);
-          setState("error");
+          setDeviceState("error");
           return false;
         }
         try {
@@ -260,11 +307,11 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
           const uid = await sessionUid();
           if (uid) localStorage.setItem(PUSH_UID_KEY, uid);
         } catch { /* ignore */ }
-        setState("subscribed");
+        setDeviceState("subscribed");
         return true;
       } catch (e) {
         reportPushFailure(`native enable threw: ${e instanceof Error ? e.message : String(e)}`);
-        setState("error");
+        setDeviceState("error");
         return false;
       } finally {
         // Every tap used to leave two more live listeners behind.
@@ -282,12 +329,12 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
       // were BLOCKED. Chrome is lenient, which is why this looked fine on a
       // desktop and was broken on every Apple browser.
       const perm = await Notification.requestPermission();
-      if (perm === "denied") { setState("denied"); return false; }
+      if (perm === "denied") { setDeviceState("denied"); return false; }
       // "default" = the prompt was dismissed (or never shown). Nothing is
       // blocked and the browser will ask again: stay tappable.
       if (perm !== "granted") {
         reportPushFailure(`web permission resolved "${perm}" without a grant`);
-        setState("idle");
+        setDeviceState("idle");
         return false;
       }
 
@@ -311,23 +358,23 @@ export function usePushState(): [State, () => Promise<boolean>, FailReason] {
       if (!res.ok) {
         reportPushFailure(`web subscribe returned ${res.status}`);
         try { await sub.unsubscribe(); } catch { /* ignore */ }
-        setState("error");
+        setDeviceState("error");
         return false;
       }
 
-      setState("subscribed");
+      setDeviceState("subscribed");
       return true;
     } catch (e) {
       // Never fail silently — the button returning to "idle" with no message
       // reads as broken. Show a retryable error state instead, and say why
       // where we can read it (the native path always did; this one never had).
       reportPushFailure(`web enable threw: ${e instanceof Error ? e.message : String(e)}`);
-      setState("error");
+      setDeviceState("error");
       return false;
     }
   }
 
-  return [state, enable, reason];
+  return [state, enable, reason, recheck];
 }
 
 // The on/off switch itself.
@@ -350,29 +397,60 @@ function Switch({ on, busy, onClick }: { on: boolean; busy: boolean; onClick: ()
 
 export default function EnablePushButton({
   onDone,
+  compact = false,
 }: {
   onDone?: () => void;
+  /**
+   * Inside the iPhone app after a "Don't Allow": render only the Open iPhone
+   * Settings button. The reminder under a notification (PushAskCallout)
+   * carries its own words above it; the amber paragraph is for Settings.
+   */
+  compact?: boolean;
   /** @deprecated kept for call-site compatibility — always a toggle now. */
   label?: string;
   allowDisable?: boolean;
 }) {
-  const [state, enable, reason] = usePushState();
+  const [state, enable, reason, recheck] = usePushState();
   const [busyOff, setBusyOff] = useState(false);
   const [forcedOff, setForcedOff] = useState(false);
 
-  // "Don't Allow" / "Block" at the device's own prompt, answered HERE — the
-  // switch went "working" (the prompt was up) and came back "denied" — is the
-  // clearest no there is, whichever screen this switch is on (the card-is-live
-  // step, Settings, a reminder under a notification). It ends the reminders on
-  // every device. A switch that mounts ALREADY denied says nothing: that answer
-  // was given some other time, and has already been honoured.
-  const askedHere = useRef(false);
+  // A "Don't Allow" at the phone's own prompt used to end the reminders on
+  // every device, for good. It no longer does (owner, 2026-09-23): iOS asks
+  // once per install, so the person who swiped that sheet away in the middle
+  // of building their card has one road back — the Settings app — and the
+  // reminder under their next new contact now carries that button, within the
+  // same two-reminders-per-side budget. What still ends the reminders for good:
+  // "Don't ask again", and switching push OFF on purpose (turnedOffOnPurpose).
+
+  // ── The way back from Settings ───────────────────────────────────────────
+  // The state is computed once, on mount. Someone who taps "Open iPhone
+  // Settings", flips Allow, and returns would otherwise still see "denied".
+  // Ask the OS again whenever the app comes back to the foreground while
+  // denied; and if they went to Settings FROM HERE and came back allowed, that
+  // is the clearest yes there is — turn push on without another tap
+  // (permission is already granted, so enable() shows no sheet).
+  const wentToSettings = useRef(false);
   useEffect(() => {
-    if (state === "working") { askedHere.current = true; return; }
-    if (state === "denied" && askedHere.current) {
-      askedHere.current = false;
-      stopAsk();
-    }
+    if (state !== "denied" || !detectNativeApp()) return;
+    const onVisible = async () => {
+      if (document.visibilityState !== "visible") return;
+      // Read BEFORE the recheck: a "granted" moves the shared state to idle,
+      // which unmounts this listener mid-flight — the decision must not
+      // depend on anything that cleanup touches.
+      const cameFromHere = wentToSettings.current;
+      wentToSettings.current = false;
+      const perm = await recheck();
+      if (perm !== "granted" || !cameFromHere) return;
+      await enableAndReport();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+    // enableAndReport/recheck are stable for the life of this mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
   // Switching push OFF is a decision, and the reminders under notifications
@@ -473,6 +551,25 @@ export default function EnablePushButton({
     // after usePushState's effect has run, so this never renders on the server
     // or on the hydrating first paint.
     if (detectNativeApp()) {
+      // iOS asks once per install and never again, so after a "Don't Allow"
+      // this is the ONLY road back — make it one tap. app-settings: is
+      // UIApplication.openSettingsURLString; Capacitor hands a non-http scheme
+      // to the system, which opens SwiftCard's own page in Settings. If a
+      // shell build cannot follow it nothing happens, and the written path
+      // still stands. Remembered, so coming back allowed turns push on.
+      const openSettings = (
+        <button
+          type="button"
+          onClick={() => {
+            wentToSettings.current = true;
+            try { window.location.href = "app-settings:"; } catch { /* ignore */ }
+          }}
+          className={`${compact ? "" : "mt-2 "}inline-flex items-center justify-center rounded-full bg-amber-500/15 border border-amber-500/30 px-4 py-2 text-xs font-semibold text-amber-300`}
+        >
+          Open iPhone Settings
+        </button>
+      );
+      if (compact) return openSettings;
       return (
         <div className="text-center">
           <p className="text-amber-400 text-xs leading-relaxed">
@@ -481,18 +578,7 @@ export default function EnablePushButton({
             <strong>Notifications</strong>, switch <strong>Allow Notifications</strong> on,
             then come back here.
           </p>
-          {/* iOS asks once per install and never again, so after a "Don't
-              Allow" this is the ONLY road back — make it one tap. app-settings:
-              is UIApplication.openSettingsURLString; it opens SwiftCard's own
-              page in Settings. If a shell build cannot follow it nothing
-              happens, and the written path above still stands. */}
-          <button
-            type="button"
-            onClick={() => { try { window.location.href = "app-settings:"; } catch { /* ignore */ } }}
-            className="mt-2 inline-flex items-center justify-center rounded-full bg-amber-500/15 border border-amber-500/30 px-4 py-2 text-xs font-semibold text-amber-300"
-          >
-            Open iPhone Settings
-          </button>
+          {openSettings}
         </div>
       );
     }
@@ -506,12 +592,18 @@ export default function EnablePushButton({
   const isOn = state === "subscribed" && !forcedOff;
   const busy = state === "working" || busyOff;
 
+  // Turn push on and tell everyone who cares. onDone FIRST: a reminder that
+  // turned push on marks itself for its "You're set" before notePushOn()
+  // retires every other ask on screen. Shared by the switch and by the
+  // come-back-from-Settings path above.
+  async function enableAndReport() {
+    const ok = await enable();
+    if (ok) { setForcedOff(false); onDone?.(); notePushOn(); }
+  }
+
   async function toggle() {
     if (isOn) { await disable(); return; }
-    const ok = await enable();
-    // onDone FIRST: a reminder that turned push on marks itself for its
-    // "You're set" before notePushOn() retires every other ask on screen.
-    if (ok) { setForcedOff(false); onDone?.(); notePushOn(); }
+    await enableAndReport();
   }
 
   return (
