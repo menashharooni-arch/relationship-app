@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   promoFitsPurchase, describePromo, scopeLabel, durationLabel, promoLabel,
   isFreeDays, isAppliesTo, isIntervalTarget, isPromoDuration, isAudience,
@@ -146,7 +148,7 @@ describe("creating a code", () => {
 });
 
 describe("the rules are enforced where the money is", () => {
-  const read = (p: string) => require("node:fs").readFileSync(require("node:path").join(process.cwd(), p), "utf8");
+  const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
   it("checkout drops a code that doesn't fit the plan being bought", () => {
     const src = read("src/app/api/stripe/checkout/route.ts");
     expect(src).toContain('promoFitsPurchase(promo, { plan: isOffice ? "office" : "pro", interval })');
