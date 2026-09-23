@@ -426,8 +426,11 @@ export default function GuidedTour({
   }
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  // Not while paused: on /office/admin this (hidden) tour and the admin tour
+  // could both be running, and Escape here finished the MAIN tour — which
+  // pushes /dashboard — dragging the admin out of the console mid-tour.
   useEffect(() => {
-    if (!running) return;
+    if (!running || paused) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { e.preventDefault(); finish(true); }
       else if (e.key === "ArrowRight") { e.preventDefault(); go(idx + 1); }
@@ -435,7 +438,7 @@ export default function GuidedTour({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [running, idx, go, finish]);
+  }, [running, paused, idx, go, finish]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- stopLoop is redefined each render but only its cleanup-on-unmount behavior matters here
   useEffect(() => () => stopLoop(), []);

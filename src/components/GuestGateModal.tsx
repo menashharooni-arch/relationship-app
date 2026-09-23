@@ -47,6 +47,8 @@ export default function GuestGateModal() {
   const encoded = encodeURIComponent(next);
   const signupHref = `/login?mode=signup&next=${encoded}&draft=1`;
   const loginHref = `/login?next=${encoded}&draft=1`;
+  const planParam = /[?&]plan=(office|pro)\b/.exec(next)?.[1];
+  const pickedPlan = planParam === "office" ? "Office" : planParam === "pro" ? "Pro" : null;
 
   return (
     <div
@@ -78,7 +80,11 @@ export default function GuestGateModal() {
           Save your card
         </h2>
         <p className="mt-2 text-center text-sm leading-relaxed text-gray-400">
-          Create your free account to save it. Next you&apos;ll choose your plan, and your card goes live.
+          {/* A plan already picked on /pricing rides in the URL (?plan=…):
+              say so, instead of promising a plan choice they already made. */}
+          {pickedPlan
+            ? <>Create your account to save it. Next you&apos;ll check out for {pickedPlan}, and your card goes live.</>
+            : <>Create your free account to save it. Next you&apos;ll choose your plan, and your card goes live.</>}
         </p>
 
         <div className="mt-6 space-y-2.5">

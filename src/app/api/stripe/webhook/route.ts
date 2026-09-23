@@ -441,11 +441,17 @@ export async function POST(req: NextRequest) {
       }
       // Critical: upgrade the plan. Kept to pre-existing columns ONLY so it can
       // never be blocked by a not-yet-run REFERRAL_SETUP.sql migration.
-      await admin.from("profiles").update({
+      // supabase-js RESOLVES with { error } rather than throwing, so a failed
+      // write used to return 200: the dedup marker stayed, Stripe never
+      // retried, and the buyer had paid with no plan (and /checkout/success
+      // spun on "Setting up…" forever). Throw so the handler 500s and Stripe
+      // redelivers.
+      const { error: planWriteError } = await admin.from("profiles").update({
         plan,
         stripe_customer_id: session.customer as string,
         stripe_subscription_id: session.subscription as string,
       }).eq("id", userId);
+      if (planWriteError) throw new Error(`plan write failed: ${planWriteError.message}`);
       // Referral columns (added by the migration) — best-effort; a missing column
       // just no-ops here and never affects the upgrade above.
       await admin.from("profiles").update({

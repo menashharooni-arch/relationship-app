@@ -117,3 +117,21 @@ describe("the sample contact is never a team lead", () => {
     });
   }
 });
+
+describe("the rest of the journey", () => {
+  it("the builder's save gate doesn't promise a plan choice already made", () => {
+    const g = code("src/components/GuestGateModal.tsx");
+    expect(g).toMatch(/\[\?&\]plan=\(office\|pro\)/);
+    expect(g).toContain("Next you&apos;ll check out for {pickedPlan}");
+  });
+
+  it("a paused main tour ignores the keyboard (the admin tour owns it)", () => {
+    expect(code("src/components/GuidedTour.tsx")).toContain("if (!running || paused) return;");
+  });
+
+  it("a failed plan write makes the webhook fail, so Stripe retries", () => {
+    const w = code("src/app/api/stripe/webhook/route.ts");
+    expect(w).toContain("const { error: planWriteError } = await admin.from(\"profiles\").update({");
+    expect(w).toContain("if (planWriteError) throw new Error(");
+  });
+});
