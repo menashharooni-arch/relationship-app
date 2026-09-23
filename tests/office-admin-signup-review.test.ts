@@ -158,3 +158,47 @@ describe("the Custom team-size box can be typed into", () => {
     });
   }
 });
+
+describe("every charge gets exactly one receipt", () => {
+  const w = () => code("src/app/api/stripe/webhook/route.ts");
+
+  it("adding seats / upgrading to Office (charged at once) sends a receipt", () => {
+    const c = w();
+    const block = c.slice(c.indexOf('invoice.billing_reason === "subscription_update" && (invoice.amount_paid ?? 0) > 0'));
+    expect(block.length).toBeGreaterThan(100);
+    expect(block).toContain("await sendReceiptForUser({");
+    expect(block).toContain("invoiceNumber: invoice.number ?? null");
+    expect(block).toContain("Seats added · ");
+    expect(block).toContain("Upgrade to ");
+    expect(block).toContain("Switched to ");
+  });
+
+  it("de-duplicates on Stripe's invoice number, so two different charges both get theirs", () => {
+    const c = w();
+    expect(c).toContain('dedupe.ilike("subject", `%#${invoiceNo');
+    // the trial-start email has no number in its subject → keeps the window
+    expect(c).toContain("const invoiceNo = (!opts.trialFirstChargeDate && opts.invoiceNumber?.trim()) || null;");
+    expect(c).toContain("numberInSubject: !!invoiceNo");
+  });
+
+  it("a receipt's subject carries the Stripe number only when it is Stripe's", () => {
+    const base = { firstName: "Dana", email: "a@b.co", planName: "Office", amount: "$19.95", interval: "Monthly", paymentDate: "x", manageUrl: U };
+    expect(receiptEmail({ ...base, invoiceNumber: "A1B2C3D4-0002", numberInSubject: true }).subject).toBe("Your SwiftCard receipt #A1B2C3D4-0002 — $19.95");
+    expect(receiptEmail({ ...base, invoiceNumber: "SC-12345678" }).subject).toBe("Your SwiftCard receipt — $19.95");
+  });
+
+  it("a repeat-card trial ended on the spot is receipted once, from its real invoice", () => {
+    const c = w();
+    expect(c).toMatch(/trialFirstChargeDate = null;\s*trialEndedEarly = true;/);
+    expect(c).toContain("if (!trialEndedEarly) try {");
+  });
+});
+
+describe("the Teams page sells Office", () => {
+  it("has a Get Office button, preselecting Office at the minimum seats, hidden in the app", () => {
+    const p = code("src/app/products/[slug]/page.tsx");
+    expect(p).toContain("const GET_OFFICE_HREF = `/cards/new?plan=office&interval=monthly&seats=${PLAN_LIMITS.OFFICE_MIN_SEATS}`;");
+    const uses = p.split('{slug === "teams" && <NativeHidden><Link href={GET_OFFICE_HREF}').length - 1;
+    expect(uses).toBe(2);
+  });
+});

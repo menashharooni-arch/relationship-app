@@ -68,23 +68,30 @@ async function sendReceiptForUser(opts: {
   // Guard against a duplicate send: if the webhook handler is retried after a
   // partial failure (e.g. a later step in the same event threw, or Stripe
   // redelivered), this same receipt path can run again within seconds/minutes.
-  // There's no invoice-id column on email_logs to key an exact dedup off of,
-  // so this is a coarse but effective backstop — a real renewal receipt is
-  // never sent twice within 10 minutes of another for the same user.
-  const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const { data: recentReceipt } = await admin
+  //
+  // With a Stripe invoice number the guard is EXACT: the number is in the
+  // receipt's subject ("Your SwiftCard receipt #ABC-0002 — $19.95"), so one
+  // invoice is receipted once, ever — and two DIFFERENT charges minutes apart
+  // (buying Office, then adding a seat) each get theirs. The old 10-minute
+  // window swallowed the second. The trial-start email carries no number in
+  // its subject, so it — and anything without a number — keeps the coarse
+  // window as its backstop.
+  const invoiceNo = (!opts.trialFirstChargeDate && opts.invoiceNumber?.trim()) || null;
+  let dedupe = admin
     .from("email_logs")
     .select("id")
     .eq("user_id", opts.userId)
-    .eq("type", "receipt")
-    .gte("created_at", since)
-    .limit(1)
-    .maybeSingle();
+    .eq("type", "receipt");
+  dedupe = invoiceNo
+    ? dedupe.ilike("subject", `%#${invoiceNo.replace(/[%_\\]/g, "\\$&")} —%`)
+    : dedupe.gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString());
+  const { data: recentReceipt } = await dedupe.limit(1).maybeSingle();
   if (recentReceipt) return;
 
   const firstName = await greetingFirstName(admin, opts.userId, profile.name);
   const amount =`$${(opts.amountCents / 100).toFixed(2)}`;
-  const invoiceNum = opts.invoiceNumber || `SC-${Date.now().toString().slice(-8)}`;
+  // The same string the de-dupe above searched for, so subject and guard agree.
+  const invoiceNum = invoiceNo || opts.invoiceNumber?.trim() || `SC-${Date.now().toString().slice(-8)}`;
 
   const manageUrl = `${APP_URL}/settings/flows?billing=1`;
   const template = opts.trialFirstChargeDate
@@ -107,6 +114,7 @@ async function sendReceiptForUser(opts: {
           year: "numeric", month: "long", day: "numeric",
         }),
         invoiceNumber: invoiceNum,
+        numberInSubject: !!invoiceNo,
         invoiceUrl: opts.invoiceUrl ?? undefined,
         seats: opts.seats ?? undefined,
         manageUrl,
@@ -303,6 +311,11 @@ export async function POST(req: NextRequest) {
       let trialFirstChargeDate: string | null = null;
       let recurringCents: number | null = null;
       let trialEndsAt: string | null = null;
+      // Set when the repeat-card rule below ends this trial on the spot: the
+      // real charge then arrives on its own invoice (billing_reason
+      // subscription_update), and THAT invoice's receipt is the right one —
+      // this session's invoice is the $0.00 trial one.
+      let trialEndedEarly = false;
       if (session.subscription) {
         // One retry, then fail the delivery. This used to be swallowed, and
         // a single failed lookup then sent a trial customer a "Payment
@@ -395,6 +408,7 @@ export async function POST(req: NextRequest) {
             await getStripe().subscriptions.update(session.subscription as string, { trial_end: "now", proration_behavior: "none" });
             trialEndsAt = null;
             trialFirstChargeDate = null;
+            trialEndedEarly = true;
           } catch (e) {
             // They keep this one trial. Worth knowing about, not worth failing
             // the provisioning of a subscription the customer did start.
@@ -525,8 +539,9 @@ export async function POST(req: NextRequest) {
         console.error("Referral reward error:", e);
       }
 
-      // Send receipt
-      try {
+      // Send receipt — unless the trial was just ended early, whose real charge
+      // is receipted from its own invoice (invoice.payment_succeeded below).
+      if (!trialEndedEarly) try {
         await sendReceiptForUser({
           userId,
           // "Office", never the internal "enterprise" id (2026-09-16 audit:
@@ -631,6 +646,56 @@ export async function POST(req: NextRequest) {
           });
         } catch (e) {
           console.error("Renewal receipt error:", e);
+        }
+      }
+
+      // Charged NOW by a change to the subscription: an Office owner adding
+      // seats, an upgrade from Pro to Office (both invoiced immediately with
+      // always_invoice), or a trial the repeat-card rule ended on the spot. The
+      // card was charged and no email said so — receipts only went out for
+      // checkout and renewals. $0.00 changes (a downgrade credited to the next
+      // invoice) are not charges and get nothing.
+      if (invoice.billing_reason === "subscription_update" && (invoice.amount_paid ?? 0) > 0 && profile?.id) {
+        try {
+          const lines = invoice.lines?.data ?? [];
+          const priceOf = (l: (typeof lines)[number]) => {
+            const d = l?.pricing?.price_details?.price;
+            return typeof d === "string" ? d : d?.id;
+          };
+          const isProration = (l: (typeof lines)[number]) =>
+            !!(l?.parent?.subscription_item_details?.proration || l?.parent?.invoice_item_details?.proration);
+          // The line that is being paid FOR (positive), not the credit for the
+          // unused time on what it replaced — its price names the plan and
+          // interval now in force, and its quantity is the new seat count.
+          const charged = [...lines].reverse().find((l) => (l.amount ?? 0) > 0) ?? lines[0];
+          const nowPlan = planFromPriceId(priceOf(charged));
+          const office = nowPlan ? nowPlan.plan === "office" : profile.plan === "enterprise";
+          const prorated = lines.some(isProration);
+          // The credit line for the unused time on what was there before.
+          const credited = prorated ? lines.find((l) => (l.amount ?? 0) < 0) : undefined;
+          const creditedPlan = credited ? planFromPriceId(priceOf(credited)) : null;
+          const annual = nowPlan?.interval === "annual";
+          const PRORATED = "prorated to your next billing date";
+          const label = !prorated
+            ? (annual ? "Annual" : "Monthly")
+            : creditedPlan && nowPlan && creditedPlan.plan !== nowPlan.plan
+              ? `Upgrade to ${office ? "Office" : "Pro"} · ${PRORATED}`
+              : creditedPlan && nowPlan && creditedPlan.interval !== nowPlan.interval
+                ? `Switched to ${annual ? "annual" : "monthly"} billing · ${PRORATED}`
+                : office && (credited?.quantity ?? 0) < (charged?.quantity ?? 0)
+                  ? `Seats added · ${PRORATED}`
+                  : `Plan change · ${PRORATED}`;
+          await sendReceiptForUser({
+            userId: profile.id,
+            planName: office ? "Office" : "Pro",
+            amountCents: invoice.amount_paid,
+            interval: label,
+            seats: office ? charged?.quantity ?? null : null,
+            invoiceUrl: invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? null,
+            invoiceNumber: invoice.number ?? null,
+          });
+        } catch (e) {
+          console.error("Change receipt error:", e);
         }
       }
     }

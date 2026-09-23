@@ -21,6 +21,15 @@ import TeamsDashboard from "@/components/site/TeamsDashboard";
 import WideDemo from "@/components/site/WideDemo";
 import NativeHidden from "@/components/NativeHidden";
 import NativeFeatureNote from "@/components/NativeFeatureNote";
+import { PLAN_LIMITS } from "@/lib/plan";
+
+// The Teams page's own way into Office: the card builder with Office already
+// picked (plan/interval/seats ride through sign-up to "Complete your Office
+// subscription", exactly like /pricing's "Get Office"). Before, its only
+// buttons were "Create your free card" and "See pricing", so a team buyer
+// went through a Free-framed builder and a plan chooser to get here.
+// NativeHidden wherever it renders — the app never sells (App Store 3.1.1).
+const GET_OFFICE_HREF = `/cards/new?plan=office&interval=monthly&seats=${PLAN_LIMITS.OFFICE_MIN_SEATS}`;
 
 type Feature = { t: string; d: string };
 type Product = {
@@ -362,6 +371,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 <div className="mt-8 flex flex-wrap gap-3" data-reveal>
                   <Link href="/cards/new" className="rd-btn rd-btn-primary rd-btn-lg">{p.ctaLabel ?? "Create your free card"}</Link>
                   {showPreview && <Link href="/preview" className="rd-btn rd-btn-ghost-l rd-btn-lg">Preview</Link>}
+                  {slug === "teams" && <NativeHidden><Link href={GET_OFFICE_HREF} className="rd-btn rd-btn-ghost-l rd-btn-lg">Get Office for your team →</Link></NativeHidden>}
                 </div>
               </div>
               <div className="mt-14 flex justify-center" data-reveal="fade">{p.demo}</div>
@@ -491,6 +501,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <p className="text-white/85 text-[1.08rem] mt-4">Your free SwiftCard is 60 seconds away.</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/cards/new" className="hp-btn-white">Create your free card</Link>
+            {slug === "teams" && <NativeHidden><Link href={GET_OFFICE_HREF} className="rd-btn border border-white/40 bg-white/10 text-white">Get Office for your team →</Link></NativeHidden>}
             <NativeHidden><Link href="/pricing" className="rd-btn border border-white/40 bg-white/10 text-white">See pricing</Link></NativeHidden>
           </div>
         </MarketingCta>

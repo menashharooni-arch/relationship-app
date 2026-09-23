@@ -132,7 +132,7 @@ export const marketingDocs = defineDocs([
     answer:
       "The Office plan puts a whole team on matching, brand-synced cards: an admin sets the company logo, contact details and design once and it applies to everyone's card, invites new people with a passwordless link, and sees per-person analytics and every teammate's leads in one place. It's priced per seat with a minimum of {limit.seats} seats — see swiftcard.me/pricing.",
     detail:
-      "Each seat includes everything in Pro. Leads stay with the office when someone leaves, and removing a person frees their seat and strips the company branding from the card they keep. There's a Teams page at swiftcard.me/products/teams, and swiftcard.me/office is the sign-up path.",
+      "Each seat includes everything in Pro. Leads stay with the office when someone leaves, and removing a person frees their seat and strips the company branding from the card they keep. There's a Teams page at swiftcard.me/products/teams with a \"Get Office for your team →\" button, and /pricing has \"Get Office\" with a team-size picker. Both open the card builder with Office already chosen: build your card, create the account, then \"Complete your Office subscription\" and pay. (swiftcard.me/office is the admin console for people who already have Office — not a sign-up page.)",
     commerce: true,
     nativeAnswer:
       "The Office plan puts a whole team on matching, brand-synced cards: an admin sets the company logo, contact details and design once and it applies to everyone's card, invites people with a passwordless link, and sees per-person analytics plus every teammate's leads in one place. It needs at least {limit.seats} seats, and each seat includes everything in Pro.",

@@ -358,6 +358,8 @@ export function receiptEmail(opts: {
   manageUrl: string;
   /** Office: the seats this charge covers. */
   seats?: number;
+  /** invoiceNumber is Stripe's real invoice number: show it in the subject. */
+  numberInSubject?: boolean;
 }) {
   const safeName = escapeHtml(opts.firstName);
   const safePlanName = escapeHtml(opts.planName);
@@ -398,7 +400,14 @@ export function receiptEmail(opts: {
     `)}
     ${p(`If you have any questions about this charge, just reply to this email.`)}
   `;
-  return built(BILLING_FROM, `Your SwiftCard receipt — ${opts.amount}`, layout(body));
+  // Stripe's own invoice number in the subject when there is one: it is what
+  // the customer sees in the billing portal and on the PDF, and it makes each
+  // receipt unique (the webhook de-duplicates on it).
+  return built(
+    BILLING_FROM,
+    opts.numberInSubject ? `Your SwiftCard receipt #${opts.invoiceNumber} — ${opts.amount}` : `Your SwiftCard receipt — ${opts.amount}`,
+    layout(body),
+  );
 }
 
 // A checkout that starts with a free trial or a promo's free days charges $0.00
