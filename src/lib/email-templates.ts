@@ -189,7 +189,7 @@ export function welcomeEmail(opts: {
     ${card(`
       <p style="margin:0 0 14px;font-weight:700;color:#0f172a;font-size:14px;">The best ways to use your SwiftCard</p>
       ${step(1, "Put your Swift Links in your bio", `Your link-in-bio page is live at ${a(safeLinksUrl, linksText)}. Paste it into your Instagram, TikTok and LinkedIn bios \u2014 your photo, socials, links and a Connect button, on one page.`)}
-      ${step(2, "Add your Swift Signature", `Copy it from your ${a(shareUrl, "Share page")} and paste it into your email signature settings, so every email you send ends with your card.`)}
+      ${step(2, "Add your Swift Signature", `Copy it from your ${a(shareUrl, "Links page")} and paste it into your email signature settings, so every email you send ends with your card.`)}
       ${step(3, "Add your card to Apple Wallet", `On your ${a(`${APP_URL}/dashboard`, "dashboard")}, tap \u201cOther ways to share\u201d \u2192 \u201cAdd to Apple Wallet\u201d. Your card and QR code are then one double-click away on your iPhone, even with no signal.`)}
       ${opts.officeMember ? "" : step(4, "Send new contacts to your CRM", `When someone shares their details back, they can go straight into your CRM. Connect it in ${a(`${APP_URL}/settings/flows`, "Settings \u2192 Notifications and preferences")} under \u201cSend contacts to your CRM\u201d (Pro and Office).`)}
       ${step(opts.officeMember ? 4 : 5, "Share it everywhere else", `Text or email the link, and download your QR code from \u201cOther ways to share\u201d for a slide, a flyer or your lock screen. Nobody has to install anything to open it.`, true)}
