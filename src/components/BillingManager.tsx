@@ -9,6 +9,7 @@ import { useIsNativeApp } from "@/lib/platform";
 import IapSubscribeButton from "@/components/NativePaywall";
 import { manageIapSubscription } from "@/lib/iap";
 import { trialStatusLine } from "@/lib/billing-state";
+import { canOfferExternalPurchase, openExternalPurchase } from "@/lib/external-purchase";
 
 // ── In-app subscription manager (Settings > Billing) ─────────────────────────
 // Native UI over our own /api/stripe/subscription/* endpoints — NOT the Stripe
@@ -81,7 +82,11 @@ const planLabel = (p: Sub["plan"]) => (p === "office" ? "Office" : p === "pro" ?
 function downgradeLosses(plan: Sub["plan"]): string[] {
   const losses: string[] = [];
   if (plan === "office") {
-    losses.push("Every teammate's card goes offline — their links, QR codes, NFC taps and Apple Wallet passes stop working, and all seats are released.");
+    // What the lapse cascade actually does (webhook customer.subscription
+    // .deleted): members are released, not switched off. This said every
+    // teammate's card goes offline, which was not true.
+    losses.push("All seats are released. Each teammate moves to their own plan — Free, or their own Pro if they pay for it — keeping their first card live without your company branding.");
+    losses.push("You lose the Admin console: team analytics, the team's leads and inbox, and company branding.");
   }
   losses.push(
     plan === "office"
@@ -103,6 +108,13 @@ export default function BillingManager() {
 
   const [showChange, setShowChange] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
+  // Whether this app build can leave for the website (the External Purchase
+  // link-out the seat flow uses). Read after mount: the plugin is window-only.
+  const [canLinkOut, setCanLinkOut] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- window-only value, hydration-safe by design
+    setCanLinkOut(canOfferExternalPurchase());
+  }, []);
   // Backstop (App Review 3.1.1): today the only render site is the Settings
   // billing section, which is already hideOnNative — but if this component is
   // ever mounted anywhere else, it must still never paint plan prices, seat
@@ -170,7 +182,13 @@ export default function BillingManager() {
     if (loading) {
       return <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 text-sm text-gray-500">Loading your plan…</div>;
     }
-    const nPlan = sub?.plan ?? "free";
+    // Couldn't load: say so. Falling through with plan "free" showed the
+    // Apple "Upgrade to Pro" purchase to accounts already paying for Office or
+    // Pro — and an Apple Pro bought on an Office account buys nothing.
+    if (!sub) {
+      return <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 text-sm text-gray-400">{err ?? "Couldn't load your plan — pull down to refresh, or try again in a moment."}</div>;
+    }
+    const nPlan = sub.plan ?? "free";
     const nPaid = nPlan === "pro" || nPlan === "office";
     const appleBilled = sub?.planSource === "apple";
     // Is there actually a subscription being billed SOMEWHERE else? Not the
@@ -195,7 +213,11 @@ export default function BillingManager() {
               // app; the sentence just should not read as a confession. Same
               // facts, no framing: it is active, Apple is not the biller, so
               // the Apple subscription settings are not where to manage it.
-              ? "Your Pro subscription is active on this account. It isn't billed through Apple, so it isn't managed in your Apple account settings."
+              // No template literal: the native branch carries no dollar sign
+              // (tests/ios-final-audit — a price can't slip in).
+              ? (nPlan === "office"
+                ? "Your Office subscription is active on this account. It isn't billed through Apple, so it isn't managed in your Apple account settings."
+                : "Your Pro subscription is active on this account. It isn't billed through Apple, so it isn't managed in your Apple account settings.")
               : nPaid
                 // Paid with nothing billing it anywhere: a comp, a grant, or
                 // an org membership. Claiming a purchase here would be a lie.
@@ -204,12 +226,31 @@ export default function BillingManager() {
                   : "Pro is enabled on this account."
                 : "Unlock everything in SwiftCard with Pro."}
         </p>
+        {/* A declined renewal: the push opens this screen, which used to say
+            only "active". Where to fix it, with no price and no link out
+            (3.1.1) — the payment method lives on swiftcard.me. */}
+        {nPaid && !appleBilled && (sub.paymentFailed || sub.status === "past_due" || sub.status === "unpaid") && (
+          <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+            <p className="text-[0.75rem] leading-relaxed text-amber-200">
+              Your last payment didn&apos;t go through. Update the card on your subscription to keep {nPlan === "office" ? "Office" : "Pro"} — your access continues in the meantime.
+            </p>
+            {canLinkOut && (
+              <button
+                type="button"
+                onClick={() => { void openExternalPurchase("/settings/flows?billing=1#billing"); }}
+                className="mt-2 w-full rounded-full bg-gray-800 border border-gray-700 py-2 text-xs font-semibold text-white hover:bg-gray-700"
+              >
+                Update payment method
+              </button>
+            )}
+          </div>
+        )}
         {/* Trial / grant end — a date, never a price (3.1.1). */}
         {nPaid && sub?.trialEnd && (
           <p className="mt-1 text-[0.8125rem] text-gray-400">{trialStatusLine({ trialEndsAt: sub.trialEnd, native: true })}</p>
         )}
         {nPaid && !sub?.trialEnd && sub?.grantEndsAt && (
-          <p className="mt-1 text-[0.8125rem] text-gray-400">Free Pro · ends {fmtDate(sub.grantEndsAt)}</p>
+          <p className="mt-1 text-[0.8125rem] text-gray-400">Free {nPlan === "office" ? "Office" : "Pro"} · ends {fmtDate(sub.grantEndsAt)}</p>
         )}
         {appleBilled ? (
           <button
@@ -283,7 +324,7 @@ export default function BillingManager() {
         </p>
       )}
       {isPaid && !sub.cancelAtPeriodEnd && !sub.trialEnd && sub.grantEndsAt && (
-        <p className="text-xs text-gray-500 mb-4">Free Pro · ends {fmtDate(sub.grantEndsAt)}</p>
+        <p className="text-xs text-gray-500 mb-4">Free {planLabel(sub.plan)} · ends {fmtDate(sub.grantEndsAt)}</p>
       )}
       {isPaid && !sub.cancelAtPeriodEnd && !sub.trialEnd && !sub.grantEndsAt && (
         <p className="text-xs text-gray-500 mb-4">
@@ -295,7 +336,7 @@ export default function BillingManager() {
       {sub.paymentFailed && (
         <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3">
           <p className="text-amber-300 text-xs font-semibold">Your last payment didn&apos;t go through.</p>
-          <p className="text-amber-200/80 text-[0.6875rem] mt-0.5">Update your payment method to keep Pro — your access continues during the grace period.</p>
+          <p className="text-amber-200/80 text-[0.6875rem] mt-0.5">Update your payment method to keep {planLabel(sub.plan)} — your access continues during the grace period.</p>
         </div>
       )}
 
@@ -485,6 +526,14 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
   const [seats, setSeats] = useState(sub.seats ?? PLAN_LIMITS.OFFICE_MIN_SEATS);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Office → Pro ends the team. It was one click on the Pro row with no word
+  // about the teammates, while the same move offered from the cancel flow did
+  // warn. Now the row opens this confirmation first.
+  const [confirmPro, setConfirmPro] = useState(false);
+  // "Current" means this plan AND this billing period — otherwise the toggle
+  // showed Office/Pro as Current on the other interval and there was no way to
+  // switch monthly ↔ annual at all (the API supports it).
+  const onInterval = (sub.interval ?? "monthly") === interval;
 
   async function choose(plan: "pro" | "office") {
     setBusy(plan); setErr(null);
@@ -503,7 +552,11 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
         return;
       }
       if (!res.ok) { setErr(data.error || "Couldn't change plan."); return; }
-      await onChanged(`You're now on ${plan === "office" ? "Office" : "Pro"} (${interval}). Charges are prorated.`);
+      await onChanged(
+        sub.plan === "office" && plan === "pro"
+          ? `You're now on Pro (${interval}). Your teammates have moved to their own plans, and the unused part of Office is credited to your next invoice.`
+          : `You're now on ${plan === "office" ? "Office" : "Pro"} (${interval}). Charges are prorated.`,
+      );
     } catch {
       setErr("Couldn't reach the server.");
     } finally {
@@ -531,10 +584,29 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
         {/* Pro */}
         <PlanRow
           name="Pro" price={proMo} desc="Unlimited everything, for one person."
-          current={sub.plan === "pro"}
+          current={sub.plan === "pro" && onInterval}
+          switchLabel={sub.plan === "pro" ? (interval === "annual" ? "Switch to annual" : "Switch to monthly") : undefined}
           busy={busy === "pro"}
-          onSelect={() => choose("pro")}
+          onSelect={() => (sub.plan === "office" ? setConfirmPro(true) : choose("pro"))}
         />
+        {confirmPro && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5">
+            <p className="text-amber-200 text-sm font-semibold">Switch to Pro and end your team?</p>
+            <ul className="mt-2 space-y-1.5 text-amber-200/80 text-[0.6875rem] leading-relaxed list-disc pl-4">
+              <li>Your Office plan ends now and your seats are released.</li>
+              <li>Each teammate moves to their own plan — Free, or their own Pro if they pay for it. Their first card stays live, without your company branding, and they&apos;re told in the app.</li>
+              <li>You lose the Admin console. Your own cards, design and contacts stay exactly as they are.</li>
+              <li>The unused part of Office is credited to your next invoice.</li>
+              <li>Switch back to Office any time and your team and branding come back.</li>
+            </ul>
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => setConfirmPro(false)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-xs font-bold py-2 rounded-full">Keep Office</button>
+              <button onClick={() => choose("pro")} disabled={busy === "pro"} className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold py-2 rounded-full">
+                {busy === "pro" ? "Switching…" : "Switch to Pro"}
+              </button>
+            </div>
+          </div>
+        )}
         {/* Office */}
         <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3.5">
           <div className="flex items-center justify-between">
@@ -542,12 +614,12 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
               <p className="text-white font-semibold text-sm">Office <span className="text-gray-500 font-normal">· {officePer}/seat</span></p>
               <p className="text-gray-500 text-[0.6875rem]">One brand across your whole team.</p>
             </div>
-            {sub.plan === "office"
+            {sub.plan === "office" && onInterval
               ? <span className="text-[0.6875rem] font-bold text-blue-300">Current</span>
               : (
                 <button onClick={() => choose("office")} disabled={busy === "office"}
                   className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-full">
-                  {busy === "office" ? "…" : "Switch"}
+                  {busy === "office" ? "…" : sub.plan === "office" ? (interval === "annual" ? "Switch to annual" : "Switch to monthly") : "Switch"}
                 </button>
               )}
           </div>
@@ -562,9 +634,10 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
           )}
         </div>
 
-        {/* Payment method + invoices. Lives in here because this modal is now the
-            single door to billing — the Stripe portal is scoped server-side to
-            exactly these two jobs, so it can't offer a competing cancel. */}
+        {/* Payment method + invoices. The portal opens the Stripe Dashboard's
+            default configuration (api/stripe/portal), so whatever it allows
+            beyond payment method and invoices is set there, not here; the
+            webhook reconciles any plan or seat change made in it. */}
         {sub.hasCustomer && (
           <div className="pt-1">
             <ManageBillingButton />
@@ -587,8 +660,10 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
   );
 }
 
-function PlanRow({ name, price, desc, current, busy, onSelect }: {
+function PlanRow({ name, price, desc, current, busy, onSelect, switchLabel }: {
   name: string; price: string; desc: string; current: boolean; busy: boolean; onSelect: () => void;
+  /** Button text when it isn't just "Switch" (e.g. "Switch to annual"). */
+  switchLabel?: string;
 }) {
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-950/50 p-3.5 flex items-center justify-between">
@@ -601,7 +676,7 @@ function PlanRow({ name, price, desc, current, busy, onSelect }: {
         : (
           <button onClick={onSelect} disabled={busy}
             className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-full">
-            {busy ? "…" : "Switch"}
+            {busy ? "…" : switchLabel ?? "Switch"}
           </button>
         )}
     </div>
@@ -712,7 +787,7 @@ function CancelModal({ sub, onClose, onDone }: {
             <div className="rounded-2xl border border-blue-700/40 bg-blue-950/30 p-4 mb-3">
               <p className="text-white font-bold text-base">Don&apos;t need the team? Switch to Pro</p>
               <p className="text-gray-300 text-sm mt-1">Keep your own card and every Pro feature for just <span className="text-white font-semibold">{proLabel}</span> — instead of dropping all the way to Free.</p>
-              <p className="text-gray-500 text-[0.6875rem] mt-1.5">Your team&apos;s seats end and their cards revert to their own plans. Prorated — you&apos;re only charged the difference.</p>
+              <p className="text-gray-500 text-[0.6875rem] mt-1.5">Your team&apos;s seats end and each teammate moves to their own plan, keeping their first card live without your branding. The unused part of Office is credited to your next invoice, and switching back to Office brings your team back.</p>
               <button onClick={switchToPro} disabled={busy !== null}
                 className="mt-3 w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-full">
                 {busy === "pro" ? "Switching…" : `Switch to Pro · ${proLabel}`}
@@ -760,7 +835,9 @@ function CancelModal({ sub, onClose, onDone }: {
               </li>
             ))}
           </ul>
-          <p className="text-gray-500 text-[0.6875rem] mb-4">Nothing is deleted — re-subscribe anytime and it all switches back on instantly.</p>
+          <p className="text-gray-500 text-[0.6875rem] mb-4">{sub.plan === "office"
+            ? "Nothing is deleted — re-subscribe to Office anytime and your team comes back as it was, company branding included (as many people as your seats allow)."
+            : "Nothing is deleted — re-subscribe anytime and it all switches back on instantly."}</p>
           {err && <p className="text-red-400 text-xs mb-3">{err}</p>}
           {/* Primary emphasis on staying (the profitable choice); downgrade is a
               plain, always-available secondary action — clear, not hidden. */}

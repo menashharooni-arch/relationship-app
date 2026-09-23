@@ -19,6 +19,20 @@ const deviceCheckCache = new Map<string, { ok: boolean; at: number }>();
 const DEVICE_CHECK_TTL_MS = 60_000;
 
 export async function proxy(request: NextRequest) {
+  // /pricing is a selling page, and the app must never paint one (App Store
+  // 3.1.1 — build 1.0.0 (7) was rejected for exactly that). Its own guard is
+  // client-side, so until hydration the full price list showed inside the
+  // shell whenever something sent the app there — /office/admin's guard
+  // redirects a lapsed owner or removed member to /pricing. Decided here,
+  // first, on the same two shell-only signals as "/" below, before any HTML.
+  // The website's /pricing skips everything else in this function: no auth
+  // work, same page as before.
+  if (request.nextUrl.pathname === "/pricing") {
+    const shell = (request.headers.get("user-agent") ?? "").includes("SwiftCardApp") ||
+      request.cookies.get("sc_shell")?.value === "1";
+    return shell ? NextResponse.redirect(new URL("/dashboard", request.url)) : NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -157,7 +171,14 @@ export async function proxy(request: NextRequest) {
   // instead would hard-bounce every signed-in user to /login for the length
   // of any Supabase brownout.
   if (!userId && !authUnavailable && isProtected && !isGuestCardBuilder) {
-    return redirectWithAuthCookies(new URL("/login", request.url));
+    // Keep where they were going. A bare /login lost it: the app's "Add a
+    // seat on swiftcard.me" opens /settings/flows?billing=1#billing in a
+    // browser that isn't signed in, and after signing in the owner landed on
+    // the dashboard with the seat purchase gone. /login only honours a
+    // same-origin path (lib/safe-next); the #fragment never reaches a server.
+    const login = new URL("/login", request.url);
+    login.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
+    return redirectWithAuthCookies(login);
   }
 
   // A soft-deleted account's Supabase session/access-token stays valid for its
@@ -315,5 +336,7 @@ export const config = {
     "/checkout/:path*",
     "/join/:path*",
     "/share/:path*",
+    // App requests only: redirected to /dashboard before any HTML (see top).
+    "/pricing",
   ],
 };

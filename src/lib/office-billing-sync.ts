@@ -1,7 +1,8 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { reportError } from "@/lib/report-error";
-import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan , seedBrandFromOwnersFirstCard } from "@/lib/office-brand";
+import { getOfficeBrand, stripBrandFromUserCards, memberFallbackPlan, seedBrandFromOwnersFirstCard, applyBrandToUserCards } from "@/lib/office-brand";
 import { insertNotification } from "@/lib/notify";
+import { PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
 
 type Admin = ReturnType<typeof getAdminSupabase>;
 
@@ -15,6 +16,14 @@ export function officeAccessEndedMessage(fallback: "pro" | "free"): string {
   return fallback === "pro"
     ? "Your team's Office plan changed, so your account reverted to your own Pro plan. Nothing was deleted — reach out to your team admin if this was unexpected."
     : "Your team's Office plan changed, so your account moved to a Free plan. Nothing was deleted — reach out to your team admin if this was unexpected.";
+}
+
+// An admin REMOVED this person. Not "the team's plan changed" — nothing about
+// the team changed; they left it. Says where their card went and how to get it
+// back (removal takes office cards offline, then hands them back to the owner,
+// so Settings → Cards and sharing can turn them on again).
+export function officeRemovedMessage(fallback: "pro" | "free"): string {
+  return `You were removed from your team, so your account is on your own ${fallback === "pro" ? "Pro" : "Free"} plan. Your card was turned off and the company branding came off it — turn it back on any time in Settings → Cards and sharing. Your contacts are still yours.`;
 }
 
 // ── Office provisioning/teardown reconciler ─────────────────────────────────
@@ -82,9 +91,11 @@ export async function provisionOfficeForOwner(admin: Admin, ownerId: string, sea
  *  • Plan and office_id are restored too. The cascade set them to free/null,
  *    and a membership row without them is a member who cannot use anything.
  *
- * The brand is deliberately NOT re-pushed here: the owner may have changed it
- * while lapsed, and propagation belongs to the Branding page, which is one
- * click away and shows what it is about to do.
+ *  • The office's CURRENT brand goes back on. The lapse stripped it, and the
+ *    notification below promises "your company card … back to normal"; left to
+ *    the next Branding save, a restored teammate's card stayed unbranded (and
+ *    unlocked) with nothing saying why. Whatever the owner changed while lapsed
+ *    is simply what is applied.
  */
 async function restoreSuspendedMembers(admin: Admin, officeId: string, seats: number): Promise<void> {
   const { data: suspended } = await admin
@@ -113,6 +124,7 @@ async function restoreSuspendedMembers(admin: Admin, officeId: string, seats: nu
     .eq("status", "active")
     .neq("office_id", officeId);
   const taken = new Set((elsewhere ?? []).map((r) => r.user_id as string));
+  const brand = await getOfficeBrand(officeId).catch(() => null);
 
   for (const m of suspended) {
     if (room <= 0) break;
@@ -120,7 +132,12 @@ async function restoreSuspendedMembers(admin: Admin, officeId: string, seats: nu
     if (taken.has(uid)) continue;
     const { error } = await admin.from("office_members").update({ status: "active" }).eq("id", m.id);
     if (error) continue;
+    // Counted the moment the seat is really taken (the write above succeeded).
+    room--;
     await admin.from("profiles").update({ plan: "enterprise", office_id: officeId }).eq("id", uid);
+    // A seat is not a timed grant: clear any leftover expiry, or the daily
+    // cron would read it and move a paid-for member to Free.
+    await admin.from("profiles").update({ plan_expires_at: null }).eq("id", uid); // best-effort, older schemas
     // Re-flag their cards as office cards — the exact pair api/join sets when
     // somebody accepts an invite, and the mirror of what releaseOfficeMember
     // cleared. NOT cosmetic: /api/office/brand scopes every propagation with
@@ -129,6 +146,7 @@ async function restoreSuspendedMembers(admin: Admin, officeId: string, seats: nu
     // "Applied to every card", and one person's card would never update, with
     // nothing anywhere saying why.
     await admin.from("cards").update({ is_office_card: true }).eq("user_id", uid);
+    if (brand) await applyBrandToUserCards(uid, brand).catch(() => {});
     // They were told "Your Office access ended" when the plan lapsed. Being
     // put back without a word is its own kind of broken — their plan and their
     // card's branding change under them.
@@ -138,43 +156,70 @@ async function restoreSuspendedMembers(admin: Admin, officeId: string, seats: nu
       title: "Your Office access is back",
       body: "Your team's plan is active again, so your company card and your team's tools are back to normal.",
     }).catch(() => {});
-    room--;
   }
 }
 
-// Tear down an owner's office: release every active member back to their own
-// plan, strip the office brand from their cards, notify each of them, delete
-// office_members, then the office row itself.
+// Release an owner's team when their Office ends — a switch to Pro (in-app or
+// in the Stripe portal), a tester grant running out, or the owner deleting
+// their account (a 30-day soft delete; the purge removes the rest).
+//
+// SAME RULES AS A LAPSED SUBSCRIPTION (the customer.subscription.deleted
+// cascade). This used to hard-DELETE every membership row and the office
+// itself, so the cheaper "switch to Pro" lost the roster, the office name, the
+// whole brand, the team inbox and the office id ex-members' leads are tagged
+// with — while cancelling, which ends MORE, kept all of it. Re-subscribing to
+// Office then restored nothing. Now, for every ACTIVE member only (a suspended
+// row may belong to someone who has since joined another office — touching
+// them would knock them off a team that is paying for them):
+//   • plan → their own fallback (Pro if they pay for it themselves, else Free),
+//     office_id cleared;
+//   • the office brand comes off their cards, THEN the cards are handed back
+//     (is_office_card cleared — stripBrandFromUserCards only sees flagged rows,
+//     and an unhanded card could never be brought back online by its owner);
+//   • their plan is recorded as settled, so a newer account's first card stays
+//     live on Free instead of going dark behind the plan step they were never
+//     shown — their card is theirs again, as the lapse cascade promises;
+//   • they are told, in the bell;
+//   • the membership is SUSPENDED, not deleted.
+// The office row stays, so provisionOfficeForOwner restores the team (and its
+// brand) the moment the owner is on Office again. Pending invites are left as
+// they are: /api/join refuses them while the owner is not on Office.
 export async function tearDownOfficeForOwner(admin: Admin, ownerId: string): Promise<void> {
   const { data: office } = await admin.from("offices").select("id").eq("owner_id", ownerId).maybeSingle();
   if (!office) return;
   const brand = await getOfficeBrand(office.id).catch(() => null);
   const { data: members } = await admin
     .from("office_members")
-    .select("user_id")
+    .select("id, user_id")
     .eq("office_id", office.id)
+    .eq("status", "active")
     .not("user_id", "is", null);
   for (const m of members ?? []) {
-    if (m.user_id) {
-      const fallback = await memberFallbackPlan(m.user_id as string);
-      await admin.from("profiles").update({ plan: fallback, office_id: null, plan_expires_at: null }).eq("id", m.user_id as string);
-      await stripBrandFromUserCards(m.user_id as string, brand).catch(() => {});
+    const uid = m.user_id as string | null;
+    if (uid) {
+      const fallback = await memberFallbackPlan(uid);
+      const { data: prof } = await admin.from("profiles").select("customization").eq("id", uid).maybeSingle();
+      const cust = (prof?.customization as Record<string, unknown> | null) ?? {};
+      await admin.from("profiles").update({
+        plan: fallback,
+        office_id: null,
+        ...(cust[PLAN_CHOSEN_KEY] ? {} : { customization: { ...cust, [PLAN_CHOSEN_KEY]: fallback } }),
+      }).eq("id", uid);
+      await admin.from("profiles").update({ plan_expires_at: null }).eq("id", uid); // best-effort, older schemas
+      await stripBrandFromUserCards(uid, brand).catch(() => {});
+      await admin.from("cards").update({ is_office_card: false }).eq("user_id", uid);
       await insertNotification({
-        user_id: m.user_id as string,
+        user_id: uid,
         type: "office_plan_downgraded",
         title: "Your Office access ended",
         body: officeAccessEndedMessage(fallback),
       }).catch(() => {});
     }
+    const { error } = await admin.from("office_members").update({ status: "suspended" }).eq("id", m.id);
+    if (error) await reportError("office.teardown-suspend-failed", new Error(`member ${m.id}: ${error.message}`)).catch(() => {});
   }
-  await admin.from("office_members").delete().eq("office_id", office.id);
-  // Every profile still pointing at this office — the OWNER's own row above
-  // all (only members are released in the loop). profiles.office_id has no
-  // ON DELETE action, so while any row references the office the delete below
-  // fails silently and the office outlives its team.
-  await admin.from("profiles").update({ office_id: null }).eq("office_id", office.id);
-  const { error: deleteError } = await admin.from("offices").delete().eq("id", office.id);
-  // Reported, never thrown: callers run this mid plan-change / webhook, and
-  // the members are already released by this point.
-  if (deleteError) await reportError("office.teardown-delete-failed", new Error(`office ${office.id}: ${deleteError.message}`)).catch(() => {});
+  // The owner's own profile, if it points at the office — as the delete-era
+  // teardown did, so nothing treats a Pro owner as still inside a team.
+  await admin.from("profiles").update({ office_id: null }).eq("id", ownerId).eq("office_id", office.id);
 }
+

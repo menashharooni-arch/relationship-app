@@ -147,6 +147,17 @@ export async function POST(req: NextRequest) {
   const paid = isPaidPlan(profile?.plan);
   const count = existingCards?.length ?? 0;
 
+  // An office TEAM MEMBER has one card — their company card, which is their
+  // seat (mirror api/cards). Claiming a draft skipped this: a member with a
+  // card could claim a second, unbilled one carrying their own company, logo
+  // and website, reached from /dashboard?claim=1 or a card's edit page.
+  if (count >= 1 && (await getOfficeSubUserContext(user.id))) {
+    return NextResponse.json(
+      { error: "team_card_limit", message: "Your company card is managed by your team. Ask your Office admin if you need another." },
+      { status: 403 },
+    );
+  }
+
   if (!paid && count >= PLAN_LIMITS.FREE_CARD_LIMIT) {
     return NextResponse.json(
       { error: "limit", message: "Ready for a second card? Go unlimited with Pro.", upgrade: "/upgrade" },
@@ -230,6 +241,12 @@ export async function POST(req: NextRequest) {
       insert.logo_url = null;
       delete cust.fax;
       delete cust.address;
+      // A member's card is an office card whether or not the office has a
+      // brand yet (mirror api/cards `is_office_card: !!subCtx`). Flagged only
+      // inside `if (brand)`, a member of a not-yet-branded office got a card
+      // every later Branding save skipped, and that was never de-branded when
+      // they left.
+      insert.is_office_card = true;
     }
     if (brand) {
       insert.is_office_card = true;

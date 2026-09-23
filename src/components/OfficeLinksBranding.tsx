@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import { PinnedLinkPreview } from "@/components/PinnedCardPreview";
 import { normalizeSocial, socialDestination } from "@/lib/social-url";
@@ -73,6 +74,7 @@ function Section({ n, title, desc, children }: { n: number; title: string; desc:
 }
 
 export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
+  const router = useRouter();
   // The page's look, read with the same shape the member's own Social design
   // step writes. Only the office vocabulary is kept, so a stray key from an
   // older blob can never reach the controls.
@@ -124,7 +126,10 @@ export default function OfficeLinksBranding({ office }: { office: OfficeRow }) {
         body: JSON.stringify({ linkDesign: style, linkBio: bio, linkInstagram: normalizeSocial(instagram, "instagram"), links, lockLinkDesign }),
       });
       setStatus(res.ok ? "saved" : "error");
-      if (res.ok) setTimeout(() => setStatus("idle"), 2500);
+      if (res.ok) {
+        setTimeout(() => setStatus("idle"), 2500);
+        router.refresh();
+      }
     } catch {
       setStatus("error");
     }

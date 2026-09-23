@@ -52,6 +52,10 @@ export const DOWNLOADABLE_PATHS = [
   "/api/leads/export",
   "/api/leads/vcard",
   "/api/office/analytics/export",
+  // The admin Leads tab's "Export all as CSV" — in the iOS app the file opens
+  // in the system browser, which has no session, so without a token it showed
+  // {"error":"Unauthorized"} (Analytics' export was wired; this one wasn't).
+  "/api/office/leads/export",
 ] as const;
 
 export type DownloadablePath = (typeof DOWNLOADABLE_PATHS)[number];

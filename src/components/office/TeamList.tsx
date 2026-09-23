@@ -15,7 +15,13 @@ import { InviteRowActions, RemoveMemberButton } from "@/components/office/TeamAc
 // One list for real members and pending invitations, plus the detail drawer.
 // Everything is plain English: no slugs, no enums, no ids on screen.
 
-type Caps = { canInvite: boolean; canRemove: boolean; canManageCards: boolean; canManageSeats: boolean };
+type Caps = {
+  canInvite: boolean; canRemove: boolean; canManageCards: boolean; canManageSeats: boolean;
+  /** The person looking is the office owner (not a delegated admin). The
+   *  owner's own card is theirs alone — a delegated admin's "Edit card" on it
+   *  opened an editor whose every save came back 403. */
+  viewerIsOwner: boolean;
+};
 
 const STATUS_TONE: Record<MemberStatus, string> = {
   active: "bg-green-500/10 text-green-400 border-green-500/20",
@@ -164,7 +170,7 @@ function Drawer({ person, appUrl, caps, onClose }: {
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3.5 py-3 mb-5">
               <p className="text-amber-300 text-xs font-semibold">They haven&apos;t made their card yet</p>
               <p className="text-amber-200/70 text-[0.6875rem] mt-0.5">
-                They joined but never finished setup, so they have nothing to share. Resending their invite sends the link again.
+                They joined but never finished setup, so they have nothing to share yet. When they sign in to SwiftCard, their dashboard opens on &quot;Create your card →&quot;.
               </p>
             </div>
           ) : (
@@ -182,7 +188,7 @@ function Drawer({ person, appUrl, caps, onClose }: {
                   Show QR code
                 </button>
               )}
-              {caps.canManageCards && (
+              {caps.canManageCards && (!person.isOwner || caps.viewerIsOwner) && (
                 <a href={`/office/admin/team/${person.userId}`}
                   className="text-xs font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 px-3.5 py-2 rounded-full transition-colors">
                   Edit card
@@ -247,7 +253,7 @@ export default function TeamList({ people, invites, appUrl, caps }: {
                 <span className="min-w-0">
                   <span className="flex items-center gap-2">
                     <span className="text-sm text-white font-medium truncate">{p.name}</span>
-                    {p.isOwner && <span className="text-[0.625rem] text-purple-400 shrink-0">You</span>}
+                    {p.isOwner && <span className="text-[0.625rem] text-purple-400 shrink-0">{caps.viewerIsOwner ? "You" : "Owner"}</span>}
                   </span>
                   <span className="block text-[0.6875rem] text-gray-500 truncate">{p.title || "No job title yet"}</span>
                   {p.email && <span className="block text-[0.6875rem] text-gray-600 truncate">{p.email}</span>}

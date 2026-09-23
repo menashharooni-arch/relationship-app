@@ -69,7 +69,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // this string stays in sync with ON_CARD_SCALARS.
   const { data: beforeCard } = await admin
     .from("cards")
-    .select("username, user_id, customization, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, logo_url")
+    .select("username, user_id, customization, name, title, company, phone, email, website, linkedin, instagram, twitter, tiktok, template, logo_url, is_offline")
     .eq("id", id)
     .maybeSingle();
 
@@ -84,21 +84,43 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...((existingCard?.customization as Record<string, unknown> | null) ?? {}),
       ...incoming,
     };
-    // Re-assert the office brand, exactly as the card owner's own save would.
-    // No card is exempt — the brand lives on the Branding page, and every card
-    // under the office (the owner's included) carries it uniformly.
-    {
+    // Re-assert the office brand, exactly as the MEMBER's own save would. The
+    // owner's own cards are exempt, as everywhere else (propagation skips
+    // them): this said "the owner's included" and would have forced the
+    // office contact and look onto the owner's card from here alone.
+    if (beforeCard?.user_id && beforeCard.user_id !== ctx.ownerId) {
       const brand = await getOfficeBrand(ctx.officeId);
       if (brand) {
         if (brand.phone || brand.fax || brand.address) merged = overlayOfficeContact(merged, brand);
         merged = overlayOfficeDesign(merged, brand);
         // The company's pinned links lead a MEMBER's page whoever saves it — an
-        // admin editing the card included (office audit 2026-09-16: this path
-        // skipped them). The owner's own cards are theirs, as everywhere else.
-        if (beforeCard?.user_id && beforeCard.user_id !== ctx.ownerId) merged = overlayOfficeLinks(merged, brand);
+        // admin editing the card included (office audit 2026-09-16).
+        merged = overlayOfficeLinks(merged, brand);
       }
     }
     updates.customization = merged;
+  }
+
+  // "Edit details → Phone" wrote only the top-level column, but a card with a
+  // phones list (every card the wizard makes, and every office card, which
+  // carries the company number) SHOWS the list — so the save succeeded and the
+  // card kept the old number. Put the number where the card reads it: the
+  // person's own first entry, never the company's office row.
+  if ("phone" in updates && typeof updates.phone === "string") {
+    const base = (updates.customization ?? beforeCard?.customization ?? {}) as Record<string, unknown>;
+    if (Array.isArray(base.phones)) {
+      const phones = [...(base.phones as Record<string, unknown>[])];
+      const num = (updates.phone as string).trim();
+      const own = phones.findIndex((p) => p && p.office !== true && String(p.label ?? "").toLowerCase() !== "office");
+      if (own >= 0) {
+        if (num) phones[own] = { ...phones[own], number: num };
+        else phones.splice(own, 1);
+      } else if (num) {
+        const officeRows = phones.filter((p) => p?.office === true).length;
+        phones.splice(officeRows, 0, { number: num, label: "mobile", showOnCard: true });
+      }
+      updates.customization = { ...base, phones };
+    }
   }
 
   const { error } = await admin.from("cards").update(updates).eq("id", id);
@@ -156,6 +178,36 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         }
       }
     } catch { /* freshness is a nicety; the card save must still succeed */ }
+  }
+
+  // The public card page is cached (lib/card-page-data); without this a card
+  // the admin took offline kept serving, and an edit showed old details, until
+  // the cache expired. The member's own save already does this.
+  if (beforeCard?.username && (contentChanged || offlineChanged)) {
+    try {
+      const { revalidateCardPage } = await import("@/lib/card-page-data");
+      revalidateCardPage(beforeCard.username as string);
+    } catch { /* best-effort */ }
+  }
+
+  // Tell the person when their admin switches their card off or on — a card
+  // going dark with no word was indistinguishable from a bug, and Settings no
+  // longer offers them a Bring-online button that the office card refuses.
+  const ownerOfCard = beforeCard?.user_id as string | null | undefined;
+  const wasOffline = (beforeCard as { is_offline?: boolean } | null)?.is_offline === true;
+  if (offlineChanged && ownerOfCard && ownerOfCard !== user.id && wasOffline !== body.is_offline) {
+    try {
+      const { insertNotification } = await import("@/lib/notify");
+      await insertNotification({
+        user_id: ownerOfCard,
+        card_owner: (beforeCard?.username as string | undefined) ?? undefined,
+        type: body.is_offline ? "card_taken_offline" : "card_brought_online",
+        title: body.is_offline ? "Your team admin took your card offline" : "Your card is back online",
+        body: body.is_offline
+          ? "Your card link, QR code and NFC taps show nothing for now. Ask your team admin if you need it turned back on."
+          : "Your team admin turned your card back on — your link, QR code and NFC taps work again.",
+      });
+    } catch { /* a notice must never fail the change */ }
   }
 
   if (offlineChanged) {

@@ -31,7 +31,8 @@ describe("native: a way forward, without selling in the app", () => {
   it("offers a button that leaves for the default browser", () => {
     expect(src).toMatch(/native && canManageSeats && canLinkOut/);
     expect(src).toMatch(/Add a seat on swiftcard\.me/);
-    expect(src).toMatch(/openExternalPurchase\("\/settings\/flows#billing"\)/);
+    // ?billing=1 opens the billing section, and survives the sign-in bounce.
+    expect(src).toMatch(/openExternalPurchase\("\/settings\/flows\?billing=1#billing"\)/);
   });
 
   it("that button NEVER appears without the plugin — fail closed", () => {

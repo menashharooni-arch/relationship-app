@@ -11,7 +11,7 @@ export const metadata = { title: "Team member — Admin — SwiftCard" };
 
 export default async function OfficeMemberPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { office, officeId, ownerId, caps } = await requireOfficeAdmin();
+  const { office, officeId, ownerId, caps, isOwner: viewerIsOwner } = await requireOfficeAdmin();
   if (!office || !officeId) redirect("/office/admin");
 
   // Authorization: only someone this office actually controls. Without this, any
@@ -40,7 +40,7 @@ export default async function OfficeMemberPage({ params }: { params: Promise<{ i
           desc={m.email ?? undefined}
           action={
             !isOwner && memberRow && caps.canRemove ? (
-              <RemoveMemberButton memberId={memberRow.id} personName={m.name} canManageSeats={caps.canManageSeats} />
+              <RemoveMemberButton memberId={memberRow.id} personName={m.name} canManageSeats={caps.canManageSeats} onPersonPage />
             ) : undefined
           }
         />
@@ -57,7 +57,7 @@ export default async function OfficeMemberPage({ params }: { params: Promise<{ i
       {m.cards.length === 0 ? (
         <Empty>
           They haven&apos;t created their card yet.
-          {" "}If their invite email got lost, resend it from the Team page.
+          {" "}When they sign in to SwiftCard, their dashboard opens on &quot;Create your card →&quot;.
         </Empty>
       ) : (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl divide-y divide-gray-800 overflow-hidden mb-8">
@@ -70,7 +70,7 @@ export default async function OfficeMemberPage({ params }: { params: Promise<{ i
                 </div>
                 <p className="text-xs text-gray-500 tabular-nums mt-0.5">{c.views} views · {c.leads} leads</p>
               </div>
-              {caps.canManageCards && (
+              {caps.canManageCards && (!isOwner || viewerIsOwner) && (
                 <Link
                   href={`/office/admin/cards/${c.id}`}
                   className="text-xs font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 px-3.5 py-2 rounded-full transition-colors shrink-0"

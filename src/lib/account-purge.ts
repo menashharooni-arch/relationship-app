@@ -1,6 +1,7 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getStripe } from "@/lib/stripe";
 import { reportError } from "@/lib/report-error";
+import { memberFallbackPlan } from "@/lib/office-brand";
 
 // ── Hard-delete of soft-deleted accounts past the reopen window ───────────────
 //
@@ -85,7 +86,12 @@ export async function purgeUserData(admin: Admin, userId: string): Promise<void>
       .not("user_id", "is", null);
     for (const m of members ?? []) {
       if (m.user_id) {
-        await safeDelete(() => admin.from("profiles").update({ plan: "free", office_id: null }).eq("id", m.user_id as string));
+        // Only someone still attached to THIS office (office_id): a suspended
+        // ex-member may since have joined another team, which is paying for
+        // them. And their own fallback, not a flat Free — a member paying for
+        // their own Pro keeps it (the same rule as every other release path).
+        const fallback = await memberFallbackPlan(m.user_id as string).catch(() => "free" as const);
+        await safeDelete(() => admin.from("profiles").update({ plan: fallback, office_id: null }).eq("id", m.user_id as string).eq("office_id", officeId));
       }
     }
     await safeDelete(() => admin.from("office_members").delete().eq("office_id", officeId));

@@ -5,7 +5,8 @@ import { officeLeadTag } from "@/lib/office-leads";
 import { writeAudit } from "@/lib/audit";
 import { requireOfficeCapability } from "@/lib/office-roles";
 import { insertNotification } from "@/lib/notify";
-import { officeAccessEndedMessage } from "@/lib/office-billing-sync";
+import { officeRemovedMessage } from "@/lib/office-billing-sync";
+import { PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
 import { NextResponse } from "next/server";
 
 // DELETE ?id=<member_id> — remove an active member, OR revoke a pending invite.
@@ -96,6 +97,16 @@ export async function DELETE(req: Request) {
       // QR, NFC and wallet pass dark with no in-app way back for anyone but us.
       if (memberCards?.length) {
         await supabase.from("cards").update({ is_offline: true }).eq("user_id", member.user_id).eq("is_office_card", true);
+        // De-brand BEFORE the unflag: stripBrandFromUserCards only touches
+        // is_office_card rows, so run after it (as it used to be) it matched
+        // nothing — the ex-member kept the company logo, name, website,
+        // contact details, the company bio/Instagram (their own never came
+        // back) and pinned links they could never delete. The webhook
+        // cascades already strip first and unflag second.
+        try {
+          const brand = await getOfficeBrand(office.id);
+          await stripBrandFromUserCards(member.user_id, brand);
+        } catch { /* best-effort */ }
         await supabase.from("cards").update({ is_office_card: false }).eq("user_id", member.user_id);
       }
     } catch { /* best-effort — removal itself must never be blocked */ }
@@ -103,9 +114,19 @@ export async function DELETE(req: Request) {
     // A member who still pays for their OWN subscription goes back to Pro, not
     // free — removal from a team must not clobber a plan they're paying for.
     const plan = await memberFallbackPlan(member.user_id);
+    // Their plan is settled (it is whatever they pay for themselves), so a
+    // newer account is not held behind the plan step: without the marker
+    // lib/card-active rule 5 kept their card dark and /dashboard sent them to
+    // /welcome to choose — as if they had just signed up.
+    const { data: memberProf } = await supabase.from("profiles").select("customization").eq("id", member.user_id).maybeSingle();
+    const memberCust = (memberProf?.customization as Record<string, unknown> | null) ?? {};
     await supabase
       .from("profiles")
-      .update({ plan, office_id: null })
+      .update({
+        plan,
+        office_id: null,
+        ...(memberCust[PLAN_CHOSEN_KEY] ? {} : { customization: { ...memberCust, [PLAN_CHOSEN_KEY]: plan } }),
+      })
       .eq("id", member.user_id);
     // Best-effort, separate like the webhook paths (column may not exist in
     // older schemas — must never block the critical plan revert above).
@@ -119,14 +140,8 @@ export async function DELETE(req: Request) {
       user_id: member.user_id,
       type: "office_plan_downgraded",
       title: "Your Office access ended",
-      body: officeAccessEndedMessage(plan),
+      body: officeRemovedMessage(plan),
     }).catch(() => {});
-    // De-brand: the ex-member's live cards must not keep the office logo /
-    // company (only fields still matching the office brand are cleared).
-    try {
-      const brand = await getOfficeBrand(office.id);
-      await stripBrandFromUserCards(member.user_id, brand);
-    } catch { /* best-effort */ }
   }
 
   const { error } = await supabase

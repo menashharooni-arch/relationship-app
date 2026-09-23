@@ -51,7 +51,7 @@ function Step({ n, done, children }: { n: number; done: boolean; children: React
 }
 
 export default async function OfficeTeamPage() {
-  const { office, officeId, ownerId, caps } = await requireOfficeAdmin();
+  const { office, officeId, ownerId, caps, isOwner: viewerIsOwner } = await requireOfficeAdmin();
 
   // On Office but no office row yet → the one thing to do is name the team.
   if (!office || !officeId || !ownerId) {
@@ -216,7 +216,7 @@ export default async function OfficeTeamPage() {
             people={people}
             invites={invites}
             appUrl={APP_URL}
-            caps={{ canInvite: caps.canInvite, canRemove: caps.canRemove, canManageCards: caps.canManageCards, canManageSeats: caps.canManageSeats }}
+            caps={{ canInvite: caps.canInvite, canRemove: caps.canRemove, canManageCards: caps.canManageCards, canManageSeats: caps.canManageSeats, viewerIsOwner }}
           />
         ) : (
           setup.allDone && (

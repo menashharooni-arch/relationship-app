@@ -247,7 +247,11 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
           ) : needsSeat ? (
             <div>
               <p className="text-gray-300 text-sm mb-3">
-                All {seatInfo?.usage?.purchased ?? seatInfo?.seats ?? "your"} of your seats are being used.
+                {/* A delegated admin can't read seat counts (403), and "All your
+                    of your seats" read as a typo. */}
+                {(seatInfo?.usage?.purchased ?? seatInfo?.seats) != null
+                  ? `All ${seatInfo?.usage?.purchased ?? seatInfo?.seats} of your seats are being used.`
+                  : "All of your seats are being used."}
                 {/* App Store 3.1.1: the seat price + one-tap purchase never renders on native. */}
                 {!native && canManageSeats && seatInfo?.billable && seatPrice
                   ? ` Add another seat for ${seatPrice} and invite ${firstName}?`
@@ -330,7 +334,7 @@ export function AddMemberButton({ canManageSeats, label, variant = "button" }: {
                   </p>
                   {native && canManageSeats && canLinkOut && (
                     <button
-                      onClick={() => { void openExternalPurchase("/settings/flows#billing"); }}
+                      onClick={() => { void openExternalPurchase("/settings/flows?billing=1#billing"); }}
                       className="w-full bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold py-2.5 rounded-full transition-colors mb-1"
                     >
                       Add a seat on swiftcard.me
@@ -493,12 +497,19 @@ export function InviteRowActions({ memberId, name, email, inviteUrl }: {
 // Two-step: a plain-language confirmation of exactly what happens, then (for
 // someone who can manage seats) a follow-up choice about the now-empty seat.
 
-export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
+export function RemoveMemberButton({ memberId, personName, canManageSeats, onPersonPage = false }: {
   memberId: string;
   personName: string;
   canManageSeats: boolean;
+  /** Rendered on /office/admin/team/[id] — the page of the person being
+   *  removed. Refreshing it after the removal rendered a 404 (they are no
+   *  longer on the team), which also unmounted the "lower my bill" step. There
+   *  the dialogs stay put and closing them returns to the Team page. */
+  onPersonPage?: boolean;
 }) {
   const router = useRouter();
+  const refresh = () => { if (!onPersonPage) router.refresh(); };
+  const close = () => { setStep("idle"); if (onPersonPage) router.push("/office/admin"); };
   const [step, setStep] = useState<"idle" | "confirm" | "seat" | "done">("idle");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -526,12 +537,12 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
         if (info?.billable && info.perSeatCents != null && info.seats > (info.usage?.used ?? 1)) {
           setSeatInfo(info);
           setStep("seat");
-          router.refresh();
+          refresh();
           return;
         }
       }
       setStep("done");
-      router.refresh();
+      refresh();
     } catch {
       setError("Couldn't reach the server — please try again.");
     } finally {
@@ -559,7 +570,7 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
           : "Seat removed ✓",
       );
       setStep("done");
-      router.refresh();
+      refresh();
     } catch {
       setError("Couldn't reach the server — please try again.");
     } finally {
@@ -579,9 +590,11 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
       {step === "confirm" && (
         <Modal title={`Remove ${first} from your team?`} onClose={() => !busy && setStep("idle")}>
           <p className="text-gray-300 text-sm mb-4 leading-relaxed">
-            {first}&apos;s company cards will be turned off and {first} will lose access to the Office
-            account. The leads {first} captured will remain with your company. {first} keeps the cards
-            themselves and can bring them back online from their own dashboard.
+            {first}&apos;s company cards will be turned off and your company branding comes off them.
+            {first} moves to their own plan — Free, or their own Pro if they pay for it — and loses
+            access to your team. The leads {first} captured stay with your company. {first} keeps
+            the cards and can bring them back online in Settings → Cards and sharing. Their seat stays
+            yours for your next hire.
           </p>
           {error && <p className="text-red-400 text-xs mb-3" role="alert">{error}</p>}
           <button onClick={remove} disabled={busy}
@@ -596,7 +609,7 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
       )}
 
       {step === "seat" && seatInfo && (
-        <Modal title={`${first} was removed ✓`} onClose={() => !busy && setStep("idle")}>
+        <Modal title={`${first} was removed ✓`} onClose={() => !busy && close()}>
           <p className="text-gray-300 text-sm mb-1.5">You now have one unused paid seat.</p>
           <p className="text-gray-500 text-xs mb-4">
             You&apos;re paying {seatInfo.perSeatCents != null ? usd(seatInfo.perSeatCents) : ""}/{perWord(seatInfo.interval)} for it.
@@ -606,7 +619,7 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
             className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-bold py-2.5 rounded-full transition-colors">
             {busy ? "Updating…" : "Remove the seat and lower my bill"}
           </button>
-          <button onClick={() => setStep("idle")} disabled={busy}
+          <button onClick={close} disabled={busy}
             className="w-full text-gray-400 hover:text-gray-200 bg-gray-800 hover:bg-gray-700 text-sm font-semibold py-2.5 rounded-full mt-2 transition-colors disabled:opacity-50">
             Keep the seat for my next hire
           </button>
@@ -614,7 +627,7 @@ export function RemoveMemberButton({ memberId, personName, canManageSeats }: {
       )}
 
       {step === "done" && (
-        <Modal title="All set ✓" onClose={() => setStep("idle")}>
+        <Modal title="All set ✓" onClose={close}>
           <p className="text-gray-400 text-sm mb-4">{seatNote ?? `${first} was removed from your team.`}</p>
           <button onClick={() => { setStep("idle"); window.location.href = "/office/admin"; }}
             className="w-full bg-gray-800 hover:bg-gray-700 text-white text-sm font-semibold py-2.5 rounded-full transition-colors">

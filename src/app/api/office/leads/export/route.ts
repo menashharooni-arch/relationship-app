@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { NextRequest, NextResponse } from "next/server";
+import { resolveDownloadUserId } from "@/lib/download-auth";
 import { requireOfficeCapability } from "@/lib/office-roles";
 import { getAllOfficeLeads } from "@/lib/office-leads";
 import { FOLLOW_UP_COPY } from "@/lib/lead-followup";
@@ -13,14 +13,16 @@ import { FOLLOW_UP_COPY } from "@/lib/lead-followup";
 //
 // EVERY lead, not a capped slice — getAllOfficeLeads pages through. An export
 // that silently stops is worse than no export, because nobody can tell.
-export async function GET() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(req: NextRequest) {
+  // The session, or — in the iOS app, where the file opens in the system
+  // browser with no session — a 60-second token minted for exactly this path
+  // (lib/download-token), the same as the Analytics export.
+  const userId = await resolveDownloadUserId(req, "/api/office/leads/export");
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // The same capability the Leads tab is gated on, which also re-checks that
   // the owner is still on a paid Office plan.
-  const ctx = await requireOfficeCapability(user.id, "view_org_analytics");
+  const ctx = await requireOfficeCapability(userId, "view_org_analytics");
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const leads = await getAllOfficeLeads(ctx.officeId).catch(() => null);

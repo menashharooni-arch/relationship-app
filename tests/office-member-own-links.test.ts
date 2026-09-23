@@ -51,6 +51,12 @@ describe("every path that writes a member card applies the whole brand", () => {
   });
 
   it("an admin editing a member's card keeps the company links", () => {
-    expect(read("src/app/api/office/cards/[id]/route.ts")).toMatch(/beforeCard\.user_id !== ctx\.ownerId\) merged = overlayOfficeLinks\(merged, brand\)/);
+    // The whole brand re-assert (contact, look, pinned links) is guarded on
+    // "not the owner's own card" — a member's card gets all three.
+    const r = read("src/app/api/office/cards/[id]/route.ts");
+    const block = r.slice(r.indexOf("if (beforeCard?.user_id && beforeCard.user_id !== ctx.ownerId) {"));
+    expect(block.length).toBeGreaterThan(0);
+    expect(block.slice(0, 900)).toMatch(/merged = overlayOfficeLinks\(merged, brand\)/);
+    expect(block.slice(0, 900)).toMatch(/merged = overlayOfficeDesign\(merged, brand\)/);
   });
 });

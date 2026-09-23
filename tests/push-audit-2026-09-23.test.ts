@@ -72,7 +72,8 @@ describe("a member an admin removes is told, like every automated way off a team
     const notice = route.indexOf('type: "office_plan_downgraded"');
     expect(revert).toBeGreaterThan(-1);
     expect(notice).toBeGreaterThan(revert);
-    expect(route).toMatch(/title: "Your Office access ended",\s*\n\s*body: officeAccessEndedMessage\(plan\),\s*\n\s*\}\)\.catch\(\(\) => \{\}\);/);
+    // Removal-specific words, not "your team's plan changed" (2026-09-23).
+    expect(route).toMatch(/title: "Your Office access ended",\s*\n\s*body: officeRemovedMessage\(plan\),\s*\n\s*\}\)\.catch\(\(\) => \{\}\);/);
     expect(route).toMatch(/import \{ insertNotification \} from "@\/lib\/notify";/);
   });
 });

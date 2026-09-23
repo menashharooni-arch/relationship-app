@@ -84,11 +84,12 @@ describe("download token", () => {
 });
 
 describe("mintable paths are an allowlist", () => {
-  it("accepts exactly the three authenticated download routes", () => {
+  it("accepts exactly the four authenticated download routes", () => {
     expect([...DOWNLOADABLE_PATHS]).toEqual([
       "/api/leads/export",
       "/api/leads/vcard",
       "/api/office/analytics/export",
+      "/api/office/leads/export",
     ]);
   });
 

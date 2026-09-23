@@ -182,10 +182,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!["free", "pro", "enterprise"].includes(body.plan)) {
       return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     }
+    const { data: cur } = await admin.from("profiles").select("plan, stripe_subscription_id").eq("id", id).maybeSingle();
+    const wasOffice = cur?.plan === "enterprise";
+    // Same rule as api/admin/set-plan: a Stripe-billed Office owner is moved
+    // to Pro in Stripe, never here (the charge would stay Office).
+    if (wasOffice && body.plan === "pro" && cur?.stripe_subscription_id) {
+      return NextResponse.json(
+        { error: "This account pays for Office through Stripe. Switch it to Pro from Billing → Manage subscription (or in Stripe) so the charge changes too — the team is released automatically." },
+        { status: 409 },
+      );
+    }
     // Downgrading to free must ALSO stop the billing — otherwise the user shows
     // as free in the app while Stripe keeps charging them.
     if (body.plan === "free") {
-      const { data: cur } = await admin.from("profiles").select("stripe_subscription_id").eq("id", id).maybeSingle();
       if (cur?.stripe_subscription_id) {
         try {
           const { getStripe } = await import("@/lib/stripe");
@@ -210,6 +219,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .update({ plan: body.plan, plan_expires_at: null })
       .eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Off Office with no Stripe cascade coming: release the team here.
+    if (wasOffice && body.plan !== "enterprise" && !(body.plan === "free" && cur?.stripe_subscription_id)) {
+      const { tearDownOfficeForOwner } = await import("@/lib/office-billing-sync");
+      await tearDownOfficeForOwner(admin, id);
+    }
     return NextResponse.json({ success: true, plan: body.plan });
   }
 

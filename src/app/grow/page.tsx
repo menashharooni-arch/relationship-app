@@ -116,7 +116,10 @@ export default async function GrowPage() {
           <p className="text-[0.6875rem] font-bold tracking-[0.25em] text-blue-500 uppercase mb-1">SwiftCard</p>
           <h1 className="text-2xl font-bold text-white">Help us grow</h1>
           <p className="text-gray-500 text-sm mt-1 leading-relaxed">
-            SwiftCard grows by word of mouth. A few seconds here goes a long way<NativeHidden> — and most of it earns <span className="text-gray-300">you</span> free Pro</NativeHidden>.
+            {/* Not to an Office account: its referral panel is hidden below and
+                /api/referrals/claim refuses it, so "earns you free Pro" was a
+                promise this page could never keep for them. */}
+            SwiftCard grows by word of mouth. A few seconds here goes a long way{profile.plan !== "enterprise" && <NativeHidden> — and most of it earns <span className="text-gray-300">you</span> free Pro</NativeHidden>}.
           </p>
         </div>
 

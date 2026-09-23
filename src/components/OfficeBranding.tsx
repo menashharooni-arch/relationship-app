@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import CardScaler from "@/components/CardScaler";
 import InertPreview from "@/components/InertPreview";
 import ClassicPro from "@/components/card-templates/ClassicPro";
@@ -91,6 +92,7 @@ function Section({ n, title, desc, children }: {
 }
 
 export default function OfficeBranding({ office }: { office: Brand }) {
+  const router = useRouter();
   // Everything here is editable — this page IS the brand source.
   const [logoUrl, setLogoUrl] = useState<string | null>(office.brand_logo_url ?? null);
   const [company, setCompany] = useState(office.brand_company ?? "");
@@ -176,7 +178,12 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         }),
       });
       setStatus(res.ok ? "saved" : "error");
-      if (res.ok) setTimeout(() => setStatus("idle"), 2500);
+      if (res.ok) {
+        setTimeout(() => setStatus("idle"), 2500);
+        // Server parts of the page (the "started from your card" note, the
+        // setup checklist) catch up; this form's own state is kept.
+        router.refresh();
+      }
     } catch {
       setStatus("error");
     }
@@ -244,9 +251,15 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         ))}
       </div>
 
-      {tab === "links" ? (
+      {/* BOTH tabs stay mounted; the inactive one is hidden. Rendering only the
+          selected tab threw the other away on every switch, and it came back
+          re-initialised from the page's props — unsaved edits vanished, and
+          after a save it showed the OLD values, which a second Save would
+          then push back out to every teammate. */}
+      <div hidden={tab !== "links"}>
         <OfficeLinksBranding office={office} />
-      ) : (
+      </div>
+      <div hidden={tab !== "card"}>
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[1fr_300px] lg:items-start">
       {/* Phone: the card pinned at the top while every section scrolls under
           it — the same as Card design — below the admin header and tabs. */}
@@ -430,7 +443,7 @@ export default function OfficeBranding({ office }: { office: Brand }) {
         </div>
       </div>
     </div>
-      )}
+      </div>
     </>
   );
 }

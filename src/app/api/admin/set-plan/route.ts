@@ -19,7 +19,18 @@ export async function PATCH(req: NextRequest) {
   //   • the dashboard shows a bogus "free Pro trial ending" banner, and
   //   • the daily cron downgrades this account back to Free when that stale
   //     plan_expires_at passes, silently undoing the sandbox setting.
-  const { data: prof } = await admin.from("profiles").select("customization, stripe_subscription_id").eq("id", userId).maybeSingle();
+  const { data: prof } = await admin.from("profiles").select("plan, customization, stripe_subscription_id").eq("id", userId).maybeSingle();
+  const wasOffice = prof?.plan === "enterprise";
+  // An Office owner billed through Stripe can't be moved to Pro from here: the
+  // subscription would keep billing Office, and its next update event maps the
+  // price straight back to Office. That switch belongs to Stripe (their
+  // Billing → Manage subscription), which the webhook then reconciles.
+  if (wasOffice && plan === "pro" && prof?.stripe_subscription_id) {
+    return NextResponse.json(
+      { error: "This account pays for Office through Stripe. Switch it to Pro from Billing → Manage subscription (or in Stripe) so the charge changes too — the team is released automatically." },
+      { status: 409 },
+    );
+  }
   const cust = { ...((prof?.customization as Record<string, unknown>) ?? {}) };
   delete cust._trial;
   delete cust._trialStarted;
@@ -65,6 +76,15 @@ export async function PATCH(req: NextRequest) {
     .update({ plan, plan_expires_at: null, customization: cust })
     .eq("id", userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Off Office with no Stripe cascade coming (a grant, or no subscription):
+  // release the team here, or every member kept Office with nobody paying.
+  // (A Stripe-billed owner set to Free is released by the webhook the cancel
+  // above triggers.)
+  if (wasOffice && plan !== "enterprise" && !(plan === "free" && prof?.stripe_subscription_id)) {
+    const { tearDownOfficeForOwner } = await import("@/lib/office-billing-sync");
+    await tearDownOfficeForOwner(admin, userId);
+  }
 
   return NextResponse.json({ success: true });
 }

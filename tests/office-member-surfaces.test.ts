@@ -50,9 +50,19 @@ describe("nothing to buy, nothing to refer", () => {
 describe("the owner", () => {
   it("deleting their account ends the team's plan right away", () => {
     expect(read("src/app/api/account/delete/route.ts")).toContain("await tearDownOfficeForOwner(admin, user.id);");
-    // …and the office row really goes: the owner's own profile pointed at it,
-    // and with no ON DELETE action that blocked the delete (seen live).
-    expect(read("src/lib/office-billing-sync.ts")).toContain('await admin.from("profiles").update({ office_id: null }).eq("office_id", office.id);');
+    // …every ACTIVE member is released now (their own plan, unbranded, cards
+    // handed back, membership suspended) and the owner's profile unlinked. The
+    // office row itself stays until the 30-day purge (lib/account-purge), so a
+    // reopened account — or a switch back to Office — gets its team back.
+    const sync = read("src/lib/office-billing-sync.ts");
+    const teardown = sync.slice(sync.indexOf("export async function tearDownOfficeForOwner"));
+    expect(teardown).toContain('.eq("status", "active")');
+    expect(teardown).toContain('update({ status: "suspended" })');
+    expect(teardown).toContain('update({ is_office_card: false })');
+    expect(teardown.indexOf("stripBrandFromUserCards(uid, brand)")).toBeLessThan(teardown.indexOf('update({ is_office_card: false })'));
+    expect(teardown).toContain('await admin.from("profiles").update({ office_id: null }).eq("id", ownerId).eq("office_id", office.id);');
+    expect(teardown).not.toContain('from("offices").delete()');
+    expect(read("src/lib/account-purge.ts")).toContain('from("offices").delete()');
   });
   it("the team list shows each person's job title from their card", () => {
     expect(read("src/lib/office-team.ts")).toContain("title: cardTitle.get(e.userId) || (prof?.title as string | null) || null,");

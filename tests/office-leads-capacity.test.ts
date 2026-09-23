@@ -130,7 +130,10 @@ describe("export takes everything", () => {
   it("is gated on the same capability as the Leads tab", () => {
     // requireOfficeCapability also re-checks the owner is still on a paid
     // Office plan, so a lapsed office cannot export its team's contacts.
-    expect(route).toContain('requireOfficeCapability(user.id, "view_org_analytics")');
+    // userId: the session, or the iOS app's one-minute download token for
+    // exactly this path (resolveDownloadUserId), as the Analytics export does.
+    expect(route).toContain('resolveDownloadUserId(req, "/api/office/leads/export")');
+    expect(route).toContain('requireOfficeCapability(userId, "view_org_analytics")');
     expect(route).toMatch(/status: 401/);
     expect(route).toMatch(/status: 403/);
   });

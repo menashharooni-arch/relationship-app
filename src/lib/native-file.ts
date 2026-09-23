@@ -72,7 +72,7 @@ async function withDownloadToken(absUrl: string): Promise<string> {
   } catch {
     return absUrl;
   }
-  const AUTHED = ["/api/leads/export", "/api/leads/vcard", "/api/office/analytics/export"];
+  const AUTHED = ["/api/leads/export", "/api/leads/vcard", "/api/office/analytics/export", "/api/office/leads/export"];
   if (!AUTHED.includes(u.pathname)) return absUrl;
 
   try {
