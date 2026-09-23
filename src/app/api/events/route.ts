@@ -93,7 +93,12 @@ export async function POST(req: NextRequest) {
     //  - the browser was told it was internal on an earlier event and has
     //    remembered it, which is what keeps our own logged-OUT testing —
     //    building a guest card to check the wizard — out of the real numbers.
-    let isInternal = process.env.VERCEL_ENV !== "production" || body.internal === true;
+    //  - the device carries the owner-set `sc_internal` cookie that Website
+    //    analytics honours (/api/site-view) — one marker, both sinks.
+    let isInternal =
+      process.env.VERCEL_ENV !== "production" ||
+      body.internal === true ||
+      req.cookies.get("sc_internal")?.value === "1";
     if (!isInternal) {
       try {
         const supabase = await createClient();

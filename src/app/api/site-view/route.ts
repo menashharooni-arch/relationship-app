@@ -77,9 +77,15 @@ export async function POST(req: NextRequest) {
   const path = typeof body.path === "string" && body.path.startsWith("/") ? body.path.split(/[?#]/)[0].slice(0, 300) : null;
   if (!visitorId || !sessionId || !path) return NextResponse.json({ ok: true });
 
-  // Internal traffic: the owner-set cookie, OR a signed-in admin (covers the
-  // owner browsing while logged in, before they've set the cookie).
-  let isInternal = req.cookies.get(INTERNAL_COOKIE)?.value === "1";
+  // Internal traffic: the owner-set cookie, OR the browser-remembered flag the
+  // product funnel already honours (lib/events.ts — a QA context sets it
+  // before any page script runs), OR a signed-in admin (covers the owner
+  // browsing while logged in, before they've set the cookie).
+  //
+  // Until 2026-09-23 only the cookie counted here while /api/events took the
+  // localStorage flag, so the same nightly QA run was "internal" on the funnel
+  // and "real" on Website analytics: 3,206 of 3,842 marketing pageviews.
+  let isInternal = req.cookies.get(INTERNAL_COOKIE)?.value === "1" || body.internal === true;
   if (!isInternal) {
     try {
       const supabase = await createClient();

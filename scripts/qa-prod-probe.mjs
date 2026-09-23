@@ -67,16 +67,24 @@ try {
   pass(page.status === 200, `throwaway card page renders (${page.status})`);
 
   // ── 1. analytics: one view, deduped on reload, visible on the dashboard ──
+  //
+  // Through the ONE endpoint that records views. Until 2026-09-23 this half
+  // posted to /api/views/<slug>, which had been retired on 2026-09-18 to a
+  // 200-that-writes-nothing (and logs `retired_endpoint`) — so for five nights
+  // it asserted "exactly ONE card_views row" against a route that could not
+  // produce one, and left 150 retired_endpoint rows in the ingest log as the
+  // only sign. The analytics contract is /api/card-events → lib/record-view.ts.
   const visitor = `qa-probe-visitor-${stamp}`;
-  const [v1, v1ms] = await timed(() => post(`/api/views/${uname}`, { visitorId: visitor, source: "direct" }));
-  const [v2] = await timed(() => post(`/api/views/${uname}`, { visitorId: visitor, source: "direct" }));
+  const view = { card_owner_username: uname, event_type: "viewed_card", visitor_id: visitor, source: "direct_link" };
+  const [v1, v1ms] = await timed(() => post("/api/card-events", view));
+  const [v2] = await timed(() => post("/api/card-events", view));
   pass(v1.status < 300 && v2.status < 300, `view endpoint accepts a human visitor (${v1.status}, ${v2.status})`);
   // Beacons are fire-and-forget from the card page (nothing a visitor waits on),
-  // and each spends ~2-4s in serial database round-trips (measured 2026-09-11:
-  // views 1.8-3.3s, card-events 4-5.4s). The budget is set to catch a
-  // REGRESSION from that baseline, not to flap on it. The measured number is
-  // printed every night so a trend is visible in the run log.
-  pass(v1ms < 6000, `view endpoint answers within budget (${v1ms}ms, budget 6000)`);
+  // and each spends ~2-5s in serial database round-trips (measured 2026-09-11:
+  // card-events 4-5.4s). The budget is set to catch a REGRESSION from that
+  // baseline, not to flap on it. The measured number is printed every night so
+  // a trend is visible in the run log.
+  pass(v1ms < 8000, `view endpoint answers within budget (${v1ms}ms, budget 8000)`);
   await wait(1500);
 
   // ── WHERE IS THIS RUNNING? (2026-09-16) ──────────────────────────────────
@@ -92,7 +100,9 @@ try {
   // this becomes a live regression test for the exclusion itself, which is the
   // thing that keeps view counts honest. Do not "fix" this by giving the probe
   // a bypass header — that is the hole the exclusion exists to close.
-  // The endpoint says so itself. The first attempt at this read
+  // The endpoint says so itself: /api/card-events answers `{ ok, hosting: true }`
+  // when record-view refuses datacenter egress (the `decided()` helper puts the
+  // outcome on the response). The first attempt at this read
   // analytics_ingest_log for a "hosting" decision — but recordView returns
   // BEFORE anything is logged, so a refused view leaves no row at all, and the
   // probe read that absence as "residential" and failed the full pipeline from
@@ -115,7 +125,7 @@ try {
     // which is exactly why the flag has to carry the verdict.
     pass(v1Body.ok === true, `the refusal is a clean 200, not an error (${JSON.stringify(v1Body)})`);
   }
-  const bot = await post(`/api/views/${uname}`, { visitorId: `bot-${stamp}`, source: "direct" }, UA_BOT);
+  const bot = await post("/api/card-events", { ...view, visitor_id: `bot-${stamp}` }, UA_BOT);
   await wait(800);
   const viewsAfterBot = await (await adm(`/rest/v1/card_views?username=eq.${uname}&select=id`)).json();
   pass(viewsAfterBot.length === expectViews, `a crawler's view is refused (${bot.status}, rows still ${viewsAfterBot.length})`);

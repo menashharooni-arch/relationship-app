@@ -4,6 +4,7 @@ import { welcomeEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates"
 import { ensureEmailPreferences } from "@/lib/email-prefs";
 import { getAccountEmail } from "@/lib/account-email";
 import { isPaidPlan } from "@/lib/plan";
+import { isTestMailbox } from "@/lib/test-mailbox";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -43,6 +44,11 @@ export type WelcomeResult = "sent" | "already_sent" | "skipped" | "failed";
  */
 export async function sendWelcomeEmail(userId: string, accountEmail: string | null | undefined): Promise<WelcomeResult> {
   if (!userId || !accountEmail) return "skipped";
+  // A QA throwaway (`*@swiftcard-test.invalid`) is not a person, and a message
+  // to it is a guaranteed bounce against our sender reputation — see
+  // lib/test-mailbox.ts for the number. Skipped BEFORE the email_logs claim so
+  // the log stays a record of mail that went to people.
+  if (isTestMailbox(accountEmail)) return "skipped";
   try {
     const admin = getAdminSupabase();
 

@@ -8,6 +8,7 @@
 //   node scripts/appstore-explore.mjs
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync } from "node:fs";
+import { markInternal } from "./qa-internal.mjs";
 
 const OUT = process.env.OUT || "app-store/screenshots/_explore";
 const BASE = process.env.BASE || "https://swiftcard.me";
@@ -100,6 +101,7 @@ try {
     viewport: { width: 440, height: 956 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
     userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
   });
+  await markInternal(ctx, BASE);
   const page = await ctx.newPage();
 
   const makeCard = async (slug, template, extra) => {

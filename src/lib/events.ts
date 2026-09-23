@@ -140,7 +140,7 @@ function sessionKey(): string | undefined {
  * indistinguishable from a real visitor. So the first internal answer is
  * remembered here and sent with every later event, signed in or not.
  */
-function internalFlag(): boolean {
+export function internalFlag(): boolean {
   try {
     return localStorage.getItem(INTERNAL_KEY) === "1";
   } catch {

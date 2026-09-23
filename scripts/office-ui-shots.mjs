@@ -10,6 +10,7 @@
 // the Dynamic Island. Deletes everything in a finally block.
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync } from "node:fs";
+import { markInternal } from "./qa-internal.mjs";
 
 const OUT = process.env.OUT || "app-store/screenshots/_officeui";
 const BASE = process.env.BASE || "https://swiftcard.me";
@@ -82,6 +83,7 @@ try {
     deviceScaleFactor: 3, isMobile: true, hasTouch: true,
     userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
   });
+  await markInternal(ctx, BASE);
   // The shell shim, before first paint (same as scripts/native-flows.mjs).
   await ctx.addInitScript(() => {
     window.webkit = { messageHandlers: { bridge: { postMessage() {} } } };

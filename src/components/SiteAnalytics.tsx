@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { getVisitorId } from "@/lib/visitor";
+import { internalFlag } from "@/lib/events";
 
 // First-party website analytics tracker for the MARKETING site. Records a
 // pageview per route change and the time spent on each page. Deliberately does
@@ -77,6 +78,9 @@ export default function SiteAnalytics() {
         sessionId: currentSessionId(),
         path: pathname,
         referrer: document.referrer || null,
+        // The same "this browser is ours" flag the product funnel sends
+        // (lib/events.ts), so both sinks agree on what is internal.
+        internal: internalFlag(),
       }),
     }).catch(() => { /* analytics must never surface an error to the visitor */ });
 

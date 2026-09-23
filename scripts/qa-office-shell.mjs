@@ -10,6 +10,7 @@
 import { chromium } from "playwright";
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
+import { markInternal } from "./qa-internal.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 const BASE = process.env.BASE || "https://swiftcard.me";
@@ -52,6 +53,9 @@ const SHELL_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWe
 
 async function newShellPage() {
   const ctx = await browser.newContext({ viewport: { width: VW, height: VH }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: SHELL_UA });
+  // This run creates offices, members and cards against production every
+  // night; without the marker they read as customers on /admin/analytics.
+  await markInternal(ctx, BASE);
   await ctx.addInitScript(() => {
     window.webkit = { messageHandlers: { bridge: { postMessage() {} } } };
     window.Capacitor = { isNativePlatform: () => true, isNative: true, platform: "ios", getPlatform: () => "ios", isPluginAvailable: () => false, Plugins: {} };

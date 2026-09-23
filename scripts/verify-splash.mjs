@@ -24,6 +24,7 @@
  *        SPLASH_V3=1 node scripts/verify-splash.mjs   (as a build carrying the v3 launch image)
  */
 import { chromium } from "playwright";
+import { markInternal } from "./qa-internal.mjs";
 
 const BASE = process.argv[2] || "http://127.0.0.1:3111";
 const UA =
@@ -67,6 +68,7 @@ async function shell({ width = 390, height = 844, hideMs = 150, plugin = true, r
   const context = await browser.newContext({
     viewport: { width, height }, deviceScaleFactor: 2, userAgent: UA, ...rest,
   });
+  await markInternal(context, BASE);
   await context.addInitScript(
     ([hideMs, plugin, reject]) => {
       window.__hide = 0;

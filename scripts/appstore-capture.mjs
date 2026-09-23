@@ -13,6 +13,7 @@
 // is removed at the end, including on failure.
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync } from "node:fs";
+import { markInternal } from "./qa-internal.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 const OUT = process.env.OUT || "app-store/screenshots/_raw";
@@ -367,6 +368,7 @@ try {
     hasTouch: true,
     userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
   });
+  await markInternal(ctx, BASE);
   // Render as the native iOS shell, not mobile Safari. Without this the app
   // shows its web presentation: no "Add to Apple Wallet" (that button is
   // native-only), and the marketing chrome rules differ. The shim must be in
@@ -390,6 +392,7 @@ try {
     viewport: { width: 440, height: 956 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true,
     userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
   });
+  await markInternal(pubCtx, BASE);
   const pub = await pubCtx.newPage();
   await pub.goto(`${BASE}/${uname}`, { waitUntil: "networkidle" });
   await shot(pub, "public-card", { full: true });

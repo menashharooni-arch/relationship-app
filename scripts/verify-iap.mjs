@@ -17,6 +17,7 @@
  * IAP_REVIEW_PW if the password is rotated.
  */
 import { chromium } from "playwright";
+import { markInternal } from "./qa-internal.mjs";
 
 const BASE = process.argv[2] || "https://swiftcard.me";
 const PW = process.env.IAP_REVIEW_PW || "SwiftReview!e6535015";
@@ -42,6 +43,7 @@ const browser = await chromium.launch();
 
 async function shell(viewport) {
   const context = await browser.newContext({ viewport, deviceScaleFactor: 2, userAgent: UA });
+  await markInternal(context, BASE);
   await context.addInitScript(() => {
     window.webkit = { messageHandlers: { bridge: { postMessage() {} } } };
     window.Capacitor = {
