@@ -6,7 +6,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getAccountEmail } from "@/lib/account-email";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS, isPaidPlan } from "@/lib/plan";
-import { isFreeDays, isGrantCode, promoFitsPurchase } from "@/lib/promo";
+import { checkPromoForPurchase } from "@/lib/promo-check";
 import { priceIdForPlan, type BillingInterval } from "@/lib/subscription";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
@@ -91,6 +91,8 @@ export async function POST(req: NextRequest) {
         : undefined;
 
     let couponId: string | undefined;
+    // A code made in the Stripe dashboard rather than Admin → Marketing.
+    let promotionCodeId: string | undefined;
     let promoFreeDays: number | undefined;
     // Carried into the Checkout Session metadata so the webhook can mark this
     // redemption spent once the customer actually completes checkout.
@@ -133,89 +135,51 @@ export async function POST(req: NextRequest) {
 
     // The promo is resolved HERE, after the plan and billing period are known:
     // a code carries the plan it is for, so it cannot be judged before then.
+    //
+    // NOT SILENT ANY MORE. A code that didn't apply used to be dropped and the
+    // purchase went ahead at full price — after /pricing or the order page had
+    // shown the discount. Now the order page is told why (409 promoUnusable)
+    // and offers "Continue without the code". Same rules as the box on that
+    // page, from one place (lib/promo-check).
     if (promoCode) {
-      // promo_codes / promo_code_redemptions are service-role only (RLS on, no
-      // client policy), so this must not use the caller's session client.
-      const admin = getAdminSupabase();
-      const { data: promo } = await admin
-        .from("promo_codes")
-        .select("id, discount_type, free_days, stripe_coupon_id, active, expires_at, max_uses, uses_count, plan_target, applies_to, interval_target")
-        .eq("code", promoCode)
-        .eq("active", true)
-        .maybeSingle();
-
-      // Every failure below is silent: the purchase proceeds at full price
-      // rather than erroring. A promo that quietly doesn't apply is a support
-      // ticket; a checkout that refuses to complete is a lost sale.
-      // Scope: an "Office launch" code must not take money off a Pro
-      // subscription, and an annual-only code must not apply to a monthly one
-      // (owner, 2026-09-17). Checked against what is actually being bought.
-      //
-      // max_uses is NOT checked here for someone who already holds a
-      // redemption: their own redemption is one of the uses it counts. Checking
-      // it again refused the code to the very person it counted — a code with
-      // max_uses 1 could never apply, and the last person under any cap paid
-      // full price after /pricing had shown them the discount.
-      const usable =
-        !!promo &&
-        !isGrantCode(promo) &&
-        (!promo.expires_at || new Date(promo.expires_at as string) > new Date()) &&
-        promoFitsPurchase(promo, { plan: isOffice ? "office" : "pro", interval });
-
-      if (usable) {
-        // Did this user actually redeem it? Without this, knowing the string is
-        // enough — which is exactly the hole we're closing.
-        let { data: redemption } = await admin
-          .from("promo_code_redemptions")
-          .select("id, consumed_at")
-          .eq("code_id", promo!.id as string)
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        // No redemption yet: the code was typed on /pricing BEFORE this account
-        // existed (the redeem route previews it for a visitor, it can't record
-        // it) and rode the URL through the card builder and signup. Record it
-        // now, under exactly the rules /api/promo/redeem applies — the cap, who
-        // the code is for, and one redemption per account (the UNIQUE
-        // constraint; a lost race just finds no row and pays full price).
+      const check = await checkPromoForPurchase({
+        code: promoCode,
+        userId: user.id,
+        accountPlan: (profile.plan as string | null) ?? "free",
+        purchase: { plan: isOffice ? "office" : "pro", interval },
+      });
+      if (!check.ok) {
+        return NextResponse.json({ error: check.reason, promoUnusable: true, ...(check.grant ? { grant: true } : {}) }, { status: 409 });
+      }
+      if (check.source === "stripe") {
+        // Made in the Stripe dashboard: Stripe itself enforces its rules.
+        promotionCodeId = check.promotionCodeId;
+      } else {
+        // Claim it for this account now — the authoritative single-use guard
+        // is UNIQUE(code_id, user_id) — unless they already hold an unspent
+        // claim (typed on /pricing, then left Stripe without paying). The cap
+        // and audience were checked above for a new claim.
+        let redemption = check.redemption;
         if (!redemption) {
-          const underCap = promo!.max_uses == null || (promo!.uses_count as number) < (promo!.max_uses as number);
-          const target = (promo!.plan_target as string | null) ?? "all";
-          const forThisAccount =
-            target === "all" ||
-            (target === "free" && !isPaidPlan(profile.plan)) ||
-            (target === "pro" && isPaidPlan(profile.plan));
-          if (underCap && forThisAccount) {
-            const { data: inserted } = await admin
-              .from("promo_code_redemptions")
-              .insert({ code_id: promo!.id, user_id: user.id })
-              .select("id, consumed_at")
-              .maybeSingle();
-            if (inserted) {
-              redemption = inserted;
-              await admin.from("promo_codes").update({ uses_count: (promo!.uses_count as number) + 1 }).eq("id", promo!.id as string);
-            }
+          const admin = getAdminSupabase();
+          const { data: inserted } = await admin
+            .from("promo_code_redemptions")
+            .insert({ code_id: check.promo.id, user_id: user.id })
+            .select("id, consumed_at")
+            .maybeSingle();
+          if (inserted) {
+            redemption = { id: inserted.id as string, consumed_at: null };
+            await admin.from("promo_codes").update({ uses_count: ((check.promo.uses_count as number | null) ?? 0) + 1 }).eq("id", check.promo.id);
           }
         }
-
-        // consumed_at is the whole point: this used to gate on the row merely
-        // EXISTING, and nothing ever marked it spent. So one redeemed "N days
-        // free" code could be re-applied on every re-subscribe — take the free
-        // days, cancel before the first bill, check out again, forever.
-        // max_uses caps how many people redeem a code, not how many times one
-        // redemption pays out.
-        //
-        // Note the free days also override the first-time-customer trial check
-        // computed further down (Math.max), so a returning customer who should
-        // get no trial at all still got the code's full free period each time.
-        if (redemption && !redemption.consumed_at) {
-          promoRedemptionId = redemption.id as string;
-          if (promo!.discount_type === "free_time" && isFreeDays(Number(promo!.free_days))) {
-            promoFreeDays = Number(promo!.free_days);
-          } else if (promo!.stripe_coupon_id) {
-            couponId = promo!.stripe_coupon_id as string;
-          }
+        if (!redemption) {
+          return NextResponse.json({ error: "We couldn't apply that code just now. Try again, or continue without it.", promoUnusable: true }, { status: 409 });
         }
+        // consumed_at is marked by the webhook when checkout completes, so one
+        // claim pays out once — a code can't be re-applied on every re-subscribe.
+        promoRedemptionId = redemption.id;
+        if (check.freeDays) promoFreeDays = check.freeDays;
+        else if (check.couponId) couponId = check.couponId;
       }
     }
 
@@ -377,9 +341,16 @@ export async function POST(req: NextRequest) {
       // page holds them on "Setting up…" until the plan has landed.
       success_url: `${APP_URL}/checkout/success?plan=${planKey}${successPath.startsWith("/checkout/success") ? "" : `&next=${encodeURIComponent(successPath)}`}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${APP_URL}${cancelPath}`,
-      // Either a pre-applied coupon OR a promo-code box (Stripe forbids both):
-      // with no coupon, customers can type admin-created promo codes at checkout.
-      ...(couponId ? { discounts: [{ coupon: couponId }] } : { allow_promotion_codes: true }),
+      // Every code is entered in SwiftCard's box on the order page and applied
+      // here. Stripe's own "Add promotion code" field is OFF: it could only
+      // ever take money-off codes, so a free-time code typed there was always
+      // "invalid" (owner report 2026-09-23), and one entry point is one set of
+      // rules (plan, billing period, audience, once per account).
+      ...(couponId
+        ? { discounts: [{ coupon: couponId }] }
+        : promotionCodeId
+          ? { discounts: [{ promotion_code: promotionCodeId }] }
+          : {}),
     }, {
       // Idempotency: a double-click (or a retried request) within the same minute
       // returns the SAME Checkout Session instead of creating a duplicate.
@@ -388,13 +359,20 @@ export async function POST(req: NextRequest) {
       // of a /welcome checkout (which sets its own success page) and pressing
       // "Continue" on /checkout within the minute showed a raw Stripe error
       // (2026-09-16 website audit).
-      idempotencyKey: `checkout:${user.id}:${priceId}:${quantity}:${createHash("sha256").update(JSON.stringify([successPath, trialDays ?? 0, couponId ?? "", promoRedemptionId ?? ""])).digest("hex").slice(0, 16)}:${Math.floor(Date.now() / 60000)}`,
+      idempotencyKey: `checkout:${user.id}:${priceId}:${quantity}:${createHash("sha256").update(JSON.stringify([successPath, trialDays ?? 0, couponId ?? "", promotionCodeId ?? "", promoRedemptionId ?? ""])).digest("hex").slice(0, 16)}:${Math.floor(Date.now() / 60000)}`,
     });
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Stripe checkout error:", message);
+    // A code made in the Stripe dashboard carries its own rules (first-time
+    // customers only, a minimum amount…) that only Stripe can judge, at this
+    // moment. Its refusal is about the CODE, so the order page offers
+    // "Continue without the code" instead of a dead end.
+    if ((err as { type?: string } | null)?.type === "StripeInvalidRequestError" && /promotion code|coupon/i.test(message)) {
+      return NextResponse.json({ error: `That code can't be used for this purchase: ${message}`, promoUnusable: true }, { status: 409 });
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

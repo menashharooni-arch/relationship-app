@@ -80,9 +80,12 @@ describe("a promo code can only pay out once", () => {
   const WEBHOOK = "src/app/api/stripe/webhook/route.ts";
 
   it("checkout requires an UNCONSUMED redemption, not merely an existing row", () => {
+    // The rule moved to lib/promo-check (shared with the order page box): a
+    // spent claim is refused, and checkout only ever carries an unspent one.
+    expect(code("src/lib/promo-check.ts")).toMatch(/if \(r\?\.consumed_at\) return \{ ok: false/);
     const c = code(CHECKOUT);
     expect(c).toMatch(/consumed_at/);
-    expect(c).toMatch(/if \(redemption && !redemption\.consumed_at\)/);
+    expect(c).toContain("promoRedemptionId = redemption.id;");
   });
 
   it("checkout carries the redemption id to the webhook", () => {

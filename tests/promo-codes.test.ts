@@ -150,10 +150,13 @@ describe("creating a code", () => {
 describe("the rules are enforced where the money is", () => {
   const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
   it("checkout drops a code that doesn't fit the plan being bought", () => {
+    // Judged in lib/promo-check (shared with the order page box) against the
+    // purchase checkout actually makes…
+    expect(read("src/lib/promo-check.ts")).toContain("if (!promoFitsPurchase(promo, input.purchase)) return { ok: false, reason: promoScopeMessage(promo) };");
     const src = read("src/app/api/stripe/checkout/route.ts");
-    expect(src).toContain('promoFitsPurchase(promo, { plan: isOffice ? "office" : "pro", interval })');
+    expect(src).toContain('purchase: { plan: isOffice ? "office" : "pro", interval },');
     // …and it is resolved AFTER the plan is known, or it could not be judged.
-    expect(src.indexOf("const isOffice = OFFICE_PRICE_IDS")).toBeLessThan(src.indexOf("promoFitsPurchase("));
+    expect(src.indexOf("const isOffice = OFFICE_PRICE_IDS")).toBeLessThan(src.indexOf("checkPromoForPurchase({"));
   });
   it("the pricing page only advertises a code on the plan it covers", () => {
     const src = read("src/app/pricing/page.tsx");

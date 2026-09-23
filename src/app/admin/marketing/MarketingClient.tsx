@@ -34,6 +34,13 @@ type DomainStatus = {
   records: { record: string; name: string; type: string; value: string; ttl?: string; priority?: number; status?: string }[];
 };
 
+// Can this code do what it says? Free time is a trial and a grant switches a
+// plan on — neither needs Stripe. Money off needs its Stripe coupon; one made
+// without it (Stripe refused it at creation) can't take anything off.
+function codeReady(p: { discount_type: string | null; stripe_coupon_id?: string | null }): boolean {
+  return p.discount_type === "free_time" || p.discount_type === "grant" || !!p.stripe_coupon_id;
+}
+
 export default function MarketingClient() {
   // Broadcast
   const [counts, setCounts] = useState<Counts | null>(null);
@@ -525,9 +532,9 @@ export default function MarketingClient() {
                   {promoForm.expires_at ? ` · until ${promoForm.expires_at}` : ""}
                 </p>
                 <p className="text-[0.6875rem] text-gray-500 mt-1.5">
-                  {promoForm.discount_type === "free_time"
-                    ? "Free time is entered in the promo box on the SwiftCard pricing page (Stripe's own page can't hand out trials)."
-                    : "Money off can be entered in the SwiftCard promo box or typed on Stripe's checkout page."}
+                  {promoForm.discount_type === "grant"
+                    ? "Customers enter it in the promo box on the Pricing page or the order page — it switches the plan on straight away, no card."
+                    : "Customers enter every code in the SwiftCard promo box — on the Pricing page, or \"Have a promo code?\" on the order page just before payment. Stripe's payment page has no code field."}
                 </p>
               </div>
 
@@ -562,10 +569,12 @@ export default function MarketingClient() {
                     <div className="min-w-0">
                       <span className="font-mono font-bold text-white bg-gray-800 px-2 py-0.5 rounded">{p.code}</span>
                       <span
-                        className={`ml-2 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${p.stripe_coupon_id ? "bg-emerald-900/50 text-emerald-300" : "bg-gray-800 text-gray-500"}`}
-                        title={p.stripe_coupon_id ? "Redeemable at Stripe checkout" : "Not linked to Stripe — won't work at checkout"}
+                        className={`ml-2 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${codeReady(p) ? "bg-emerald-900/50 text-emerald-300" : "bg-red-900/40 text-red-300"}`}
+                        title={codeReady(p)
+                          ? "Works in the SwiftCard promo box (Pricing page and the order page)"
+                          : "Money off with no Stripe coupon behind it — it can't take anything off. Deactivate it and create it again."}
                       >
-                        {p.stripe_coupon_id ? "Stripe ✓" : "no Stripe"}
+                        {codeReady(p) ? "Ready ✓" : "Broken"}
                       </span>
                       {p.description && <span className="text-gray-500 ml-2">{p.description}</span>}
                       {/* The whole offer in words, so a code is never a mystery
