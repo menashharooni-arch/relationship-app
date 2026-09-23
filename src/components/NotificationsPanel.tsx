@@ -102,7 +102,10 @@ export default function NotificationsPanel({
         setItems((prev) => {
           // Title too: an upgrade in place ("…and tapped your Calendly link")
           // keeps the id and the read flag, and must still show.
-          const sig = (list: Notification[]) => list.map((n) => `${n.id}:${n.read ? 1 : 0}:${n.title}`).join(",");
+          // Body as well: an account that just went Pro gets the same rows back
+          // with the place no longer blocked out, and a title-only check kept
+          // the blur (and "See who and where") on a paid account.
+          const sig = (list: Notification[]) => list.map((n) => `${n.id}:${n.read ? 1 : 0}:${n.title}:${n.body ?? ""}`).join("\n");
           return sig(fresh) === sig(prev) ? prev : fresh;
         });
       } catch { /* ignore */ }
@@ -158,7 +161,9 @@ export default function NotificationsPanel({
       const res = await fetch("/api/referrals/claim", { method: "POST" });
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
-        setClaimResult((p) => ({ ...p, [id]: { ok: true, text: "Pro is active for the next month — enjoy!" } }));
+        // A paying subscriber's month is a credit on the next bill, not Pro
+        // "becoming active" — they already have it (api/referrals/claim `kind`).
+        setClaimResult((p) => ({ ...p, [id]: { ok: true, text: d.kind === "credit" ? "Done — your free month comes off your next bill." : "Pro is active for the next month — enjoy!" } }));
         setRead(id, true);
         router.refresh(); // update the plan badge etc.
       } else {

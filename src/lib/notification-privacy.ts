@@ -27,8 +27,26 @@ function canCarryLocation(type: string | null | undefined): boolean {
   return t === "card_viewed" || t === "contact_saved" || t.startsWith("milestone_");
 }
 
+/**
+ * Rows that describe being ON FREE: "Your Pro plan has ended — Subscribe…",
+ * "…paused until you upgrade", "Text follow-ups are part of Pro". Each was true
+ * the day it was written; the moment the account is paid again it is both false
+ * and an upgrade pitch to someone who is paying. A paid account is not shown
+ * them. Nothing is deleted — the rows are simply not handed to a paid reader.
+ */
+export const FREE_STATE_TYPES: ReadonlySet<string> = new Set(["pro_ended", "plan_downgraded", "sequence_paused"]);
+
+/** The locked-lead teaser (api/leads) — on a paid account the contact is open. */
+const LOCKED_LEAD_TAIL = / shared their info — open to unlock\.$/;
+
+/** A paid reader's version of a new-contact body: the Free teaser tail becomes the plain fact. */
+export function unlockedLeadBody(body: string): string {
+  return body.replace(LOCKED_LEAD_TAIL, " shared their info with you.");
+}
+
 export function redactForPlan<T extends NotificationRow>(rows: T[], paid: boolean): T[] {
-  return rows.map((raw) => {
+  const readable = paid ? rows.filter((r) => !FREE_STATE_TYPES.has(r.type ?? "")) : rows;
+  return readable.map((raw) => {
     // A known contact's name (lib/contact-privacy.ts) can sit in the TITLE as
     // well as the body: "Priya re-opened your card". Pro gets the name, Free
     // gets blocks the app blurs — decided here, on read, so an upgrade reveals
@@ -50,7 +68,12 @@ export function redactForPlan<T extends NotificationRow>(rows: T[], paid: boolea
     const rawBody = typeof row.body === "string" ? row.body : null;
     if (!rawBody) return row;
     const body = paid ? stripNameMarks(rawBody) : redactNames(rawBody);
-    if (paid) return { ...row, body: stripLocationMarks(body) };
+    if (paid) {
+      // A contact captured over the Free cap and unlocked by the upgrade: the
+      // row still said "— open to unlock", Free copy on a paid account.
+      const plain = stripLocationMarks(body);
+      return { ...row, body: row.type === "new_lead" ? unlockedLeadBody(plain) : plain };
+    }
     // Rows written before the marks existed say the place in plain text, and a
     // Free account would go on reading those forever.
     const marked = hasMarkedPlace(body) || !canCarryLocation(row.type)

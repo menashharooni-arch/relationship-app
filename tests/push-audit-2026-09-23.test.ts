@@ -37,7 +37,9 @@ describe("a locked Free lead's name never reaches the bell or the lock screen", 
     expect(free.body).not.toContain("Dana");
     const [paid] = redactForPlan([row], true);
     expect(paid.title).toBe("New contact: Dana Whitfield");
-    expect(paid.body).toBe("Dana Whitfield shared their info — open to unlock.");
+    // Once paid, the contact IS unlocked — "open to unlock" is Free copy and a
+    // paid reader gets the plain fact (Pro notifications review, 2026-09-23).
+    expect(paid.body).toBe("Dana Whitfield shared their info with you.");
     expect(paid.title).not.toContain(NAME_MARK);
   });
 });

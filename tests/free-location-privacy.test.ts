@@ -141,7 +141,7 @@ describe("the lock screen, where nothing can be blurred", () => {
     expect(push).toMatch(/paid \? stripNameMarks\(stripLocationMarks\(s\)\) : teaseLocation\(genericNames\(s\)\)/);
     // Title as well as body — a producer could put a place in either.
     expect(push).toMatch(/plainBody\(payload\.title\)/);
-    expect(push).toMatch(/fitBody\(plainBody\(payload\.body\)\)/);
+    expect(push).toMatch(/fitBodyKeepingPlace\(payload\.body, plainBody\)/);
   });
 });
 

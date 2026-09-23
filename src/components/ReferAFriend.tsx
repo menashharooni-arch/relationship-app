@@ -54,7 +54,9 @@ export default function ReferAFriend({ progress }: { progress: Progress | null }
       const res = await fetch("/api/referrals/claim", { method: "POST" });
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
-        setClaimMsg({ ok: true, text: "Pro is active for the next month — enjoy!" });
+        // A paying subscriber's month is a credit on the next bill, not Pro
+        // "becoming active" — they already have it (api/referrals/claim `kind`).
+        setClaimMsg({ ok: true, text: d.kind === "credit" ? "Done — your free month comes off your next bill." : "Pro is active for the next month — enjoy!" });
         // Refresh local progress + the page (plan badge etc.).
         const fresh = await fetch("/api/referrals/claim").then((r) => (r.ok ? r.json() : null)).catch(() => null);
         if (fresh) setP(fresh);

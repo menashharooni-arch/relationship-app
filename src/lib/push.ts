@@ -7,7 +7,7 @@ import { isPaidPlan } from "@/lib/plan";
 import { stripLocationMarks, teaseLocation } from "@/lib/location-privacy";
 import { genericNames, stripNameMarks } from "@/lib/contact-privacy";
 import {
-  decidePush, fitBody, readPushPrefs, pushCardTag, cardTagLine, MAX_TITLE_CHARS, OWN_CAP, UNCAPPED, VIEW_ROLLUP_TAG,
+  decidePush, fitBody, fitBodyKeepingPlace, readPushPrefs, pushCardTag, cardTagLine, MAX_TITLE_CHARS, OWN_CAP, UNCAPPED, VIEW_ROLLUP_TAG,
   type PushCategory, type PushCardRow,
 } from "@/lib/push-policy";
 
@@ -198,7 +198,9 @@ export async function sendPushToUser(userId: string, payload: {
   payload = {
     ...payload,
     title: fitBody(isUpdate ? `${viewsThisHour} views in the last hour` : plainBody(payload.title), MAX_TITLE_CHARS),
-    body: fitBody(plainBody(payload.body)),
+    // The place survives the trim: it ends the sentence, and on Pro it is the
+    // point of the notification (lib/push-policy fitBodyKeepingPlace).
+    body: fitBodyKeepingPlace(payload.body, plainBody),
     ...(isUpdate ? { tag: VIEW_ROLLUP_TAG, silent: true } : {}),
   };
 

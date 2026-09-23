@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { sendPushToUser } from "@/lib/push";
+import { isPaidPlan } from "@/lib/plan";
+import { unlockedLeadBody } from "@/lib/notification-privacy";
 import {
   localHour, quietWindowStart, readPushPrefs, QUIET_END_HOUR, type PushCategory,
 } from "@/lib/push-policy";
@@ -134,6 +136,7 @@ export async function GET(req: NextRequest) {
     try {
       const profile = profiles.get(userId);
       const prefs = readPushPrefs(profile?.customization);
+      const paid = isPaidPlan((profile?.plan as string | null) ?? null);
 
       // Nothing was ever held for someone who switched quiet hours off.
       if (prefs.quietHours === false) continue;
@@ -238,8 +241,18 @@ export async function GET(req: NextRequest) {
         title: String(top.row.title ?? "While you were away"),
         body: extra > 0
           ? `Plus ${extra} more while you were away.`
-          : String(top.row.body ?? ""),
-        url: destinationFor(top.category, (top.row.card_owner as string | null) ?? null),
+          // A contact locked overnight and unlocked by an upgrade before 8am
+          // must not reach a paid lock screen as "— open to unlock".
+          : paid && top.row.type === "new_lead"
+            ? unlockedLeadBody(String(top.row.body ?? ""))
+            : String(top.row.body ?? ""),
+        // The same screen the live push opens: one returning contact on Pro
+        // opens THAT contact; on Free (the name is withheld) the notification.
+        url: extra === 0 && top.category === "contact_return" && top.row.lead_id
+          ? paid
+            ? `${APP_URL}/contacts?${top.row.card_owner ? `card=${encodeURIComponent(String(top.row.card_owner))}&` : ""}lead=${encodeURIComponent(String(top.row.lead_id))}`
+            : `${APP_URL}/dashboard?${top.row.card_owner ? `card=${encodeURIComponent(String(top.row.card_owner))}&` : ""}view=notifications`
+          : destinationFor(top.category, (top.row.card_owner as string | null) ?? null),
         // Name the card only when the whole night was about ONE card — "Card:
         // Work" over "Plus 3 more" would be wrong if the others were elsewhere.
         cardOwner: held.every((h) => (h.row.card_owner ?? null) === (top.row.card_owner ?? null))

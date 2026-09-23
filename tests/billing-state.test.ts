@@ -59,7 +59,9 @@ describe("a referral reward never costs the referrer something", () => {
     // The rows are marked claimed BEFORE the reward is applied, so a throw
     // that isn't caught would eat three referrals and deliver nothing.
     const c = code(REFERRAL);
-    expect(c).toMatch(/try \{\s*await grantReferrerReward/);
+    // The grant now reports WHICH reward it gave ("credit" | "grant") so the
+    // screen can say what happened; still inside the same try.
+    expect(c).toMatch(/try \{\s*kind = await grantReferrerReward/);
     expect(c).toMatch(/reward_granted: false, rewarded_at: null \}\)\s*\.in\("id", \(updated/);
     expect(c).toMatch(/nothing was used up/);
   });

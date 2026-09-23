@@ -104,14 +104,17 @@ async function grantAppFreeMonths(userId: string, months: number, extend: boolea
 // Reward a referrer with free months. If they're already a paying subscriber we
 // credit their Stripe balance (auto-applies to the next invoice); otherwise we
 // give them an app-level free month.
-async function grantReferrerReward(userId: string, months: number): Promise<void> {
+/** "credit": taken off a paying subscriber's next Stripe bill. "grant": app-level Pro days. */
+export type ReferralRewardKind = "credit" | "grant";
+
+async function grantReferrerReward(userId: string, months: number): Promise<ReferralRewardKind> {
   const admin = getAdminSupabase();
   const { data: p } = await admin
     .from("profiles")
     .select("plan, stripe_customer_id, stripe_subscription_id, plan_expires_at, customization")
     .eq("id", userId)
     .maybeSingle();
-  if (!p) return;
+  if (!p) throw new Error("referral_no_profile");
   // An Apple subscriber is paying too — never hand them an app grant, whose
   // expiry would later downgrade the subscription they're still paying for.
   // Throw rather than return: the caller releases the claimed signups on a
@@ -131,7 +134,7 @@ async function grantReferrerReward(userId: string, months: number): Promise<void
           currency: price?.currency ?? "usd",
           description: `SwiftCard referral reward — ${months} month${months > 1 ? "s" : ""} of Pro free`,
         });
-        return;
+        return "credit";
       }
     } catch (e) {
       // REFUSE rather than fall through. For someone who is actively paying,
@@ -151,6 +154,7 @@ async function grantReferrerReward(userId: string, months: number): Promise<void
     throw new Error("referral_credit_unavailable");
   }
   await grantAppFreeMonths(userId, months, true);
+  return "grant";
 }
 
 // Called ONCE when a new user's profile is first created (onboarding), for both
@@ -413,7 +417,7 @@ export async function getReferralProgress(userId: string): Promise<ReferralProgr
 // app-level Pro month (extending any current grant) for everyone else.
 export async function claimReferralReward(
   userId: string,
-): Promise<{ ok: true; monthsClaimed: number; claimable: number } | { ok: false; error: string }> {
+): Promise<{ ok: true; monthsClaimed: number; claimable: number; kind: ReferralRewardKind } | { ok: false; error: string }> {
   const admin = getAdminSupabase();
   const per = REFERRAL.SIGNUPS_PER_REWARD;
 
@@ -480,8 +484,9 @@ export async function claimReferralReward(
   // that would be worth nothing to them (plan_expires_at changes no access a
   // real subscriber doesn't already have). Rolling back leaves the month
   // claimable again, which is the honest outcome.
+  let kind: ReferralRewardKind;
   try {
-    await grantReferrerReward(userId, REFERRAL.REFERRER_FREE_MONTHS);
+    kind = await grantReferrerReward(userId, REFERRAL.REFERRER_FREE_MONTHS);
   } catch (e) {
     await admin
       .from("referrals")
@@ -497,7 +502,9 @@ export async function claimReferralReward(
   await admin.from("profiles").update({ referral_reward_earned: true }).eq("id", userId); // legacy "earned ≥1" flag
 
   const after = await computeProgress(userId);
-  return { ok: true, monthsClaimed: after.monthsClaimed, claimable: after.claimable };
+  // `kind` lets the screen say what actually happened: a paying subscriber's
+  // month comes off their next bill; anyone else gets Pro switched on now.
+  return { ok: true, monthsClaimed: after.monthsClaimed, claimable: after.claimable, kind };
 }
 
 // After each successful referred signup: tell the referrer where they stand.
@@ -506,6 +513,20 @@ async function notifyReferrerOfSignup(referrerId: string): Promise<void> {
   const per = REFERRAL.SIGNUPS_PER_REWARD;
   const cap = REFERRAL.MAX_REFERRAL_REWARDS;
   const p = await computeProgress(referrerId);
+
+  // The words depend on what the reward IS for this person. "Unlock Pro" is
+  // Free copy — to someone already paying it is an upgrade pitch for a plan
+  // they have. A paying subscriber's month comes off their next bill; an App
+  // Store subscriber's cannot be applied at all (Apple bills them), so it is
+  // saved and no "Tap here" is offered that would only refuse.
+  let paying = false;
+  let apple = false;
+  try {
+    const { data: acct } = await getAdminSupabase()
+      .from("profiles").select("plan, customization").eq("id", referrerId).maybeSingle();
+    paying = isPaidPlan(acct?.plan as string | null);
+    apple = paying && isApplePaid(acct?.customization);
+  } catch { /* unknown plan → the Free wording, as before */ }
 
   let type = "referral_progress";
   let title: string;
@@ -517,13 +538,22 @@ async function notifyReferrerOfSignup(referrerId: string): Promise<void> {
     body = `You've already earned the maximum ${cap} referral months — thanks for spreading the word.`;
   } else if (p.progressInBatch === 0 && p.claimable > 0) {
     // This signup completed a batch of 3 → a month is ready to claim.
-    type = "referral_claim";
     title = "3 of 3 referrals complete!";
-    body = "Congratulations — you've got Pro free for one month. Tap here to get it.";
+    if (apple) {
+      // Nothing to tap: the claim would refuse. The month stays earned.
+      body = "You've earned a free month. Your Pro is billed through the App Store, which can't take the credit, so it stays saved for you.";
+    } else {
+      type = "referral_claim";
+      body = paying
+        ? "Congratulations — you've earned a free month of Pro. Tap here and it comes off your next bill."
+        : "Congratulations — you've got Pro free for one month. Tap here to get it.";
+    }
   } else {
     const left = per - p.progressInBatch;
     title = `${p.progressInBatch} of ${per} referrals complete`;
-    body = `${left === 2 ? "Two more" : "One more"} to unlock Pro free for one month.`;
+    body = paying
+      ? `${left === 2 ? "Two more" : "One more"} to earn a free month of Pro.`
+      : `${left === 2 ? "Two more" : "One more"} to unlock Pro free for one month.`;
   }
 
   await insertNotification({ user_id: referrerId, type, title, body });

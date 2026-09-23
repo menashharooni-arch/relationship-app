@@ -1,3 +1,5 @@
+import { PHRASE_MARK } from "@/lib/location-privacy";
+
 // ── What may become a push notification, and when ───────────────────────────
 //
 // A push is the most expensive message we can send: it interrupts. The moment
@@ -437,6 +439,38 @@ export function cardTagLine(tag: string): string {
  * ourselves is the difference between "Dana Whitfield shared their…" and
  * "Dana Whitfield shared their in".
  */
+/**
+ * The room a body gets when it ENDS IN A PLACE ("…viewed your Swift Links in
+ * the New York area."). The place is the last thing in those sentences and the
+ * thing Pro pays for, so the plain 60-character cut took it off first:
+ * "Someone downloaded your contact card from a QR code in the…". Ninety is
+ * still three short lines on an iPhone lock screen.
+ */
+export const MAX_PLACE_BODY_CHARS = 90;
+
+/**
+ * Fit a push body without ever cutting off its place.
+ *
+ * `marked` still carries the invisible PHRASE marks (lib/location-privacy);
+ * `render` is what the plan turns it into — the real place on a paid account,
+ * the shaded "in ▒▒▒▒▒, ▒▒" on Free. A body with no place (or more than one)
+ * keeps the plain 60-character rule. One with a place gets
+ * MAX_PLACE_BODY_CHARS, and if it is longer still, the words BEFORE the place
+ * are shortened and the place is kept whole.
+ */
+export function fitBodyKeepingPlace(marked: string, render: (s: string) => string): string {
+  const full = render(marked).replace(/\s+/g, " ").trim();
+  const parts = marked.split(PHRASE_MARK);
+  if (parts.length !== 3) return fitBody(full);
+  if (full.length <= MAX_PLACE_BODY_CHARS) return full;
+  const [before, phrase, after] = parts;
+  const tail = render(`${PHRASE_MARK}${phrase}${PHRASE_MARK}${after}`).replace(/\s+/g, " ").trim();
+  const room = MAX_PLACE_BODY_CHARS - tail.length - 1;
+  // A place so long it leaves no room for the sentence: the plain rule.
+  if (room < 20) return fitBody(full, MAX_PLACE_BODY_CHARS);
+  return `${fitBody(render(before), room)} ${tail}`;
+}
+
 export function fitBody(body: string, max: number = MAX_BODY_CHARS): string {
   const clean = body.replace(/\s+/g, " ").trim();
   if (clean.length <= max) return clean;

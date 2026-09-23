@@ -2,6 +2,7 @@
 
 import { Fragment, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import NotificationBody from "@/components/NotificationBody";
 import SeeWhoLink from "@/components/SeeWhoLink";
 import { useIsNativeApp } from "@/lib/platform";
@@ -19,7 +20,20 @@ type Notification = {
   // Which card this notification belongs to (username slug). Null/absent for
   // account-level notifications (referrals etc.) and legacy rows.
   card_owner?: string | null;
+  /** The known contact this row is about (paid accounts; api/notifications). */
+  lead_id?: string | null;
 };
+
+// Rows about a contact open Contacts, exactly as the dashboard list does
+// (NotificationsPanel CONTACT_TYPES): the contact itself when the row knows who
+// (lead_id — withheld on Free for a blurred name), else that card's contacts.
+const CONTACT_TYPES = new Set(["new_lead", "contact_saved", "card_viewed", "lead_reply", "contact_returned", "contact_engaged"]);
+
+function contactHref(n: Notification): string {
+  const card = n.card_owner ? `card=${encodeURIComponent(n.card_owner)}` : "";
+  if (n.lead_id) return `/contacts?${card ? `${card}&` : ""}lead=${encodeURIComponent(n.lead_id)}`;
+  return card ? `/contacts?${card}` : "/contacts";
+}
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -45,6 +59,7 @@ export default function NotificationBell({
   activeCard?: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const [notifications, setNotifications] = useState(initialNotifications);
   // Per-item in-flight ids (Read/Unread + dismiss) and a bulk-action flag
   // (Mark all read / Clear read) — disables the triggering control while its
@@ -91,7 +106,13 @@ export default function NotificationBell({
           // new notification arrived — reads seemed to "come back". The poll
           // only runs while the panel is closed, so no local optimistic
           // update can be clobbered here.
-          const sig = (list: Notification[]) => list.map((n) => `${n.id}:${n.read ? 1 : 0}`).join(",");
+          // Title and body too: a visit's row is UPGRADED in place (a view
+          // becomes "…shared their info", a milestone, a link tap) with the
+          // same id and read flag, and an account that just went Pro gets the
+          // same rows back with the place and name no longer blocked out.
+          // Comparing ids alone kept the stale words — blurred places and a
+          // "See who and where" on a paid account — until a full reload.
+          const sig = (list: Notification[]) => list.map((n) => `${n.id}:${n.read ? 1 : 0}:${n.title}:${n.body ?? ""}`).join("\n");
           return sig(fresh) === sig(prev) ? prev : fresh;
         });
       } catch { /* ignore */ }
@@ -302,7 +323,11 @@ export default function NotificationBell({
                   <div className={`group px-4 py-3 transition-colors ${n.read ? "" : "bg-blue-950"} ${n.id === askId && ask.show ? "border-b-0" : ""}`}>
                     <div className="flex items-start gap-3">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-blue-500"}`} />
-                      <div className="min-w-0 flex-1">
+                      <div
+                        className={`min-w-0 flex-1 ${CONTACT_TYPES.has(n.type) ? "cursor-pointer" : ""}`}
+                        onClick={CONTACT_TYPES.has(n.type) ? () => { setOpen(false); router.push(contactHref(n)); } : undefined}
+                        role={CONTACT_TYPES.has(n.type) ? "button" : undefined}
+                      >
                         <p className="text-white text-xs font-semibold truncate"><NotificationBody text={n.title} /></p>
                         {/* Same renderer as the dashboard list: on a Free
                             account the place a view came from arrives blocked
