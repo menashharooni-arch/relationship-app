@@ -6,6 +6,7 @@ import type { CardLink } from "@/components/card-templates/types";
 import type { SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import { stashSketch, consumePrefill, writePrefill, type CardPrefill } from "@/lib/prefill";
 import { resetMarketingSketch } from "@/lib/guest-reset";
+import { stashGuestLinkedInStatus } from "@/lib/linkedin-popup";
 
 // ── One sketch, three products ──────────────────────────────────────────────
 // The homepage builders ("see how your card / SwiftLink / signature would
@@ -202,6 +203,9 @@ export function useProductSketch(product: CardPrefill["product"], open: boolean)
     const url = new URL(window.location.href);
     const { returned, photo } = readGuestLinkedInReturn(url.search, product);
     if (!returned) return;
+    // A failed import is stripped from the URL below before the suggester is
+    // on screen — hand its status over so it can say what happened.
+    if (url.searchParams.get("integration") === "linkedin") stashGuestLinkedInStatus(url.searchParams.get("status"));
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the LinkedIn return URL on mount
     setLinkedInReturn(true);
     if (photo) setReturnedPhoto(photo);

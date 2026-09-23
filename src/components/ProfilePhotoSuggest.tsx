@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { detectNativeApp } from "@/lib/platform";
 import {
   isLinkedInPopup,
   popupConnectUrl,
+  newLinkedInNonce,
+  takeLinkedInResult,
+  takeGuestLinkedInStatus,
   LINKEDIN_MESSAGE,
+  LINKEDIN_RESULT_KEY,
   type LinkedInRelayMessage,
 } from "@/lib/linkedin-popup";
 
@@ -24,7 +28,7 @@ import {
  * Safari's cookies — so an already-signed-in LinkedIn user just taps Allow.
  * This is the same shape the Google/Apple sign-in flows use.
  */
-async function openLinkedInConnect(href: string, opts: { guest: boolean; returnTo: string }): Promise<void> {
+async function openLinkedInConnect(href: string, opts: { guest: boolean; returnTo: string; nonce?: string }): Promise<void> {
   if (detectNativeApp()) {
     const sep = href.includes("?") ? "&" : "?";
     let url = new URL(`${href}${sep}native=1`, window.location.origin).toString();
@@ -62,7 +66,7 @@ async function openLinkedInConnect(href: string, opts: { guest: boolean; returnT
   if (!opts.guest) {
     try {
       const popup = window.open(
-        popupConnectUrl(href, opts.returnTo),
+        popupConnectUrl(href, opts.returnTo, opts.nonce),
         "swiftcard-linkedin",
         "width=620,height=760,noopener=no,noreferrer=no",
       );
@@ -180,20 +184,86 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount for the OAuth return leg
   }, []);
 
-  // The popup's result. Origin-checked and tagged, so a message from anything
-  // else on the page can't drive an import.
+  // The popup's result, by whichever road reaches this page first:
+  //   • postMessage — the popup kept its opener (LinkedIn already signed in),
+  //     or the iOS shell's NativeAppBridge finishing in place (no nonce);
+  //   • localStorage — the popup's opener was cut by LinkedIn's sign-in page
+  //     (COOP, lib/linkedin-popup), so the relay left it in same-origin
+  //     storage: the `storage` event, or a check when this tab is focused
+  //     again (a phone suspends it while the popup tab is in front).
+  // Handled ONCE per connect: the nonce is cleared on first delivery, so the
+  // message and the storage event arriving together import one photo.
+  const pendingNonce = useRef<string | null>(null);
   useEffect(() => {
     if (guest) return;
+    function take(status: string | null) {
+      pendingNonce.current = null;
+      void finishLinkedInReturn(status);
+    }
     function onMessage(e: MessageEvent) {
       if (e.origin !== window.location.origin) return;
-      const data = e.data as LinkedInRelayMessage | null;
+      const data = e.data as (LinkedInRelayMessage & { n?: string }) | null;
       if (!data || data.source !== LINKEDIN_MESSAGE) return;
-      void finishLinkedInReturn(data.status);
+      if (data.n !== undefined) {
+        // A popup's result: only the page that opened it, and only once.
+        if (!pendingNonce.current || data.n !== pendingNonce.current) return;
+        takeLinkedInResult(data.n); // clear the stored copy so it isn't handled twice
+      }
+      take(data.status);
+    }
+    function checkStored(raw?: string | null) {
+      const nonce = pendingNonce.current;
+      if (!nonce) return;
+      const r = takeLinkedInResult(nonce, raw);
+      if (r) take(r.status);
+    }
+    function onStorage(e: StorageEvent) {
+      if (e.key === LINKEDIN_RESULT_KEY && e.newValue) checkStored(e.newValue);
+    }
+    function onVisible() {
+      if (document.visibilityState === "visible") checkStored();
     }
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- listener only needs the stable handler
   }, [guest]);
+
+  // A GUEST's failed import. Success is applied by the builder (?li_photo=);
+  // a failure used to reopen the builder with nothing said, which looks like
+  // the button did nothing. Read from the URL (the card builder leaves it
+  // there) or from the hand-over the homepage builders make before stripping it.
+  useEffect(() => {
+    if (!guest) return;
+    let status: string | null = null;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("integration") === "linkedin" && !sp.has("li_photo")) {
+      status = sp.get("status");
+      sp.delete("integration"); sp.delete("status");
+      window.history.replaceState(null, "", `${window.location.pathname}${sp.size ? `?${sp}` : ""}${window.location.hash}`);
+    }
+    status = status ?? takeGuestLinkedInStatus();
+    if (status !== "error" && status !== "nophoto") return;
+    const message = status === "nophoto"
+      ? "Your LinkedIn profile doesn't have a photo to import. Upload one instead."
+      : "LinkedIn didn't finish connecting — try again.";
+    const t = setTimeout(() => setState({ kind: "error", message }), 0);
+    return () => clearTimeout(t);
+  }, [guest]);
+
+  /** One connect attempt: the nonce this page will accept a result for. */
+  function startConnect(): string {
+    const n = newLinkedInNonce();
+    pendingNonce.current = n;
+    return n;
+  }
 
   const connectUrl = `/api/integrations/linkedin/connect?next=${encodeURIComponent(returnTo)}`;
   // A guest has no session to attach a LinkedIn token to, so their Connect
@@ -370,7 +440,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
               </p>
               <a
                 href={guest ? guestConnectHref : connectUrl}
-                onClick={(e) => { e.preventDefault(); void openLinkedInConnect(guest ? guestConnectHref : connectUrl, { guest, returnTo }); }}
+                onClick={(e) => { e.preventDefault(); void openLinkedInConnect(guest ? guestConnectHref : connectUrl, { guest, returnTo, nonce: startConnect() }); }}
                 className="text-xs bg-[#0A66C2] hover:bg-[#0956a5] text-white font-semibold px-3 py-1.5 rounded-full transition-colors"
               >
                 Connect LinkedIn
@@ -382,7 +452,7 @@ export default function ProfilePhotoSuggest({ linkedinEnabled, onConfirm, return
               <p className="text-[0.6875rem] text-amber-300/90">Your LinkedIn permission expired.</p>
               <a
                 href={connectUrl}
-                onClick={(e) => { e.preventDefault(); void openLinkedInConnect(connectUrl, { guest: false, returnTo }); }}
+                onClick={(e) => { e.preventDefault(); void openLinkedInConnect(connectUrl, { guest: false, returnTo, nonce: startConnect() }); }}
                 className="text-xs bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-full transition-colors"
               >
                 Reconnect LinkedIn
