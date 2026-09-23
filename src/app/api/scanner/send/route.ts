@@ -44,8 +44,15 @@ export async function POST(request: NextRequest) {
   // card slug and /card/<account handle> 404s — so this emailed link, the one
   // thing the scanner send exists to deliver, dead-ended for every account
   // provisioned after that split.
-  const cardUrl = `${APP_URL}/${(await publicCardSlug(user.id)) ?? profile.username}`;
-  const firstName = profile.name?.split(" ")[0] ?? "Someone";
+  const slug = (await publicCardSlug(user.id)) ?? profile.username;
+  const cardUrl = `${APP_URL}/${slug}`;
+  // The name on the CARD being sent first: profiles.name is blank for every
+  // account made through normal signup (the name is typed into the card
+  // builder), so this went out as "Someone shared their contact card with you".
+  const { data: sentCard } = slug
+    ? await adminSupabase.from("cards").select("name").eq("username", slug).maybeSingle()
+    : { data: null };
+  const firstName = ((sentCard?.name as string | null) || (profile.name as string | null) || "").trim().split(/\s+/)[0] || "Someone";
   const safeFirstName = escapeHtml(firstName);
 
   const result = await sendRawEmail({

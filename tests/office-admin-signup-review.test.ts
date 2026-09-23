@@ -55,7 +55,10 @@ describe("billing email quotes the whole Office bill", () => {
 
   it("the payment-failed email says Office, never Enterprise", () => {
     const w = code("src/app/api/stripe/webhook/route.ts");
-    expect(w).toContain('const planName = profile.plan === "enterprise" ? "Office" : "Pro";');
+    // From the failed invoice's own price (a member's own Pro is "Pro", not
+    // their seat's plan), with the profile only as the fallback.
+    expect(w).toContain("invoicePlanName(opts.invoice, profile.plan as string | null)");
+    expect(w).toContain('return fallbackPlan === "enterprise" ? "Office" : "Pro";');
   });
 
   it("receipts show the seats, and never greet 'there'", () => {
@@ -78,7 +81,10 @@ describe("billing email quotes the whole Office bill", () => {
     expect(retry.html).not.toContain("7 days");
     const ended = paymentFailedEmail({ firstName: "", planName: "Office", amount: "$19.95", manageUrl: U, situation: "trial_ended" });
     expect(ended.html).not.toContain("7 days");
-    expect(ended.html).toContain("your teammates move to Free too");
+    // The team is saved, and a teammate paying for their own Pro keeps it —
+    // not "your teammates move to Free too".
+    expect(ended.html).toContain("your teammates keep their first card");
+    expect(ended.html).not.toContain("move to Free too");
     expect(ended.subject).toContain("has ended");
     // The email is sent AFTER the never-paid decision, not before it.
     const w = code("src/app/api/stripe/webhook/route.ts");

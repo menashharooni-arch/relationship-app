@@ -141,7 +141,24 @@ async function sendReceiptForUser(opts: {
 
 type PaymentFailedSituation = "grace" | "retry" | "trial_ended";
 
-async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: number; situation: PaymentFailedSituation }) {
+/**
+ * Which plan an invoice is FOR — read from the invoice's own price, never
+ * from profiles.plan. An Office MEMBER who still pays for their own Pro has
+ * plan "enterprise" (their team seat), so their own Pro renewal was receipted
+ * as "Office · 1 seat" and a failed Pro charge was called "your Office
+ * payment" — the owner's plan, on a bill the owner never sees. profiles.plan
+ * is only the fallback for a price this deployment doesn't know.
+ */
+function invoicePlanName(invoice: Stripe.Invoice, fallbackPlan: string | null | undefined): "Office" | "Pro" {
+  for (const l of invoice.lines?.data ?? []) {
+    const d = l?.pricing?.price_details?.price;
+    const known = planFromPriceId(typeof d === "string" ? d : d?.id);
+    if (known) return known.plan === "office" ? "Office" : "Pro";
+  }
+  return fallbackPlan === "enterprise" ? "Office" : "Pro";
+}
+
+async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: number; situation: PaymentFailedSituation; invoice?: Stripe.Invoice }) {
   const admin = getAdminSupabase();
   const { data: profile } = await admin
     .from("profiles")
@@ -157,13 +174,22 @@ async function sendPaymentFailedEmail(opts: { customerId: string; amountCents: n
   const firstName = await greetingFirstName(admin, profile.id as string, profile.name as string | null);
   // "Office", never the internal "enterprise" id — this said "your SwiftCard
   // Enterprise plan" to Office owners (the receipts were fixed 2026-09-16).
-  const planName = profile.plan === "enterprise" ? "Office" : "Pro";
+  // From the failed invoice's own price when we have it (invoicePlanName).
+  const planName = opts.invoice
+    ? invoicePlanName(opts.invoice, profile.plan as string | null)
+    : profile.plan === "enterprise" ? "Office" : "Pro";
+  // Their OWN Pro while on someone else's team: the email must not say the
+  // account "moves to Free" — the seat keeps everything (see the restore in
+  // customer.subscription.deleted).
+  const { data: seat } = await admin.from("office_members").select("office_id").eq("user_id", profile.id).eq("status", "active").limit(1).maybeSingle();
+  const { data: owns } = await admin.from("offices").select("id").eq("owner_id", profile.id).limit(1).maybeSingle();
   const template = paymentFailedEmail({
     firstName,
     planName,
     amount: `$${(opts.amountCents / 100).toFixed(2)}`,
     manageUrl: `${APP_URL}/settings/flows?billing=1`,
     situation: opts.situation,
+    teamMember: !!seat && !owns && planName === "Pro",
   });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -647,12 +673,13 @@ export async function POST(req: NextRequest) {
           const renewalInterval = firstChargeAfterTrial
             ? (annualRenewal ? "Annual · first payment after your free trial" : "Monthly · first payment after your free trial")
             : (annualRenewal ? "Annual renewal" : "Monthly renewal");
+          const renewalPlan = invoicePlanName(invoice, profile.plan as string | null);
           await sendReceiptForUser({
             userId: profile.id,
-            planName: profile.plan === "enterprise" ? "Office" : "Pro",
+            planName: renewalPlan,
             amountCents: invoice.amount_paid,
             interval: renewalInterval,
-            seats: profile.plan === "enterprise" ? line?.quantity ?? null : null,
+            seats: renewalPlan === "Office" ? line?.quantity ?? null : null,
             // The renewal handler already HAS the invoice object, so the
             // customer-facing link is right here — no extra fetch.
             invoiceUrl: invoice.hosted_invoice_url ?? invoice.invoice_pdf ?? null,
@@ -747,6 +774,7 @@ export async function POST(req: NextRequest) {
             customerId: invoice.customer as string,
             amountCents: invoice.amount_due,
             situation,
+            invoice,
           });
         } catch (e) {
           console.error("Payment-failed email error:", e);

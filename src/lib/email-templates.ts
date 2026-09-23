@@ -2,7 +2,7 @@ import { escapeHtml, safeUrlAttr } from "./escape";
 import { htmlToText } from "./email-text";
 import { appStoreEmailBlock } from "./app-store";
 // The downgrade card quotes real limits rather than remembered ones.
-import { PLAN_LIMITS } from "./plan";
+import { PLAN_LIMITS, PLAN_PRICES } from "./plan";
 import { from as senderFrom_, replyToFor, type SenderKey } from "./email-senders";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
@@ -199,6 +199,16 @@ export function welcomeEmail(opts: {
   return built(SUPPORT_FROM, `Your SwiftCard is live, ${opts.firstName}!`, layout(body, opts.unsubscribeUrl, opts.prefsUrl));
 }
 
+// What happens to an Office owner's TEAM when Office ends — the same facts the
+// in-app notice states (lib/billing-state officeEndedNotice). It used to say
+// "everyone you invited moves to Free too, and the team dashboard closes":
+// a teammate paying for their own Pro keeps it, and the team is kept (members
+// suspended, the office row intact) so subscribing again brings it back.
+const OFFICE_TEAM_ENDS =
+  "Your team's seats end — your teammates keep their first card, without your company branding, and your team is saved for when you come back";
+
+const PRO_MONTHLY = `$${(PLAN_PRICES.PRO_MONTHLY_CENTS / 100).toFixed(2)}/mo`;
+
 // What a user keeps on Free vs. loses when their Pro access ends — reused by
 // both trial emails so the message is consistent.
 // Every line here was wrong, in the one email meant to drive a re-upgrade:
@@ -220,7 +230,7 @@ function proLossCard(office = false) {
   return card(`
     <p style="margin:0 0 12px;font-weight:700;color:#0f172a;font-size:14px;">What changes on Free</p>
     <p style="margin:0 0 8px;font-size:13px;color:#475569;">✓ <strong>You keep everything you made</strong> — your card, all your contacts, and your links stay put. Nothing is deleted.</p>
-    ${office ? `<p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Your team's seats end — everyone you invited moves to Free too, and the team dashboard closes</p>` : ""}
+    ${office ? `<p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• ${OFFICE_TEAM_ENDS}</p>` : ""}
     <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• New contacts cap at ${PLAN_LIMITS.FREE_LEADS_PER_MONTH} a month — anything past that is still captured, just locked until you upgrade</p>
     <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Only your first card stays live; any others stop loading for visitors, including their QR codes and NFC tags</p>
     <p style="margin:0 0 8px;font-size:13px;color:#94a3b8;">• Follow-up sequences pause where they are and resume if you upgrade</p>
@@ -244,6 +254,9 @@ export function trialChargeSoonEmail(opts: {
   /** "monthly" / "annually" — reads straight into the sentence. */
   intervalWord?: string;
   manageUrl: string;
+  /** Their own Pro trial, while they are on someone else's team: the seat
+   *  already covers Pro, so "what changes on Free" is not what happens to them. */
+  teamMember?: boolean;
 }) {
   const safeName = escapeHtml(opts.firstName);
   const date = escapeHtml(opts.chargeDate);
@@ -266,8 +279,10 @@ export function trialChargeSoonEmail(opts: {
         <table width="100%" cellpadding="0" cellspacing="0">${tableRows}</table>
       </div>
     </div>
-    ${proLossCard(opts.planName === "Office")}
-    ${p(`Keeping ${planName}? You don't need to do anything. ${opts.planName === "Office" ? "Don't want to continue?" : "Want to stay on Free instead?"} Cancel before ${date} and you won't be charged.`)}
+    ${opts.teamMember
+      ? p(`You're on a team now, and your team seat already includes everything in Pro — so while you're on the team you don't need this subscription. Cancel before ${date} and you won't be charged; keep it only if you want Pro for yourself if you ever leave the team.`)
+      : `${proLossCard(opts.planName === "Office")}
+    ${p(`Keeping ${planName}? You don't need to do anything. ${opts.planName === "Office" ? "Don't want to continue?" : "Want to stay on Free instead?"} Cancel before ${date} and you won't be charged.`)}`}
     ${btn(opts.manageUrl, "Manage my plan →")}
   `;
   return built(BILLING_FROM, `Your SwiftCard ${opts.planName || "Pro"} trial ends ${opts.chargeDate}`, layout(body));
@@ -278,16 +293,29 @@ export function trialEndingSoonEmail(opts: {
   firstName: string;
   daysLeft: number;
   isTrial: boolean;
+  /** A granted OFFICE (a tester code) is ending, not Pro: it said "free Pro
+   *  trial … upgrade to Pro" to an Office owner, with nothing about the team. */
+  office?: boolean;
   unsubscribeUrl?: string;
   /** Preference centre link for the footer — marketing/lifecycle mail only. */
   prefsUrl?: string;
 }) {
-  const what = opts.isTrial ? "free Pro trial" : "free month of Pro";
   const day = opts.daysLeft === 1 ? "1 day" : `${opts.daysLeft} days`;
   const safeName = escapeHtml(opts.firstName);
+  if (opts.office) {
+    const officeBody = `
+    ${h1(`${day} left of your free Office access`)}
+    ${p(`Hey ${safeName} — your free Office access ends in ${day}. After that your account moves to the Free plan.`)}
+    ${proLossCard(true)}
+    ${btn(`${APP_URL}/pricing`, "Keep Office →")}
+    ${p(`Subscribing to Office keeps your team, its branding and its seats exactly as they are.`)}
+  `;
+    return built(SUPPORT_FROM, `${day} left of your free Office access`, layout(officeBody, opts.unsubscribeUrl, opts.prefsUrl));
+  }
+  const what = opts.isTrial ? "free Pro trial" : "free month of Pro";
   const body = `
     ${h1(`${day} left of your ${what}`)}
-    ${p(`Hey ${safeName} — your ${what} ends in ${day}. After that your account moves to the Free plan. Keep everything unlocked by upgrading to Pro (just $4.99/mo).`)}
+    ${p(`Hey ${safeName} — your ${what} ends in ${day}. After that your account moves to the Free plan. Keep everything unlocked by upgrading to Pro (just ${PRO_MONTHLY}).`)}
     ${proLossCard()}
     ${btn(`${APP_URL}/pricing`, "Keep Pro — upgrade →")}
     ${p(`No pressure — you can upgrade anytime, even after you're back on Free. Everything you've built will be waiting for you.`)}
@@ -299,10 +327,22 @@ export function trialEndingSoonEmail(opts: {
 export function trialEndedEmail(opts: {
   firstName: string;
   isTrial: boolean;
+  /** A granted OFFICE ended (see trialEndingSoonEmail). */
+  office?: boolean;
   unsubscribeUrl?: string;
   /** Preference centre link for the footer — marketing/lifecycle mail only. */
   prefsUrl?: string;
 }) {
+  if (opts.office) {
+    const officeBody = `
+    ${h1("Your free Office access has ended")}
+    ${p(`Hey ${escapeHtml(opts.firstName)} — your account is on the Free plan now. Your card, contacts and links are exactly where you left them.`)}
+    ${proLossCard(true)}
+    ${btn(`${APP_URL}/pricing`, "See Office plans →")}
+    ${p(`Subscribe to Office and your team comes back with its branding — no one has to be invited again, up to the seats you choose.`)}
+  `;
+    return built(SUPPORT_FROM, "Your free Office access has ended", layout(officeBody, opts.unsubscribeUrl, opts.prefsUrl));
+  }
   const what = opts.isTrial ? "Your 14-day Pro trial has ended" : "Your free month of Pro has ended";
   const safeName = escapeHtml(opts.firstName);
   const body = `
@@ -478,14 +518,23 @@ export function paymentFailedEmail(opts: {
    *  "retry" (any other invoice) starts no clock; "trial_ended" means the
    *  first charge after a free period failed and the plan has already ended. */
   situation?: "grace" | "retry" | "trial_ended";
+  /** Their OWN Pro, while they are on someone else's team: losing it never
+   *  moves them to Free — the team seat keeps everything. */
+  teamMember?: boolean;
 }) {
   const safeName = escapeHtml(opts.firstName);
   const safePlanName = escapeHtml(opts.planName);
   const situation = opts.situation ?? "grace";
-  const next =
+  const memberNext = situation === "trial_ended"
+    ? `<p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">Your own Pro has ended — nothing changes for you</p>
+      <p style="margin:0;font-size:13px;color:#64748b;">Because the first charge didn't go through, your own ${safePlanName} subscription has ended. Nothing was charged, and you're still on your team, which keeps everything working exactly as it does now.</p>`
+    : `<p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">This is your own subscription, not your team's</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Your team seat already includes everything in Pro, so you can update your card, or simply cancel this subscription while you're on the team. Either way nothing changes on your card.</p>
+      <a href="${safeUrlAttr(opts.manageUrl)}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Manage my subscription →</a>`;
+  const next = opts.teamMember ? memberNext :
     situation === "trial_ended"
       ? `<p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">Your free period has ended</p>
-      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Because the first charge didn't go through, your ${safePlanName} plan has ended and your account is back on Free${opts.planName === "Office" ? " — your teammates move to Free too" : ""}. Nothing was charged. You can pick a plan again any time.</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#64748b;">Because the first charge didn't go through, your ${safePlanName} plan has ended and your account is back on Free${opts.planName === "Office" ? `. ${OFFICE_TEAM_ENDS}` : ""}. Nothing was charged. You can pick a plan again any time.</p>
       <a href="${safeUrlAttr(opts.manageUrl)}" style="color:#1D4ED8;font-size:13px;font-weight:600;text-decoration:none;">Choose a plan →</a>`
       : situation === "retry"
         ? `<p style="margin:0 0 8px;font-weight:700;color:#0f172a;font-size:13px;">Please update your payment method</p>
@@ -505,7 +554,14 @@ export function paymentFailedEmail(opts: {
     ${card(next)}
     ${p(`If you have any questions, just reply to this email.`)}
   `;
-  return built(BILLING_FROM, situation === "trial_ended" ? `Your SwiftCard ${opts.planName} plan has ended — payment didn't go through` : `Action needed: your SwiftCard payment failed`, layout(body));
+  const subject = opts.teamMember
+    ? (situation === "trial_ended"
+      ? `Your own SwiftCard ${opts.planName} subscription has ended — your team access is unchanged`
+      : `Your own SwiftCard ${opts.planName} payment failed — your team access is unchanged`)
+    : situation === "trial_ended"
+      ? `Your SwiftCard ${opts.planName} plan has ended — payment didn't go through`
+      : `Action needed: your SwiftCard payment failed`;
+  return built(BILLING_FROM, subject, layout(body));
 }
 
 export function marketingEmail(opts: {

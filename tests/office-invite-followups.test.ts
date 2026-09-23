@@ -194,7 +194,8 @@ describe("promo codes never go to team members", () => {
   it("the promo sender filters them out and sends to the filtered list only", () => {
     const s = code("src/app/api/admin/promo-codes/send/route.ts");
     expect(s).toContain("await officeTeamMemberIds(admin)");
-    expect(s).toContain("const targets = (profiles ?? []).filter((p) => !teamMembers.has(p.id as string));");
+    expect(s).toContain("const notMembers = (profiles ?? []).filter((p) => !teamMembers.has(p.id as string));");
+    expect(s).toContain("const targets = notMembers.filter((p) => !alreadyHasIt(p.plan as string | null));");
     expect(s).toContain("for (const profile of targets)");
     expect(s).not.toMatch(/for \(const profile of profiles/);
   });

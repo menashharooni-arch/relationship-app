@@ -705,7 +705,7 @@ export default function MarketingClient() {
                   <option value="pro">Pro + Office{counts ? ` (${counts.pro})` : ""}</option>
                   <option value="all">All users{counts ? ` (${counts.all})` : ""}</option>
                 </select>
-                <p className="text-gray-600 text-[0.6875rem] mt-1">Team members on a company&apos;s Office plan are always left out — their company pays for their plan.</p>
+                <p className="text-gray-600 text-[0.6875rem] mt-1">Team members on a company&apos;s Office plan are always left out — their company pays for their plan. So is anyone who already has the plan the code is for: Office owners never get a code, and Pro accounts don&apos;t get a Pro code.</p>
               </div>
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Headline</label>

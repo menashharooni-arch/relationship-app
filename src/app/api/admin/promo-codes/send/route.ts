@@ -8,6 +8,7 @@ import { emailOptOutSet, isEmailOptedOut } from "@/lib/messaging";
 import { canSendMarketing } from "@/lib/marketing-consent";
 import { preferenceCenterUrl } from "@/lib/email-token";
 import { officeTeamMemberIds } from "@/lib/office-team-members";
+import { isOfficePlan, isPaidPlan } from "@/lib/plan";
 
 // POST /api/admin/promo-codes/send — email a promo code to targeted users.
 // Same session-based admin gate as the rest of the console.
@@ -47,11 +48,15 @@ export async function POST(req: NextRequest) {
   // place a recipient sees the offer's terms, and they act on it at checkout.
   // No codes have been mailed yet, so this is fixed before first use.
   const freeDays = Number(promo.free_days ?? 0);
+  // The plan the code is FOR — it said "SwiftCard Pro" on every code, including
+  // an Office code.
+  const appliesTo = String(promo.applies_to ?? "any");
+  const planWords = appliesTo === "office" ? "SwiftCard Office" : appliesTo === "pro" ? "SwiftCard Pro" : "SwiftCard Pro or Office";
   const discountText =
     promo.discount_type === "free_time" && freeDays > 0
-      ? `${freeDays} ${freeDays === 1 ? "day" : "days"} of SwiftCard Pro, free`
+      ? `${freeDays} ${freeDays === 1 ? "day" : "days"} of ${planWords}, free`
       : promo.discount_type === "percent" && promo.discount_percent
-        ? `${promo.discount_percent}% off your first month of SwiftCard Pro`
+        ? `${promo.discount_percent}% off your first month of ${planWords}`
         : `$${((promo.discount_amount ?? 0) / 100).toFixed(2)} off your upgrade`;
 
   // Fetch target users. Excludes soft-deleted profiles — same gap the
@@ -59,7 +64,7 @@ export async function POST(req: NextRequest) {
   // told their data was on its way out, would still get a promo blast.
   let q = admin
     .from("profiles")
-    .select("id, name, email")
+    .select("id, name, email, plan")
     .or("customization->>_deleted.is.null,customization->>_deleted.neq.true");
   if (segment === "free") q = q.eq("plan", "free");
   else if (segment === "pro") q = q.in("plan", ["pro", "enterprise"]);
@@ -76,8 +81,16 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Couldn't load the team-member list, so nothing was sent. Try again." }, { status: 500 });
   }
-  const targets = (profiles ?? []).filter((p) => !teamMembers.has(p.id as string));
-  const teamMembersSkipped = (profiles?.length ?? 0) - targets.length;
+  // Never offer a plan to someone who already has it. An Office OWNER is on
+  // the top plan, so no code upgrades them ("Apply code & upgrade" to an
+  // Office owner, for Pro); a Pro code is equally meaningless to a Pro
+  // subscriber. A Pro account still receives an Office (or any-plan) code —
+  // that one is a real step up.
+  const alreadyHasIt = (plan: string | null | undefined) =>
+    appliesTo === "pro" ? isPaidPlan(plan) : isOfficePlan(plan);
+  const notMembers = (profiles ?? []).filter((p) => !teamMembers.has(p.id as string));
+  const targets = notMembers.filter((p) => !alreadyHasIt(p.plan as string | null));
+  const teamMembersSkipped = (profiles?.length ?? 0) - notMembers.length;
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   // Send to each user's ACCOUNT (auth) email, not profiles.email (which can be

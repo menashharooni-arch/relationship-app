@@ -108,11 +108,20 @@ export async function sendTrialChargeNotices(
     const intervalWord =
       typeof cust[TRIAL_CHARGE_INTERVAL_KEY] === "string" ? (cust[TRIAL_CHARGE_INTERVAL_KEY] as string) : undefined;
 
+    // WHICH trial this is, from what they OWN — not profiles.plan. Someone
+    // on a Pro trial who then joined a team has plan "enterprise" (their seat),
+    // and this told them their "Office trial" was ending and their team would
+    // be released. An Office trial is an office they own.
+    const [{ data: owned }, { data: seat }] = await Promise.all([
+      supabase.from("offices").select("id").eq("owner_id", u.id).limit(1).maybeSingle(),
+      supabase.from("office_members").select("id").eq("user_id", u.id).eq("status", "active").limit(1).maybeSingle(),
+    ]);
     const tpl = trialChargeSoonEmail({
       firstName: (await greetingFirstName(supabase, u.id as string, u.name as string | null)) || "there",
       // "Office", never the internal "enterprise" id — the product never uses
       // that word to a customer (same rule as receipts).
-      planName: u.plan === "enterprise" ? "Office" : "Pro",
+      planName: owned ? "Office" : "Pro",
+      teamMember: !owned && !!seat,
       chargeDate: new Date(endMs).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
       amountCents: cents,
       intervalWord,

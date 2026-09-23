@@ -274,6 +274,9 @@ export async function GET(req: NextRequest) {
       const tpl = trialEndedEmail({
         firstName: u.name?.split(" ")[0] || "there",
         isTrial: u.wasTrial,
+        // Same office check as the bell row above: a granted Office ending is
+        // about the team, not "your free month of Pro".
+        office: !!ownedOffice,
         unsubscribeUrl: unsub,
         prefsUrl: preferenceCenterUrl(u.id as string),
       });
@@ -307,7 +310,7 @@ export async function GET(req: NextRequest) {
     const in3dIso = new Date(nowMs + 3 * 86400000).toISOString();
     const { data: ending } = await supabase
       .from("profiles")
-      .select("id, email, name, plan_expires_at, customization")
+      .select("id, email, name, plan, plan_expires_at, customization")
       // enterprise too: a TIMED enterprise grant expires straight to Free with no
       // heads-up when this is pro-only. Office sub-users are never caught here —
       // accepting an invite clears plan_expires_at, and this query requires it.
@@ -341,6 +344,9 @@ export async function GET(req: NextRequest) {
             firstName: (u.name as string)?.split(" ")[0] || "there",
             daysLeft,
             isTrial: cust._trial === true,
+            // A granted OFFICE ending is about the owner's team, never "your
+            // free month of Pro … upgrade to Pro".
+            office: u.plan === "enterprise",
             unsubscribeUrl: unsub,
             prefsUrl: preferenceCenterUrl(u.id as string),
           });
