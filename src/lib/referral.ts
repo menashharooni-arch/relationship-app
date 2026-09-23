@@ -42,12 +42,22 @@ export const SIGNUP_SOURCES = [
   "link_in_bio_page",     // /link-in-bio-with-analytics landing page
   "follow_up",     // "Sent with SwiftCard" link in an automation email/text
   "preview",       // a "Create Your Card for Free" button on the Test It Live page
+  // The site already sent these and every one was dropped at /cards/new
+  // (2026-09-22 signup review) — so the homepage hero box, the blog, a public
+  // card's own "create yours" link and the Swift Links badge all reported
+  // their signups as "direct".
+  "hero_claim",         // homepage "Start for free" name box
+  "blog",               // a blog post's CTA
+  "card_cta",           // "Create your card" at the foot of someone's public card
+  "links_promo_badge",  // the SwiftCard badge on a Swift Links page
   "direct",        // organic
 ] as const;
-export type SignupSource = (typeof SIGNUP_SOURCES)[number];
+/** Landing pages generate their own: /for/<industry> → for_<slug>, /compare/<rival> → alt_<slug>. */
+const LANDING_SOURCE = /^(for|alt)_[a-z0-9_]{1,48}$/;
+export type SignupSource = (typeof SIGNUP_SOURCES)[number] | `for_${string}` | `alt_${string}`;
 
 export function isSignupSource(s: string | null | undefined): s is SignupSource {
-  return !!s && (SIGNUP_SOURCES as readonly string[]).includes(s);
+  return !!s && ((SIGNUP_SOURCES as readonly string[]).includes(s) || LANDING_SOURCE.test(s));
 }
 
 // Only a real referral (a friend sharing their /r/CODE link) grants a free month.

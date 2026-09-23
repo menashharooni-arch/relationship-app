@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { SIGNUP_SOURCES, isSignupSource } from "@/lib/referral";
 
@@ -43,19 +43,48 @@ describe("the nudge's ?src= is finally read", () => {
     expect(SIGNUP_SOURCES).toContain("share_card");
   });
 
-  it("/cards/new writes the source cookie from the param", () => {
-    const c = code("src/app/cards/new/page.tsx");
-    expect(c).toMatch(/isSignupSource\(sp\.src\)/);
-    expect(c).toMatch(/jar\.set\(SRC_COOKIE, sp\.src/);
+  // The PROXY writes it. The page used to, and a page render cannot set a
+  // cookie in Next.js — so the write threw into its own catch every time and
+  // these source-text checks passed while nothing was recorded. Found live
+  // 2026-09-22: /cards/new?src=badge set no cookie at all.
+  it("/cards/new?src= is written by the proxy, on a real navigation only", () => {
+    const c = code("src/proxy.ts");
+    expect(c).toMatch(/request\.nextUrl\.pathname === "\/cards\/new" && request\.headers\.get\("next-router-prefetch"\) !== "1"/);
+    expect(c).toMatch(/isSignupSource\(src\)/);
+    expect(c).toMatch(/supabaseResponse\.cookies\.set\(SRC_COOKIE, src/);
+    // And the page no longer pretends to.
+    expect(code("src/app/cards/new/page.tsx")).not.toMatch(/cookies\(\)|jar\.set/);
   });
 
   it("refuses ?src=referral — that one carries a free month", () => {
     // Only /r/[code], with a resolved referrer, may claim the referral source.
-    expect(code("src/app/cards/new/page.tsx")).toMatch(/sp\.src !== "referral"/);
+    expect(code("src/proxy.ts")).toMatch(/src !== "referral"/);
   });
 
   it("first touch wins — an existing attribution isn't clobbered", () => {
-    expect(code("src/app/cards/new/page.tsx")).toMatch(/if \(!jar\.get\(SRC_COOKIE\)\)/);
+    expect(code("src/proxy.ts")).toMatch(/!request\.cookies\.get\(SRC_COOKIE\)/);
+  });
+
+  it("every ?src= the site links to is a source that is actually kept", () => {
+    // hero_claim, blog, card_cta, links_promo_badge and every for_/alt_ landing
+    // page were all silently dropped before 2026-09-22.
+    const walk = (d: string): string[] => readdirSync(d).flatMap((f) => {
+      const full = join(d, f);
+      return statSync(full).isDirectory() ? walk(full) : /\.tsx?$/.test(f) ? [full] : [];
+    });
+    const bad: string[] = [];
+    for (const f of walk(join(process.cwd(), "src"))) {
+      const text = readFileSync(f, "utf8");
+      for (const m of text.matchAll(/\/cards\/new\?(?:[^"'`\s]*&)?src=([a-z_]+)["'`&]/g)) {
+        if (!isSignupSource(m[1])) bad.push(`${f.replace(process.cwd(), "")}: ${m[1]}`);
+      }
+    }
+    expect(bad).toEqual([]);
+    for (const s of ["hero_claim", "blog", "card_cta", "links_promo_badge", "for_real_estate", "alt_blinq"]) {
+      expect(isSignupSource(s), s).toBe(true);
+    }
+    expect(isSignupSource("for_")).toBe(false);
+    expect(isSignupSource("anything_else")).toBe(false);
   });
 
   it("the nudge CTA still sends it", () => {

@@ -81,10 +81,13 @@ export default function CropModal({ src, title, aspect, circular, aspectOptions,
     <div className="fixed inset-0 z-50 bg-black flex flex-col" style={{ touchAction: "none" }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-5 shrink-0" style={{ paddingTop: "env(safe-area-inset-top, 16px)", paddingBottom: 12 }}>
-        <button type="button" onClick={onCancel} className="text-white font-medium text-sm py-2 px-1">
+        {/* Inline white, not .text-white: the light theme turns that class
+            near-black, which put "Cancel" and the title dark-on-black here
+            (2026-09-22 signup review). Apply already sets its colour inline. */}
+        <button type="button" onClick={onCancel} className="font-medium text-sm py-2 px-1" style={{ color: "#fff" }}>
           Cancel
         </button>
-        <p className="text-white font-semibold text-sm">{title}</p>
+        <p className="font-semibold text-sm" style={{ color: "#fff" }}>{title}</p>
         <button
           type="button"
           onClick={handleApply}

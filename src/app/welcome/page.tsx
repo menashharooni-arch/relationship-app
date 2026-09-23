@@ -28,11 +28,22 @@ export default async function WelcomePage({
   // browser (PlanCards NATIVE_OFFICE_PATH), where nobody is signed in yet. Keep
   // it through sign-in so they come back to the Office tab they asked for.
   const officeTier = sp.tier === "office";
-  if (!user) redirect(officeTier ? `/login?next=${encodeURIComponent("/welcome?tier=office")}` : "/login?next=/welcome");
+  if (!user) {
+    // Keep the whole selection through sign-in, not just tier=office: Stripe's
+    // cancel URL is /welcome?plan=…&interval=…&seats=…&canceled=1, and a session
+    // that lapsed on Stripe came back to an empty chooser.
+    const qs = new URLSearchParams();
+    for (const k of ["tier", "plan", "interval", "seats", "promo", "canceled", "card"] as const) {
+      const v = sp[k];
+      if (typeof v === "string" && v) qs.set(k, v);
+    }
+    const back = qs.size ? `/welcome?${qs.toString()}` : "/welcome";
+    redirect(`/login?next=${encodeURIComponent(back)}`);
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("plan")
+    .select("plan, customization")
     .eq("id", user.id)
     .single();
 
@@ -50,6 +61,15 @@ export default async function WelcomePage({
   // tour=1 only (not welcome=1): welcome=1 re-opened the "Your account is
   // ready, get the app" popup for accounts that had already seen it.
   if (isPaidPlan(profile?.plan) && !setupFor) redirect("/dashboard?tour=1");
+
+  // Free, and the plan is already chosen: the choice is made. Pressing Back
+  // from the dashboard landed here and offered "Choose your plan" all over
+  // again (2026-09-22 signup review). The two ways a Free account comes here
+  // on purpose stay open: the app's "set up Office" hand-off (tier=office) and
+  // coming back from a cancelled checkout (canceled=1). Upgrading otherwise
+  // lives on /upgrade.
+  const planChosen = !!(profile?.customization as { _planChosen?: unknown } | null)?._planChosen;
+  if (!isPaidPlan(profile?.plan) && planChosen && !officeTier && sp.canceled !== "1" && !sp.plan) redirect("/dashboard");
 
   // WHAT FREE WOULD COST THEM, worked out server-side so the choice can be
   // honest at the moment it is made.

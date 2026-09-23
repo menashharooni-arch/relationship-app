@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { DEVICE_COOKIE, DEVICE_COOKIE_MAX_AGE, DEVICE_LIMIT, deviceLabel, isDeviceId, newDeviceId } from "@/lib/device";
+import { COOKIE_MAX_AGE, SRC_COOKIE, isSignupSource } from "@/lib/referral";
 
 // See the soft-delete guard below for why this exists and why 60s is safe.
 const deletedCheckCache = new Map<string, { deleted: boolean; at: number }>();
@@ -254,6 +255,23 @@ export async function proxy(request: NextRequest) {
       } catch {
         // Unreachable or timed out — let the page through. Never cache this.
       }
+    }
+  }
+
+  // ── Signup attribution for /cards/new?src= ────────────────────────────────
+  // /cards/new used to write this cookie while RENDERING the page, which
+  // Next.js does not allow — the write threw, the catch swallowed it, and every
+  // link straight to /cards/new?src=… (the save-contact CTA, the signup popups,
+  // the landing pages, the blog, the homepage hero) was recorded as "direct".
+  // Found live 2026-09-22: ?src=badge set no cookie; /join?src=badge did.
+  // Same rules the page had: validated, first touch wins, "referral" only ever
+  // from /r/CODE — and, like /join, never written by a prefetch.
+  if (request.nextUrl.pathname === "/cards/new" && request.headers.get("next-router-prefetch") !== "1") {
+    const src = request.nextUrl.searchParams.get("src");
+    if (src && src !== "referral" && isSignupSource(src) && !request.cookies.get(SRC_COOKIE)) {
+      supabaseResponse.cookies.set(SRC_COOKIE, src, {
+        maxAge: COOKIE_MAX_AGE, httpOnly: true, sameSite: "lax", path: "/", secure: true,
+      });
     }
   }
 

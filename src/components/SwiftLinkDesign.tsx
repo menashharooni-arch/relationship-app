@@ -33,6 +33,7 @@ import {
 import { isAllowedMedia, uploadMedia, uploadErrorMessage, WRONG_TYPE_MESSAGE, IMAGE_TYPES, VIDEO_TYPES } from "@/lib/upload-media";
 import { resolveRowStyle } from "@/lib/swiftlink-tiles";
 import LinkButtonsControls from "@/components/LinkButtonsControls";
+import PlatformIcon from "@/components/PlatformIcon";
 import type { CardLink } from "@/components/card-templates/types";
 
 export type SwiftLinkStyle = {
@@ -372,13 +373,17 @@ function IconStyleControls({
     <div className="space-y-3">
       {/* Live chips on the Look's own sheet */}
       <div className="flex items-center justify-center gap-2.5 rounded-xl py-3" style={{ background: look.sheet }}>
-        {["#0A66C2", "#E4405F", "#FF0000"].map((brand) => (
+        {/* The real glyphs the page draws (PlatformIcon). These used to be the
+            letters "in" three times — LinkedIn's mark in Instagram pink and
+            YouTube red (2026-09-22 signup review). */}
+        {([["LinkedIn", "#0A66C2"], ["Instagram", "#E4405F"], ["YouTube", "#FF0000"]] as const).map(([platform, brand]) => (
           <span
-            key={brand}
-            className="w-9 h-9 flex items-center justify-center text-[0.8125rem] font-bold"
+            key={platform}
+            aria-label={platform}
+            className="w-9 h-9 flex items-center justify-center"
             style={{ ...chipStyle(brand), borderRadius: radius(shape) }}
           >
-            in
+            <PlatformIcon label={platform} className="w-4 h-4" />
           </span>
         ))}
       </div>
