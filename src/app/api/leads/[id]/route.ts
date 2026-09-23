@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { mergeClientTags } from "@/lib/lead-tags";
+import { isLockedLead } from "@/lib/lead-access";
+import { isPaidUser } from "@/lib/notification-privacy";
 import { after } from "next/server";
 import { isPaidPlan } from "@/lib/plan";
 import { getSourceLabel } from "@/lib/source-labels";
@@ -47,6 +49,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const usernames = await getOwnerUsernames(user.id);
   const admin = getAdminSupabase();
+
+  // A contact locked behind the Free cap is hidden from this account, so it
+  // cannot be edited — or given a follow-up that would email it — by id
+  // (lib/lead-access isLockedLead, the same line every lead route holds).
+  {
+    const { data: target } = await admin
+      .from("leads").select("tags").eq("id", id).in("card_owner", usernames).maybeSingle();
+    if (isLockedLead(target) && !(await isPaidUser(user.id))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+  }
 
   // TEXT FOLLOW-UPS ARE PRO; EMAIL ONES ARE EVERY PLAN (owner, 2026-09-11).
   //

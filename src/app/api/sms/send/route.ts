@@ -5,6 +5,8 @@ import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { deliverToLead } from "@/lib/messaging";
 import { isRateLimited } from "@/lib/rate-limit";
 import { isPaidPlan } from "@/lib/plan";
+import { isLockedLead } from "@/lib/lead-access";
+import { isPaidUser } from "@/lib/notification-privacy";
 
 // Send a one-off text to a contact (the "Send SMS" button on AI messages).
 // Goes through the shared delivery path so STOP opt-outs are respected, the
@@ -32,6 +34,9 @@ export async function POST(req: NextRequest) {
 
   if (!lead?.phone) return NextResponse.json({ error: "Lead has no phone number" }, { status: 400 });
   if (!usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // A contact locked behind the Free cap is hidden from this account; it cannot
+  // be texted by id either (lib/lead-access isLockedLead — every lead route).
+  if (isLockedLead(lead) && !(await isPaidUser(user.id))) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // An explicit DECLINE blocks every SMS path, not just the automated one.
   // The share form's SMS checkbox is optional; leaving it unticked records

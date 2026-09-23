@@ -15,12 +15,24 @@ describe("a lead locked behind the Free cap cannot be reached by id", () => {
     expect(isLockedLead(null)).toBe(false);
   });
 
+  // EVERY route that reads, edits or contacts a lead by id — owner rule: a
+  // change lands everywhere it applies, not in the three routes found first.
   it.each([
     "src/app/api/card-events/route.ts",
     "src/app/api/leads/[id]/message/route.ts",
     "src/app/api/leads/share-card/route.ts",
+    "src/app/api/sms/send/route.ts",
+    "src/app/api/leads/[id]/link/route.ts",
   ])("%s refuses a locked lead to a Free account", (f) => {
     expect(read(f)).toMatch(/isLockedLead\(lead\) && !\(await isPaidUser\(user\.id\)\)/);
+  });
+
+  it("the lead editor refuses a locked lead to a Free account", () => {
+    expect(read("src/app/api/leads/[id]/route.ts")).toMatch(/isLockedLead\(target\) && !\(await isPaidUser\(user\.id\)\)/);
+  });
+
+  it("the follow-up drafter refuses a locked lead to a Free account", () => {
+    expect(read("src/app/api/leads/[id]/generate-sequence/route.ts")).toMatch(/isLockedLead\(lead\) && !isPaidPlan\(profile\?\.plan\)/);
   });
 
   it("the message route guards BOTH the thread read and the send", () => {

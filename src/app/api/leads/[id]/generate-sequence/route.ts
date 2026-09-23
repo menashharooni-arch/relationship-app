@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
-import { ownsLead } from "@/lib/lead-access";
+import { isLockedLead, ownsLead } from "@/lib/lead-access";
 import { isPaidPlan } from "@/lib/plan";
 import { aiComplete } from "@/lib/ai";
 import { aiConsentBlock } from "@/lib/ai-consent-server";
@@ -37,12 +37,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const admin = getAdminSupabase();
   const [{ data: lead }, { data: profile }, usernames] = await Promise.all([
-    admin.from("leads").select("name, email, company, company_description, message, card_owner").eq("id", id).single(),
+    admin.from("leads").select("name, email, company, company_description, message, card_owner, tags").eq("id", id).single(),
     admin.from("profiles").select("name, title, company, plan, customization").eq("id", user.id).single(),
     getOwnerUsernames(user.id),
   ]);
 
   if (!ownsLead(usernames, lead)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // A contact locked behind the Free cap is hidden from this account — no
+  // follow-up can be drafted for it (lib/lead-access isLockedLead).
+  if (isLockedLead(lead) && !isPaidPlan(profile?.plan)) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // The contact belongs to a specific card — prefer THAT card's About (what the
   // user does for this audience), falling back to the profile-level About so the

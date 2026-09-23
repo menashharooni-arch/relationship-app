@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
-import { ownsLead } from "@/lib/lead-access";
+import { isLockedLead, ownsLead } from "@/lib/lead-access";
+import { isPaidUser } from "@/lib/notification-privacy";
 import { isRateLimited } from "@/lib/rate-limit";
 import { contactCardUrl } from "@/lib/contact-links";
 
@@ -25,10 +26,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const admin = getAdminSupabase();
   const [{ data: lead }, usernames] = await Promise.all([
-    admin.from("leads").select("id, card_owner").eq("id", id).maybeSingle(),
+    admin.from("leads").select("id, card_owner, tags").eq("id", id).maybeSingle(),
     getOwnerUsernames(user.id),
   ]);
   if (!lead || !ownsLead(usernames, lead)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  // A contact locked behind the Free cap is hidden from this account.
+  if (isLockedLead(lead) && !(await isPaidUser(user.id))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
