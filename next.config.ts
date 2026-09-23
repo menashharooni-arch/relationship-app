@@ -57,6 +57,22 @@ const nextConfig: NextConfig = {
         destination: "https://swiftcard.me/:path*",
         permanent: true,
       },
+      // swiftcard.app is ours too (registered at Porkbun, attached to this
+      // Vercel project 2026-06-24) but its DNS pointed at an old Google-hosted
+      // vCard prototype until 2026-09-23. Once it points here, it must be a
+      // redirect, not a second copy of every page under a different name.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "swiftcard.app" }],
+        destination: "https://swiftcard.me/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.swiftcard.app" }],
+        destination: "https://swiftcard.me/:path*",
+        permanent: true,
+      },
       // /signup is the most-guessed URL for a product like this; land it on the
       // real card-creation flow instead of a 404.
       {
