@@ -327,7 +327,8 @@ export async function PATCH(req: NextRequest) {
       .from("cards").select("id, customization, instagram").in("user_id", verifiedInOffice).eq("is_office_card", true);
     for (const c of memberCards ?? []) {
       const out = releaseOfficeLinks(c.customization as Record<string, unknown> | null, c.instagram as string | null, release);
-      await admin.from("cards").update({ customization: out.customization, instagram: out.instagram }).eq("id", c.id);
+      const { error } = await admin.from("cards").update({ customization: out.customization, instagram: out.instagram }).eq("id", c.id);
+      if (error) console.error("[office/brand] release failed for card", c.id, error.message);
     }
   }
 

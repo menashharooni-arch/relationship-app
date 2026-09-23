@@ -425,9 +425,12 @@ export function overlayOfficeInstagram(
   customization: Record<string, unknown> | null | undefined,
   currentInstagram: string | null | undefined,
   brand: Pick<OfficeBrand, "linkInstagram"> | null | undefined,
-): { customization: Record<string, unknown>; instagram: string | null } {
+): { customization: Record<string, unknown>; instagram: string } {
+  // cards.instagram is NOT NULL (default ''). A null here made Postgres reject
+  // the WHOLE card update — customization included — and the Supabase client
+  // reports that as a returned error, not a throw, so it vanished silently.
   const cust: Record<string, unknown> = { ...(customization ?? {}) };
-  const current = currentInstagram ?? null;
+  const current = currentInstagram ?? "";
   if (!brand) return { customization: cust, instagram: current };
 
   if (brand.linkInstagram) {
@@ -440,7 +443,7 @@ export function overlayOfficeInstagram(
   if (cust[OWN_INSTAGRAM] !== undefined) {
     const restored = cust[OWN_INSTAGRAM];
     delete cust[OWN_INSTAGRAM];
-    return { customization: cust, instagram: typeof restored === "string" ? restored : null };
+    return { customization: cust, instagram: typeof restored === "string" ? restored : "" };
   }
   return { customization: cust, instagram: current };
 }
@@ -569,7 +572,8 @@ export async function applyBrandToUserCards(
     if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) {
       merged = { ...(merged ?? {}), customLayout: brand.customLayout };
     }
-    await admin.from("cards").update({ ...topLevel, ...perCard, customization: merged ?? {} }).eq("id", c.id);
+    const { error } = await admin.from("cards").update({ ...topLevel, ...perCard, customization: merged ?? {} }).eq("id", c.id);
+    if (error) console.error("[office-brand] brand pass failed for card", c.id, error.message);
   }
   await refreshCardSurfaces(userId, { officeCardsOnly: true });
 }
@@ -784,7 +788,8 @@ export async function stripBrandFromUserCards(userId: string, brand: OfficeBrand
         cust = out.customization;
         patch.instagram = out.instagram;
       }
-      await admin.from("cards").update({ ...patch, customization: cust ?? {} }).eq("id", c.id);
+      const { error } = await admin.from("cards").update({ ...patch, customization: cust ?? {} }).eq("id", c.id);
+      if (error) console.error("[office-brand] de-brand failed for card", c.id, error.message);
     }
   }
   // template deliberately kept — a card must always have SOME template, and the
@@ -814,9 +819,13 @@ export function releaseOfficeLinks(
   customization: Record<string, unknown> | null | undefined,
   currentInstagram: string | null | undefined,
   brand: Pick<OfficeBrand, "linkBio" | "linkInstagram" | "links"> | null | undefined,
-): { customization: Record<string, unknown>; instagram: string | null } {
+): { customization: Record<string, unknown>; instagram: string } {
+  // Never null — cards.instagram is NOT NULL (see overlayOfficeInstagram).
+  // Returning null for a member with no handle of their own failed the whole
+  // de-brand write: an ex-member kept the office phone, fax, address, company
+  // bio, Instagram and pinned links.
   const cust: Record<string, unknown> = { ...(customization ?? {}) };
-  const current = currentInstagram ?? null;
+  const current = currentInstagram ?? "";
   if (!brand) return { customization: cust, instagram: current };
 
   // Bio: hand back what they wrote, if the office's is still the one showing.
@@ -837,7 +846,7 @@ export function releaseOfficeLinks(
   if (brand.linkInstagram) {
     if (current === brand.linkInstagram) {
       const own = cust[OWN_INSTAGRAM];
-      instagram = typeof own === "string" && own ? own : null;
+      instagram = typeof own === "string" && own ? own : "";
     }
     delete cust[OWN_INSTAGRAM];
   }

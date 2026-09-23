@@ -134,6 +134,26 @@ describe("what the admin sets reaches the card — and comes back off it", () =>
     expect(out.instagram).toBe("company.ig");
   });
 
+  it("de-branding a member with no Instagram of their own never writes a null handle (cards.instagram is NOT NULL)", async () => {
+    const { overlayOfficeInstagram } = await import("@/lib/office-brand");
+    // Their card showed the company handle and nothing of theirs was held — the
+    // case that made Postgres reject the whole de-brand write on removal.
+    const cust = { phones: [{ number: "1", office: true }], bio: "Company bio", links: [{ label: "X", url: "https://x", office: true }] };
+    const out = releaseOfficeLinks(cust, "@company", { linkBio: "Company bio", linkInstagram: "@company", links: [{ label: "X", url: "https://x" }] });
+    expect(out.instagram).toBe("");
+    expect(out.customization.bio).toBe("");
+    expect(out.customization.links).toEqual([]);
+    expect(releaseOfficeLinks(cust, null, { linkBio: null, linkInstagram: null, links: null }).instagram).toBe("");
+    // The office clearing its handle, same shape.
+    expect(overlayOfficeInstagram({}, "@company", { linkInstagram: null }).instagram).toBe("@company");
+    expect(overlayOfficeInstagram({ [OWN_INSTAGRAM]: 42 }, "@company", { linkInstagram: null }).instagram).toBe("");
+    expect(overlayOfficeInstagram(null, null, null).instagram).toBe("");
+    // And a failed write is logged, not dropped.
+    const s = code("src/lib/office-brand.ts");
+    expect(s).toContain('if (error) console.error("[office-brand] de-brand failed for card", c.id, error.message);');
+    expect(s).toContain('if (error) console.error("[office-brand] brand pass failed for card", c.id, error.message);');
+  });
+
   it("every brand pass reaches every card — no early return — even when everything was cleared", () => {
     const s = code("src/lib/office-brand.ts");
     const apply = s.slice(s.indexOf("export async function applyBrandToUserCards"), s.indexOf("export const EMPTY_OFFICE_BRAND"));
