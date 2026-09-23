@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase-server";
 import CardEditForm from "@/app/cards/[id]/edit/CardEditForm";
 import Link from "next/link";
 import { isPaidPlan } from "@/lib/plan";
+import { getAdminSupabase } from "@/lib/supabase-admin";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
 
 export default async function PrimaryCardEditPage() {
   const supabase = await createClient();
@@ -11,6 +13,16 @@ export default async function PrimaryCardEditPage() {
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
   if (!profile) redirect("/onboarding");
+
+  // A team member's card is their COMPANY card, with the organization's fields
+  // locked. This legacy profile editor knows nothing about that and showed
+  // them company, website and logo as editable (the server discards them, so
+  // nothing leaked — but the form lied). Send them to the real editor.
+  if (await getOfficeSubUserContext(user.id)) {
+    const { data: companyCard } = await getAdminSupabase()
+      .from("cards").select("id").eq("user_id", user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
+    redirect(companyCard?.id ? `/cards/${companyCard.id}/edit` : "/dashboard");
+  }
 
   const isPro = isPaidPlan(profile.plan);
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";

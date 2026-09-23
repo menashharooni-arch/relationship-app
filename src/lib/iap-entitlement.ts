@@ -82,6 +82,11 @@ export function decideRcEvent(opts: {
     return isOfficePlan(opts.currentPlan) || opts.isOfficeMember ? { action: "ignore" } : { action: "grant" };
   }
   if (!RC_REVOKE_EVENTS.has(type)) return { action: "ignore" };
+  // Same rule for the way DOWN: an Office plan is the org's. Someone who bought
+  // Pro in the app, then joined a team, keeps _planSource "apple" — and their
+  // lapsing Apple subscription used to drop the seat their company pays for to
+  // Free ("Your Pro plan has ended", every paid feature locked).
+  if (isOfficePlan(opts.currentPlan) || opts.isOfficeMember) return { action: "ignore" };
   if (opts.planSource !== "apple") return { action: "ignore" };
   if (opts.hasStripeSubscription) return { action: "ignore" };
   if (opts.currentPlan === "free" || opts.currentPlan === null) return { action: "ignore" };

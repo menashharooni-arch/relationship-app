@@ -18,6 +18,7 @@ type Card = {
 export default function ManageCards({
   cards,
   canDelete = true,
+  canRestore = true,
 }: {
   cards: Card[];
   /**
@@ -28,6 +29,12 @@ export default function ManageCards({
    * keeps that posture exactly rather than handing them a new capability.
    */
   canDelete?: boolean;
+  /**
+   * False for office sub-users: a company card's online/offline state is the
+   * admin's (PATCH refuses it for an office card), so "Bring online" could only
+   * ever fail. They're told who turned it off instead.
+   */
+  canRestore?: boolean;
 }) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -137,12 +144,14 @@ export default function ManageCards({
               </p>
               <p className="text-gray-500 text-xs truncate">
                 {card.is_offline === true
-                  ? "Hidden from visitors — your QR and NFC tag won't open it"
+                  ? canRestore
+                    ? "Hidden from visitors — your QR and NFC tag won't open it"
+                    : "Your team admin took this card offline — ask them to turn it back on"
                   : `/${card.username}${card.name ? ` · ${card.name}` : ""}`}
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              {card.is_offline === true && (
+              {card.is_offline === true && canRestore && (
                 <button
                   type="button"
                   onClick={() => handleRestore(card)}

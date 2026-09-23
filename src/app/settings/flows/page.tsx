@@ -281,7 +281,7 @@ export default async function FlowSettingsPage({
       icon: I.cards,
       content: (
         <div data-tour="settings-cards" className="space-y-3">
-          <ManageCards cards={cards ?? []} canDelete={!isOfficeSubUser} />
+          <ManageCards cards={cards ?? []} canDelete={!isOfficeSubUser} canRestore={!isOfficeSubUser} />
           <Link
             href="/share"
             className="flex items-center justify-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-full py-2.5 transition-colors"
@@ -320,7 +320,7 @@ export default async function FlowSettingsPage({
               the whole allowed list; showing them here is both the control and
               the honest disclosure of what "turn on notifications" signs you up
               for. Identical on web and in the iOS shell. */}
-          <PushPreferencesForm />
+          <PushPreferencesForm billingAlerts={!isOfficeSubUser || showBilling} />
           {/* Native-only: the standing switch for AI features (the consent the
               in-app dialog asks for — App Review 5.1.2(i)). Renders nothing on
               the web, which is never asked. */}

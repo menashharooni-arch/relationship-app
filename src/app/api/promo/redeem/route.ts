@@ -7,6 +7,7 @@ import { promoLabel, scopeLabel, durationLabel, promoScopeMessage, isGrantCode, 
 import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { revalidateUserCards } from "@/lib/card-page-data";
 import { provisionOfficeForOwner } from "@/lib/office-billing-sync";
+import { officeSubUserBlockMessage } from "@/lib/office-roles";
 
 // What the person is shown about a code — one shape for the signed-in
 // redemption and the signed-out preview, so /pricing describes a code the same
@@ -98,6 +99,17 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ success: true, preview: true, promo: promoPayload(promo) });
   }
+
+  // A TEAM MEMBER's plan is their company's seat. A grant code here used to
+  // provision them an office of their OWN (resolveOfficeContext checks
+  // ownership first, so they became an "owner" with the Admin console and
+  // billing), and when the grant lapsed the expiry cron dropped the seat their
+  // company pays for to Free. Checked before anything is recorded, so a
+  // refused code is still unused.
+  const subUserBlock = await officeSubUserBlockMessage(user.id, {
+    message: "Your plan comes with your team seat, so promo codes don't apply to your account. Ask your team admin about the team's plan.",
+  });
+  if (subUserBlock) return NextResponse.json({ error: subUserBlock }, { status: 403 });
 
   // Check if user already redeemed it
   const { data: existing } = await admin

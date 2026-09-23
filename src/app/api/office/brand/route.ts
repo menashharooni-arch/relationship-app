@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { resolveBrandTargetIds } from "@/lib/office-brand-targets";
-import { overlayOfficeContact, stripOfficeContact, propagateBrandToOfficeCards, OFFICE_DESIGN_KEYS, OFFICE_LINK_DESIGN_KEYS, cleanOfficeLinkStyle } from "@/lib/office-brand";
+import { overlayOfficeContact, stripOfficeContact, propagateBrandToOfficeCards, releaseOfficeLinks, OFFICE_DESIGN_KEYS, OFFICE_LINK_DESIGN_KEYS, cleanOfficeLinkStyle } from "@/lib/office-brand";
 import { writeAudit } from "@/lib/audit";
 import { normalizeSocial } from "@/lib/social-url";
 import { requireOfficeCapability } from "@/lib/office-roles";
@@ -36,6 +36,15 @@ export async function PATCH(req: NextRequest) {
   if (!office) return NextResponse.json({ error: "No office found." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
+
+  // The Links tab's CURRENT values, read on their own (best-effort: the columns
+  // may predate this schema), so a save that clears or replaces them can take
+  // the old ones off member pages below.
+  const { data: oldLinkBrand } = await admin
+    .from("offices")
+    .select("brand_link_bio, brand_link_instagram, brand_links")
+    .eq("id", ctx.officeId)
+    .maybeSingle();
 
   // Company-controlled contact (spec §8) + template lock (spec §9).
   const addrIn = (body.address ?? null) as { street?: string; unit?: string; city?: string; state?: string; zip?: string } | null;
@@ -293,6 +302,32 @@ export async function PATCH(req: NextRequest) {
     for (const c of memberCards ?? []) {
       const stripped = stripOfficeContact(c.customization as Record<string, unknown> | null, oldBrandContact);
       await admin.from("cards").update({ customization: stripped }).eq("id", c.id);
+    }
+  }
+
+  // The Links half CLEARED or REPLACED: take the OLD company bio, Instagram and
+  // pinned links off member pages (each member's own bio and handle come back
+  // from where they were held), then the propagation below re-pins whatever
+  // the office still sets. Only fields this request actually carried, and only
+  // cards still showing the old value — the release matches before it removes.
+  const oldBio = (oldLinkBrand?.brand_link_bio as string | null) || null;
+  const oldIg = (oldLinkBrand?.brand_link_instagram as string | null) || null;
+  const oldLinks = Array.isArray(oldLinkBrand?.brand_links)
+    ? (oldLinkBrand!.brand_links as { label?: string; url?: string; kind?: "header" }[])
+        .filter((l) => l && typeof l === "object" && typeof l.label === "string")
+        .map((l) => ({ label: l.label as string, url: typeof l.url === "string" ? l.url : "", ...(l.kind === "header" ? { kind: "header" as const } : {}) }))
+    : [];
+  const release = {
+    linkBio: "linkBio" in body && oldBio && linkFields.brand_link_bio !== oldBio ? oldBio : null,
+    linkInstagram: "linkInstagram" in body && oldIg && linkFields.brand_link_instagram !== oldIg ? oldIg : null,
+    links: "links" in body && oldLinks.length ? oldLinks : null,
+  };
+  if (verifiedInOffice.length && (release.linkBio || release.linkInstagram || release.links)) {
+    const { data: memberCards } = await admin
+      .from("cards").select("id, customization, instagram").in("user_id", verifiedInOffice).eq("is_office_card", true);
+    for (const c of memberCards ?? []) {
+      const out = releaseOfficeLinks(c.customization as Record<string, unknown> | null, c.instagram as string | null, release);
+      await admin.from("cards").update({ customization: out.customization, instagram: out.instagram }).eq("id", c.id);
     }
   }
 

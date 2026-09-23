@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { getOfficeBrand, applyBrandToUserCards, stripBrandFromUserCards, type OfficeBrand } from "@/lib/office-brand";
-import { sendWelcomeWhenCardLive } from "@/lib/welcome-email";
+import { sendWelcomeWhenCardLive, PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
 import { isInviteExpired } from "@/lib/office-invite";
 import { writeAudit } from "@/lib/audit";
 import { notifyOffice, displayLabelFrom } from "@/lib/office-notify";
@@ -261,6 +261,21 @@ export async function POST(req: Request) {
       { status: 409 }
     );
   }
+
+  // Their plan is SETTLED — by the team. Recorded now, because every way off a
+  // team (removal, a seat cut, the office lapsing or switching to Pro) drops
+  // them to their own plan with office_id cleared, and an account created after
+  // PLAN_STEP_REQUIRED_SINCE with no marker reads as "hasn't chosen a plan yet"
+  // (lib/card-active awaitingPlanChoice): their card, QR, NFC tag and wallet
+  // pass went dark behind a plan step they were never shown. Kept if already
+  // set (a plan they chose themselves stays the record). Best-effort.
+  try {
+    const { data: prof } = await admin.from("profiles").select("customization").eq("id", user.id).maybeSingle();
+    const pc = (prof?.customization as Record<string, unknown> | null) ?? {};
+    if (!pc[PLAN_CHOSEN_KEY]) {
+      await admin.from("profiles").update({ customization: { ...pc, [PLAN_CHOSEN_KEY]: "office_member" } }).eq("id", user.id);
+    }
+  } catch { /* best-effort — the release paths set it too */ }
 
   // Uniform branding: strip any OLD office brand first, then adopt the new one,
   // so switching teams never leaves the previous company's contact details on

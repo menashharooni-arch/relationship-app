@@ -15,6 +15,7 @@ import { insertNotification } from "@/lib/notify";
 import { sendPushToUser } from "@/lib/push";
 import { stripeDowngradeAllowed } from "@/lib/iap-entitlement";
 import { provisionOfficeForOwner, tearDownOfficeForOwner, officeAccessEndedMessage } from "@/lib/office-billing-sync";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
 import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { ledgerAdd, ledgerHas, recordProTrialStarted } from "@/lib/trial-ledger";
 import { EVER_PAID_KEY, PRO_ENDED_PENDING_KEY, TRIAL_CHARGE_CENTS_KEY, TRIAL_CHARGE_INTERVAL_KEY, TRIAL_ENDS_KEY, anyInvoiceActuallyPaid, proEndedNotice, stripeTrialEndIso } from "@/lib/billing-state";
@@ -252,6 +253,19 @@ async function releaseOfficeMember(
     try {
       await admin.from("cards").update({ is_office_card: false }).eq("user_id", userId);
     } catch { /* the suspend below is the part that must happen */ }
+    // Their plan was settled by the team. Without a marker, an account created
+    // after PLAN_STEP_REQUIRED_SINCE that falls to Free here reads as "never
+    // chose a plan" (lib/card-active awaitingPlanChoice) and its card goes dark
+    // — the opposite of this cascade's promise that the card stays live and
+    // becomes theirs again. /api/join sets it now; this covers members who
+    // joined before it did. Best-effort.
+    try {
+      const { data: prof } = await admin.from("profiles").select("customization").eq("id", userId).maybeSingle();
+      const pc = (prof?.customization as Record<string, unknown> | null) ?? {};
+      if (!pc[PLAN_CHOSEN_KEY]) {
+        await admin.from("profiles").update({ customization: { ...pc, [PLAN_CHOSEN_KEY]: "office_member" } }).eq("id", userId);
+      }
+    } catch { /* best-effort */ }
   }
   await admin.from("office_members").update({ status: "suspended" }).eq("id", memberRowId);
 }
@@ -880,7 +894,15 @@ export async function POST(req: NextRequest) {
       const liveStatuses = ["active", "trialing", "past_due"];
       if (mapped && liveStatuses.includes(sub.status)) {
         const targetDbPlan = mapped.plan === "office" ? "enterprise" : "pro";
-        if (subProfile.plan !== targetDbPlan) {
+        // A TEAM MEMBER who kept their own Pro subscription (allowed — they
+        // may want it for if they leave) is on "enterprise" through their
+        // seat, which outranks it. Every renewal and every scheduled cancel of
+        // that personal sub used to rewrite them to "pro" here, so the rest of
+        // the app treated a seated member as a plain Pro user. Same check as
+        // the subscription.deleted path's active-membership restore.
+        const seatOutranks =
+          targetDbPlan === "pro" && subProfile.plan === "enterprise" && !!(await getOfficeSubUserContext(subProfile.id));
+        if (subProfile.plan !== targetDbPlan && !seatOutranks) {
           await admin.from("profiles").update({ plan: targetDbPlan }).eq("id", subProfile.id);
           subProfile.plan = targetDbPlan;
           // This live Stripe sub now backs the plan (see lib/iap-entitlement).

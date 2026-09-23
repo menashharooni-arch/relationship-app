@@ -6,6 +6,7 @@ import { isPaidPlan } from "@/lib/plan";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
 import { trialHistoryFor } from "@/lib/trial-ledger";
 import { findPendingInviteForEmail } from "@/lib/pending-invite";
+import { resolveOfficeContext, canSeeBilling } from "@/lib/office-roles";
 
 export const metadata = { title: "Upgrade — SwiftCard" };
 
@@ -45,7 +46,14 @@ export default async function UpgradePage({
     !!profile?.plan_expires_at &&
     !profile?.stripe_subscription_id &&
     (profile?.customization as { _planSource?: string } | null)?._planSource !== "apple";
-  if (isPaidPlan(plan) && !onGrant) redirect("/settings/flows?billing=1#billing");
+  if (isPaidPlan(plan) && !onGrant) {
+    // A team member's plan is their company's: there is no Billing section to
+    // send them to (unless they still hold a personal subscription), so an old
+    // "upgrade" link lands them on their dashboard, not an empty Settings page.
+    const office = await resolveOfficeContext(user.id).catch(() => null);
+    if (!canSeeBilling(office, profile?.stripe_subscription_id as string | null)) redirect("/dashboard");
+    redirect("/settings/flows?billing=1#billing");
+  }
 
   // Invited to a team: their seat is the plan, so there is nothing to sell.
   // An invitee with a Free card who built another through the site's builder

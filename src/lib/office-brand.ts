@@ -289,7 +289,7 @@ export async function getOfficeBrand(officeId: string | null | undefined): Promi
 // Exported for unit testing.
 export function overlayOfficeDesign(
   customization: Record<string, unknown> | null | undefined,
-  brand: Pick<OfficeBrand, "design" | "lockTemplate">,
+  brand: Pick<OfficeBrand, "design" | "lockTemplate"> & { template?: string | null },
 ): Record<string, unknown> {
   const cust: Record<string, unknown> = { ...(customization ?? {}) };
   // The logo is company territory whether or not the design is locked ("They
@@ -297,11 +297,18 @@ export function overlayOfficeDesign(
   // the same control Card design has — follows the office always.
   const shape = brand.design?.logoShape;
   if (shape === "circle" || shape === "auto") cust.logoShape = shape;
-  if (!brand.lockTemplate || !brand.design) return cust;
+  // Locked means "the office's look", even when the office stored no colours
+  // (a brand seeded from an owner's default-coloured card, before anyone saved
+  // Branding): then the office's look IS the template's defaults. Returning
+  // early there locked the member's editor while their own colours, finish and
+  // panel photo stayed on the card, unchangeable. The editor locks on the same
+  // condition (lockTemplate && (template || design)).
+  if (!brand.lockTemplate || !(brand.design || brand.template)) return cust;
   for (const key of OFFICE_DESIGN_KEYS) {
     // Whatever the office set wins; a key the office does NOT define is cleared
     // so an employee can't reintroduce an off-brand colour the office omitted.
-    if (brand.design[key] !== undefined) cust[key] = brand.design[key];
+    const v = brand.design?.[key];
+    if (v !== undefined) cust[key] = v;
     else delete cust[key];
   }
   return cust;
@@ -346,10 +353,15 @@ export function overlayOfficeLinks(
   const cust: Record<string, unknown> = { ...(customization ?? {}) };
   if (!brand) return cust;
 
-  if (brand.lockLinkDesign && brand.linkDesign) {
+  // Locked with no look stored (the admin ticked "Keep every Swift Links page
+  // matching" without touching a style) means the DEFAULT look — the same rule
+  // as the card design above. Skipping it left each member's old custom look on
+  // their page while their editor said the organization sets it.
+  if (brand.lockLinkDesign) {
     for (const key of OFFICE_LINK_DESIGN_KEYS) {
       const k = key as string;
-      if (brand.linkDesign[k] !== undefined) cust[k] = brand.linkDesign[k];
+      const v = brand.linkDesign?.[k];
+      if (v !== undefined) cust[k] = v;
       else delete cust[k];
     }
   }
@@ -374,6 +386,12 @@ export function overlayOfficeLinks(
     delete cust[OWN_BIO];
   }
   if (brand.links?.length) cust.links = pinOfficeLinks(cust.links, brand);
+  else if (Array.isArray(cust.links) && cust.links.some((l) => (l as { office?: unknown } | null)?.office === true)) {
+    // The office pins nothing any more: its marked rows come off (pinOfficeLinks
+    // only ever swaps them for the current set, so deleting the LAST company
+    // link left every member carrying it, undeletable). Theirs stay put.
+    cust.links = (cust.links as unknown[]).filter((l) => (l as { office?: unknown } | null)?.office !== true);
+  }
 
   // NOTE: Instagram is deliberately NOT here. It is a TOP-LEVEL card column
   // (cards.instagram), not a customization key — the same shape as company and
@@ -519,28 +537,18 @@ export async function applyBrandToUserCards(
   // PER CARD below, where their handle can be stashed first.
 
   const hasContact = !!(brand.phone || brand.fax || brand.address);
-  // The locked look also lives in customization, so it needs the same per-card
-  // read/merge/write path as the contact overlay.
-  const hasDesign = !!(brand.lockTemplate && brand.design);
-  // The Swift Links branding lives in customization too: the page's look (only
-  // while locked), its bio, and the pinned link buttons.
-  // linkInstagram is in this gate too: when the office CLEARS it, the per-card
-  // pass is what hands every member their own handle back. Gating it out would
-  // make the office's Instagram permanent — settable but never undoable.
-  const hasLinkBrand = !!(
-    (brand.lockLinkDesign && brand.linkDesign) || brand.linkBio || brand.links?.length || brand.linkInstagram
-  );
-  if (!Object.keys(topLevel).length && !hasContact && !hasDesign && !hasLinkBrand) return;
 
-  if (!hasContact && !hasDesign && !hasLinkBrand) {
-    await admin.from("cards").update(topLevel).eq("user_id", userId).eq("is_office_card", true);
-    return;
-  }
-
-  // Company contact + locked look live in customization → per-card read/merge/
-  // write so the employee's personal fields are preserved. Scoped to cards
-  // actually flagged as under the office — a card the user owns that ISN'T
-  // part of the office (a separate personal venture) must never be touched.
+  // EVERY pass reads and rewrites each card — no "nothing to apply" shortcut.
+  // The shortcut was computed from the NEW brand, so the moments that most
+  // needed a pass skipped it: the office CLEARING its bio or Instagram (the
+  // member's own, held underneath, never came back), removing its last pinned
+  // link, locking a look with no stored values, or changing the logo shape
+  // while the design was unlocked. Every overlay below is idempotent and a
+  // no-op when it has nothing to do, so an unconditional pass is always right.
+  //
+  // Scoped to cards actually flagged as under the office — a card the user
+  // owns that ISN'T part of the office (a separate personal venture) must
+  // never be touched.
   const { data: cards } = await admin
     .from("cards")
     .select("id, customization, instagram")
@@ -549,22 +557,60 @@ export async function applyBrandToUserCards(
   for (const c of cards ?? []) {
     let merged = c.customization as Record<string, unknown> | null;
     if (hasContact) merged = overlayOfficeContact(merged, brand);
-    if (hasDesign) merged = overlayOfficeDesign(merged, brand);
+    merged = overlayOfficeDesign(merged, brand);
     const perCard: Record<string, unknown> = {};
-    if (hasLinkBrand) {
-      merged = overlayOfficeLinks(merged, brand);
-      // The card's STORED handle, never a submitted one — this is the only
-      // moment their own Instagram can still be read before the office's
-      // replaces it.
-      const ig = overlayOfficeInstagram(merged, c.instagram as string | null, brand);
-      merged = ig.customization;
-      perCard.instagram = ig.instagram;
-    }
+    merged = overlayOfficeLinks(merged, brand);
+    // The card's STORED handle, never a submitted one — this is the only
+    // moment their own Instagram can still be read before the office's
+    // replaces it.
+    const ig = overlayOfficeInstagram(merged, c.instagram as string | null, brand);
+    merged = ig.customization;
+    perCard.instagram = ig.instagram;
     if (brand.lockTemplate && brand.template === "custom" && brand.customLayout) {
       merged = { ...(merged ?? {}), customLayout: brand.customLayout };
     }
     await admin.from("cards").update({ ...topLevel, ...perCard, customization: merged ?? {} }).eq("id", c.id);
   }
+  await refreshCardSurfaces(userId, { officeCardsOnly: true });
+}
+
+/** A brand with nothing set — what an office that cleared everything applies. */
+export const EMPTY_OFFICE_BRAND: OfficeBrand = {
+  logoUrl: null, company: null, website: null, template: null, customLayout: null, design: null,
+  phone: null, fax: null, address: null, lockTemplate: false, linkDesign: null, linkBio: null,
+  linkInstagram: null, links: null, lockLinkDesign: false,
+};
+
+/**
+ * After the brand changes what a card shows: drop the page cache, the stored
+ * share preview and the stored email-signature image, and nudge the Wallet
+ * pass. The member's own save already does all of this (api/cards/[id]); a
+ * brand save, a removal or a lapse didn't, so every teammate's email kept the
+ * old logo and phone after a rebrand, and an ex-member's email kept the former
+ * employer's branding indefinitely. Deleting the images is safe: the signature
+ * and preview URLs resolve at fetch time and fall back to a live render of the
+ * current card. Best-effort; never throws.
+ */
+export async function refreshCardSurfaces(userId: string, opts: { officeCardsOnly?: boolean } = {}): Promise<void> {
+  try {
+    const admin = getAdminSupabase();
+    let q = admin.from("cards").select("username").eq("user_id", userId);
+    if (opts.officeCardsOnly) q = q.eq("is_office_card", true);
+    const { data } = await q;
+    const slugs = (data ?? []).map((c) => c.username as string).filter(Boolean);
+    if (!slugs.length) return;
+    const files = slugs.map((s) => `${s}.png`);
+    await Promise.all([
+      admin.storage.from("card-shares").remove(files).then(() => {}, () => {}),
+      admin.storage.from("card-signatures").remove(files).then(() => {}, () => {}),
+    ]);
+    const { revalidateCardPage } = await import("@/lib/card-page-data");
+    revalidateCardPage(...slugs);
+    try {
+      const { touchWalletPass } = await import("@/lib/wallet-registry");
+      await Promise.all(slugs.map((s) => touchWalletPass(s).catch(() => {})));
+    } catch { /* wallet not configured */ }
+  } catch { /* best-effort */ }
 }
 
 // Re-apply the office brand to every ACTIVE MEMBER's cards. The OWNER is
@@ -575,8 +621,10 @@ export async function applyBrandToUserCards(
 // /office/admin/branding) and governs sub-user cards only.
 export async function propagateBrandToOfficeCards(officeId: string): Promise<void> {
   const admin = getAdminSupabase();
-  const brand = await getOfficeBrand(officeId);
-  if (!brand) return;
+  // A null brand is an office that cleared everything — the pass must still run
+  // (with nothing set) so members get their own bio and Instagram back and the
+  // company rows come off. It used to return here, stranding all of it.
+  const brand = (await getOfficeBrand(officeId)) ?? EMPTY_OFFICE_BRAND;
 
   const { data: officeRow } = await admin.from("offices").select("owner_id").eq("id", officeId).maybeSingle();
   const ownerId = (officeRow?.owner_id as string | null) ?? null;
@@ -732,6 +780,7 @@ export async function stripBrandFromUserCards(userId: string, brand: OfficeBrand
   }
   // template deliberately kept — a card must always have SOME template, and the
   // office's choice is as good a default as any once the brand fields are gone.
+  await refreshCardSurfaces(userId);
 }
 
 /**
@@ -762,19 +811,27 @@ export function releaseOfficeLinks(
   if (!brand) return { customization: cust, instagram: current };
 
   // Bio: hand back what they wrote, if the office's is still the one showing.
-  if (brand.linkBio && cust.bio === brand.linkBio) {
-    const own = cust[OWN_BIO];
-    cust.bio = typeof own === "string" ? own : "";
+  // The held copy is dropped only when THAT field is being released: a call
+  // releasing just the pinned links (the office replaced its links but kept
+  // its bio) must not throw away the member's own bio waiting underneath —
+  // nothing could ever bring it back after that.
+  if (brand.linkBio) {
+    if (cust.bio === brand.linkBio) {
+      const own = cust[OWN_BIO];
+      cust.bio = typeof own === "string" ? own : "";
+    }
+    delete cust[OWN_BIO];
   }
-  delete cust[OWN_BIO];
 
   // Instagram: same rule, on the top-level column.
   let instagram = current;
-  if (brand.linkInstagram && current === brand.linkInstagram) {
-    const own = cust[OWN_INSTAGRAM];
-    instagram = typeof own === "string" && own ? own : null;
+  if (brand.linkInstagram) {
+    if (current === brand.linkInstagram) {
+      const own = cust[OWN_INSTAGRAM];
+      instagram = typeof own === "string" && own ? own : null;
+    }
+    delete cust[OWN_INSTAGRAM];
   }
-  delete cust[OWN_INSTAGRAM];
 
   // Pinned links: drop the office's, keep theirs, by the same normalized-URL
   // identity pinOfficeLinks used to put them there.

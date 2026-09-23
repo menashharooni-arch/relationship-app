@@ -32,9 +32,24 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 // Team members (office sub-users). Any plan/billing question gets this answer
 // before the knowledge base can hand them upgrade instructions; everything else
 // is answered normally, with MEMBER_RULES added to the LLM's instructions.
-const MEMBER_PLAN_QUESTION = /\b(upgrad\w*|pro plan|go pro|plans?|pric\w*|cost\w*|billing|bill|subscri\w*|pay\w*|trial|invoice|receipt|refund|cancel\w*|charge\w*)\b/i;
+// Tied to PLAN context: a bare "cancel", "pay", "bill" or "plan" also means
+// "cancel a follow-up", a PayPal link, a contact named Bill, "plan a meeting".
+const MEMBER_PLAN_QUESTION = /\b(upgrad\w*|downgrad\w*|pro plan|go pro|(my|our|the|a|which|what|free|pro|office|team) plan|plans|pric(e|es|ing)|how much|cost\w*|billing|subscri\w*|payment|pay for|trial|invoice|receipt|refund|cancel (my |the )?(plan|subscription)|charged?|refer\w*|free month|promo|discount|coupon|limits?|locked|unlock\w*)\b/i;
 const MEMBER_PLAN_ANSWER =
   "Your SwiftCard plan comes with your team seat — your organization covers it, so there's nothing for you to upgrade, choose or pay. For anything about the team's plan, ask your team admin.";
+// Docs a team member is never answered from: everything commerce (plans,
+// prices, the "What's included in Pro?" greeting, the Settings map that lists
+// Plan and billing and referrals) plus the referral pitch and Free's limits.
+const MEMBER_HIDDEN_DOCS = new Set(["referrals", "plan-limits-explained"]);
+const MEMBER_CORPUS = KNOWLEDGE.filter((d) => !d.commerce && !MEMBER_HIDDEN_DOCS.has(d.id));
+const MEMBER_GREETING = /^\s*(hi|hello|hey|help|help me|good (morning|afternoon|evening)|what can you (do|help with))\W*$/i;
+const MEMBER_GREETING_ANSWER =
+  "Hi! I can help you find your way around SwiftCard. Try asking \"How do I share my card?\", \"Where do I change my card design?\" or \"Where are my contacts?\"";
+const MEMBER_SETTINGS = /\b(settings?|preferences)\b/i;
+const MEMBER_SETTINGS_ANSWER =
+  "Settings is the gear icon at the top right (or the Settings tab in the bottom bar on a phone). Your sections: Profile (your email and sign out), Cards and sharing (tap Edit to change your card), Notifications and preferences (push alerts and CRM integrations), Security (your password) and Help. Your plan comes with your team seat, so there is no billing section — your team admin handles that.";
+const MEMBER_FALLBACK =
+  "I can help with editing your card, designs, sharing, Swift Links, contacts, analytics and notifications. Try asking \"How do I share my card?\" or \"Where are my contacts?\" — anything about your team's plan or company details goes to your team admin.";
 const MEMBER_RULES = `
 IMPORTANT — TEAM MEMBER SESSION: This user is a member of a company team (an Office seat). Their plan is provided and paid for by their organization: NEVER suggest upgrading, choosing a plan, starting a trial, or paying, and never quote prices. They have exactly one card, their company card, and cannot create another — for more, they ask their team admin. Their company details (company name, logo, website, office phone, fax, address) and, when the team locks it, the card design are managed by their organization; they edit their own name, title, photo, phone numbers, bio and personal links.`;
 
@@ -101,10 +116,13 @@ export async function POST(req: NextRequest) {
   if (member && MEMBER_PLAN_QUESTION.test(lastUser.content)) {
     return NextResponse.json({ reply: MEMBER_PLAN_ANSWER });
   }
+  if (member && MEMBER_GREETING.test(lastUser.content)) return NextResponse.json({ reply: MEMBER_GREETING_ANSWER });
+  if (member && MEMBER_SETTINGS.test(lastUser.content)) return NextResponse.json({ reply: MEMBER_SETTINGS_ANSWER });
+  const corpus = member ? MEMBER_CORPUS : KNOWLEDGE;
 
   // 1) Answer instantly from the knowledge base (free, always works).
   //    Native sessions get the native-safe answer for any commerce doc.
-  const local = instantAnswer(KNOWLEDGE, lastUser.content, scope);
+  const local = instantAnswer(corpus, lastUser.content, scope);
   if (local) return NextResponse.json({ reply: local });
 
   // 2) Otherwise ask the LLM, grounded in the same corpus, IF a provider is
@@ -114,16 +132,18 @@ export async function POST(req: NextRequest) {
   if (hasAiProvider() && (await aiConsentAllowsFor(user.id, req))) {
     const convo = messages.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`).join("\n");
     const prompt = buildPrompt({
-      corpus: KNOWLEDGE,
+      corpus,
       persona,
       convo,
       question: lastUser.content,
-      scope,
+      // A member's prompt carries no pricing facts either (derivedFacts is
+      // commerce-free for a native scope).
+      scope: member ? { ...scope, native: true } : scope,
       extraRules: [native ? NATIVE_RULES : "", member ? MEMBER_RULES : ""].filter(Boolean).join("\n"),
     });
     const reply = await aiComplete(prompt, { maxTokens: 700 });
     if (reply) return NextResponse.json({ reply });
   }
 
-  return NextResponse.json({ reply: fallback });
+  return NextResponse.json({ reply: member ? MEMBER_FALLBACK : fallback });
 }

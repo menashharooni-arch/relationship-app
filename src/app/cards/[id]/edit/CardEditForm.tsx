@@ -163,7 +163,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
    *  as it pins them; the URL check keeps rows saved before that stamp existed
    *  working too. */
   const isOfficeRow = (l: { url?: string; office?: unknown } | undefined) =>
-    !!l && (l.office === true || officeLinkUrls.has(String(l.url ?? "").trim().toLowerCase().replace(/\/+$/, "")));
+    // Only while they're ON a team (org set). A company row left on a card
+    // after leaving is theirs to delete — it used to stay locked as "Company"
+    // forever, with no office left to manage it.
+    !!org && !!l && (l.office === true || officeLinkUrls.has(String(l.url ?? "").trim().toLowerCase().replace(/\/+$/, "")));
   const linkDesignLocked = !!org?.lockLinkDesign;
   const bioManaged = !!org?.linkBio;
   const instagramManaged = !!org?.linkInstagram;
@@ -359,7 +362,8 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     snapchat: socials.snapchat,
     initials: (name || card.username)[0]?.toUpperCase() ?? "?",
     photoUrl: photoState,
-    logoUrl: cardLogoUrl,
+    // A member's card carries the OFFICE's logo (or none) — the server applies it.
+    logoUrl: org ? orgLogo : cardLogoUrl,
     cardUrl: `swiftcard.me/${card.username}`,
     address: [
       [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
@@ -578,7 +582,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       photoUrl={photoState}
       // cardLogoUrl is what the save writes to logo_url, so the hero's
       // headshot → logo → initials fallback previews exactly as it renders.
-      logoUrl={cardLogoUrl}
+      logoUrl={org ? orgLogo : cardLogoUrl}
       socials={{
         instagram: socials.instagram, tiktok: socials.tiktok, linkedin: socials.linkedin,
         twitter: socials.twitter, facebook: socials.facebook, snapchat: socials.snapchat,
@@ -699,6 +703,14 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               </div>
             )}
 
+            {/* A team with nothing set yet: say who owns the company half,
+                instead of those fields silently not being there. */}
+            {org && !(orgCompany || orgWebsite || orgPhone || orgFax || orgAddress || orgLogo) && (
+              <p className="rounded-2xl border border-purple-500/20 bg-purple-500/[0.04] px-4 py-3 text-gray-400 text-xs leading-relaxed">
+                Your organization manages the company details — name, logo, website and office contact — on every team card. You edit your own details below.
+              </p>
+            )}
+
             {org && <p className={sectionLabel}>Your information</p>}
 
             {/* Company-level fields are the ORGANIZATION's territory for a
@@ -716,6 +728,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             <div>
               <label className="block text-xs font-medium text-gray-400 mb-1.5">Full name <span className="text-red-500">*</span></label>
               <input type="text" placeholder="John Smith" data-hydrate="name" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+              {/* A member has no company field, which is where the URL editor
+                  lives for everyone else — so they could never change their
+                  card's address, although it is theirs (the rename API allows
+                  it). */}
+              {org && <CardUrlEditor cardId={card.id} currentSlug={card.username} />}
             </div>
             {!org && (
               <div>
@@ -781,7 +798,11 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   </div>
                 ))}
               </div>
-              <p className="text-gray-600 text-xs mt-1.5">Label each number and pick which ones appear on your card (you can show more than one).</p>
+              <p className="text-gray-600 text-xs mt-1.5">
+                {org
+                  ? "Numbers you add are your mobile — pick which ones appear on your card (you can show more than one)."
+                  : "Label each number and pick which ones appear on your card (you can show more than one)."}
+              </p>
               {org && orgPhone && (
                 <p className="text-gray-500 text-xs mt-1">
                   Your office number ({orgPhone}) is added to your card automatically by your organization.

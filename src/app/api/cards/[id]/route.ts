@@ -232,6 +232,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     delete updates.website;
     delete updates.logo_url;
     delete updates.label;
+    // What the office does NOT set can't linger either. A logo, company or
+    // website from before they joined stayed on the card with no control left
+    // to remove it (the editor hides those inputs for members) while the
+    // editor said the organization manages it. Where the office DOES set one,
+    // the brand block below re-applies it.
+    if (!brand?.logoUrl) updates.logo_url = null;
+    if (!brand?.company) updates.company = "";
+    if (!brand?.website) updates.website = "";
+    // Every number a member adds is their own mobile — the editor offers no
+    // other type. Enforced here too: a crafted request could otherwise save an
+    // "office"-labelled number, or a fake {office:true} company entry that
+    // nothing strips when the office sets no phone. The office's real number
+    // is re-added by overlayOfficeContact below.
+    const cust = updates.customization as { phones?: unknown } | undefined;
+    if (cust && Array.isArray(cust.phones)) {
+      cust.phones = (cust.phones as { office?: unknown; label?: unknown }[])
+        .filter((p) => p && typeof p === "object" && p.office !== true)
+        .map((p) => ({ ...p, label: "mobile" }));
+    }
   }
   if (brand) {
     // A SUB-USER (active member, not the owner) explicitly trying to CHANGE an

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
 import { trialHistoryFor } from "@/lib/trial-ledger";
+import { getOfficeSubUserContext } from "@/lib/office-roles";
 
 // Whether this SwiftCard ACCOUNT may still get a free Pro trial, for the iOS
 // paywall (lib/iap). Apple decides intro-offer eligibility per Apple ID; this
@@ -16,6 +17,12 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   // No account yet → nothing on record.
   if (!user) return NextResponse.json({ eligible: true });
+  // A team member is never sold a plan — their seat is the plan. Backstop for
+  // any paywall that asks: Apple purchases can't be refused server-side, so
+  // "not eligible" here is one more thing keeping a trial offer off their screen.
+  if (await getOfficeSubUserContext(user.id)) {
+    return NextResponse.json({ eligible: false }, { headers: { "Cache-Control": "no-store" } });
+  }
   const { data: profile } = await getAdminSupabase()
     .from("profiles")
     .select("stripe_customer_id")

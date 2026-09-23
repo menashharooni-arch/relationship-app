@@ -17,7 +17,11 @@ import {
 
 type Prefs = Record<PushCategory, boolean> & { quietHours?: boolean; returningHotOnly?: boolean };
 
-export default function PushPreferencesForm() {
+// billingAlerts: whether "Billing problems" means anything to this person. A
+// team member's plan is paid by their company — there is no payment of theirs
+// that can fail (unless they still hold a personal subscription), so the
+// switch is left out rather than promising alerts they can never get.
+export default function PushPreferencesForm({ billingAlerts = true }: { billingAlerts?: boolean }) {
   const [prefs, setPrefs] = useState<Prefs>({ ...DEFAULT_PUSH_PREFS, quietHours: true });
   const [loaded, setLoaded] = useState(false);
   const [teamAlerts, setTeamAlerts] = useState(false);
@@ -65,7 +69,7 @@ export default function PushPreferencesForm() {
         </p>
       </div>
 
-      {LIVE_CATEGORIES.filter((cat) => teamAlerts || !TEAM_ONLY_CATEGORIES.includes(cat)).map((cat) => (
+      {LIVE_CATEGORIES.filter((cat) => (teamAlerts || !TEAM_ONLY_CATEGORIES.includes(cat)) && (billingAlerts || cat !== "billing_problem")).map((cat) => (
         <Toggle
           key={cat}
           label={PUSH_CATEGORY_COPY[cat].label}
