@@ -388,18 +388,18 @@ const STEP_DEFS: TourStepDef[] = [
     title: "Integrations",
     body: "Connect Salesforce, GoHighLevel, Pipedrive, HubSpot, Google Contacts or Zapier so new leads sync to your tools automatically.",
     placement: "bottom",
-  },
-  {
-    id: "settings-general",
-    path: SETTINGS,
-    section: "profile",
-    anchor: "settings-general",
     // A member's contacts may already go to the TEAM's CRM, and the page itself
     // warns that connecting their own sends them elsewhere — so don't pitch it.
     bodyFor: (ctx) =>
       ctx.isOfficeMember
         ? "If your team connects a CRM, your new contacts go there automatically. Your own tools can be connected here too."
         : "Connect Salesforce, GoHighLevel, Pipedrive, HubSpot, Google Contacts or Zapier so new leads sync to your tools automatically.",
+  },
+  {
+    id: "settings-general",
+    path: SETTINGS,
+    section: "profile",
+    anchor: "settings-general",
     title: "General",
     body: "Your email, cards, and current plan at a glance.",
     placement: "bottom",

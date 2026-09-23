@@ -167,6 +167,13 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
         });
         if (btnRef.current) {
           btnRef.current.replaceChildren(); // clear any prior render (no innerHTML)
+          // Google draws the button at a fixed pixel width. 320 fit every
+          // layout except a phone-width sign-up form, whose fields are ~300px
+          // wide — the button stuck out past them on both sides. Match the
+          // space it's given (measured on the wrapper: the button's own box
+          // is still hidden), never wider than 320, never below Google's 200.
+          const avail = btnRef.current.parentElement?.clientWidth ?? 0;
+          const width = avail > 0 ? Math.max(200, Math.min(320, Math.floor(avail))) : 320;
           googleId.renderButton(btnRef.current, {
             type: "standard",
             theme: "outline",
@@ -174,7 +181,7 @@ export default function GoogleSignInButton({ redirectTo, className, oneTap = fal
             text: "continue_with",
             shape: "pill",
             logo_alignment: "center",
-            width: 320,
+            width,
           });
         }
         // One Tap: surfaces the returning user's Google account as a floating

@@ -51,7 +51,11 @@ export async function GET(request: NextRequest) {
       if (inviteNext && /^\/join\/[^/?#]+$/.test(inviteNext)) {
         return NextResponse.redirect(new URL(`${inviteNext}?link=expired`, origin));
       }
-      return NextResponse.redirect(new URL("/login?error=oauth", origin));
+      // Keep where they were going (a claim=1 draft, a plan pick) through the
+      // login page, so signing in there still finishes the job.
+      const failed = new URL("/login?error=oauth", origin);
+      if (inviteNext) failed.searchParams.set("next", inviteNext);
+      return NextResponse.redirect(failed);
     }
 
     // Sign in with Apple: the provider refresh token exists ONLY here, on the
