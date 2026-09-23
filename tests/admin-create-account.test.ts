@@ -48,7 +48,11 @@ describe("an admin-created account can actually be logged into", () => {
   });
 
   it("points the link at the password-setting page, not the dashboard", () => {
-    expect(code(ROUTE)).toMatch(/redirectTo: `\$\{APP_URL\}\/reset-password`/);
+    // /auth/reset-password is the page; /reset-password was a 404 (2026-09-22).
+    expect(code(ROUTE)).toMatch(/redirectTo: `\$\{APP_URL\}\/auth\/reset-password`/);
+    // …and the emailed link is on swiftcard.me with the token hash, not
+    // Supabase's action_link on grxmovpmlgmjncnyiyrt.supabase.co.
+    expect(code(ROUTE)).toContain("${APP_URL}/auth/reset-password?token_hash=${encodeURIComponent(hashed)}&type=recovery");
   });
 
   it("cannot throw and lose the created account", () => {

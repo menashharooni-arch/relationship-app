@@ -1,10 +1,9 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminSupabase } from "@/lib/supabase-admin";
-import { reportError } from "@/lib/report-error";
-import { safeNextPath } from "@/lib/safe-next";
+import { authFailedRedirect, landAfterAuth, routeSupabase } from "@/lib/auth-landing";
 
+// OAuth round-trips (Google, Apple) and PKCE email links (?code=…) land here.
+// Email links that carry a token_hash land on /auth/confirm instead; both hand
+// off to the same lib/auth-landing so they route a signed-in person the same way.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -20,21 +19,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (code) {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() { return cookieStore.getAll(); },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          },
-        },
-      }
-    );
+    const supabase = await routeSupabase();
 
     // CRITICAL: if the exchange fails we must NOT fall through to getUser() —
     // a still-present previous session would silently log the visitor into the
@@ -46,16 +31,9 @@ export async function GET(request: NextRequest) {
       // code verifier lives only in the one that asked) or opened twice: back
       // to the invite, which explains it and can send a fresh link — not the
       // generic login page, where the invite was lost and the only message
-      // talked about building a card.
-      const inviteNext = safeNextPath(next);
-      if (inviteNext && /^\/join\/[^/?#]+$/.test(inviteNext)) {
-        return NextResponse.redirect(new URL(`${inviteNext}?link=expired`, origin));
-      }
-      // Keep where they were going (a claim=1 draft, a plan pick) through the
-      // login page, so signing in there still finishes the job.
-      const failed = new URL("/login?error=oauth", origin);
-      if (inviteNext) failed.searchParams.set("next", inviteNext);
-      return NextResponse.redirect(failed);
+      // talked about building a card. Anything else keeps where they were
+      // going (a claim=1 draft, a plan pick) through the login page.
+      return authFailedRedirect(origin, next);
     }
 
     // Sign in with Apple: the provider refresh token exists ONLY here, on the
@@ -72,73 +50,7 @@ export async function GET(request: NextRequest) {
       console.error("[auth/callback] apple token persist failed:", e);
     }
 
-    // Only honour a same-origin relative redirect (no open-redirect to other
-    // sites). Shared guard — the hand-written version here let "/\evil.com"
-    // through, and new URL() below resolves that to https://evil.com/.
-    const safeNext = safeNextPath(next);
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("username, customization")
-        .eq("id", user.id)
-        .single();
-      // A deleted account is always sent to the reopen screen, even with a ?next.
-      if (profile && (profile.customization as { _deleted?: boolean } | null)?._deleted) {
-        // Keep the session so they can reopen within the grace window.
-        return NextResponse.redirect(new URL("/account-deleted", origin));
-      }
-      if (!profile) {
-        // Google (or any OAuth) sign-in did not auto-link to an existing
-        // email/password account for this email — Supabase does not
-        // guarantee auto-linking (unconfirmed email, linking disabled, an
-        // alias/casing mismatch), so this could be a genuinely new user, OR
-        // it could silently mint a second, duplicate account sharing one
-        // email with an existing one (auth audit — high severity). Blocking
-        // signup here on a false positive would actively harm real new
-        // users, and profiles.email is NOT a reliable auth-email column in
-        // this app (it drifts to a card's public contact address — see
-        // account-email.ts) — so this is deliberately alert-only, not a
-        // blocking check, until a verified, tested fix can be reviewed.
-        if (user.email) {
-          try {
-            const admin = getAdminSupabase();
-            // Only the first page (1000 most recent-created auth users) —
-            // this only ever runs once per NEW account (returning users
-            // never reach this branch), but paginating further would still
-            // add real, ever-growing synchronous latency to every future
-            // signup as the user base grows, for a purely diagnostic alert
-            // that was never meant to block anything (code review). One
-            // page keeps the cost bounded and covers this product's current
-            // and near-term scale; revisit if the account base grows large
-            // enough that a genuine duplicate could fall outside it.
-            const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-            const dup = data?.users?.find((u) => u.id !== user.id && u.email?.toLowerCase() === user.email!.toLowerCase());
-            if (dup) {
-              await reportError("auth.callback.possible_duplicate_account", new Error("New OAuth sign-in shares an email with an existing auth user"), {
-                newUserId: user.id,
-                existingUserId: dup.id,
-                email: user.email,
-              });
-            }
-          } catch (e) {
-            console.error("[auth/callback] duplicate-account check failed:", e);
-          }
-        }
-
-        // Brand-new account: preserve a same-origin ?next through onboarding so a
-        // guest who signed up mid-edit returns to the editor and their draft is
-        // claimed (rather than getting stranded on the dashboard).
-        const onboardingUrl = new URL("/onboarding", origin);
-        if (safeNext) onboardingUrl.searchParams.set("next", safeNext);
-        return NextResponse.redirect(onboardingUrl);
-      }
-    }
-
-    if (safeNext) {
-      return NextResponse.redirect(new URL(safeNext, origin));
-    }
+    return landAfterAuth(supabase, { origin, next, intent: searchParams.get("intent") });
   }
 
   return NextResponse.redirect(new URL("/dashboard", origin));

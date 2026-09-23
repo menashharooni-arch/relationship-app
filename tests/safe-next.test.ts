@@ -67,7 +67,9 @@ describe("safeNextPath", () => {
 describe("every consumer uses the shared guard", () => {
   // The bug was duplication, so this pins that the duplicates are gone. A new
   // hand-written check is how this comes back.
-  const CONSUMERS = ["src/components/LoginForm.tsx", "src/app/auth/callback/route.ts"];
+  // /auth/callback's landing moved to lib/auth-landing (shared with
+  // /auth/confirm), and lib/auth-confirm reads an emailed link's next.
+  const CONSUMERS = ["src/components/LoginForm.tsx", "src/lib/auth-landing.ts", "src/lib/auth-confirm.ts"];
 
   it.each(CONSUMERS)("%s imports safeNextPath", (f) => {
     expect(read(f)).toMatch(/from "@\/lib\/safe-next"/);

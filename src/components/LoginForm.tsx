@@ -142,6 +142,29 @@ export default function LoginForm({
   // than a thrown promise. See app-store/RELEASE_CHECKLIST.md §B to regenerate.
   async function handleApple() {
     if (mode === "signup") await clearExistingSession();
+    // WEB: the same Supabase Apple provider the app uses (the app runs it in
+    // the system browser, which IS the web flow), returning through
+    // /auth/callback like Google's redirect fallback. Without it an account
+    // made in the app with Apple — often a Hide My Email address with no
+    // password — could never sign in on swiftcard.me, which is the only place
+    // Office can be bought. `intent` rides along so a Sign-in tap with no
+    // SwiftCard account is bounced to Create account, as Google's is.
+    if (!native) {
+      const safeNext = safeNextPath(redirectTo);
+      const params = new URLSearchParams();
+      if (safeNext) params.set("next", safeNext);
+      if (mode === "signin") params.set("intent", "signin");
+      const qs = params.toString();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: { redirectTo: `${APP_URL}/auth/callback${qs ? `?${qs}` : ""}` },
+      });
+      if (error) {
+        setErrorMsg(error.message.includes("not enabled") ? "Apple sign-in isn't available right now — please try again." : error.message);
+        setStatus("error");
+      }
+      return;
+    }
     try {
       // Same system-browser flow as native Google — consistent, and avoids
       // running Apple's auth page inside the embedded webview.
@@ -531,8 +554,10 @@ export default function LoginForm({
         <GoogleSignInButton redirectTo={redirectTo} oneTap intent={mode} />
       )}
 
-      {/* Native app only: Sign in with Apple (Apple requires it alongside other
-          social logins in-app). Renders nothing on web.
+      {/* Sign in with Apple — in the app (Apple requires it alongside other
+          social logins in-app) AND on the website (2026-09-22): an account
+          made in the app with Apple has no password, so without it the web —
+          where Office is bought — was a locked door for it.
 
           Also gated on APPLE_SIGNIN_ENABLED. This used to render on platform
           alone, while the Supabase Apple provider was not enabled on the
@@ -546,7 +571,7 @@ export default function LoginForm({
           the provider in Supabase, then set NEXT_PUBLIC_APPLE_SIGNIN_ENABLED=1
           in Vercel and REDEPLOY — env changes only take effect on a new build.
           Until then, hidden beats broken. */}
-      {native && APPLE_SIGNIN_ENABLED && (
+      {APPLE_SIGNIN_ENABLED && (
         <button
           type="button"
           onClick={handleApple}

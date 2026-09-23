@@ -15,10 +15,12 @@ import LoginForm from "@/components/LoginForm";
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
 
-// Item 9 — native-only "Continue with Apple" button.
+// Item 9 — "Continue with Apple". Native-only until 2026-09-22; now on the web
+// too (an Apple-made account has no password, and Office is bought on the web),
+// still behind the APPLE_SIGNIN_ENABLED kill switch everywhere.
 
-describe("Item 9 — Apple button never renders on web", () => {
-  it("web login form (native false in SSR) offers Google sign-in but NOT Apple", () => {
+describe("Item 9 — Apple button never renders while the kill switch is off", () => {
+  it("web login form with the switch unset offers Google sign-in but NOT Apple", () => {
     const out = renderToStaticMarkup(h(LoginForm, { initialMode: "signin" as const }));
     // On web the Google option is now the Google Identity Services button
     // (rendered client-side by GoogleSignInButton), so the SSR markup shows its
@@ -30,7 +32,7 @@ describe("Item 9 — Apple button never renders on web", () => {
   });
 });
 
-describe("Item 9 — Apple handler mirrors Google and is native-gated", () => {
+describe("Item 9 — Apple handler mirrors Google, on native and on the web", () => {
   const src = read("src/components/LoginForm.tsx");
   it("routes Apple sign-in through the system-browser native flow and handles errors", () => {
     // The native Apple handler now uses startNativeOAuth (system browser +
@@ -38,13 +40,25 @@ describe("Item 9 — Apple handler mirrors Google and is native-gated", () => {
     expect(src).toMatch(/startNativeOAuth\(supabase, "apple", redirectTo, mode\)/);
     expect(src).toMatch(/setErrorMsg/);
   });
-  it("the button is rendered only when native — and only when Apple actually works", () => {
-    // Was `{native && (`. Still native-gated, now also gated on the provider
-    // being enabled: it rendered while Supabase's Apple provider was off, so
-    // every tap failed with an error toast next to a working Google button.
-    // See tests/admin-downgrade-cascade.test.ts for the availability gate.
-    expect(src).toMatch(/\{native && APPLE_SIGNIN_ENABLED && \(/);
+  it("the button renders only when Apple actually works — on the web as well as native", () => {
+    // Gated on the provider being enabled: it once rendered while Supabase's
+    // Apple provider was off, so every tap failed next to a working Google
+    // button. See tests/admin-downgrade-cascade.test.ts for the gate.
+    expect(src).toMatch(/\{APPLE_SIGNIN_ENABLED && \(/);
+    expect(src).not.toMatch(/\{native && APPLE_SIGNIN_ENABLED && \(/);
     expect(src).toContain("Continue with Apple");
+  });
+
+  it("on the web, Apple returns through /auth/callback with next and the sign-in intent", () => {
+    const handler = src.slice(src.indexOf("async function handleApple"), src.indexOf("async function handleSubmit"));
+    const web = handler.slice(handler.indexOf("if (!native)"), handler.indexOf("try {"));
+    expect(web).toContain('provider: "apple"');
+    expect(web).toContain("${APP_URL}/auth/callback");
+    expect(web).toContain("safeNextPath(redirectTo)");
+    expect(web).toMatch(/if \(mode === "signin"\) params\.set\("intent", "signin"\)/);
+    // …and the callback hands that intent to /onboarding for a new account.
+    expect(read("src/app/auth/callback/route.ts")).toContain('intent: searchParams.get("intent")');
+    expect(read("src/lib/auth-landing.ts")).toContain('if (opts.intent === "signin") onboardingUrl.searchParams.set("intent", "signin")');
   });
 
   // Guideline 4.8 is about the COMBINATION, not about Apple in isolation:

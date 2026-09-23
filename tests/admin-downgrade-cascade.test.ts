@@ -65,7 +65,8 @@ describe("Sign in with Apple is not offered until it works", () => {
   it("is gated on availability, not just on being in the native app", () => {
     const c = code(FORM);
     expect(c).toMatch(/APPLE_SIGNIN_ENABLED/);
-    expect(c, "still renders on platform alone").toMatch(/\{native && APPLE_SIGNIN_ENABLED &&/);
+    // Web and native both (2026-09-22), but never without the switch.
+    expect(c, "renders without the availability gate").toMatch(/\{APPLE_SIGNIN_ENABLED && \(/);
   });
 
   it("defaults OFF — an unset or stray env value must not enable it", () => {

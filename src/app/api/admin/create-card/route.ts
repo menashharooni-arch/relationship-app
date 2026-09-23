@@ -99,9 +99,18 @@ export async function POST(req: NextRequest) {
     const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
       type: "recovery",
       email,
-      options: { redirectTo: `${APP_URL}/reset-password` },
+      // /auth/reset-password — /reset-password does not exist, so this link
+      // landed on a 404 after Supabase's redirect.
+      options: { redirectTo: `${APP_URL}/auth/reset-password` },
     });
-    setupLink = linkData?.properties?.action_link ?? null;
+    // A swiftcard.me link carrying the token hash, which /auth/reset-password
+    // verifies itself (any browser, any device) — not action_link, which is a
+    // grxmovpmlgmjncnyiyrt.supabase.co address. action_link stays only as the
+    // fallback if the hash is ever missing.
+    const hashed = linkData?.properties?.hashed_token;
+    setupLink = hashed
+      ? `${APP_URL}/auth/reset-password?token_hash=${encodeURIComponent(hashed)}&type=recovery`
+      : linkData?.properties?.action_link ?? null;
     if (linkErr) console.error("[admin create-card] generateLink failed:", linkErr.message);
 
     if (setupLink) {
