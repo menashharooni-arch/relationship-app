@@ -77,6 +77,20 @@ export function isTeamCheckHour(now: number, timezone: string | null | undefined
   return h === 9 || h === 10;
 }
 
+/**
+ * Monday's team check: when the team's week goes into the ADMIN BELL, with or
+ * without a phone. The same hour and fallback as the daily team check, on the
+ * owner's Monday (US Eastern when their zone is unknown).
+ */
+export function isTeamRecapBellHour(now: number, timezone: string | null | undefined): boolean {
+  if (!isTeamCheckHour(now, timezone)) return false;
+  let weekday = "";
+  try {
+    weekday = new Intl.DateTimeFormat("en-US", { timeZone: timezone || "America/New_York", weekday: "short" }).format(new Date(now));
+  } catch { return false; }
+  return weekday === "Mon";
+}
+
 /** Most frequent labels first. */
 export function rankPlaces(labels: Array<string | null | undefined>): string[] {
   const counts = new Map<string, number>();

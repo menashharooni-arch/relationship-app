@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
+import { officeNotificationPath } from "@/lib/office-notification-links";
 
 // The /office/admin team-inbox bell. A DISTINCT component from the personal
 // NotificationBell: it polls /api/office/notifications (office_notifications
@@ -108,6 +110,21 @@ export default function OfficeNotificationBell({
     } finally {
       setPendingIds((s) => { const n = new Set(s); n.delete(id); return n; });
     }
+  }
+
+  // Tapping a row opens the screen it is about (the same one its push opens)
+  // and counts as reading it. The read is sent with keepalive so the
+  // navigation cannot cancel it.
+  function openRow(n: OfficeNotification) {
+    setOpen(false);
+    if (n.read) return;
+    setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+    fetch("/api/office/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: n.id, read: true }),
+      keepalive: true,
+    }).catch(() => {});
   }
 
   async function dismiss(id: string) {
@@ -217,18 +234,25 @@ export default function OfficeNotificationBell({
               {notifications.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <p className="text-gray-400 text-sm">No team updates yet</p>
-                  <p className="text-gray-600 text-xs mt-1">You&apos;ll see it here when someone joins or leaves your team.</p>
+                  <p className="text-gray-600 text-xs mt-1">Who joins, a teammate&apos;s first lead, leads with no follow-up, team milestones and your team&apos;s week show up here. Your own card&apos;s notifications stay in the bell on your dashboard.</p>
                 </div>
               ) : (
                 notifications.map((n) => (
                   <div key={n.id} className={`group px-4 py-3 transition-colors ${n.read ? "" : "bg-purple-950/40"}`}>
                     <div className="flex items-start gap-3">
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-gray-700" : "bg-purple-500"}`} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-white text-xs font-semibold truncate">{n.title}</p>
-                        {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{n.body}</p>}
+                      {/* The whole text block is the link. Titles WRAP: a
+                          truncated "Your team passed 1,000 card vie…" hid the
+                          one word that said what happened. */}
+                      <Link
+                        href={officeNotificationPath(n.type)}
+                        onClick={() => openRow(n)}
+                        className="min-w-0 flex-1 rounded-md -m-1 p-1 hover:bg-white/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-500"
+                      >
+                        <p className="text-white text-xs font-semibold leading-snug break-words">{n.title}</p>
+                        {n.body && <p className="text-gray-400 text-xs mt-0.5 leading-relaxed break-words">{n.body}</p>}
                         <p suppressHydrationWarning className="text-gray-500 text-[0.6875rem] mt-1 truncate">{timeAgo(n.created_at)}</p>
-                      </div>
+                      </Link>
                       <button
                         onClick={() => setRead(n.id, !n.read)}
                         disabled={pendingIds.has(n.id)}

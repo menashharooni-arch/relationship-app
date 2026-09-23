@@ -18,7 +18,8 @@ export type OfficeNotificationType =
   | "invite_declined"     // an invitee declined the invitation (seat freed)
   | "invite_expired"      // an invitation ran out unanswered (bell only)
   | "member_first_lead"   // a teammate captured their first-ever lead
-  | "leads_waiting"       // team leads still New a day after they arrived
+  | "leads_waiting"       // team leads with no follow-up a day after they arrived
+  | "members_no_card"     // teammates who joined but still have no card
   | "team_milestone"      // the team crossed a round number of views or leads
   | "team_weekly_recap";  // Monday: the team's week
 

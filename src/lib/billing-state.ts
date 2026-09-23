@@ -72,10 +72,26 @@ export function trialStatusLine(opts: {
 }
 
 /** Notification copy when Pro ends and the account is now on Free. */
-export function proEndedNotice(wasTrial: boolean): { title: string; body: string } {
+export function proEndedNotice(wasTrial: boolean, endedPlan?: string | null): { title: string; body: string } {
+  // An Office owner was told "Your Pro plan has ended" — the wrong plan, and
+  // not a word about the team they just lost.
+  if (endedPlan === "enterprise") return officeEndedNotice(wasTrial);
   return {
     title: wasTrial ? "Your Pro trial has ended" : "Your Pro plan has ended",
     body: "Subscribe to keep all your cards and your Pro design, or continue on Free. Nothing has been deleted.",
+  };
+}
+
+/**
+ * Office ended on the OWNER's account (cancelled, or a granted Office ran
+ * out). Says what happened to the team, and nothing that sells — no plan
+ * price, no "subscribe", no "upgrade" — so the same words are right on the web
+ * and inside the iPhone app.
+ */
+export function officeEndedNotice(wasTrial: boolean): { title: string; body: string } {
+  return {
+    title: wasTrial ? "Your Office trial has ended" : "Your Office plan has ended",
+    body: "Your account is on the Free plan now. Your teammates keep their first card, without your company branding, and your team is saved for when you come back. Nothing has been deleted.",
   };
 }
 

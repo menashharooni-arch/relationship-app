@@ -47,15 +47,18 @@ export default function LeadsTable({
   leads,
   total,
   hasMore: initialHasMore,
+  initialFollowUp,
 }: {
   leads: OfficeLead[];
   /** EXACT number of leads the office has, which may exceed what is loaded. */
   total: number;
   hasMore: boolean;
+  /** Opened from a notification about one follow-up state (?followUp=none). */
+  initialFollowUp?: FollowUpState;
 }) {
   const [rows, setRows] = useState<Row[]>(leads);
   const [person, setPerson] = useState<string>("all");
-  const [followUp, setFollowUp] = useState<"all" | FollowUpState>("all");
+  const [followUp, setFollowUp] = useState<"all" | FollowUpState>(initialFollowUp ?? "all");
   const [query, setQuery] = useState("");
   // Hydration-safe "x ago" (components/DisplayClock).
   const clock = useDisplayClock();

@@ -55,6 +55,14 @@ export async function sendPushToUser(userId: string, payload: {
   cardOwner?: string | null;
   /** The 8am catch-up only — see PolicyInput.catchup. */
   catchup?: boolean;
+  /**
+   * WHOSE news this is, when no card tag says it: "Team · Harbor Realty" on an
+   * Office admin's team pushes (lib/team-alerts), so a lock screen tells the
+   * team's news from their own card's.
+   */
+  context?: string | null;
+  /** iOS notification group (aps thread-id). Defaults to the tag. */
+  thread?: string;
 }) {
   const admin = getAdminSupabase();
 
@@ -221,8 +229,11 @@ export async function sendPushToUser(userId: string, payload: {
   // iOS has a real line for it (aps.alert.subtitle, between title and body). A
   // browser notification has only title + body, so there it leads the body on a
   // line of its own — never the title, which the OS truncates first.
-  const apnsPayload = { ...payload, ...(cardLine ? { subtitle: cardLine } : {}) };
-  const webPayload = cardLine ? { ...payload, body: `${cardLine}\n${payload.body}` } : payload;
+  // The same line carries "Team · <office>" on an Office admin's team news
+  // (payload.context); a card tag wins, as the more specific of the two.
+  const line = cardLine ?? (payload.context?.trim() || null);
+  const apnsPayload = { ...payload, ...(line ? { subtitle: line } : {}) };
+  const webPayload = line ? { ...payload, body: `${line}\n${payload.body}` } : payload;
 
   // Native iOS devices register with an "apns:<token>" endpoint and go through
   // APNs; browser subscriptions keep going through web-push. Both prune their

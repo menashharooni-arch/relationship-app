@@ -1,14 +1,23 @@
 import { redirect } from "next/navigation";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
 import { getOfficeFollowUp, getOfficeLeads } from "@/lib/office-leads";
+import { FOLLOW_UP_STATES, type FollowUpState } from "@/lib/lead-followup";
 import TeamFollowUp from "./TeamFollowUp";
 import { PageHead } from "@/components/office/OfficeUI";
 import LeadsTable from "./LeadsTable";
 
 export const metadata = { title: "Leads — Admin — SwiftCard" };
 
-export default async function OfficeLeadsPage() {
+export default async function OfficeLeadsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ followUp?: string }>;
+}) {
   const { office, officeId } = await requireOfficeAdmin();
+  // ?followUp=none — where the "team leads have no follow-up yet" notification
+  // (bell row and push) opens, so the leads it counted are the ones on screen.
+  const requested = (await searchParams).followUp;
+  const initialFollowUp = FOLLOW_UP_STATES.includes(requested as FollowUpState) ? (requested as FollowUpState) : undefined;
   if (!office || !officeId) redirect("/office/admin");
 
   // Server-scoped to THIS office (current team + leads stamped at removal time
@@ -32,7 +41,7 @@ export default async function OfficeLeadsPage() {
       />
       <TeamFollowUp items={followUp} />
       <div data-tour="admin-leads-table">
-        <LeadsTable leads={page.leads} total={page.total} hasMore={page.hasMore} />
+        <LeadsTable leads={page.leads} total={page.total} hasMore={page.hasMore} initialFollowUp={initialFollowUp} />
       </div>
     </div>
   );

@@ -222,8 +222,12 @@ export type ApnsAlertPayload = {
   tag?: string;
   silent?: boolean;
   /** WHICH CARD this is about ("Work card") — iOS renders it as its own line
-   *  between the title and the body. Only set for accounts with 2+ cards. */
+   *  between the title and the body. Only set for accounts with 2+ cards —
+   *  or "Team · <office>" on an Office admin's team news. */
   subtitle?: string;
+  /** Notification group (thread-id); the tag when unset. Team news shares one
+   *  thread per office, so it stacks apart from the personal notifications. */
+  thread?: string;
 };
 
 /**
@@ -259,7 +263,7 @@ export function buildApnsAlert(payload: ApnsAlertPayload, topic: string): {
     aps: {
       alert: { title: payload.title, ...(payload.subtitle ? { subtitle: payload.subtitle } : {}), body: payload.body },
       ...(silent ? { "interruption-level": "passive" } : { sound: "default" }),
-      "thread-id": payload.tag ?? "swiftcard",
+      "thread-id": payload.thread ?? payload.tag ?? "swiftcard",
     },
     // Custom key: the in-app destination. NativeAppBridge navigates here when
     // the user taps the notification.

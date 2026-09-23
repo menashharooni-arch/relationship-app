@@ -155,10 +155,13 @@ describe("a push says which card it is about", () => {
   it("is resolved in ONE place, so no producer can forget it", () => {
     const push = read("src/lib/push.ts");
     expect(push).toMatch(/pushCardTag\(\(cards \?\? \[\]\) as PushCardRow\[\], payload\.cardOwner\)/);
-    expect(push).toMatch(/subtitle: cardLine/);
+    // The card tag is the line; an Office team push's "Team · <office>" only
+    // fills it when there is no card tag (lib/team-alerts).
+    expect(push).toContain("const line = cardLine ?? (payload.context?.trim() || null);");
+    expect(push).toMatch(/subtitle: line/);
     // A browser notification has no subtitle: the card leads the BODY, never
     // the title (the line the OS truncates first).
-    expect(push).toMatch(/body: `\$\{cardLine\}\\n\$\{payload\.body\}`/);
+    expect(push).toMatch(/body: `\$\{line\}\\n\$\{payload\.body\}`/);
     // Every producer that knows the card passes it.
     expect(read("src/lib/visit-notify.ts")).toMatch(/cardOwner: opts\.cardOwner,/);
     expect(read("src/app/api/twilio/inbound/route.ts")).toMatch(/cardOwner: target\.card_owner,/);

@@ -39,6 +39,7 @@ import { expireFreeMonths } from "@/lib/referral-server";
 import { purgeExpiredDeletedAccounts, reconcileDeletedSubscriptions } from "@/lib/account-purge";
 import { applyDueSeatReductions } from "@/lib/office-scheduled-seats";
 import { insertNotification } from "@/lib/notify";
+import { officeEndedNotice } from "@/lib/billing-state";
 import { trialEndingSoonEmail, trialEndedEmail, unsubUrl, marketingHeaders } from "@/lib/email-templates";
 import { sendTrialChargeNotices } from "@/lib/trial-notice";
 import { canSendMarketing } from "@/lib/marketing-consent";
@@ -239,11 +240,19 @@ export async function GET(req: NextRequest) {
       // Pro overnight in total silence: extra cards dark, sequences paused,
       // capture capped, and the first they knew of it was something breaking.
       // This is what makes that comment true.
+      // A granted OFFICE ending (a tester code) is about the owner's TEAM, not
+      // "your free month": expireFreeMonths has just released it, and the
+      // office row it owns is kept for when they come back.
+      const { data: ownedOffice } = await supabase.from("offices").select("id").eq("owner_id", u.id).limit(1).maybeSingle();
       await insertNotification({
         user_id: u.id,
         type: "plan_downgraded",
-        title: u.wasTrial ? "Your free trial has ended" : "Your free month has ended",
-        body: "Your account is back on the Free plan. Extra cards are offline and follow-up sequences are paused until you upgrade — nothing has been deleted.",
+        ...(ownedOffice
+          ? officeEndedNotice(u.wasTrial)
+          : {
+              title: u.wasTrial ? "Your free trial has ended" : "Your free month has ended",
+              body: "Your account is back on the Free plan. Extra cards are offline and follow-up sequences are paused until you upgrade — nothing has been deleted.",
+            }),
       });
 
       const to = await getAccountEmail(u.id, u.email);

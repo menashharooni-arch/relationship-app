@@ -996,7 +996,7 @@ export async function POST(req: NextRequest) {
     // stripe_subscription_id is only cleared as the FINAL step, once the
     // whole cascade has run.
     const { data: profile } = await admin2.from("profiles")
-      .select("id, customization")
+      .select("id, plan, customization")
       .eq("stripe_subscription_id", sub.id)
       .maybeSingle();
     let stripeDowngraded = false;
@@ -1085,7 +1085,9 @@ export async function POST(req: NextRequest) {
     if (profile?.id && stripeDowngraded) {
       const endedSec = sub.ended_at ?? Math.floor(Date.now() / 1000);
       const wasTrial = !!sub.trial_end && endedSec <= sub.trial_end + 2 * 86400;
-      await insertNotification({ user_id: profile.id, type: "pro_ended", ...proEndedNotice(wasTrial) }).catch(() => {});
+      // profile.plan is the plan BEFORE this downgrade: an Office owner hears
+      // about Office and their team, not "Your Pro plan has ended".
+      await insertNotification({ user_id: profile.id, type: "pro_ended", ...proEndedNotice(wasTrial, profile.plan as string | null) }).catch(() => {});
       const { data: ownCards } = await admin2.from("cards").select("username").eq("user_id", profile.id);
       for (const c of ownCards ?? []) revalidateCardPage(c.username as string);
     }
