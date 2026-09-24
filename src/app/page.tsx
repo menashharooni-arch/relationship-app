@@ -279,8 +279,9 @@ export default function Home() {
             <div className="mt-14" data-reveal>
               <TemplateGallery linkedinEnabled={linkedinEnabled} />
             </div>
-            {/* The AI Card Designer, briefly: the full showcase is on /templates. */}
-            <div className="mt-12" data-reveal>
+            {/* The AI Card Designer: both ways in, under a divider so it reads
+                as its own idea and not part of the gallery. Full showcase on /templates. */}
+            <div className="mt-20 sm:mt-24">
               <AiDesignerTeaser />
             </div>
           </div>
