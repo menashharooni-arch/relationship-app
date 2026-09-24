@@ -109,7 +109,7 @@ async function mount(name: string, width = 390): Promise<Page> {
 }
 
 const corner = (p: Page) => p.locator('button[aria-label="Undo last design change"]');
-const state = (p: Page) => p.evaluate(() => (window as any).__state);
+const state = (p: Page) => p.evaluate(() => (window as unknown as { __state: { template: string; style: Record<string, unknown> } }).__state);
 
 describe("Card design Undo", () => {
   it("is not there until something was changed — a change made on load is the starting point", async () => {
@@ -148,7 +148,7 @@ describe("Card design Undo", () => {
     await page.locator("#font").tap(); // arm + a first step
     await page.waitForTimeout(600);
     await page.evaluate(async () => {
-      for (let i = 0; i < 20; i++) { (window as any).__set({ accentColor: "#0000" + String(i).padStart(2, "0") }); await new Promise((r) => setTimeout(r, 16)); }
+      for (let i = 0; i < 20; i++) { (window as unknown as { __set: (p: Record<string, unknown>) => void }).__set({ accentColor: "#0000" + String(i).padStart(2, "0") }); await new Promise((r) => setTimeout(r, 16)); }
     });
     await corner(page).tap();
     expect((await state(page)).style.accentColor).toBe("#222222"); // straight back to before the drag
@@ -159,7 +159,7 @@ describe("Card design Undo", () => {
     const page = await mount("card");
     await page.locator("#accent").tap();
     expect(await corner(page).count()).toBe(1);
-    await page.evaluate(() => (window as any).__clear());
+    await page.evaluate(() => (window as unknown as { __clear: () => void }).__clear());
     await page.waitForTimeout(50);
     expect(await corner(page).count()).toBe(0);
   });
@@ -187,7 +187,7 @@ describe("Social design Undo", () => {
     await page.locator("#add").tap(); // a different tab's change — not a step here
     const undo = page.getByRole("button", { name: "Undo" });
     await undo.tap();
-    const links = await page.evaluate(() => (window as any).__links);
+    const links = await page.evaluate(() => (window as unknown as { __links: { size?: unknown }[] }).__links);
     expect(links).toHaveLength(2);           // the added link is still there
     expect(links[0].size).toBeUndefined();   // the tile size went back
   });
