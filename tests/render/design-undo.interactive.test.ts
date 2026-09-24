@@ -126,7 +126,9 @@ describe("Card design Undo", () => {
     await page.locator("#font").tap();
     await page.waitForTimeout(600);
     await page.locator("#tpl").tap();
-    expect(await corner(page).count()).toBe(1);
+    // Polled: the button appears on the render after the tap, which a slow CI
+    // runner hasn't painted yet when a one-shot count runs.
+    await expect.poll(() => corner(page).count()).toBe(1);
 
     await corner(page).tap();
     let s = await state(page);
@@ -158,10 +160,9 @@ describe("Card design Undo", () => {
   it("Save ends the history", async () => {
     const page = await mount("card");
     await page.locator("#accent").tap();
-    expect(await corner(page).count()).toBe(1);
+    await expect.poll(() => corner(page).count()).toBe(1);
     await page.evaluate(() => (window as unknown as { __clear: () => void }).__clear());
-    await page.waitForTimeout(50);
-    expect(await corner(page).count()).toBe(0);
+    await expect.poll(() => corner(page).count()).toBe(0);
   });
 
   it("the corner button sits on the pinned card's corner, clear of the full-size cue, a real tap target, on the smallest phone", async () => {
