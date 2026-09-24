@@ -5,7 +5,7 @@ import { resolveOwnerId } from "@/lib/self-traffic";
 // ── Per-contact card links ───────────────────────────────────────────────────
 //
 // Every card link SwiftCard sends TO a known contact — a follow-up text or
-// email, a share-card, "Copy personal link" — carries `?ct=<token>`. When that
+// email, a share-card — carries `?ct=<token>`. When that
 // person opens it, the browser they opened it in is bound to them
 // (contact_devices, bound_via 'link'), so their NEXT visit from that browser
 // is recognised even though they never filled in the form on it. It is the
@@ -39,7 +39,9 @@ export const CONTACT_LINK_PARAM = "ct";
 
 export const MAX_DEVICES_PER_LINK = 3;
 
-export type ContactLinkChannel = "sms" | "email" | "share_card" | "manual_copy" | "scanner";
+// "manual_copy" (the contact panel's old Copy personal link, removed
+// 2026-09-23) is still allowed by the table's CHECK for the rows it minted.
+export type ContactLinkChannel = "sms" | "email" | "share_card" | "scanner";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const TOKEN_LEN = 10;

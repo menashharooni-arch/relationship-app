@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { markName, NAME_MARK } from "@/lib/contact-privacy";
 import { redactForPlan } from "@/lib/notification-privacy";
-import { contactMayPush, ALERTS_MUTED_TAG } from "@/lib/contact-return-notify";
+import { contactMayPush } from "@/lib/contact-return-notify";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8").replace(/\r\n/g, "\n");
 
@@ -48,17 +48,16 @@ describe("the 8am catch-up honours the contacts the owner silenced", () => {
   const route = read("src/app/api/push/catchup/route.ts");
 
   it("one rule for 'may this contact ring the phone', shared by produce time and the morning", () => {
-    expect(contactMayPush({ status: "new", tags: [] })).toBe(true);
-    expect(contactMayPush({ status: "not_interested", tags: [] })).toBe(false);
-    expect(contactMayPush({ status: "dissolved", tags: [] })).toBe(false);
-    expect(contactMayPush({ status: "new", tags: [ALERTS_MUTED_TAG] })).toBe(false);
-    expect(contactMayPush({ status: null, tags: null })).toBe(true);
+    expect(contactMayPush({ status: "new" })).toBe(true);
+    expect(contactMayPush({ status: "not_interested" })).toBe(false);
+    expect(contactMayPush({ status: "dissolved" })).toBe(false);
+    expect(contactMayPush({ status: null })).toBe(true);
     expect(read("src/lib/contact-return-notify.ts")).toMatch(/const mayPush = contactMayPush\(contact\);/);
   });
 
-  it("re-reads the contact behind a held return alert and applies mute, closed status and Only Hot", () => {
+  it("re-reads the contact behind a held return alert and applies closed status and Only Hot", () => {
     expect(route).toMatch(/\.select\("type, title, body, card_owner, created_at, lead_id"\)/);
-    expect(route).toMatch(/if \(!contactMayPush\(\{ status: l\.status as string \| null, tags: \(l\.tags as string\[\] \| null\) \?\? \[\] \}\)\) return false;/);
+    expect(route).toMatch(/if \(!contactMayPush\(\{ status: l\.status as string \| null \}\)\) return false;/);
     expect(route).toMatch(/const intent = prefs\.returningHotOnly\s*\n\s*\? await loadIntent\(/);
     expect(route).toMatch(/if \(intent && intent\.get\(leadId\)\?\.tier !== "hot"\) return false;/);
     // Only return alerts are re-checked; a lead or a view is untouched.

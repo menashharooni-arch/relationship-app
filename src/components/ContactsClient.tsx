@@ -11,8 +11,6 @@ import type { GeoAccuracy } from "@/lib/request-geo";
 import { CRON_HOUR_UTC } from "@/lib/cron-schedule";
 import AddContactModal from "@/components/AddContactModal";
 import ShareMyInfoButton, { type CardSigner } from "@/components/ShareMyInfoButton";
-import CopyPersonalLinkButton from "@/components/CopyPersonalLinkButton";
-import ContactAlertsToggle from "@/components/ContactAlertsToggle";
 import { PlanGate } from "@/components/PlanGate";
 import { AiDraftTag } from "@/components/AiConsentGate";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
@@ -1257,11 +1255,6 @@ export default function ContactsClient({
                 <span className="hidden sm:inline">Save to phone</span>
               </button>
             </div>
-
-            {/* This contact's own card link — opening it is how SwiftCard
-                recognises them when they come back (lib/contact-links.ts). */}
-            <CopyPersonalLinkButton leadId={selected.id} firstName={(selected.name || "them").split(" ")[0]} />
-            <ContactAlertsToggle key={selected.id} leadId={selected.id} initiallyMuted={(selected.tags ?? []).includes("alerts-muted")} />
 
             {/* Tab switcher */}
             <div className="flex bg-gray-900 rounded-xl p-1 gap-1 mb-6">

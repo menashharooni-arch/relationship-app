@@ -18,17 +18,15 @@ import type { PushCategory } from "@/lib/push-policy";
 
 /** Contacts whose visits reach the bell but never the lock screen (D5). */
 export const CLOSED_STATUSES = new Set(["not_interested", "dissolved"]);
-/** The per-contact switch in the contact panel. */
-export const ALERTS_MUTED_TAG = "alerts-muted";
 
 /**
  * May this contact's return reach the LOCK SCREEN at all? Not when the owner
- * closed them (D5) or muted them in the contact panel. One rule, used at
- * produce time here and again by the 8am catch-up (api/push/catchup), which
- * re-reads the bell row and would otherwise announce a muted contact anyway.
+ * closed them (D5). One rule, used at produce time here and again by the 8am
+ * catch-up (api/push/catchup), which re-reads the bell row and would otherwise
+ * announce a closed contact anyway.
  */
-export function contactMayPush(contact: { status?: string | null; tags?: string[] | null }): boolean {
-  return !CLOSED_STATUSES.has(contact.status ?? "") && !(contact.tags ?? []).includes(ALERTS_MUTED_TAG);
+export function contactMayPush(contact: { status?: string | null }): boolean {
+  return !CLOSED_STATUSES.has(contact.status ?? "");
 }
 
 export type ContactReturnNotice = {

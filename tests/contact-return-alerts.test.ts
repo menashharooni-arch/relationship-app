@@ -9,7 +9,6 @@ import {
   type PushPrefs,
 } from "@/lib/push-policy";
 import {
-  ALERTS_MUTED_TAG,
   contactReturnNotice,
   isLockedContact,
   isReturnVisit,
@@ -127,8 +126,8 @@ describe("the words", () => {
     expect(n.pushCategory).toBeUndefined();
   });
 
-  it("muted or closed contacts reach the bell but not the lock screen (D5)", () => {
-    for (const c of [priya({ status: "not_interested" }), priya({ status: "dissolved" }), priya({ tags: [ALERTS_MUTED_TAG] })]) {
+  it("closed contacts reach the bell but not the lock screen (D5)", () => {
+    for (const c of [priya({ status: "not_interested" }), priya({ status: "dissolved" })]) {
       const n = contactReturnNotice({ contact: c, eventType: "viewed_card", surface: "card", visitsThisWeek: 1, paid: true })!;
       expect(n.pushCategory).toBeUndefined();
     }

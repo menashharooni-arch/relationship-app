@@ -187,8 +187,7 @@ export async function GET(req: NextRequest) {
           Boolean(x.category) && prefs[x.category] !== false);
 
       // ── The contacts the owner silenced ─────────────────────────────────
-      // A contact marked Not interested / Closed, one muted in the contact
-      // panel ("Alert me when they come back" off), or — under "Only Hot
+      // A contact marked Not interested / Closed, or — under "Only Hot
       // contacts" — one who isn't Hot, is held from the phone at produce time
       // by stripping the push category (card-events, contact-return-notify).
       // The bell row carries no trace of that, so read back naively this
@@ -199,7 +198,7 @@ export async function GET(req: NextRequest) {
       if (contactRows.length) {
         try {
           const ids = [...new Set(contactRows.map((x) => String(x.row.lead_id)))];
-          const { data: leads } = await admin.from("leads").select("id, status, tags, created_at").in("id", ids);
+          const { data: leads } = await admin.from("leads").select("id, status, created_at").in("id", ids);
           const byId = new Map((leads ?? []).map((l) => [l.id as string, l]));
           const intent = prefs.returningHotOnly
             ? await loadIntent(admin, (leads ?? []).map((l) => ({ id: l.id as string, created_at: String(l.created_at) })), now)
@@ -207,7 +206,7 @@ export async function GET(req: NextRequest) {
           const allowed = (leadId: string): boolean => {
             const l = byId.get(leadId);
             if (!l) return true;
-            if (!contactMayPush({ status: l.status as string | null, tags: (l.tags as string[] | null) ?? [] })) return false;
+            if (!contactMayPush({ status: l.status as string | null })) return false;
             if (intent && intent.get(leadId)?.tier !== "hot") return false;
             return true;
           };

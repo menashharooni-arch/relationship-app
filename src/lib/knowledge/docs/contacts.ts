@@ -83,16 +83,16 @@ export const contactsDocs = defineDocs([
   },
   {
     id: "personal-link",
-    title: "Your personal link for a contact",
+    title: "The short code on the end of your card link",
     audience: ["user"],
     triggers: [
       "personal link", "copy personal link", "tracked link", "ct=", "why is there a code in my link",
       "know when they come back", "recognise a contact", "returning contact",
     ],
     answer:
-      "Open a contact and tap \"Copy personal link\" under the Call / Share / Save buttons. It copies your card's address with a short code on the end that belongs to that one contact. Paste it into anything you send them yourself (WhatsApp, LinkedIn, your own email). When they open it, SwiftCard knows that phone or computer is theirs, so their later visits show up on their contact.",
+      "Texts and emails SwiftCard sends to a contact for you (follow-up automations, messages from the Conversation tab, and \"Share by both\") put a short code on the end of your card link that belongs to that one contact. When they open it, SwiftCard knows that phone or computer is theirs, so their later visits show up on their contact. There's nothing to set up and no button for it. There is no \"Copy personal link\" button on a contact any more.",
     detail:
-      "Texts and emails SwiftCard sends for you (follow-up automations, messages from the Conversation tab, \"Share by both\") already carry the contact's own link, so you don't need to add it. The code is removed from the address bar as soon as the page opens, so if they copy the address and send it on, the code doesn't go with it. If they forward your original message and up to two more devices open it, those visits are shown as \"your link was opened on another device\", never under the contact's name. Link-checking robots in email systems don't count, because nothing is recorded until a real person has had the card open for a couple of seconds. If someone unsubscribes from email, their links stop recognising anyone.",
+      "\"Share by text\", \"Share by email\" and \"Share from my phone\" hand your plain card link to your own apps, without the code. The code is removed from the address bar as soon as the page opens, so if they copy the address and send it on, the code doesn't go with it. If they forward your original message and up to two more devices open it, those visits are shown as \"your link was opened on another device\", never under the contact's name. Link-checking robots in email systems don't count, because nothing is recorded until a real person has had the card open for a couple of seconds. If someone unsubscribes from email, their links stop recognising anyone.",
   },
   {
     id: "returning-contact-alerts",
@@ -103,9 +103,9 @@ export const contactsDocs = defineDocs([
       "stop alerts for a contact", "mute a contact", "alert me when they come back",
     ],
     answer:
-      "When someone you already have as a contact opens your card again, the notification names them (\"Priya re-opened your card\") and tapping it opens their contact. Each contact has an \"Alert me when they come back\" switch under the Call / Share / Save buttons; turning it off keeps their visits in the bell and in their history but stops the phone alert.",
+      "When someone you already have as a contact opens your card again, the notification names them (\"Priya re-opened your card\") and tapping it opens their contact. There is no per-contact switch for this any more: to stop a contact's phone alerts, mark them Not interested or Closed. Their visits still show in the bell and in their history. To stop returning-contact alerts for everyone, use the Returning contacts switch in Settings → Notifications and preferences.",
     detail:
-      "SwiftCard only recognises someone who shared their details with you from that phone or computer, or who opened a personal link you sent them. If a named notification was about the wrong person, tap \"Wrong person?\" on it in the dashboard's Notifications list, then Confirm: that device is no longer tied to the contact, those visits come off their history, and the notification is removed. If two different people have shared their details from the same device (a shared iPad, say), SwiftCard names neither of them. Contacts marked Not interested or Closed never set off a phone alert. On the Free plan the name is blurred and the alert says \"A contact re-opened your card\"; where you met them still shows, but tapping the alert opens the Notifications list rather than the contact, and there is no \"Wrong person?\" on it.",
+      "SwiftCard only recognises someone who shared their details with you from that phone or computer, or who opened a text or email SwiftCard sent them for you. If a named notification was about the wrong person, tap \"Wrong person?\" on it in the dashboard's Notifications list, then Confirm: that device is no longer tied to the contact, those visits come off their history, and the notification is removed. If two different people have shared their details from the same device (a shared iPad, say), SwiftCard names neither of them. Contacts marked Not interested or Closed never set off a phone alert. On the Free plan the name is blurred and the alert says \"A contact re-opened your card\"; where you met them still shows, but tapping the alert opens the Notifications list rather than the contact, and there is no \"Wrong person?\" on it.",
   },
   {
     id: "hot-warm-contacts",
@@ -118,7 +118,7 @@ export const contactsDocs = defineDocs([
     answer:
       "On Pro, contacts who have come back to your card recently get a red \"Hot\" or amber \"Warm\" badge in the Contacts list and on their contact, with a short reason underneath, such as \"viewed 3× this week, tapped Calendly\". Choose \"Follow Up First\" in the sort dropdown to put them at the top, or tap the Hot / Warm chips under it to show only those.",
     detail:
-      "The badge comes from what the contact actually did in the last 30 days: coming back to your card, tapping your links (a booking or listing link counts for more), downloading your contact card again, and replying to your messages. Recent activity counts for more than older activity, and Hot also needs something in the last three days. The visit where they first shared their details doesn't count; a contact is only Warm once they come back. Contacts with nothing recent have no badge at all. It only counts visits SwiftCard knows were them (they shared from that device, or opened a personal link you sent), and never counts a visit you marked \"Wrong person?\". On the Free plan the list says how many contacts are warming up, without naming them. The old \"Recent Activity\" sort is now called \"Follow-up Date\", which is what it always sorted by.",
+      "The badge comes from what the contact actually did in the last 30 days: coming back to your card, tapping your links (a booking or listing link counts for more), downloading your contact card again, and replying to your messages. Recent activity counts for more than older activity, and Hot also needs something in the last three days. The visit where they first shared their details doesn't count; a contact is only Warm once they come back. Contacts with nothing recent have no badge at all. It only counts visits SwiftCard knows were them (they shared from that device, or opened a text or email SwiftCard sent them for you), and never counts a visit you marked \"Wrong person?\". On the Free plan the list says how many contacts are warming up, without naming them. The old \"Recent Activity\" sort is now called \"Follow-up Date\", which is what it always sorted by.",
   },
   {
     id: "follow-up-automations",

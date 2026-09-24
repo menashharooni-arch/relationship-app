@@ -59,7 +59,7 @@ vi.mock("@/lib/supabase-admin", () => ({
         return { select: () => q };
       }
       if (table === "leads") {
-        // The contacts behind held return alerts: status + tags decide whether
+        // The contacts behind held return alerts: status decides whether
         // the morning may name them (2026-09-23 audit).
         return { select: () => ({ in: async () => ({ data: leads }) }) };
       }
@@ -123,19 +123,11 @@ describe("a silenced contact is not announced at 8am", () => {
     card_owner: "dana-card", lead_id: leadId, created_at: "2026-09-11T03:00:00.000Z",
   });
 
-  it("a contact muted in the contact panel", async () => {
-    notifications = [returned("L1")];
-    leads = [{ id: "L1", status: "new", tags: ["alerts-muted"], created_at: "2026-09-01T00:00:00.000Z" }];
-    const res = await run();
-    expect(await res.json()).toMatchObject({ nothingHeld: 1, sent: 0 });
-    expect(pushes).toHaveLength(0);
-  });
-
   it("a contact marked Not interested or Closed", async () => {
     for (const status of ["not_interested", "dissolved"]) {
       pushes.length = 0;
       notifications = [returned("L1")];
-      leads = [{ id: "L1", status, tags: [], created_at: "2026-09-01T00:00:00.000Z" }];
+      leads = [{ id: "L1", status, created_at: "2026-09-01T00:00:00.000Z" }];
       await run();
       expect(pushes).toHaveLength(0);
     }
@@ -144,7 +136,7 @@ describe("a silenced contact is not announced at 8am", () => {
   it("under 'Only Hot contacts', a contact who isn't Hot — while a Hot one still comes", async () => {
     profile = { plan: "pro", customization: { _push: { timezone: "America/New_York", returningHotOnly: true } } };
     notifications = [returned("L1")];
-    leads = [{ id: "L1", status: "new", tags: [], created_at: "2026-09-01T00:00:00.000Z" }];
+    leads = [{ id: "L1", status: "new", created_at: "2026-09-01T00:00:00.000Z" }];
     await run();
     expect(pushes).toHaveLength(0);
 
@@ -160,18 +152,18 @@ describe("a silenced contact is not announced at 8am", () => {
       returned("L1"),
       { type: "card_viewed", title: "Card viewed", body: "Someone viewed your card.", card_owner: "dana-card", created_at: "2026-09-11T05:00:00.000Z" },
     ];
-    leads = [{ id: "L1", status: "new", tags: [], created_at: "2026-09-01T00:00:00.000Z" }];
+    leads = [{ id: "L1", status: "new", created_at: "2026-09-01T00:00:00.000Z" }];
     await run();
     expect(pushes).toHaveLength(1);
     expect(pushes[0]).toMatchObject({ category: "contact_return", body: "Plus 1 more while you were away." });
   });
 
-  it("a muted contact drops out of the count too — the lead still goes, alone", async () => {
+  it("a Closed contact drops out of the count too — the lead still goes, alone", async () => {
     notifications = [
       { type: "new_lead", title: "New contact: Dana Whitfield", body: "Dana Whitfield shared their info with you.", card_owner: "dana-card", created_at: "2026-09-11T02:40:00.000Z" },
       returned("L1"),
     ];
-    leads = [{ id: "L1", status: "new", tags: ["alerts-muted"], created_at: "2026-09-01T00:00:00.000Z" }];
+    leads = [{ id: "L1", status: "dissolved", created_at: "2026-09-01T00:00:00.000Z" }];
     await run();
     expect(pushes).toHaveLength(1);
     expect(pushes[0]).toMatchObject({ category: "new_lead", body: "Dana Whitfield shared their info with you." });

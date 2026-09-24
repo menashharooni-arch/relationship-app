@@ -22,7 +22,6 @@ describe("a lead locked behind the Free cap cannot be reached by id", () => {
     "src/app/api/leads/[id]/message/route.ts",
     "src/app/api/leads/share-card/route.ts",
     "src/app/api/sms/send/route.ts",
-    "src/app/api/leads/[id]/link/route.ts",
   ])("%s refuses a locked lead to a Free account", (f) => {
     expect(read(f)).toMatch(/isLockedLead\(lead\) && !\(await isPaidUser\(user\.id\)\)/);
   });

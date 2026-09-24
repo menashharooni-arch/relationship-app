@@ -1,27 +1,25 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { mergeClientTags, RESERVED_LEAD_TAG } from "@/lib/lead-tags";
-import { ALERTS_MUTED_TAG } from "@/lib/contact-return-notify";
 
 // Warm-lead plan PR B2: the in-app side of a returning-contact alert.
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
-describe("the per-contact mute", () => {
-  it("is a reserved tag: a tag edit can neither set it nor drop it", () => {
-    expect(RESERVED_LEAD_TAG.test(ALERTS_MUTED_TAG)).toBe(true);
-    expect(mergeClientTags(["vip", ALERTS_MUTED_TAG], [])).toEqual(["vip"]);
-    expect(mergeClientTags(["vip"], [ALERTS_MUTED_TAG])).toEqual([ALERTS_MUTED_TAG, "vip"]);
-  });
-
-  it("has its own owner-scoped route that touches only that tag", () => {
-    const src = read("src/app/api/leads/[id]/alerts/route.ts");
-    expect(src).toMatch(/ownsLead\(usernames, lead\)/);
-    expect(src).toMatch(/filter\(\(t\) => t !== ALERTS_MUTED_TAG\)/);
-  });
-
-  it("is a switch on the contact, saved on tap", () => {
-    expect(read("src/components/ContactsClient.tsx")).toMatch(/<ContactAlertsToggle key=\{selected\.id\} leadId=\{selected\.id\} initiallyMuted=\{\(selected\.tags \?\? \[\]\)\.includes\("alerts-muted"\)\} \/>/);
+// Owner decision 2026-09-23: the contact panel has no "Copy personal link"
+// line and no "Alert me when they come back" switch. Every returning contact
+// alerts (unless Not interested / Closed); links SwiftCard sends for you still
+// carry the contact's code on their own.
+describe("the contact panel stays without the personal-link line and the per-contact switch", () => {
+  it("renders neither, and neither component or route exists", () => {
+    const panel = read("src/components/ContactsClient.tsx");
+    expect(panel).not.toMatch(/CopyPersonalLinkButton|ContactAlertsToggle|Copy personal link|Alert me when they come back/);
+    for (const f of [
+      "src/components/CopyPersonalLinkButton.tsx",
+      "src/components/ContactAlertsToggle.tsx",
+      "src/app/api/leads/[id]/link/route.ts",
+      "src/app/api/leads/[id]/alerts/route.ts",
+    ]) expect(existsSync(join(process.cwd(), f))).toBe(false);
   });
 });
 
