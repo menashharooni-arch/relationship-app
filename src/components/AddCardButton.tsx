@@ -135,7 +135,7 @@ export function SecondCardSheet({
           <div className="mt-5">
             <ProOfferBlock
               trialEligible={trialEligible}
-              blurb="Unlimited cards, every finish and colour, photo and video backgrounds, unlimited links, and your cards without the SwiftCard badge."
+              blurb="Unlimited cards, every finish and colour, photo and video backgrounds, unlimited links, and no “Made with swiftcard.me” on your Swift Links page."
             />
           </div>
         </div>

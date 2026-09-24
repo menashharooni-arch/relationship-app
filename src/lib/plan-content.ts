@@ -59,7 +59,11 @@ export const PLAN_FEATURES = {
     // and undersold the thing being charged for. The designer's actual claim is
     // that a template is a starting point rather than a fixed choice.
     "Custom card designer — eight Pro-only looks, or scan your printed card and we'll rebuild it",
-    "No SwiftCard promos — your card page and follow-up emails carry your brand, not ours",
+    // Not "your card page": the "Create your free SwiftCard" button is on every
+    // card, Pro included (owner request 2026-08-25, later than this line was
+    // first written). What Pro really drops is the "Made with swiftcard.me"
+    // line on Swift Links and the "Sent with SwiftCard" line in follow-ups.
+    "No SwiftCard promos in your follow-up emails or on your Swift Links page — they carry your brand, not ours",
     "Automated follow-up sequences — email + text",
     "Full analytics: who viewed, when & where",
     "Premium Swift Links: video previews & featured tiles",

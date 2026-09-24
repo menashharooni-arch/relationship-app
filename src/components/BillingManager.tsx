@@ -897,7 +897,11 @@ function CancelModal({ sub, onClose, onDone }: {
           </ul>
           <p className="text-gray-500 text-[0.6875rem] mb-4">{sub.plan === "office"
             ? "Nothing is deleted — re-subscribe to Office anytime and your team comes back as it was, company branding included (as many people as your seats allow)."
-            : "Nothing is deleted — re-subscribe anytime and it all switches back on instantly."}</p>
+            // Not "it all switches back on": when Pro ends and they choose
+            // Continue on Free, the card's DESIGN converts to the closest free
+            // look for good (owner rule — content is never deleted, design
+            // converts; see api/account/choose-plan). Say what is true.
+            : "Nothing is deleted — your cards, links and contacts all stay, and re-subscribing switches every Pro feature back on. If you continue on Free, your card's design moves to the closest free look."}</p>
           {err && <p className="text-red-400 text-xs mb-3">{err}</p>}
           {/* Primary emphasis on staying (the profitable choice); downgrade is a
               plain, always-available secondary action — clear, not hidden. */}

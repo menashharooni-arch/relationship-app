@@ -147,7 +147,7 @@ export default function ProRequiredDialog({
           <div className="mt-5">
             <ProOfferBlock
               trialEligible={trialEligible}
-              blurb="Every finish, any color, photo and video backgrounds, unlimited links, and your card without the SwiftCard badge."
+              blurb="Every finish, any color, photo and video backgrounds, unlimited links, and no “Made with swiftcard.me” on your Swift Links page."
             />
           </div>
         </div>
