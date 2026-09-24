@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { nudgeCopy } from "@/lib/referral";
 import { useIsNativeApp } from "@/lib/platform";
 import { getVisitorInfo } from "@/lib/visitor";
+import SwiftLinksPromoSheet from "@/components/SwiftLinksPromoSheet";
 
 // Does the visitor already have a SwiftCard account? The "create your free
 // card" nudge must never show to an existing customer (owner request). The
@@ -76,56 +77,46 @@ function trackNudge(cardUsername: string | undefined, eventType: string, source:
   }).catch(() => {});
 }
 
-// The hero: a tilted, floating "your card" mockup with a shine sweep on the
-// Swift Links indigo gradient (same visual family as the links promo sheet) —
-// the popup SHOWS the product (the Blinq loop: you just used a card this
-// smooth, here's yours). Pure CSS/SVG, no assets.
+// The hero: a REAL SwiftCard, tilted and floating on the Swift Links indigo
+// gradient (same visual family as the links promo sheet) — the popup SHOWS the
+// product (the Blinq loop: you just used a card this smooth, here's yours).
+//
+// It used to be a hand-drawn stand-in ("YOU", "Your Name", grey bars). Owner,
+// 2026-09-23: "make the design example card on that pop-up much nicer and more
+// realistic" — so it is the real Portrait Pro template with a designed persona
+// (components/SignupCardExample), loaded lazily and warmed while the page is
+// idle, so it is ready long before anyone triggers the invite. Until it has
+// loaded, a card-shaped glass slot holds the space: the popup never jumps.
+const SignupCardExample = lazy(() => import("@/components/SignupCardExample"));
+
+/** The card's width; a SwiftCard is 1.75:1. Capped on the narrowest phones. */
+const EXAMPLE_W = 244;
+
 function HeroCardMockup() {
   return (
-    <div className="relative flex justify-center pt-7 pb-5" aria-hidden="true">
+    // pt-14 keeps the tilted card clear of the ✕ (which ends 48px down) at
+    // every width; px-9 keeps it inside the panel on a 320px phone.
+    <div className="relative flex justify-center pt-14 pb-8 px-9" aria-hidden="true">
       {/* Color bloom the card floats on */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-32 rounded-full bg-gradient-to-r from-sky-400/30 via-fuchsia-400/25 to-amber-300/20 blur-3xl" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-36 rounded-full bg-gradient-to-r from-sky-400/30 via-fuchsia-400/30 to-amber-300/20 blur-3xl" />
 
       {/* Sparkles */}
-      <svg viewBox="0 0 24 24" className="absolute left-[15%] top-5 w-3.5 h-3.5 text-sky-300 sc-twinkle"><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
-      <svg viewBox="0 0 24 24" className="absolute right-[14%] bottom-6 w-2.5 h-2.5 text-fuchsia-300 sc-twinkle" style={{ animationDelay: "0.7s" }}><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
+      <svg viewBox="0 0 24 24" className="absolute left-[9%] top-6 w-3.5 h-3.5 text-sky-300 sc-twinkle"><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
+      <svg viewBox="0 0 24 24" className="absolute right-[8%] bottom-7 w-2.5 h-2.5 text-fuchsia-300 sc-twinkle" style={{ animationDelay: "0.7s" }}><path fill="currentColor" d="M12 0l2.4 9.6L24 12l-9.6 2.4L12 24l-2.4-9.6L0 12l9.6-2.4z"/></svg>
 
       {/* The card */}
-      <div className="sc-float relative w-[172px] -rotate-3">
-        {/* back card for depth */}
-        <div className="absolute inset-0 rotate-[5deg] rounded-2xl bg-white/10" />
-        <div className="relative rounded-2xl bg-white shadow-[0_18px_40px_-10px_rgba(8,8,20,0.6)] overflow-hidden">
+      <div className="sc-float relative" style={{ width: EXAMPLE_W, maxWidth: "100%" }}>
+        {/* a second card behind it, for depth */}
+        <div className="absolute inset-0 translate-x-2.5 translate-y-2 rotate-[5deg] rounded-[14px] bg-white/10 ring-1 ring-white/10" />
+        <div
+          className="relative rounded-[14px] overflow-hidden ring-1 ring-white/25"
+          style={{ boxShadow: "0 26px 50px -14px rgba(8,8,20,0.75), 0 8px 18px -6px rgba(8,8,20,0.35)" }}
+        >
           {/* shine sweep */}
           <div className="sc-shine pointer-events-none absolute inset-0 z-10" />
-          <div className="relative h-11 bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500">
-            {/* the brand bolt, quietly in the band's corner */}
-            <svg viewBox="0 0 24 24" className="absolute right-2 top-2 w-3.5 h-3.5 text-white/80"><path fill="currentColor" d="M13 2.5L4.5 13.5h6l-1.5 8 8.5-11h-6l1.5-8z"/></svg>
-          </div>
-          <div className="px-3.5 pb-3.5">
-            {/* relative: the banner above is positioned (for its bolt), so
-                without this the avatar's overlap paints UNDER the band. */}
-            <div className="relative w-11 h-11 -mt-5 rounded-full p-[2px] bg-gradient-to-tr from-blue-600 via-fuchsia-500 to-amber-400 shadow-md">
-              <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-                <span className="text-[0.625rem] font-black bg-gradient-to-r from-blue-700 to-sky-500 bg-clip-text text-transparent">YOU</span>
-              </div>
-            </div>
-            <p className="mt-1.5 text-[0.6875rem] font-extrabold text-slate-900 leading-tight tracking-tight">Your Name</p>
-            <p className="text-[0.53125rem] text-slate-400 font-medium">Your Business</p>
-            <div className="mt-2.5 flex items-center justify-between">
-              <div className="h-[15px] px-2 rounded-full bg-blue-600 flex items-center">
-                <span className="text-[0.4375rem] font-bold text-white tracking-wide">Save Contact</span>
-              </div>
-              {/* mini QR */}
-              <svg viewBox="0 0 14 14" className="w-[18px] h-[18px] text-slate-800">
-                <rect x="0" y="0" width="5" height="5" fill="currentColor" rx="1" />
-                <rect x="9" y="0" width="5" height="5" fill="currentColor" rx="1" />
-                <rect x="0" y="9" width="5" height="5" fill="currentColor" rx="1" />
-                <rect x="7" y="7" width="2.5" height="2.5" fill="currentColor" />
-                <rect x="11" y="10" width="3" height="3" fill="currentColor" />
-                <rect x="9" y="11.5" width="1.5" height="1.5" fill="currentColor" />
-              </svg>
-            </div>
-          </div>
+          <Suspense fallback={<div className="w-full bg-white/10" style={{ aspectRatio: "1.75 / 1", minHeight: 1 }} />}>
+            <SignupCardExample />
+          </Suspense>
         </div>
       </div>
     </div>
@@ -143,7 +134,14 @@ function HeroCardMockup() {
 //
 // Design: a hero moment, not a banner — glowing product mockup up top, bold
 // centered headline, gradient CTA with a shine sweep, trust row underneath.
-export default function SignupNudgeHost({ cardUsername }: { cardUsername?: string } = {}) {
+// variant "links" — a Swift Links page. Every invite there is the SAME sheet the
+// page's corner badge opens (components/SwiftLinksPromoSheet; owner,
+// 2026-09-23: "the exact same pop-up as what's in the icon on the top left").
+// The when-to-show rules below are unchanged; only what is shown differs.
+export default function SignupNudgeHost({
+  cardUsername,
+  variant = "card",
+}: { cardUsername?: string; variant?: "card" | "links" } = {}) {
   const [source, setSource] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -152,6 +150,17 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
   // count/track, since the slot is only written at render time now.
   const deciding = useRef(false);
   const native = useIsNativeApp();
+
+  // Warm the example card while the page is idle, so the invite never opens
+  // on an empty slot. A Swift Links page never shows it, so never loads it.
+  useEffect(() => {
+    if (variant !== "card" || native) return;
+    const warm = () => { void import("@/components/SignupCardExample"); };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (w.requestIdleCallback) { w.requestIdleCallback(warm); return; }
+    const t = setTimeout(warm, 1500);
+    return () => clearTimeout(t);
+  }, [variant, native]);
 
   useEffect(() => {
     async function onNudge(e: Event) {
@@ -198,6 +207,18 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
   // regardless of login state.
   if (!source || native) return null;
   const copy = nudgeCopy(source);
+  const ctaHref = `/cards/new?src=${encodeURIComponent(source)}`;
+
+  if (variant === "links") {
+    return (
+      <SwiftLinksPromoSheet
+        onClose={() => setSource(null)}
+        ctaHref={ctaHref}
+        onCta={() => trackNudge(cardUsername, "nudge_cta_click", source)}
+        exploreHref={`/?src=${encodeURIComponent(source)}`}
+      />
+    );
+  }
 
   function dismiss() {
     setClosing(true);
@@ -242,11 +263,12 @@ export default function SignupNudgeHost({ cardUsername }: { cardUsername?: strin
         </div>
 
         <div className="px-6 pt-4 pb-5 text-center">
-          <p className="text-slate-900 text-[1.3125rem] font-extrabold leading-tight tracking-tight">{copy.title}</p>
+          {/* text-balance: no headline ends on one orphaned word ("…could be / you"). */}
+          <p className="text-slate-900 text-[1.3125rem] font-extrabold leading-tight tracking-tight text-balance">{copy.title}</p>
           <p className="text-slate-500 text-[0.84375rem] mt-1.5 leading-snug max-w-[300px] mx-auto">{copy.sub}</p>
 
           <a
-            href={`/cards/new?src=${encodeURIComponent(source)}`}
+            href={ctaHref}
             // No wipe on click: same as "Get started free" in the site header.
             // The builder asks "Continue your card / Start a new card" itself
             // when an unfinished card exists (owner rule 2026-09-16).

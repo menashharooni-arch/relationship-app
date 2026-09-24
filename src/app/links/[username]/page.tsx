@@ -272,7 +272,7 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
       {/* The RESOLVED slug, not the raw route param — a case/alias divergence
           would otherwise record rows under a key the dashboard never reads. */}
       {!isEmbed && !isOwnerView && <CardEventTracker username={(cardOrLegacy.username as string) || username} source={source} viewSurface="links" />}
-      {!isEmbed && !isOwnerView && <SignupNudgeHost cardUsername={(cardOrLegacy.username as string) || username} />}
+      {!isEmbed && !isOwnerView && <SignupNudgeHost cardUsername={(cardOrLegacy.username as string) || username} variant="links" />}
       <SwiftLinkProfile
         name={cardOrLegacy.name || username}
         username={username}
