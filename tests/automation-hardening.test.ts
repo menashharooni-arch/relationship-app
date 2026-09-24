@@ -52,7 +52,9 @@ describe("the follow-up sender cannot send the same message twice", () => {
   it("releases the claim only on a TRANSIENT failure", () => {
     // opted_out / no_contact are final: re-trying them forever would be its own
     // bug. Anything else is released so a later run retries.
-    expect(src).toMatch(/r\.status !== "opted_out" && r\.status !== "no_contact"/);
+    // …and it is recorded that they did NOT go, so the contact panel never
+    // says "Sent" for them (2026-09-23 Activity & Messages audit).
+    expect(src).toMatch(/else if \(r\.status === "opted_out" \|\| r\.status === "no_contact"\) \{[\s\S]{0,120}?await markNotSent\(/);
     expect(src).toMatch(/stampStep\(supabase, seqLead\.id as string, item, null\)/);
   });
 

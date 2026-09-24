@@ -1,3 +1,4 @@
+import { localDayKey } from "@/lib/tz-days";
 // ── Office analytics — pure business-metric calculations ────────────────────
 // Kept out of office-analytics.ts (which does the DB/RPC calls) so the actual
 // formulas are reviewable and unit-testable in isolation, matching this
@@ -25,17 +26,20 @@ export type DailyPoint = { date: string; views: number };
 // Zero-fills every UTC day in [sinceIso, untilIso) missing from `rows`, so a
 // day-bucketed chart always renders an evenly spaced series — the aggregate
 // SQL functions only return rows for days that actually had views.
-export function fillDateRange(rows: DailyPoint[], sinceIso: string, untilIso: string): DailyPoint[] {
+export function fillDateRange(rows: DailyPoint[], sinceIso: string, untilIso: string, tz = "UTC"): DailyPoint[] {
   const byDate = new Map(rows.map((r) => [r.date, r.views]));
-  const since = new Date(sinceIso);
-  const until = new Date(untilIso);
-  let cursor = Date.UTC(since.getUTCFullYear(), since.getUTCMonth(), since.getUTCDate());
-  const end = Date.UTC(until.getUTCFullYear(), until.getUTCMonth(), until.getUTCDate());
+  // One point per LOCAL day in the range (the same calendar the range and the
+  // day totals use). Stepping from midday keeps a 23- or 25-hour DST day from
+  // skipping or repeating a date.
+  const DAY = 24 * 60 * 60 * 1000;
+  const end = new Date(untilIso).getTime();
   const out: DailyPoint[] = [];
-  while (cursor < end) {
-    const date = new Date(cursor).toISOString().slice(0, 10);
+  const seen = new Set<string>();
+  for (let t = new Date(sinceIso).getTime() + DAY / 2; t < end; t += DAY) {
+    const date = localDayKey(new Date(t), tz);
+    if (seen.has(date)) continue;
+    seen.add(date);
     out.push({ date, views: byDate.get(date) ?? 0 });
-    cursor += 24 * 60 * 60 * 1000;
   }
   return out;
 }

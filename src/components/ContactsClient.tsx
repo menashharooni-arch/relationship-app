@@ -40,7 +40,7 @@ type Lead = {
   where_met: string | null;
   convo_details: string | null;
   message: string | null;
-  follow_up_sequence?: { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null; anchor?: string }[] | null;
+  follow_up_sequence?: { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null; anchor?: string; not_sent?: string }[] | null;
 };
 
 type CardEvent = {
@@ -118,8 +118,11 @@ function formatDate(iso: string) {
 }
 
 function formatShort(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
+  const d = new Date(iso);
+  // A different year says so — "Sep 23, 2:15 PM" a year apart looked identical.
+  return d.toLocaleString("en-US", {
     month: "short", day: "numeric",
+    ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" as const } : {}),
     hour: "numeric", minute: "2-digit",
   });
 }
@@ -199,9 +202,17 @@ function outDeliveryLabel(status: string | null | undefined): { text: string; to
     case "delivered":      return { text: "Delivered", tone: "text-emerald-500" };
     case "undelivered":    return { text: "Not delivered", tone: "text-red-400" };
     case "failed":         return { text: "Failed", tone: "text-red-400" };
-    case "not_configured": return { text: "Not sent", tone: "text-amber-400" };
+    case "bounced":        return { text: "Not delivered", tone: "text-red-400" };
+    case "not_configured":
+    case "canceled":
+    case "cancelled":      return { text: "Not sent", tone: "text-amber-400" };
+    case "accepted":
+    case "scheduled":
     case "queued":
     case "sending":        return { text: "Sending", tone: "text-gray-600" };
+    // "sent" (Twilio accepted it / the mail service took it) and rows written
+    // before statuses existed. Anything that did NOT go never lands here: a
+    // step that was skipped writes no row at all.
     default:               return { text: "Sent", tone: "text-gray-600" };
   }
 }
@@ -376,9 +387,10 @@ export default function ContactsClient({
     if (!touring) return;
 
     const open = (c: Lead) => {
-      setSelected(c);
+      // Through selectLead, so its Activity & Messages load like any contact
+      // opened by hand — then onto the info tab the tour walks through.
+      void selectLead(c);
       setDetailTab("info");
-      setWhereMetText(c.where_met ?? "");
     };
 
     const demo = leads.find((l) => (l.tags ?? []).includes("demo")) ?? leads[0];
@@ -607,6 +619,14 @@ export default function ContactsClient({
   // where the answer could have changed AND is about to be read.
   const refreshRef = useRef(refreshActivity);
   useEffect(() => { refreshRef.current = refreshActivity; });
+  // Opened straight onto a contact (?lead= — a push, a notification row): it
+  // was selected without selectLead, so its messages and activity were never
+  // fetched and the panel showed nothing but the arrival line.
+  useEffect(() => {
+    if (initialSelectedId && selected?.id === initialSelectedId) void refreshRef.current();
+    // Mount only: this is the one contact selected without a click.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (!selected?.id) return;
     const onVisible = () => {
@@ -1469,7 +1489,7 @@ export default function ContactsClient({
                   { ch: "email" as const, label: "Email", can: !!selected.email, word: "email", noun: "emails" },
                   { ch: "sms" as const,   label: "Text",  can: !!selected.phone, word: "text",  noun: "texts" },
                 ]).map(({ ch, label, can, word, noun }) => {
-                  const activeItems = ((selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null; anchor?: string }[])
+                  const activeItems = ((selected.follow_up_sequence ?? []) as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at?: string | null; anchor?: string; not_sent?: string }[])
                     .filter((i) => (i.channel ?? "email") === ch)
                     .sort((a, b) => a.day - b.day);
                   const isDrafting = draftCh === ch;
@@ -1646,9 +1666,13 @@ export default function ContactsClient({
                               <div key={i} className="bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2">
                                 <div className="flex items-center justify-between gap-2 mb-1">
                                   <span suppressHydrationWarning className="text-[0.625rem] font-semibold text-gray-500">
-                                    {it.sent_at ? `Sent ${formatShort(it.sent_at)}` : `Sends ${sendWhen(it.anchor ?? selected.created_at, it.day)}`}
+                                    {it.not_sent
+                                      ? `Not sent — ${it.not_sent === "opted_out" ? "they unsubscribed" : ch === "sms" ? "no phone number" : "no email address"}`
+                                      : it.sent_at ? `Sent ${formatShort(it.sent_at)}` : `Sends ${sendWhen(it.anchor ?? selected.created_at, it.day)}`}
                                   </span>
-                                  {it.sent_at
+                                  {it.not_sent
+                                    ? <span className="text-[0.625rem] text-amber-500/90 shrink-0">not sent</span>
+                                    : it.sent_at
                                     ? <span className="text-[0.625rem] text-emerald-400 shrink-0">✓</span>
                                     : chPaused
                                     ? <span className="text-[0.625rem] text-amber-500/90 shrink-0">paused</span>
@@ -1683,7 +1707,13 @@ export default function ContactsClient({
                       {/* COMPLETED — all sent; reset to run a fresh one */}
                       {!isDrafting && allSent && (
                         <div className="mt-3 pt-3 border-t border-gray-800 flex items-center justify-between gap-3">
-                          <p className="text-emerald-400 text-xs">✓ All {activeItems.length} {noun} sent.</p>
+                          {(() => {
+                            // "All sent" only when all of them WENT.
+                            const notSent = activeItems.filter((i) => i.not_sent).length;
+                            return notSent
+                              ? <p className="text-amber-400 text-xs">Finished — {activeItems.length - notSent} sent, {notSent} not sent.</p>
+                              : <p className="text-emerald-400 text-xs">✓ All {activeItems.length} {noun} sent.</p>;
+                          })()}
                           <button onClick={() => resetChannel(ch)} disabled={!can} className="text-xs font-semibold text-gray-300 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-full transition-colors disabled:opacity-40">Reset ↺</button>
                         </div>
                       )}
@@ -1727,10 +1757,29 @@ export default function ContactsClient({
                   // (same tap) — we stopped emitting it, and we hide the historical
                   // ones so old conversations show one "saved your contact" line too.
                   if (ev.event_type === "clicked_save_contact") continue;
-                  items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: eventLabel(ev).icon, text: ev.lead_confidence === "forwarded" ? `Your link to ${fname} was opened on another device` : `${fname} ${activityPhrase(ev) ?? ev.event_type.replace(/_/g, " ")}`, source: ev.source });
+                  // A link the owner sent to this contact, opened on a device
+                  // that isn't theirs (forwarded): it says WHO did WHAT — a view,
+                  // a tap, a download are different things, not three copies of
+                  // "was opened".
+                  const phrase = activityPhrase(ev) ?? ev.event_type.replace(/_/g, " ");
+                  const text = ev.lead_confidence === "forwarded"
+                    ? (ev.event_type === "viewed_card" ? `Your link to ${fname} was opened on another device` : `Someone with your link to ${fname} ${phrase}`)
+                    : `${fname} ${phrase}`;
+                  items.push({ at: ev.created_at, key: `ev-${ev.id}`, kind: "event", icon: eventLabel(ev).icon, text, source: ev.source });
                 }
-                items.push({ at: selected.created_at, key: "shared", kind: "event", icon: "✓", text: `${fname} shared their info with you`, source: selected.source });
-                if (selected.message) items.push({ at: selected.created_at, key: "note", kind: "in", body: selected.message });
+                // How this contact ARRIVED — only what really happened. It used
+                // to say "{name} shared their info with you" on EVERY contact,
+                // including ones the owner typed in or scanned, and the sample.
+                const isSample = (selected.tags ?? []).includes("demo");
+                const addedByOwner = selected.source === "manual";
+                items.push(isSample
+                  ? { at: selected.created_at, key: "shared", kind: "event", icon: "✦", text: `Sample contact — ${fname} isn't a real person. It's here to show how a shared contact looks.`, source: null }
+                  : addedByOwner
+                    ? { at: selected.created_at, key: "shared", kind: "event", icon: "+", text: `You added ${fname} to your contacts`, source: null }
+                    : { at: selected.created_at, key: "shared", kind: "event", icon: "✓", text: `${fname} shared their info with you`, source: selected.source });
+                // The note they typed when they shared — theirs, so it is only
+                // shown as coming from them when they did share.
+                if (selected.message && !addedByOwner) items.push({ at: selected.created_at, key: "note", kind: "in", body: selected.message });
                 for (const m of convoMessages) {
                   items.push(m.direction === "in"
                     ? { at: m.created_at, key: `m-${m.id}`, kind: "in", body: m.body }

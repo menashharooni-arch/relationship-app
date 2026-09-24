@@ -145,7 +145,7 @@ describe("where the sheet can be requested from", () => {
     expect(t).toMatch(/maybeAskForReview/);
     expect(t).toMatch(/setTimeout/);
     expect(t).not.toMatch(/onClick/);
-    expect(read("src/app/dashboard/page.tsx")).toMatch(/<ReviewPromptTrigger hasLead=\{visibleLeads\.length > 0\} \/>/);
+    expect(read("src/app/dashboard/page.tsx")).toMatch(/<ReviewPromptTrigger hasLead=\{realLeadCount > 0\} \/>/);
   });
 
   it("dashboard shares of your own card are the ones that count", () => {

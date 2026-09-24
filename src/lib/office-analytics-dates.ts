@@ -1,10 +1,13 @@
-// ── Office analytics date ranges — UTC calendar days throughout ─────────────
-// No per-office timezone setting exists anywhere in the app (every other
-// date-bucket in the codebase, e.g. office-team.ts's monthStartIso, already
-// uses UTC), so this dashboard follows the same convention rather than
-// inventing a new one. `until` is always EXCLUSIVE — the start of the day
-// after the range's last included day — so every query can filter with a
-// plain `< until` and never needs a time-of-day component.
+// ── Office analytics date ranges — the viewer's LOCAL calendar days ─────────
+// These were UTC days, so for a New York office "today" began at 8pm the
+// evening before and every evening's views landed on the next day's bar —
+// unlike the personal dashboard, which has always used the browser's time zone
+// (sc_tz, lib/tz-days). Given `tz` they now do the same; without it (or for a
+// custom range, whose dates arrive as plain days) they stay UTC.
+// `until` is always EXCLUSIVE — the start of the day after the range's last
+// included day — so every query can filter with a plain `< until`.
+
+import { startOfLocalDayUtc } from "@/lib/tz-days";
 
 export type DateRangePreset = "7d" | "30d" | "90d" | "custom";
 export type DateRange = { since: string; until: string };
@@ -21,7 +24,15 @@ export function resolveDateRange(
   preset: DateRangePreset,
   now: Date,
   custom?: { since: string; until: string },
+  tz?: string,
 ): DateRange {
+  if (tz && !(preset === "custom" && custom)) {
+    const days = preset === "7d" ? 7 : preset === "90d" ? 90 : 30;
+    return {
+      since: startOfLocalDayUtc(days - 1, tz, now).toISOString(),
+      until: startOfLocalDayUtc(-1, tz, now).toISOString(),
+    };
+  }
   const todayStart = utcDayStart(now);
   const tomorrowStart = todayStart + DAY_MS;
 

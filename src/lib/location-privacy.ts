@@ -93,7 +93,16 @@ export function teaseLocation(text: string): string {
  * real place name never reaches the browser.
  */
 export function redactPlaces(text: string): string {
-  return text.replace(
+  // The WHOLE phrase becomes one shape first. Blocking only the name left the
+  // words around it — "near ████" for a city, "in the ████ area" for a region,
+  // "in the ████" for some countries — which told a Free account how precise
+  // the location was and hinted at the country (2026-09-23 analytics audit).
+  // Same idea as the lock screen's TEASED_PLACE: there is a place, nothing more.
+  const phrased = text.replace(
+    new RegExp(`${PHRASE_MARK}[^${PHRASE_MARK}]*${PHRASE_MARK}`, "g"),
+    (frag) => (frag.includes(PLACE_MARK) ? markPhrase(` in ${markPlace(REDACTED_PLACE)}`) : frag),
+  );
+  return phrased.replace(
     new RegExp(`${PLACE_MARK}([^${PLACE_MARK}]*)${PLACE_MARK}`, "g"),
     () => markPlace(REDACTED_PLACE),
   );

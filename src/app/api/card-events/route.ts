@@ -780,12 +780,12 @@ export async function GET(req: NextRequest) {
     // stay server-side and we can match on more than one of them. `visitor_id`
     // remains accepted so an older client keeps working.
     let visitorId = visitorIdParam;
-    let email: string | null = null;
-    let phone: string | null = null;
+    let leadCreatedAt: string | null = null;
     if (leadId) {
+      if (!/^[0-9a-f-]{36}$/i.test(leadId)) return NextResponse.json([], { status: 200 });
       const { data: lead } = await admin
         .from("leads")
-        .select("visitor_id, email, phone, card_owner, tags")
+        .select("visitor_id, email, phone, card_owner, tags, created_at")
         .eq("id", leadId)
         .maybeSingle();
       // Scoped to this owner's cards — a lead id from someone else's account
@@ -799,19 +799,24 @@ export async function GET(req: NextRequest) {
         return NextResponse.json([], { status: 200 });
       }
       visitorId = (lead.visitor_id as string | null) ?? null;
-      email = (lead.email as string | null) ?? null;
-      phone = (lead.phone as string | null) ?? null;
+      leadCreatedAt = (lead.created_at as string | null) ?? null;
     }
 
-    // Three narrow queries rather than one .or(): the values are user-supplied
-    // emails and phone numbers, and PostgREST's or() takes a comma-separated
-    // filter string, so a comma or a quote inside one would change the query's
-    // shape rather than just fail to match.
+    // WHAT COUNTS AS THIS CONTACT'S ACTIVITY (2026-09-23 audit: the section
+    // "shows a lot of false information"). Only evidence the SERVER holds:
+    //   1. events stamped with this lead's id when they happened — the join
+    //      that already honours "wrong person" and a browser handed to someone
+    //      else (lib/known-contact.ts);
+    //   2. events from a browser still bound to them (not superseded, not
+    //      marked wrong, not a forwarded link), from shortly before they shared
+    //      onward — never an event already stamped as ANOTHER contact's, and
+    //      never the days-old history of a shared or borrowed device;
+    //   3. for a contact from before bindings existed, the browser they shared
+    //      from, under the same two limits.
+    // Matching the email or phone a BROWSER claimed about itself is gone: those
+    // came from a shared localStorage blob and put one person's views under
+    // another's name.
     //
-    // Why more than visitor_id at all: that id is per-browser. The same person
-    // who shared their details in Safari and later opens the link from
-    // Messages is two ids, and matching only the first would show their
-    // conversation as empty. Matching what they TOLD us survives the change.
     // `surface` tells the conversation timeline whether a view was the card or
     // the Swift Links page — without it every links view read "Viewed your
     // card" while the owner's notification said "Swift Links viewed". Requested
@@ -828,36 +833,45 @@ export async function GET(req: NextRequest) {
       const probe = await admin.from("card_events").select("lead_confidence").limit(1);
       if (!probe.error) cols = `${cols}, lead_confidence, target_label`;
     }
-    // Every browser the contact is BOUND to (lib/known-contact.ts): the one
-    // they shared from, plus any that opened a link the owner sent. Events
-    // from those browsers before the binding existed are theirs too.
-    let boundVisitorIds: string[] = [];
+    // The visit that led to sharing starts before the share itself.
+    const LEAD_IN_MS = 2 * 60 * 60 * 1000;
+    const since = (iso: string | null | undefined, leadIn: boolean) =>
+      iso ? new Date(new Date(iso).getTime() - (leadIn ? LEAD_IN_MS : 0)).toISOString() : null;
+    const notAnotherContact = leadId ? `lead_id.is.null,lead_id.eq.${leadId}` : null;
+
+    const lookups: PromiseLike<{ data: unknown }>[] = [];
     if (leadId) {
-      // Forwarded-link browsers (link_device_index > 1) are NOT the contact:
-      // their events reach this timeline only through their lead_id stamp,
-      // which carries lead_confidence "forwarded" and is labelled as the link.
+      lookups.push(admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("lead_id", leadId));
+
       const { data: bindings } = await admin
         .from("contact_devices")
-        .select("visitor_id, bound_via, link_device_index")
-        .eq("lead_id", leadId)
-        .is("superseded_at", null)
-        .is("wrong_at", null);
-      boundVisitorIds = [...new Set(
-        (bindings ?? [])
-          .filter((b) => !(b.bound_via === "link" && ((b.link_device_index as number | null) ?? 1) > 1))
-          .map((b) => b.visitor_id as string),
-      )].filter((v) => v !== visitorId);
+        .select("visitor_id, bound_via, link_device_index, bound_at, superseded_at, wrong_at")
+        .eq("lead_id", leadId);
+      const active = (bindings ?? []).filter((bd) =>
+        !bd.superseded_at && !bd.wrong_at &&
+        !(bd.bound_via === "link" && ((bd.link_device_index as number | null) ?? 1) > 1));
+      for (const bd of active) {
+        const from = since((bd.bound_at as string | null) ?? leadCreatedAt, bd.bound_via !== "link");
+        let q = admin.from("card_events").select(cols).in("card_owner_username", usernames)
+          .eq("visitor_id", bd.visitor_id as string).or(notAnotherContact!);
+        if (from) q = q.gte("created_at", from);
+        lookups.push(q);
+      }
+      // A contact from before bindings: the browser they shared from — unless
+      // a binding for it exists and was superseded or marked wrong.
+      if (visitorId && !(bindings ?? []).some((bd) => bd.visitor_id === visitorId)) {
+        let q = admin.from("card_events").select(cols).in("card_owner_username", usernames)
+          .eq("visitor_id", visitorId).or(notAnotherContact!);
+        const from = since(leadCreatedAt, true);
+        if (from) q = q.gte("created_at", from);
+        lookups.push(q);
+      }
+    } else if (visitorId) {
+      // Older clients asking by visitor id only.
+      lookups.push(admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("visitor_id", visitorId));
     }
-    const lookups = [
-      // The server-stamped contact id — the join that needs nothing typed.
-      leadId ? admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("lead_id", leadId) : null,
-      boundVisitorIds.length ? admin.from("card_events").select(cols).in("card_owner_username", usernames).in("visitor_id", boundVisitorIds) : null,
-      visitorId ? admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("visitor_id", visitorId) : null,
-      email ? admin.from("card_events").select(cols).in("card_owner_username", usernames).ilike("visitor_email", email) : null,
-      phone ? admin.from("card_events").select(cols).in("card_owner_username", usernames).eq("visitor_phone", phone) : null,
-    ].filter(Boolean);
 
-    const results = await Promise.all(lookups as NonNullable<(typeof lookups)[number]>[]);
+    const results = await Promise.all(lookups);
     const byId = new Map<string, Record<string, unknown>>();
     // `cols` is built at runtime (the surface probe above), so PostgREST can no
     // longer infer a row type from it — rows are read as the plain records this

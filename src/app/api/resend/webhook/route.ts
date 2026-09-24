@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { addOptOut } from "@/lib/messaging";
 import { reportError } from "@/lib/report-error";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 
 // Resend delivery webhook — the feedback loop that keeps a young sending domain
 // alive.
@@ -104,6 +105,26 @@ export async function POST(req: NextRequest) {
 
   if (!isPermanentBounce && !isComplaint) {
     return NextResponse.json({ ok: true, ignored: event.type });
+  }
+
+  // The contact's conversation said "Sent" for mail that bounced: nothing
+  // told it otherwise. A permanent bounce means the address does not exist,
+  // so every recent email to it went nowhere — mark them "bounced" (shown as
+  // "Not delivered"). Best-effort: suppression below is what must not fail.
+  if (isPermanentBounce) {
+    try {
+      const admin = getAdminSupabase();
+      const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+      for (const address of recipients) {
+        const exact = address.trim().replace(/[\\%_]/g, (c) => "\\" + c);
+        const { data: leads } = await admin.from("leads").select("id").ilike("email", exact).limit(500);
+        const ids = (leads ?? []).map((l) => l.id as string);
+        if (!ids.length) continue;
+        await admin.from("lead_messages").update({ status: "bounced" })
+          .in("lead_id", ids).eq("direction", "out").eq("channel", "email")
+          .gte("created_at", since).or("status.eq.sent,status.is.null");
+      }
+    } catch { /* the conversation label is secondary to the suppression below */ }
   }
 
   const reason = isComplaint ? "complaint" : "hard-bounce";

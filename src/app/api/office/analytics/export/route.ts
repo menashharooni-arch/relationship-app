@@ -1,3 +1,4 @@
+import { safeTimeZone } from "@/lib/tz-days";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveDownloadUserId } from "@/lib/download-auth";
 import { isRateLimited } from "@/lib/rate-limit";
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   const rawRange = req.nextUrl.searchParams.get("range");
   const preset: DateRangePreset = (PRESETS as string[]).includes(rawRange ?? "") ? (rawRange as DateRangePreset) : "30d";
-  const range = resolveDateRange(preset, new Date());
+  const range = resolveDateRange(preset, new Date(), undefined, safeTimeZone(req.cookies.get("sc_tz")?.value));
 
   const employees = await getOfficeEmployeeMetrics(ctx.officeId, ctx.ownerId, range.since, range.until);
 

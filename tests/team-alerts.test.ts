@@ -99,7 +99,8 @@ describe("the Monday recap", () => {
     expect(c.title).toBe("Your week: 14 views · 2 contacts");
     expect(c.title.length).toBeLessThanOrEqual(MAX_TITLE_CHARS);
     expect(stripLocationMarks(c.body)).toBe("Top spot in Austin, TX · 3 places in all.");
-    expect(teaseLocation(c.body)).toBe("Top spot in ▒▒▒▒▒, ▒▒ · 3 places in all.");
+    // The count is location data too: a Free lock screen sees neither.
+    expect(teaseLocation(c.body)).toBe("Top spot in ▒▒▒▒▒, ▒▒.");
   });
 
   it("an empty week sends nothing", () => {

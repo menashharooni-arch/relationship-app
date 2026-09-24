@@ -496,10 +496,13 @@ export async function deliverToLead(opts: {
     const cardUrl = opts.cardUsername
       ? await contactCardUrl(getAdminSupabase(), { leadId: opts.leadId, cardSlug: opts.cardUsername, channel: "sms" })
       : null;
-    const { status, sid } = await sendSms(lead.phone, buildSmsBody({ senderName, company: sender.company, text: opts.text, cardUrl, paid: opts.senderPaid }));
+    const smsBody = buildSmsBody({ senderName, company: sender.company, text: opts.text, cardUrl, paid: opts.senderPaid });
+    const { status, sid } = await sendSms(lead.phone, smsBody);
     // providerSid lets the delivery callback correct this row from "sent" to
-    // "undelivered" if the carrier drops it after Twilio accepted it.
-    if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "sms", body: opts.text, status, providerSid: sid });
+    // "undelivered" if the carrier drops it after Twilio accepted it. The body
+    // logged is the text that WENT (signature, link, the characters a phone
+    // network carries, the 480 cap) — the conversation shows what they got.
+    if (doLog && status === "sent") await logMessage({ leadId: opts.leadId, cardOwner: opts.cardOwner, direction: "out", channel: "sms", body: smsBody, status, providerSid: sid });
     return { channel: "sms", status };
   }
 

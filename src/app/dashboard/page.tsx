@@ -453,15 +453,16 @@ export default async function DashboardPage({
     // table — NOT a new one. Degrades to null when the event type has never been
     // written or the column isn't migrated, and the footer then omits the stat
     // rather than showing a confident zero.
+    // An exact COUNT: the rows it used to read stopped at PostgREST's 1000
+    // cap however large the limit asked for, so a busy card's taps topped out.
     (async () => {
-      const { data, error } = await getAdminSupabase()
+      const { count, error } = await getAdminSupabase()
         .from("card_events")
-        .select("target, surface")
+        .select("id", { count: "exact", head: true })
         .eq("card_owner_username", analyticsUsername)
         .eq("event_type", "clicked_link")
-        .gte("created_at", viewsCutoff)
-        .limit(2000);
-      return error ? { data: null } : { data };
+        .gte("created_at", viewsCutoff);
+      return error ? { data: null } : { data: count ?? 0 };
     })(),
     // Service-role, like /contacts — NOT the session client. leads' RLS policy
     // keys on profiles.username, but a lead's card_owner is a CARD slug, and
@@ -605,18 +606,25 @@ export default async function DashboardPage({
   // blocked browser) counts as its own viewer — never claimed as a repeat we
   // can't prove. Repeat = total − unique: every additional visit by a known
   // returning viewer.
-  const windowIds = new Map<string, number>();
+  //
+  // A repeat is the same person back on the SAME page. Card and Swift Links
+  // are two pages: someone who opened both in one visit is one viewer and two
+  // views, not a "repeat view" (2026-09-23 audit — every card+links visit was
+  // being reported as a return).
+  const windowIds = new Set<string>();
+  const perPage = new Map<string, number>();
   let windowNullIdRows = 0;
-  let windowTotalRows = 0;
   for (const v of recentViews ?? []) {
     if (new Date(v.viewed_at as string).getTime() < windowStart) continue;
-    windowTotalRows++;
     const vid = (v as { visitor_id?: string | null }).visitor_id;
-    if (vid) windowIds.set(vid, (windowIds.get(vid) ?? 0) + 1);
-    else windowNullIdRows++;
+    if (!vid) { windowNullIdRows++; continue; }
+    windowIds.add(vid);
+    const pageKey = `${vid}|${v.username as string}`;
+    perPage.set(pageKey, (perPage.get(pageKey) ?? 0) + 1);
   }
   const uniqueViewers = windowIds.size + windowNullIdRows;
-  const repeatViews = Math.max(0, windowTotalRows - uniqueViewers);
+  let repeatViews = 0;
+  for (const n of perPage.values()) repeatViews += n - 1;
   const maxBar = Math.max(1, ...trafficBars);
   // Timeline for the chart: each bar's real start instant (local hour / local
   // midnight) so the axis labels line up with the buckets above.
@@ -634,7 +642,7 @@ export default async function DashboardPage({
   // person's set of links either way). Rows, not a count query, because the
   // same read also gives the per-destination breakdown the Locations-style
   // drill-down will want; 2000 is far beyond any real window today.
-  const linkTaps = (linkTapRows ?? []).length;
+  const linkTaps = typeof linkTapRows === "number" ? linkTapRows : 0;
 
   // Locations view (on-demand): top places your card + links are viewed from,
   // with the SwiftCard vs Swift Links split per location. All-time totals.
@@ -798,7 +806,7 @@ export default async function DashboardPage({
           has settled, after a real win (a lead here, or 3 shares). Rules in
           lib/app-review.ts. Locked Free-plan leads don't count — a lead the
           owner can't open is not the moment to ask. */}
-      <ReviewPromptTrigger hasLead={visibleLeads.length > 0} />
+      <ReviewPromptTrigger hasLead={realLeadCount > 0} />
       {/* Auto-start the guided tour for a new account arriving from onboarding
           (?tour=1). No-ops if the tour was already taken. */}
       <Suspense><TourAutoStart /></Suspense>
@@ -1187,7 +1195,7 @@ export default async function DashboardPage({
                   {/* Unique vs repeat for the same window — the split that
                       tells an owner "5 people, and two of them came back",
                       which raw totals can't. Only shown once there's data. */}
-                  {windowTotalRows > 0 && (
+                  {uniqueViewers > 0 && (
                     <div className="flex items-center gap-4 mt-2 text-[0.6875rem]">
                       <span className="text-gray-500">Unique viewers <span className="text-gray-200 font-semibold tabular-nums">{uniqueViewers.toLocaleString("en-US")}</span></span>
                       <span className="text-gray-500">Repeat views <span className="text-gray-200 font-semibold tabular-nums">{repeatViews.toLocaleString("en-US")}</span></span>
@@ -1212,7 +1220,7 @@ export default async function DashboardPage({
                   there is one, so nothing claims a confident zero for a card
                   whose links predate tracking. */}
               <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-800/70 text-[0.6875rem]">
-                <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{visibleLeads.length}</span></span>
+                <span className="text-gray-500">Contacts <span className="text-gray-200 font-semibold tabular-nums">{realLeadCount}</span></span>
                 {linkTaps > 0 && (
                   <span className="text-gray-500">Link taps <span className="text-gray-200 font-semibold tabular-nums">{linkTaps.toLocaleString("en-US")}</span></span>
                 )}

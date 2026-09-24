@@ -61,14 +61,16 @@ describe("what a Free account is actually sent", () => {
     const [row] = redactForPlan([{ type: "card_viewed", body: notice.body }], false);
     expect(row.body).not.toContain("Roslyn");
     expect(row.body).toMatch(/█+/);
-    // The sentence keeps its shape around the redaction.
-    expect(stripLocationMarks(row.body!)).toMatch(/^Sam viewed your Swift Links near █+\.$/);
+    // The sentence keeps its shape around the redaction — ONE shape, whatever
+    // the precision: "near" (a city) vs "in the … area" (a region) told a Free
+    // account how precise the hidden place was (2026-09-23 analytics audit).
+    expect(stripLocationMarks(row.body!)).toMatch(/^Sam viewed your Swift Links in █+\.$/);
   });
 
   it("keeps the preposition readable, so only the place looks hidden", () => {
     const [row] = redactForPlan([{ type: "card_viewed", body: notice.body }], false);
     const parts = splitLocationParts(row.body!);
-    expect(parts.filter((p) => !p.place).map((p) => p.text).join("")).toBe("Sam viewed your Swift Links near .");
+    expect(parts.filter((p) => !p.place).map((p) => p.text).join("")).toBe("Sam viewed your Swift Links in .");
     expect(parts.filter((p) => p.place)).toHaveLength(1);
   });
 

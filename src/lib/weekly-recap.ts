@@ -33,7 +33,10 @@ export function personalRecapCopy(input: {
   const title = `Your week: ${plural(input.views, "view")}${input.contacts ? ` · ${plural(input.contacts, "contact")}` : ""}`;
   const top = input.places[0];
   const body = top
-    ? `Top spot${markPhrase(` in ${markPlace(top)}`)}${input.places.length > 1 ? ` · ${input.places.length} places in all` : ""}.`
+    // The place COUNT sits inside the location phrase: it is location data too,
+    // and outside the phrase a Free account read "· 4 places in all" in the
+    // bell and on the lock screen. Paid reads it exactly as before.
+    ? `Top spot${markPhrase(` in ${markPlace(top)}${input.places.length > 1 ? ` · ${input.places.length} places in all` : ""}`)}.`
     : input.contacts
       ? `${plural(input.contacts, "person", "people")} shared their details with you.`
       : "Open SwiftCard to see the week.";

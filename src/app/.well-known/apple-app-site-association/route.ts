@@ -1,3 +1,5 @@
+import { aasaComponents } from "@/lib/universal-links";
+
 // Apple App Site Association (AASA) — served at the exact path
 // /.well-known/apple-app-site-association with a JSON content-type and no
 // redirect, which is what Apple's Universal Links CDN fetches. A Route Handler
@@ -42,6 +44,7 @@ function buildAasa() {
     apps: [],
     details: [
       {
+        appIDs: [`${appleTeamId()}.me.swiftcard.app`],
         appID: `${appleTeamId()}.me.swiftcard.app`,
         // Public card pages, Swift Links pages, and Office invite links open
         // in the app when installed. /auth/callback is kept as a safety net
@@ -50,6 +53,7 @@ function buildAasa() {
         // swiftcard://auth-callback custom scheme (see src/lib/native-auth.ts
         // + NativeAppBridge), not this universal link.
         paths: ["/card/*", "/links/*", "/join/*", "/auth/callback"],
+        components: aasaComponents(),
       },
     ],
   },

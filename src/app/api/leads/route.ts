@@ -21,6 +21,7 @@ import { isLikelyBot } from "@/lib/bot-detection";
 import { resolveGeo } from "@/lib/request-geo";
 import { attachVisitIdentity, resolveVisitIdentity } from "@/lib/visit-identity";
 import { bindFormDevice } from "@/lib/known-contact";
+import { isOwnerRequest } from "@/lib/self-traffic";
 import { markName } from "@/lib/contact-privacy";
 import { activeEvent } from "@/lib/event-tag";
 
@@ -208,6 +209,14 @@ export async function POST(req: NextRequest) {
     }
 
     const eventTag = activeEvent(ownerProfile?.customization);
+    // TYPED ON THE OWNER'S OWN PHONE — the owner handed their phone to the
+    // person in front of them. The contact is real and is saved, but this
+    // browser is the OWNER'S: binding it to the contact (and stamping it as
+    // the contact's visitor_id) made every later visit the owner made from it
+    // read "Aaron viewed your card" in Aaron's Activity (2026-09-23 audit).
+    // Same identity-based check as every analytics ingest (lib/self-traffic).
+    const fromOwnersDevice = await isOwnerRequest(admin, card_owner).catch(() => false);
+
     const leadRow = {
         name,
         email: email || null,
@@ -229,7 +238,7 @@ export async function POST(req: NextRequest) {
           ...(locked ? [LOCKED_LEAD_TAG] : []),
         ],
         source: source || null,
-        visitor_id,
+        visitor_id: fromOwnersDevice ? null : visitor_id,
         // "At an event?" (lib/event-tag.ts): the owner said where they are
         // meeting people today, so this contact is saved as met there.
         ...(eventTag ? { where_met: eventTag.label } : {}),
@@ -262,7 +271,7 @@ export async function POST(req: NextRequest) {
     // announcing is at least a visit window away, and the visitor must not
     // wait on it. The owner's own details are never bound (they tested their
     // own form), and a different person bound to this browser is superseded.
-    if (insertedLead?.id && ownerProfile?.id) {
+    if (insertedLead?.id && ownerProfile?.id && !fromOwnersDevice) {
       const leadId = insertedLead.id as string;
       const ownerId = ownerProfile.id as string;
       after(

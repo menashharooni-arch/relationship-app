@@ -34,6 +34,10 @@ export async function POST(req: NextRequest) {
 
   if (!lead?.phone) return NextResponse.json({ error: "Lead has no phone number" }, { status: 400 });
   if (!usernames.includes(lead.card_owner)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // The SAMPLE contact (lib/demo-contact) is not a person — see api/leads/[id]/message.
+  if (((lead.tags as string[] | null) ?? []).includes("demo")) {
+    return NextResponse.json({ error: "Jordan is a sample contact, so nothing is sent. Messages go to your real contacts." }, { status: 400 });
+  }
   // A contact locked behind the Free cap is hidden from this account; it cannot
   // be texted by id either (lib/lead-access isLockedLead — every lead route).
   if (isLockedLead(lead) && !(await isPaidUser(user.id))) return NextResponse.json({ error: "Not found" }, { status: 404 });

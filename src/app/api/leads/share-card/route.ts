@@ -85,6 +85,10 @@ export async function POST(req: NextRequest) {
     .eq("id", leadId)
     .maybeSingle();
   if (!lead) return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+  // The SAMPLE contact (lib/demo-contact) is not a person: its email and
+  // phone are made up. Sending "to" it mailed example.com and wrote a "Sent"
+  // row into its Activity & Messages that described nothing real.
+  if (((lead.tags as string[] | null) ?? []).includes("demo")) return NextResponse.json({ error: "Jordan is a sample contact, so nothing is sent. Messages go to your real contacts." }, { status: 400 });
 
   // The contact must belong to one of THIS user's cards.
   const owned = await getOwnerUsernames(user.id);
@@ -194,7 +198,8 @@ export async function POST(req: NextRequest) {
           cardOwner: lead.card_owner as string,
           direction: "out",
           channel: "sms",
-          body: "Save my contact information in the link below. (shared card link)",
+          // The text exactly as it went — it was logged as a paraphrase.
+          body,
           status: "sent",
           // Twilio only ACCEPTED it here; the delivery callback updates this row
           // if the carrier later drops it (e.g. unregistered A2P 10DLC).
@@ -272,7 +277,11 @@ export async function POST(req: NextRequest) {
           cardOwner: lead.card_owner as string,
           direction: "out",
           channel: "email",
-          body: "Save my contact information in the link below. (shared card link)",
+          // What the email says, in words (its HTML is the same message).
+          body: `${contactFirst ? `Hi ${contactFirst},` : "Hi,"}\n\nSave my contact information in the link below. It opens my digital business card, and you can add me to your phone with one tap.\n\n${plainCardUrl.replace(/^https?:\/\//, "")}`,
+          // Accepted by the mail service. A permanent bounce later turns this
+          // into "Not delivered" (api/resend/webhook).
+          status: "sent",
         });
       }
     }

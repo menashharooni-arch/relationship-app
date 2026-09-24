@@ -179,12 +179,16 @@ export async function GET(req: NextRequest) {
       const slugs = (await slugsFor(admin, [userId])).get(userId) ?? [];
       if (!slugs.length) continue;
       const since = new Date(now - 7 * DAY).toISOString();
-      const [{ data: views }, { count: contacts }] = await Promise.all([
-        admin.from("card_views").select("location").in("username", viewKeys(slugs)).gte("viewed_at", since).limit(5000),
+      const [{ data: views }, { count: contacts }, { count: viewCount }] = await Promise.all([
+        // Rows give the places (the top few are all the copy needs); the COUNT
+        // comes from an exact count below — rows stop at PostgREST's 1000 cap,
+        // so "Your week: N views" could never say more than 1,000.
+        admin.from("card_views").select("location").in("username", viewKeys(slugs)).gte("viewed_at", since).limit(1000),
         admin.from("leads").select("id", { count: "exact", head: true }).in("card_owner", slugs).not("tags", "cs", "{demo}").gte("created_at", since),
+        admin.from("card_views").select("id", { count: "exact", head: true }).in("username", viewKeys(slugs)).gte("viewed_at", since),
       ]);
       const copy = personalRecapCopy({
-        views: views?.length ?? 0,
+        views: viewCount ?? views?.length ?? 0,
         contacts: contacts ?? 0,
         places: rankPlaces((views ?? []).map((v) => v.location as string | null)),
       });

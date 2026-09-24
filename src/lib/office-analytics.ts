@@ -426,9 +426,15 @@ export async function getOfficeUniqueVisitors(keys: string[], since: string, unt
   return Number(data) || 0;
 }
 
-export async function getOfficeDailyViews(keys: string[], since: string, until: string): Promise<{ date: string; views: number }[]> {
+export async function getOfficeDailyViews(keys: string[], since: string, until: string, tz?: string): Promise<{ date: string; views: number }[]> {
   if (!keys.length) return [];
   const admin = getAdminSupabase();
+  // Local calendar days (supabase/office-analytics-accuracy.sql); UTC only when
+  // no zone is known or the function is missing.
+  if (tz) {
+    const local = await admin.rpc("office_daily_views_tz", { p_keys: keys, p_since: since, p_until: until, p_tz: tz });
+    if (!local.error) return ((local.data ?? []) as { day: string; views: number }[]).map((r) => ({ date: r.day, views: Number(r.views) || 0 }));
+  }
   const { data, error } = await admin.rpc("office_daily_views", { p_keys: keys, p_since: since, p_until: until });
   if (error) { console.error("office_daily_views failed:", error.message); return []; }
   return ((data ?? []) as { day: string; views: number }[]).map((r) => ({ date: r.day, views: Number(r.views) || 0 }));

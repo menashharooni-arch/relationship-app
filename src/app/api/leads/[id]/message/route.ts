@@ -69,6 +69,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     getOwnerUsernames(user.id),
   ]);
   if (!ownsLead(usernames, lead)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  // The SAMPLE contact (lib/demo-contact) is not a person: its email and
+  // phone are made up. Sending "to" it mailed example.com and wrote a "Sent"
+  // row into its Activity & Messages that described nothing real.
+  if (((lead?.tags as string[] | null) ?? []).includes("demo")) {
+    return NextResponse.json({ error: "Jordan is a sample contact, so nothing is sent. Messages go to your real contacts." }, { status: 400 });
+  }
   // Messaging a contact the Free cap is hiding would reach someone whose details
   // the account cannot see — the lock has to hold on send as well as on read.
   if (isLockedLead(lead) && !(await isPaidUser(user.id))) return NextResponse.json({ error: "Not found" }, { status: 404 });

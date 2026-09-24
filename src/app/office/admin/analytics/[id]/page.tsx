@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { safeTimeZone } from "@/lib/tz-days";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
@@ -44,7 +46,10 @@ export default async function OfficeAnalyticsMemberPage({
 
   const { range: rawRange } = await searchParams;
   const preset: DateRangePreset = (PRESETS as string[]).includes(rawRange ?? "") ? (rawRange as DateRangePreset) : "30d";
-  const range = resolveDateRange(preset, new Date());
+  // The viewer's local calendar (the browser's time zone), like the personal
+  // dashboard — see lib/office-analytics-dates.
+  const tz = safeTimeZone((await cookies()).get("sc_tz")?.value);
+  const range = resolveDateRange(preset, new Date(), undefined, tz);
 
   const admin = getAdminSupabase();
   const team = await getOfficeTeam(admin, officeId, ownerId);
@@ -58,7 +63,7 @@ export default async function OfficeAnalyticsMemberPage({
   // queries rather than serially ahead of them (code review).
   const [allMetrics, dailyViews, trafficSources, cardBreakdown, recentLeads] = await Promise.all([
     getOfficeEmployeeMetricsForTeam(team, range.since, range.until).catch(() => []),
-    getOfficeDailyViews(keys, range.since, range.until),
+    getOfficeDailyViews(keys, range.since, range.until, tz),
     getOfficeTrafficSources(keys, range.since, range.until),
     getEmployeeCardBreakdown(member.cardSlugs, range.since, range.until),
     getRecentLeadsForSlugs(slugs, range.since, range.until),
@@ -70,7 +75,7 @@ export default async function OfficeAnalyticsMemberPage({
     leads: others.length ? others.reduce((s, e) => s + e.leads, 0) / others.length : 0,
   };
 
-  const chartData = fillDateRange(dailyViews, range.since, range.until);
+  const chartData = fillDateRange(dailyViews, range.since, range.until, tz);
   const totalViews = (mine?.views ?? 0) + (mine?.swiftlinkViews ?? 0);
   const conversionRate = computeConversionRate(mine?.leads ?? 0, totalViews);
   const mostActiveCard = cardBreakdown[0] ?? null;

@@ -97,6 +97,10 @@ type SeqStep = {
   channel?: string;
   sent_at: string | null;
   anchor?: string;
+  /** Claimed but did NOT go: "opted_out" (they unsubscribed) or "no_contact"
+   *  (no email/phone for this channel). The claim (sent_at) stands so it is
+   *  never retried; this is what stops the contact panel saying "Sent". */
+  not_sent?: string;
 };
 
 const sameStep = (a: SeqStep, b: SeqStep) =>
@@ -152,6 +156,22 @@ async function stampStep(
   // went out and the row still said unsent — a permanent daily re-send.
   if (writeErr) return { ok: false, seq: fresh };
   return { ok: true, seq: next };
+}
+
+/** Record WHY a claimed step did not go, keeping its claim (same re-read as stampStep). */
+async function markNotSent(
+  supabase: ReturnType<typeof getAdminSupabase>,
+  leadId: string,
+  step: SeqStep,
+  reason: string,
+): Promise<void> {
+  const { data } = await supabase.from("leads").select("follow_up_sequence").eq("id", leadId).single();
+  if (!data) return;
+  const fresh = (data.follow_up_sequence ?? []) as SeqStep[];
+  if (!fresh.some((s) => sameStep(s, step))) return;
+  await supabase.from("leads")
+    .update({ follow_up_sequence: fresh.map((s) => (sameStep(s, step) ? { ...s, not_sent: reason } : s)) })
+    .eq("id", leadId);
 }
 
 // Email preferences for the two owner-directed plan-status emails below — same
@@ -538,6 +558,9 @@ export async function GET(req: NextRequest) {
     const seq = seqLead.follow_up_sequence as { day: number; time?: string; message: string; subject?: string; channel?: string; sent_at: string | null; anchor?: string }[] | null;
     if (!seq?.length) continue;
     if ((seqLead.tags ?? []).includes("flow-paused")) continue;
+    // The sample contact is not a person (its details are made up): an
+    // automation set up on it to try the feature must never actually send.
+    if ((seqLead.tags ?? []).includes("demo")) continue;
 
     // TEXT follow-ups are Pro; EMAIL ones send on every plan (owner,
     // 2026-09-11). This used to stop the WHOLE sequence for a non-paid account.
@@ -712,7 +735,10 @@ export async function GET(req: NextRequest) {
       // retried on a later run instead of being burned.
       if (r.status === "sent") {
         totalSent++;
-      } else if (r.status !== "opted_out" && r.status !== "no_contact") {
+      } else if (r.status === "opted_out" || r.status === "no_contact") {
+        // Final, and NOT sent — the panel must not say "Sent" for it.
+        await markNotSent(supabase, seqLead.id as string, item, r.status).catch(() => {});
+      } else {
         const released = await stampStep(supabase, seqLead.id as string, item, null);
         if (released.seq) curSeq = released.seq;
         // A step that keeps failing would otherwise retry every day forever

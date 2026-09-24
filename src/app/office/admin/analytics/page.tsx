@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { safeTimeZone } from "@/lib/tz-days";
 import { redirect } from "next/navigation";
 import { requireOfficeAdmin } from "@/lib/office-admin-guard";
 import { getAdminSupabase } from "@/lib/supabase-admin";
@@ -40,7 +42,10 @@ export default async function OfficeAnalyticsPage({
 
   const { range: rawRange } = await searchParams;
   const preset: DateRangePreset = (PRESETS as string[]).includes(rawRange ?? "") ? (rawRange as DateRangePreset) : "30d";
-  const range = resolveDateRange(preset, new Date());
+  // The viewer's local calendar (the browser's time zone), like the personal
+  // dashboard — see lib/office-analytics-dates.
+  const tz = safeTimeZone((await cookies()).get("sc_tz")?.value);
+  const range = resolveDateRange(preset, new Date(), undefined, tz);
   const prevRange = previousPeriod(range);
 
   let employees: Awaited<ReturnType<typeof getOfficeEmployeeMetricsForTeam>> = [];
@@ -60,7 +65,7 @@ export default async function OfficeAnalyticsPage({
     [employees, prevEmployees, dailyViews, trafficSources, officeUnique] = await Promise.all([
       getOfficeEmployeeMetricsForTeam(team, range.since, range.until),
       getOfficeEmployeeMetricsForTeam(team, prevRange.since, prevRange.until),
-      getOfficeDailyViews(keys, range.since, range.until),
+      getOfficeDailyViews(keys, range.since, range.until, tz),
       getOfficeTrafficSources(keys, range.since, range.until),
       getOfficeUniqueVisitors(keys, range.since, range.until),
     ]);
@@ -95,7 +100,7 @@ export default async function OfficeAnalyticsPage({
   const prevTotalLeads = prevEmployees.reduce((s, e) => s + e.leads, 0);
   const prevTotalContacts = prevEmployees.reduce((s, e) => s + e.contactsSaved, 0);
 
-  const chartData = fillDateRange(dailyViews, range.since, range.until);
+  const chartData = fillDateRange(dailyViews, range.since, range.until, tz);
   const isEmpty = totalViews === 0 && totalLeads === 0 && totalContacts === 0;
 
   return (
