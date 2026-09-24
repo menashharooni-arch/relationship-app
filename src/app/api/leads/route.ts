@@ -37,6 +37,18 @@ export async function POST(req: NextRequest) {
     if (typeof name !== "string" || !name.trim() || typeof phone !== "string" || !phone.trim() || typeof card_owner !== "string" || !card_owner.trim()) {
       return NextResponse.json({ error: "Name and phone are required." }, { status: 400 });
     }
+    // …and every other field too, with a size. They flow into the owner's
+    // contact list, notifications, CRM syncs and Zapier payloads, so a
+    // multi-megabyte "message" or an object for "email" from an unauthenticated
+    // POST must stop here (security audit 2026-09-24).
+    const optionalText = (v: unknown, max: number) => v === undefined || v === null || (typeof v === "string" && v.length <= max);
+    if (
+      name.length > 200 || phone.length > 40 || card_owner.length > 100 ||
+      !optionalText(email, 254) || !optionalText(company, 200) ||
+      !optionalText(message, 3000) || !optionalText(source, 80)
+    ) {
+      return NextResponse.json({ error: "Some of those details are too long." }, { status: 400 });
+    }
 
     // ── The SAME visitor id the card's views are keyed on ─────────────────────
     // /api/card-events keys every view, save and link tap on the sc_vid cookie
@@ -90,6 +102,13 @@ export async function POST(req: NextRequest) {
     const ip = clientIp(req);
     const rateKey = `${ip}:${card_owner.trim().toLowerCase()}`;
     if (await isRateLimited(rateKey)) {
+      return NextResponse.json({ error: "Too many submissions. Please wait a few minutes." }, { status: 429 });
+    }
+    // …and one ceiling per CARD, whatever the IP. Rotating addresses defeated
+    // the per-IP limit, and every fake contact is a push to the owner, a CRM
+    // sync, and (on Free) one of the month's contacts used up. Far above what a
+    // busy trade-show hour produces.
+    if (await isRateLimited(`lead-card:${card_owner.trim().toLowerCase()}`, 120, 60 * 60 * 1000)) {
       return NextResponse.json({ error: "Too many submissions. Please wait a few minutes." }, { status: 429 });
     }
 

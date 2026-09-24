@@ -74,7 +74,8 @@ describe("plan line", () => {
     // The uploaded header photo is every-plan too — outside the paid spread.
     expect(src).toMatch(/heroImage: customization\.linkHeroImage,[\s\S]{0,200}\.\.\.\(ownerPaid/);
     expect(src).toMatch(/buttonStyle: customization\.linkButtonStyle/);
-    expect(src).toMatch(/buttonColor: customization\.linkButtonColor/);
+    // CSS-guarded since the 2026-09-24 security audit (safeCssValue).
+    expect(src).toMatch(/buttonColor: safeCssValue\(customization\.linkButtonColor\)/);
   });
 
   it("the live preview mirrors the same gating", () => {

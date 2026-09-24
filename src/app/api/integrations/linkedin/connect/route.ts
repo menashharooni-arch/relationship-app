@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { safeNextPath } from "@/lib/safe-next";
 import { resolveConnectUserId } from "@/lib/connect-user";
-import { signState } from "@/lib/oauth-state";
+import { signState, oauthBindCookieName, oauthBindCookieValue, OAUTH_BIND_COOKIE_OPTIONS } from "@/lib/oauth-state";
 import { GUEST_STATE, isLinkedInEnabled, LINKEDIN_AUTH_URL, LINKEDIN_REDIRECT_URI, LINKEDIN_SCOPES } from "@/lib/sync-linkedin";
 
 export const runtime = "nodejs";
@@ -59,6 +59,8 @@ export async function GET(request: Request) {
   });
 
   const res = NextResponse.redirect(`${LINKEDIN_AUTH_URL}?${params}`);
+  // Ties the callback to THIS browser (lib/oauth-state, stateBoundToBrowser).
+  res.cookies.set(oauthBindCookieName("linkedin"), oauthBindCookieValue(state), OAUTH_BIND_COOKIE_OPTIONS);
   // The redirect_uri registered with LinkedIn is fixed, so the return path
   // rides in a short-lived cookie the callback reads back.
   if (next) {

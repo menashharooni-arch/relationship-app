@@ -73,7 +73,11 @@ export async function reportError(
 
   // (c) Real-time chat alert — only if a webhook is configured. Short-timeout,
   // best-effort; a down webhook must never delay or break the caller.
-  if (ALERT_URL) {
+  // Not for client.* reports: their text comes from an UNAUTHENTICATED POST
+  // (/api/client-error), so forwarding it let anyone write "🚨 SwiftCard error"
+  // messages — links included — into the ops channel (security audit
+  // 2026-09-24). They still land in (a) and (b) above.
+  if (ALERT_URL && !context.startsWith("client.")) {
     const text = `🚨 *SwiftCard error* [${APP_ENV}] — *${context}*\n${err.message}`;
     try {
       await fetch(ALERT_URL, {

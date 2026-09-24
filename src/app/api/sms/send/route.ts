@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOwnerUsernames } from "@/lib/owner-usernames";
 import { deliverToLead } from "@/lib/messaging";
 import { isRateLimited } from "@/lib/rate-limit";
+import { outboundDailyCapHit, OUTBOUND_CAP_MESSAGE } from "@/lib/outbound-cap";
 import { isPaidPlan } from "@/lib/plan";
 import { isLockedLead } from "@/lib/lead-access";
 import { isPaidUser } from "@/lib/notification-privacy";
@@ -21,6 +22,9 @@ export async function POST(req: NextRequest) {
   // scripted session can't run up an unbounded SMS bill.
   if (await isRateLimited(`sms-send:${user.id}`, 30, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "rate_limited", message: "Too many texts sent — try again in a few minutes." }, { status: 429 });
+  }
+  if (await outboundDailyCapHit(user.id)) {
+    return NextResponse.json({ error: "rate_limited", message: OUTBOUND_CAP_MESSAGE }, { status: 429 });
   }
 
   const { leadId, message } = await req.json();

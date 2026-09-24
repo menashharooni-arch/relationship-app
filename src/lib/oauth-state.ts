@@ -100,3 +100,45 @@ export function verifyState(state: string): string | null {
   if (!userId || !Number.isFinite(ts) || Date.now() - ts > MAX_AGE_MS) return null;
   return userId;
 }
+
+// ── Which BROWSER finishes the round trip ────────────────────────────────────
+//
+// A signed state proves WHO started a connect, not WHERE it finishes. A Pro
+// account could start /api/integrations/google/connect, keep the consent URL
+// (it carries their state) and send it to someone else: that person approves
+// Google's real consent screen with their own account, and the callback wrote
+// THEIR Google Contacts token onto the sender's row — the sender's leads then
+// push into the victim's address book and overwrite matching contacts
+// (security audit 2026-09-24). Salesforce was already safe: its PKCE verifier
+// cookie ties the callback to the starting browser.
+//
+// The connect leg sets an httpOnly cookie holding an HMAC of the exact state
+// it issued; the callback accepts the state only alongside that cookie. Another
+// browser has no way to hold it. SameSite=Lax still sends it on the provider's
+// top-level redirect back, and the iOS in-app browser keeps one cookie jar for
+// both legs (the callbacks already read crm_scope / g_native / li_* from it).
+export type OAuthProvider = "google" | "linkedin";
+
+export function oauthBindCookieName(provider: OAuthProvider): string {
+  return `oauth_bind_${provider}`;
+}
+
+export function oauthBindCookieValue(state: string): string {
+  return sign(`bind.${state}`);
+}
+
+export const OAUTH_BIND_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax" as const,
+  maxAge: MAX_AGE_MS / 1000,
+  path: "/api/integrations",
+};
+
+/** True only when `cookie` is the binding the connect leg set for `state`. */
+export function stateBoundToBrowser(state: string, cookie: string | undefined | null): boolean {
+  if (!cookie) return false;
+  const a = Buffer.from(oauthBindCookieValue(state));
+  const b = Buffer.from(cookie);
+  return a.length === b.length && timingSafeEqual(a, b);
+}

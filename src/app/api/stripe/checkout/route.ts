@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { isShellRequest } from "@/lib/shell-request";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { claimPromoUse } from "@/lib/promo-claim";
 import { getAccountEmail } from "@/lib/account-email";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS, isPaidPlan } from "@/lib/plan";
@@ -201,8 +202,13 @@ export async function POST(req: NextRequest) {
             .select("id, consumed_at")
             .maybeSingle();
           if (inserted) {
-            redemption = { id: inserted.id as string, consumed_at: null };
-            await admin.from("promo_codes").update({ uses_count: ((check.promo.uses_count as number | null) ?? 0) + 1 }).eq("id", check.promo.id);
+            // Atomic, under the cap (lib/promo-claim); losing the race for
+            // the last use undoes the claim rather than exceeding max_uses.
+            if (await claimPromoUse(admin, check.promo.id as string)) {
+              redemption = { id: inserted.id as string, consumed_at: null };
+            } else {
+              await admin.from("promo_code_redemptions").delete().eq("id", inserted.id);
+            }
           }
         }
         if (!redemption) {

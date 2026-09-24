@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCardActive } from "@/lib/card-active";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const BUCKET = "card-signatures";
@@ -34,7 +35,10 @@ export async function GET(
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   let target = live;
 
-  if (base) {
+  // Only a LIVE card may serve its stored picture. A deleted account's or an
+  // offline card's PNG outlived it here (security audit 2026-09-24); the live
+  // render below already knows to show nothing personal for those.
+  if (base && (await isCardActive(slug))) {
     const stored = `${base}/storage/v1/object/public/${BUCKET}/${encodeURIComponent(slug)}.png`;
     try {
       // HEAD, not GET: we only need to know it's there, and this runs on the

@@ -6,6 +6,8 @@ import { clientIp } from "@/lib/client-ip";
 
 export const runtime = "nodejs";
 
+const EMAIL_SHAPE = /^[a-z0-9._+-]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+
 // Does the visitor already have a SwiftCard account? Used to suppress the
 // "create your free card" nudge for existing customers (owner request): we
 // never pester someone who already has a card.
@@ -37,7 +39,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     if (typeof body?.email === "string") email = body.email.trim().toLowerCase();
   } catch { /* no body */ }
-  if (!email || !email.includes("@")) return NextResponse.json({ exists: false });
+  // A real address, and nothing else. ilike treats % and _ (and PostgREST also
+  // treats *) as wildcards, so "a%@gmail.com" used to answer for EVERY account
+  // starting with "a" and the private sign-in emails could be walked out one
+  // character at a time (security audit 2026-09-24). Only plain address
+  // characters get through, and the one legal wildcard, "_", is escaped.
+  if (!email || email.length > 254 || !EMAIL_SHAPE.test(email)) return NextResponse.json({ exists: false });
+  const pattern = email.replace(/_/g, "\\_");
 
   const admin = getAdminSupabase();
   try {
@@ -45,8 +53,8 @@ export async function POST(req: NextRequest) {
     // this address already belongs to a SwiftCard account. ilike with no
     // wildcards = case-insensitive equality.
     const [{ data: prof }, { data: card }] = await Promise.all([
-      admin.from("profiles").select("id").ilike("email", email).limit(1).maybeSingle(),
-      admin.from("cards").select("id").ilike("email", email).limit(1).maybeSingle(),
+      admin.from("profiles").select("id").ilike("email", pattern).limit(1).maybeSingle(),
+      admin.from("cards").select("id").ilike("email", pattern).limit(1).maybeSingle(),
     ]);
     return NextResponse.json({ exists: !!prof || !!card });
   } catch {

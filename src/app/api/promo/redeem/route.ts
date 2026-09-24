@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { claimPromoUse } from "@/lib/promo-claim";
 import { isRateLimited } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { promoLabel, scopeLabel, durationLabel, promoScopeMessage, isGrantCode, type PromoRow } from "@/lib/promo";
@@ -162,7 +163,12 @@ export async function POST(req: NextRequest) {
 
   // Only now — after the redemption is durably recorded — bump the usage count,
   // so a duplicate/failed attempt can never inflate it.
-  await admin.from("promo_codes").update({ uses_count: promo.uses_count + 1 }).eq("id", promo.id);
+  // Atomically, and under the cap: a lost race for the last use undoes this
+  // account's redemption instead of going past max_uses.
+  if (!(await claimPromoUse(admin, promo.id as string))) {
+    await admin.from("promo_code_redemptions").delete().eq("code_id", promo.id).eq("user_id", user.id);
+    return NextResponse.json({ error: "This promo code has reached its usage limit" }, { status: 410 });
+  }
 
   // ── A GRANT code opens the plan right here ────────────────────────────────
   // No Stripe, no card, no subscription: the account is switched to the plan

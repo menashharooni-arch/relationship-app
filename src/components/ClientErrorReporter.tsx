@@ -36,7 +36,7 @@ export default function ClientErrorReporter() {
         fetch("/api/client-error", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ context, message: msg, stack: stack ?? "", url: location.href }),
+          body: JSON.stringify({ context, message: msg, stack: stack ?? "", url: location.origin + location.pathname }),
           keepalive: true,
         }).catch(() => {});
       } catch {

@@ -81,6 +81,13 @@ function sourceOf(plan: string | null | undefined, cust: Cust, subId: string | n
   return subId ? "stripe" : null;
 }
 
+const GRANT_MIN_ACCOUNT_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+function accountOldEnough(createdAt: string | null | undefined): boolean {
+  const t = createdAt ? Date.parse(createdAt) : NaN;
+  return Number.isFinite(t) && Date.now() - t >= GRANT_MIN_ACCOUNT_AGE_MS;
+}
+
 function eligibilityOf(opts: {
   plan: RetentionPlan;
   /** The stored plan string — "pro" and "enterprise" are NOT interchangeable here. */
@@ -97,6 +104,8 @@ function eligibilityOf(opts: {
   grantLedgerUsed?: boolean;
   /** A card-backed trial is running right now (mirrored trial end). */
   trialing?: boolean;
+  /** auth.users.created_at — the free month is a save for real customers. */
+  accountCreatedAt?: string | null;
 }): Eligibility {
   const { plan, rawPlan, source, rec, planExpiresAt, subId, retentionUsed } = opts;
   // An Office/enterprise subscription is a seat-billed team plan: its price is
@@ -109,7 +118,11 @@ function eligibilityOf(opts: {
     // A Free account that has never taken retention time and is not already
     // sitting on a grant (an unexpired trial/free month) — handing 30 days to
     // someone who already has 20 left reads as a trick.
-    grant: plan === "free" && !rec.grantedAt && !planExpiresAt && !opts.grantLedgerUsed,
+    // Not on a brand-new account: sign up, POST {action:"grant"}, and a month
+    // of Pro (with its paid AI features) came free with no card, once per
+    // throwaway email (security audit 2026-09-24). Someone who has used
+    // SwiftCard for two weeks is the customer this offer is for.
+    grant: plan === "free" && !rec.grantedAt && !planExpiresAt && !opts.grantLedgerUsed && accountOldEnough(opts.accountCreatedAt),
     // Someone who has had a 14-day trial gets the rest of 30, not 30 more.
     grantDays: opts.hadTrial ? RETENTION_GRANT_DAYS_AFTER_TRIAL : RETENTION_GRANT_DAYS,
     // Only a real Stripe subscription can be discounted. Apple bills Apple.
@@ -149,6 +162,7 @@ export async function GET() {
     subId,
     retentionUsed: cust._retentionUsed,
     ...(await trialFactsFor(user.id, user.email, cust)),
+    accountCreatedAt: user.created_at ?? null,
   });
 
   // Their own numbers for the "what you lose" step. Counted with head:true so
@@ -212,6 +226,7 @@ export async function POST(req: NextRequest) {
     subId,
     retentionUsed: cust._retentionUsed,
     ...(await trialFactsFor(user.id, user.email, cust)),
+    accountCreatedAt: user.created_at ?? null,
   });
 
   // The reason they gave at step 1-2, so an alert carries WHY, not just WHAT.

@@ -890,6 +890,23 @@ function safeFont(v: unknown, fallback: string): string {
   return /^[a-z0-9\s,'"()._-]+$/i.test(s) ? s : fallback;
 }
 
+/**
+ * The same two guards for the OTHER style paths that take owner-typed values:
+ * a template card's customization colours/font (lib/template-style) and the
+ * Swift Links page style. Those spread raw strings into style objects too, so
+ * `linkBgColor: "#000;position:fixed;inset:0;background:url(https://…)"` drew
+ * a full-page overlay and pinged a tracker from every visitor (security audit
+ * 2026-09-24). Anything unsafe reads as "not set" → the template default.
+ */
+export function safeCssValue(v: unknown): string | undefined {
+  if (typeof v !== "string" || !v.trim()) return undefined;
+  return safeCss(v, "") || undefined;
+}
+export function safeFontValue(v: unknown): string | undefined {
+  if (typeof v !== "string" || !v.trim()) return undefined;
+  return safeFont(v, "") || undefined;
+}
+
 /** Optional colour: undefined stays undefined so `??` defaults still fire. */
 function safeCssOpt(v: unknown): string | undefined {
   if (v === undefined || v === null) return undefined;

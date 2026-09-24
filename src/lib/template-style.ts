@@ -9,6 +9,7 @@
 
 import type { CardData } from "@/components/card-templates/types";
 import { composePanelBackground } from "@/lib/card-finishes";
+import { safeCssValue, safeFontValue } from "@/lib/custom-layout";
 
 export type TemplateStyle = {
   accentColor?: string;
@@ -99,12 +100,14 @@ export function templateStyle(data: Pick<CardData, "customization">): TemplateSt
   const c = (data.customization ?? {}) as Record<string, unknown>;
   const dim = typeof c.panelDim === "number" ? c.panelDim : undefined;
   return {
-    accentColor: pick(c.accentColor),
-    bgColor: pick(c.bgColor),
-    surfaceColor: pick(c.surfaceColor),
-    textColor: pick(c.textColor),
-    infoColor: pick(c.infoColor),
-    fontFamily: pick(c.fontFamily),
+    // Colours and the font land in style objects on the PUBLIC card, so they
+    // pass the custom-layout CSS guards (no declarations, no url()).
+    accentColor: safeCssValue(c.accentColor),
+    bgColor: safeCssValue(c.bgColor),
+    surfaceColor: safeCssValue(c.surfaceColor),
+    textColor: safeCssValue(c.textColor),
+    infoColor: safeCssValue(c.infoColor),
+    fontFamily: safeFontValue(c.fontFamily),
     finish: pick(c.finish),
     panelMedia: pick(c.panelMedia),
     panelMediaType: pick(c.panelMediaType),

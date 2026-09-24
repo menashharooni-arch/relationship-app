@@ -6,6 +6,7 @@ import { isLockedLead } from "@/lib/lead-access";
 import { isPaidUser } from "@/lib/notification-privacy";
 import { isPaidPlan } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
+import { outboundDailyCapHit, OUTBOUND_CAP_MESSAGE } from "@/lib/outbound-cap";
 import { resolveCardMeta } from "@/lib/resolve-card";
 import { shareImageUrl, warmSharePreviewServer } from "@/lib/share-preview";
 import { contactCardUrl } from "@/lib/contact-links";
@@ -57,6 +58,9 @@ export async function POST(req: NextRequest) {
       { error: "You're sharing very quickly — give it a minute and try again." },
       { status: 429 },
     );
+  }
+  if (await outboundDailyCapHit(user.id)) {
+    return NextResponse.json({ error: OUTBOUND_CAP_MESSAGE }, { status: 429 });
   }
 
   const { leadId, channel: rawChannel } = (await req.json().catch(() => ({}))) as {

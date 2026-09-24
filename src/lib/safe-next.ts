@@ -22,11 +22,34 @@
 //                       Verified: new URL("/\\evil.com", "https://swiftcard.me")
 //                       === "https://evil.com/". This is the one the old
 //                       hand-written guards let through.
+//   "/<TAB>/evil.com"   the URL parser DELETES tab, CR and LF anywhere, so this
+//                       became "//evil.com" AFTER the check had passed
+//                       (security audit 2026-09-24). Any control character,
+//                       whitespace or backslash is now refused outright, and
+//                       the path is re-parsed and must stay on our origin.
 //
 // Returns the path unchanged when safe, or null — callers fall back to their
 // own default destination.
+const BACKSLASH = 92;
+const DEL = 127;
+function hasUnsafeChar(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    // Control characters and space (0-32), DEL, and any backslash.
+    if (c <= 32 || c === DEL || c === BACKSLASH) return true;
+  }
+  return false;
+}
+
 export function safeNextPath(next?: string | null): string | null {
   if (!next || !next.startsWith("/")) return null;
   if (next.startsWith("//") || next.startsWith("/\\")) return null;
+  if (hasUnsafeChar(next)) return null;
+  try {
+    const base = "https://next.invalid";
+    if (new URL(next, base).origin !== base) return null;
+  } catch {
+    return null;
+  }
   return next;
 }

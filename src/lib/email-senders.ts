@@ -99,7 +99,9 @@ export const INBOX_ADDRESS = SENDERS.inbox.address;
 // A display name can be user-supplied (a card name), so strip anything that
 // could break out of the header. Header injection via CR/LF is the real risk.
 function safeName(name: string | null | undefined, fallback: string): string {
-  return (name || "").replace(/[<>"\r\n]/g, "").trim() || fallback;
+  // Commas, semicolons and @ are address-list syntax in a header; a name has no
+  // use for them. Capped so a card name can't push the real sender out of view.
+  return (name || "").replace(/[<>"\r\n\t,;@]/g, "").trim().slice(0, 64).trim() || fallback;
 }
 
 /**
@@ -121,6 +123,15 @@ export function from(key: SenderKey, displayName?: string | null): string {
   }
   if (!displayName) return `${s.name} <${s.address}>`;
   const name = safeName(displayName, s.name);
+  if (key === "connect") {
+    // On connect@ the name is a USER's card name. A card called "SwiftCard
+    // Account Security" used to drop the "via SwiftCard" suffix and mail
+    // strangers as SwiftCard itself — a phishing relay on our own DKIM
+    // (security audit 2026-09-24). The brand is ours alone: take it out of the
+    // user's name and always say who is really sending.
+    const own = name.replace(/swift\s*card/gi, "").replace(/\s{2,}/g, " ").replace(/^[\s\-–—:|·,.]+|[\s\-–—:|·,.]+$/g, "").trim();
+    return own ? `${own} via ${BRAND} <${s.address}>` : `${s.name} <${s.address}>`;
+  }
   const via = new RegExp(BRAND, "i").test(name) ? name : `${name} via ${BRAND}`;
   return `${via} <${s.address}>`;
 }

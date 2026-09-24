@@ -36,6 +36,9 @@
 export const PERSON_SCOPED_STORAGE_KEYS = [
   // Which card is selected — previous account's slug must not steer the nav.
   "swiftcard_active_card",
+  // Which extra tabs (office Admin / site console) the bottom bar last showed
+  // — the loading skeleton draws them before the page resolves (MobileNav).
+  "sc_nav_extra_tabs",
   // The visitor identity blob share forms prefill from and CardEventTracker
   // attributes views with — THE "wrong viewer name" bug.
   "swiftcard_visitor",

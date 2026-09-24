@@ -81,6 +81,20 @@ export async function POST(req: NextRequest) {
   // company in the <title> and link-preview tags (2026-09-23 review).
   await revalidateUserCards(user.id);
 
+  // …and the rendered card IMAGES. They sit in public buckets at predictable
+  // URLs (<slug>.png) and carry the name, phone, email and headshot; only the
+  // 30-day purge removed them, so "Delete my account" left the card itself
+  // downloadable for a month (security audit 2026-09-24). Both are caches that
+  // are drawn again on demand, so a reopened account loses nothing.
+  try {
+    const { data: owned } = await admin.from("cards").select("username").eq("user_id", user.id);
+    const objects = (owned ?? []).map((c) => `${c.username as string}.png`);
+    if (objects.length) {
+      await admin.storage.from("card-shares").remove(objects);
+      await admin.storage.from("card-signatures").remove(objects);
+    }
+  } catch { /* best-effort: the purge removes them regardless */ }
+
   // AN OFFICE OWNER: release the team NOW. The Stripe webhook that normally
   // does this finds the office by stripe_subscription_id, which was cleared
   // just above — so the cascade never ran, members kept Office (and admins the

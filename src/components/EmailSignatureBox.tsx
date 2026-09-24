@@ -33,6 +33,7 @@ type Props = {
 };
 
 import { signatureContentSig } from "@/lib/signature-content";
+import { escapeHtml } from "@/lib/escape";
 
 async function fetchAsDataUrl(url: string): Promise<string | null> {
   try {
@@ -107,7 +108,14 @@ function CardPreview({ src, ready, status, onLoad, onError }: {
   );
 }
 
-function buildSignatureHtml(name: string, company: string, cardUrl: string, imgUrl: string): string {
+// Name and company are owner- (or office-) typed and go into HTML the user
+// pastes into every outgoing email: escaped, so a "<" or "&" can't break the
+// signature and an office value can't inject markup into members' mail.
+function buildSignatureHtml(rawName: string, rawCompany: string, rawCardUrl: string, rawImgUrl: string): string {
+  const name = escapeHtml(rawName);
+  const company = escapeHtml(rawCompany);
+  const cardUrl = escapeHtml(rawCardUrl);
+  const imgUrl = escapeHtml(rawImgUrl);
   const header = `<div style="font-size:14px;color:#111827;margin-bottom:6px;"><strong>${name}</strong>${company ? ` | ${company}` : ""}</div>`;
   return `<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;"><tr><td style="padding:0;">
 ${header}

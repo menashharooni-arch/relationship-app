@@ -44,7 +44,10 @@ export async function POST(req: NextRequest) {
 
     const context = `client.${String(body.context ?? "unknown").replace(/[^a-z0-9._-]/gi, "").slice(0, 40) || "unknown"}`;
     await reportError(context, new Error(message), {
-      url: String(body.url ?? "").slice(0, 300),
+      // Path only. Query strings carry live tokens (?t= email-preference links,
+      // ?dl= downloads, ?code= sign-in) and this lands in a durable table and
+      // the logs (security audit 2026-09-24).
+      url: String(body.url ?? "").split(/[?#]/)[0].slice(0, 300),
       stack: String(body.stack ?? "").slice(0, 2000),
       ua: (req.headers.get("user-agent") ?? "").slice(0, 200),
     });

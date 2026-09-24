@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { encryptToken } from "@/lib/token-crypto";
-import { verifyState } from "@/lib/oauth-state";
+import { verifyState, stateBoundToBrowser, oauthBindCookieName } from "@/lib/oauth-state";
 import { parseCardsParam } from "@/lib/crm-scope-server";
 import { isNativeGoogleLoginState } from "@/lib/native-google-login";
 import { handleNativeGoogleLoginCallback } from "@/lib/native-google-login-server";
@@ -61,6 +61,10 @@ export async function GET(request: NextRequest) {
   // user_id) is rejected, so tokens can't be written onto another user's row.
   const userId = verifyState(state);
   if (!userId) {
+    return DONE("error");
+  }
+  // …and finish in the browser that started it, or not at all.
+  if (!stateBoundToBrowser(state, request.cookies.get(oauthBindCookieName("google"))?.value)) {
     return DONE("error");
   }
 

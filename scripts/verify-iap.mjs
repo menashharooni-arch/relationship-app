@@ -13,14 +13,15 @@
  *   - purchase buttons that vanish entirely if StoreKit is momentarily
  *     unreachable, leaving locked features with no purchase path.
  *
- * Credentials are the App Store Connect demo accounts; override with
- * IAP_REVIEW_PW if the password is rotated.
+ * Credentials are the App Store Connect demo accounts; set
+ * IAP_REVIEW_PW in the environment (never committed: the repo is public).
  */
 import { chromium } from "playwright";
 import { markInternal } from "./qa-internal.mjs";
 
 const BASE = process.argv[2] || "https://swiftcard.me";
-const PW = process.env.IAP_REVIEW_PW || "SwiftReview!e6535015";
+const PW = process.env.IAP_REVIEW_PW;
+if (!PW) { console.error("Set IAP_REVIEW_PW (the App Review demo password) — it is never kept in the repo."); process.exit(1); }
 const FREE = "applereview-free@swiftcard.me";
 const PRO = "applereview@swiftcard.me";
 // App Review's rejection notice names an "iPad Air 11-inch (M3)", but the

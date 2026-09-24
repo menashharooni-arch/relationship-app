@@ -1,4 +1,6 @@
+import { notFound } from "next/navigation";
 import { retentionFunnel } from "@/lib/retention-alert";
+import { requireAdmin } from "@/lib/admin";
 
 export const metadata = { title: "Retention — SwiftCard Admin" };
 // Read live every visit: the numbers here are small and the whole point is to
@@ -19,6 +21,9 @@ const SAVED_BY: Record<string, string> = {
 };
 
 export default async function AdminRetentionPage() {
+  // The admin layout is NOT a security boundary: an RSC request can render
+  // this segment without its parent layout. Every page that reads data checks.
+  if (!(await requireAdmin())) notFound();
   const { rows, totals, byReason } = await retentionFunnel();
 
   return (

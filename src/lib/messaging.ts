@@ -306,11 +306,34 @@ export function buildSmsBody(opts: { senderName: string; company?: string | null
 // example, is silently dropped (error 30034) AFTER the API said yes. Callers
 // store the SID on the logged message (logMessage providerSid) so the
 // /api/twilio/status callback can mark it delivered/undelivered later.
+// The texting program is a US A2P 10DLC campaign, so a text only ever goes to a
+// North American (+1) number. Anything else is refused BEFORE Twilio: an
+// international premium route costs up to 50x a US text, and "text any number
+// in the world from a free account" is the SMS-pumping fraud pattern
+// (security audit 2026-09-24). Returns the E.164 form, or null.
+export function nanpE164(raw: string | null | undefined): string | null {
+  const s = (raw || "").trim();
+  if (!s) return null;
+  let digits = s.replace(/\D/g, "");
+  if (s.startsWith("+")) {
+    if (!digits.startsWith("1")) return null;
+    digits = digits.slice(1);
+  } else if (digits.length === 11 && digits.startsWith("1")) {
+    digits = digits.slice(1);
+  }
+  // NXX-NXX-XXXX: neither the area code nor the exchange starts with 0 or 1.
+  if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(digits)) return null;
+  return `+1${digits}`;
+}
+
 export async function sendSms(to: string, body: string): Promise<{ status: SendResult; sid: string | null }> {
   const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_MESSAGING_SERVICE_SID, TWILIO_PHONE_NUMBER } = process.env;
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || (!TWILIO_MESSAGING_SERVICE_SID && !TWILIO_PHONE_NUMBER)) {
     return { status: "not_configured", sid: null };
   }
+  const e164 = nanpE164(to);
+  if (!e164) return { status: "failed", sid: null };
+  to = e164;
   const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
   // Delivery-status callback: only on a public https origin (Twilio can't reach
   // localhost, and preview deploys must not receive prod callbacks).

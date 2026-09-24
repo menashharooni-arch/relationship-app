@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveConnectUserId } from "@/lib/connect-user";
 import { isPaidPlan } from "@/lib/plan";
-import { signState } from "@/lib/oauth-state";
+import { signState, oauthBindCookieName, oauthBindCookieValue, OAUTH_BIND_COOKIE_OPTIONS } from "@/lib/oauth-state";
 import { parseCardsParam, scopeIsOwned } from "@/lib/crm-scope-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 
@@ -45,6 +45,8 @@ export async function GET(request: Request) {
   });
 
   const res = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  // Ties the callback to THIS browser (lib/oauth-state, stateBoundToBrowser).
+  res.cookies.set(oauthBindCookieName("google"), oauthBindCookieValue(state), OAUTH_BIND_COOKIE_OPTIONS);
   // Cookie only when a choice was SENT. A reconnect link carries no `cards`
   // param, and the callback must then leave the row's existing scope alone —
   // an absent cookie is how it knows not to touch it.

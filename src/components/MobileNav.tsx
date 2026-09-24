@@ -2,9 +2,23 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 const ACTIVE_CARD_KEY = "swiftcard_active_card";
+
+// Which extra tabs (office Admin, site console) this account's bar last showed.
+// The route loading skeleton (PortalSkeleton) renders the bar BEFORE the page
+// has resolved them, and used to draw it without them — so an office admin
+// tapping any tab watched "Admin" vanish for a second and come back. The
+// skeleton now draws what the bar last showed; the real page then confirms or
+// corrects it. It only decides whether a LINK is shown: /office/admin and
+// /admin guard themselves on the server. Cleared on sign-out / account switch
+// (lib/account-state PERSON_SCOPED_STORAGE_KEYS).
+export const NAV_EXTRA_TABS_KEY = "sc_nav_extra_tabs";
+const noSubscribe = () => () => {};
+function readRememberedTabs(): string {
+  try { return localStorage.getItem(NAV_EXTRA_TABS_KEY) ?? ""; } catch { return ""; }
+}
 
 const TABS = [
   {
@@ -82,8 +96,20 @@ const SITE_TAB = {
   ),
 };
 
-export default function MobileNav({ showAdmin = false, showSite = false }: { showAdmin?: boolean; showSite?: boolean }) {
+export default function MobileNav({ showAdmin: showAdminProp, showSite: showSiteProp }: { showAdmin?: boolean; showSite?: boolean }) {
   const pathname = usePathname();
+  // Props present = the page resolved them (MobileNavGate). Absent = the
+  // loading skeleton, which uses what this bar last showed. The server
+  // snapshot is "" so SSR and hydration stay identical.
+  const remembered = useSyncExternalStore(noSubscribe, readRememberedTabs, () => "");
+  const resolved = showAdminProp !== undefined || showSiteProp !== undefined;
+  const showAdmin = resolved ? !!showAdminProp : remembered.includes("admin");
+  const showSite = resolved ? !!showSiteProp : remembered.includes("site");
+  useEffect(() => {
+    if (!resolved) return;
+    const v = [showAdmin && "admin", showSite && "site"].filter(Boolean).join(",");
+    try { localStorage.setItem(NAV_EXTRA_TABS_KEY, v); } catch { /* storage blocked */ }
+  }, [resolved, showAdmin, showSite]);
   const searchParams = useSearchParams();
   const [card, setCard] = useState<string | null>(null);
 

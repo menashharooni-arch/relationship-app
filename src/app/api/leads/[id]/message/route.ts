@@ -7,6 +7,7 @@ import { isPaidUser } from "@/lib/notification-privacy";
 import { deliverToLead } from "@/lib/messaging";
 import { isPaidPlan } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
+import { outboundDailyCapHit, OUTBOUND_CAP_MESSAGE } from "@/lib/outbound-cap";
 
 // GET — the conversation thread (outbound messages you've sent this contact).
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -51,6 +52,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { error: "You're sending messages very quickly — give it a minute and try again." },
       { status: 429 },
     );
+  }
+  if (await outboundDailyCapHit(user.id)) {
+    return NextResponse.json({ error: OUTBOUND_CAP_MESSAGE }, { status: 429 });
   }
 
   const { text, channel: reqChannel, subject } = await req.json();
@@ -128,7 +132,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       website: sender?.website || null,
     },
     text: body,
-    subject: typeof subject === "string" ? subject : null,
+    // Capped like the body: a subject is one line, not a second message.
+    subject: typeof subject === "string" ? subject.replace(/[\r\n]+/g, " ").slice(0, 150) : null,
     cardUsername: lead.card_owner,
     channel: preferChannel,
     smsConsented,

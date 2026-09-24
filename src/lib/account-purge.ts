@@ -44,7 +44,14 @@ type Admin = ReturnType<typeof getAdminSupabase>;
 export async function purgeUserData(admin: Admin, userId: string): Promise<void> {
   // Card usernames own the lead/view/event data (keyed by slug, not user_id).
   const { data: cards } = await admin.from("cards").select("username").eq("user_id", userId);
-  const usernames = (cards ?? []).map((c) => c.username as string).filter(Boolean);
+  // …and the PROFILE handle: manual contacts and legacy profile-card captures
+  // are keyed on it. Cards-only left those contacts behind after the purge,
+  // and whoever registered the freed handle next inherited them through
+  // getOwnerUsernames (security audit 2026-09-24).
+  const { data: prof } = await admin.from("profiles").select("username").eq("id", userId).maybeSingle();
+  const usernames = [...new Set(
+    [...(cards ?? []).map((c) => c.username as string), (prof?.username as string | null) ?? ""].filter(Boolean),
+  )];
   const viewKeys = usernames.flatMap((u) => [u, `${u}__links`]);
 
   // Lead-child rows are keyed by lead_id → resolve this user's lead ids first.

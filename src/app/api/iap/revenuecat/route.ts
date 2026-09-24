@@ -76,6 +76,12 @@ async function applyEvent(
   });
 
   if (decision.action === "grant") {
+    // A grant event can arrive LATE: a RENEWAL that 500'd, then the
+    // EXPIRATION, then RevenueCat's retry of the RENEWAL — and appleGrantPatch
+    // clears plan_expires_at, so that was Pro forever (security audit
+    // 2026-09-24). Ask RevenueCat what is true now; only a definite "no" stops
+    // the grant, so an outage never keeps a paying customer out.
+    if ((await rcProActive(profile.id as string)) === false) return "stale_grant";
     await admin
       .from("profiles")
       .update(appleGrantPatch(customization))

@@ -14,6 +14,7 @@ import CardEventTracker from "@/components/CardEventTracker";
 import SignupNudgeHost from "@/components/SignupNudgeHost";
 import SwiftLinkProfile from "@/components/SwiftLinkProfile";
 import ReportCardLink from "@/components/ReportCardLink";
+import { safeCssValue, safeFontValue } from "@/lib/custom-layout";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -202,19 +203,21 @@ export default async function SwiftLinksPage({ params, searchParams }: { params:
     heroContent: customization.linkHeroContent,
     ...(ownerPaid
       ? {
-          bg: customization.linkBgColor,
-          text: customization.linkTextColor,
-          font: customization.linkFontFamily,
+          // Owner-typed values that land in style objects: CSS-guarded
+          // (lib/custom-layout safeCssValue) so they can only be a colour/font.
+          bg: safeCssValue(customization.linkBgColor),
+          text: safeCssValue(customization.linkTextColor),
+          font: safeFontValue(customization.linkFontFamily),
           iconShape: customization.linkIconShape,
           iconFill: customization.linkIconFill,
           buttonStyle: customization.linkButtonStyle,
-          buttonColor: customization.linkButtonColor,
+          buttonColor: safeCssValue(customization.linkButtonColor),
           // Page background media — Pro, behind every header style.
           bgMedia: customization.linkBgMedia,
           bgMediaType: customization.linkBgMediaType,
           bgDim: customization.linkBgDim,
           glass: customization.linkGlass,
-          accent: customization.linkAccentColor,
+          accent: safeCssValue(customization.linkAccentColor),
         }
       : {}),
   };

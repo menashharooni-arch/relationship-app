@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { encryptToken } from "@/lib/token-crypto";
-import { verifyState } from "@/lib/oauth-state";
+import { verifyState, stateBoundToBrowser, oauthBindCookieName } from "@/lib/oauth-state";
+import { safeNextPath } from "@/lib/safe-next";
 import { exchangeLinkedInCode, fetchLinkedInProfile, GUEST_STATE, isLinkedInEnabled } from "@/lib/sync-linkedin";
 
 export const runtime = "nodejs";
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
   // Return the user to where they started the connect (set by /connect?next=…,
   // same-origin paths only) — default is Settings. Clear the cookie either way.
   const returnRaw = request.cookies.get("li_return_to")?.value ?? "";
-  const returnTo = returnRaw.startsWith("/") && !returnRaw.startsWith("//") ? returnRaw : "/settings/flows";
+  const returnTo = safeNextPath(returnRaw) ?? "/settings/flows";
   // Set by /connect?native=1 — this run started inside the iOS shell's in-app
   // browser rather than the webview itself.
   const isNative = request.cookies.get("li_native")?.value === "1";
@@ -67,6 +68,11 @@ export async function GET(request: NextRequest) {
   // written onto another user's row.
   const userId = verifyState(state);
   if (!userId) return DONE("error");
+  // …and finish in the browser that started it, or not at all.
+  if (!stateBoundToBrowser(state, request.cookies.get(oauthBindCookieName("linkedin"))?.value)) {
+    console.warn("[linkedin/callback] state not bound to this browser");
+    return DONE("error");
+  }
 
   const tokens = await exchangeLinkedInCode(code);
   if (!tokens?.access_token) {

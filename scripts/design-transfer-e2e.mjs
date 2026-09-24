@@ -13,7 +13,8 @@ import { readFileSync } from "node:fs";
 
 const APP = "https://swiftcard.me";
 const EMAIL = "applereview@swiftcard.me";
-const PASSWORD = process.env.DEMO_PASSWORD || "SwiftReview!b62a96cb";
+const PASSWORD = process.env.DEMO_PASSWORD;
+if (!PASSWORD) { console.error("Set DEMO_PASSWORD (the App Review demo password) — it is never kept in the repo."); process.exit(1); }
 
 const env = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
 const get = (k) => env.match(new RegExp(`^${k}=(.*)$`, "m"))?.[1]?.trim().replace(/^"|"$/g, "");
