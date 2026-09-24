@@ -21,6 +21,12 @@ type Preview = {
   prorationDate: number;
   prorationCents: number;
   dueTodayCents: number;
+  /** Monthly ↔ annual, or a trial ending: the billing date moves to today. */
+  billingDateResets?: boolean;
+  /** A Pro trial moved up to Office ends now (Office has no trial). */
+  endsTrial?: boolean;
+  /** Still in a trial that carries on: nothing today, first charge then. */
+  trialContinuesUntil?: string | null;
 };
 
 const RESUME_KEY = "sc_checkout_resume"; // set before bouncing to login → auto-continue on return
@@ -284,7 +290,7 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
         </h1>
         <p className="text-gray-500 text-sm mb-5">
           {preview
-            ? `You're on ${preview.currentPlan === "office" ? "Office" : "Pro"}. We'll adjust your existing subscription — no second charge, and you keep your billing date.`
+            ? `You're on ${preview.currentPlan === "office" ? "Office" : "Pro"}${preview.endsTrial ? " (free trial)" : ""}. We'll change your existing subscription — never a second one${preview.billingDateResets ? ", and your billing date moves to today." : ", and you keep your billing date."}`
             : "Confirm the details below, then continue to secure payment."}
         </p>
 
@@ -331,9 +337,13 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
 
         {preview && (
           <p className="text-gray-500 text-[0.6875rem] mt-3 leading-relaxed">
-            {preview.upgrading
-              ? `Charged today to the card on file. You're credited for the unused time on ${preview.currentPlan === "office" ? "Office" : "Pro"}, so you only pay the difference — then ${formatUsd(subtotalCents)}/${per} from your next billing date.`
-              : `Applied as a credit against your next invoice rather than refunded, then ${formatUsd(subtotalCents)}/${per} from your next billing date.`}
+            {preview.trialContinuesUntil
+              ? `Your free trial carries on — nothing is charged today. Then ${formatUsd(subtotalCents)}/${per} from ${new Date(preview.trialContinuesUntil).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}, unless you cancel before then.`
+              : preview.endsTrial
+                ? `Office has no free trial, so your Pro trial ends now and Office starts today: charged today to the card on file, then ${formatUsd(subtotalCents)}/${per}.`
+                : preview.upgrading
+                  ? `Charged today to the card on file. You're credited for the unused time on ${preview.currentPlan === "office" ? "Office" : "Pro"}, so you only pay the difference — then ${formatUsd(subtotalCents)}/${per} ${preview.billingDateResets ? "from today" : "from your next billing date"}.`
+                  : `Applied as a credit against your next invoice rather than refunded, then ${formatUsd(subtotalCents)}/${per} from your next billing date.`}
           </p>
         )}
 

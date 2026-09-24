@@ -581,6 +581,20 @@ function ChangePlanModal({ sub, onClose, onCancelInstead, onChanged }: {
 
   async function choose(plan: "pro" | "office") {
     setBusy(plan); setErr(null);
+    // A change that CHARGES today — Pro → Office, or any move to annual — goes
+    // through the /checkout review page, which asks Stripe for the real
+    // amount, shows "Due today" and waits for a confirm. This used to call
+    // change-plan straight from here: one tap charged an annual Office upgrade
+    // (hundreds of dollars) with no amount shown and no confirmation.
+    // Moves that only produce a credit (Office → Pro, annual → monthly) stay
+    // here with their own confirm.
+    const charges = (plan === "office" && sub.plan !== "office") || (interval === "annual" && (sub.interval ?? "monthly") !== "annual");
+    if (charges) {
+      const qs = new URLSearchParams({ plan, interval });
+      if (plan === "office") qs.set("seats", String(sub.plan === "office" ? (sub.seats ?? seats) : seats));
+      window.location.href = `/checkout?${qs.toString()}`;
+      return;
+    }
     try {
       const res = await fetch("/api/stripe/subscription/change-plan", {
         method: "POST", headers: { "Content-Type": "application/json" },

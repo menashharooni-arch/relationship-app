@@ -63,6 +63,8 @@ export async function POST(req: NextRequest) {
   // inside the try below (needs the retrieved subscription). Function-scoped so
   // the later Office→Pro cascade can read it.
   let seats = 1;
+  // Set inside the try (needs the retrieved subscription).
+  let endsTrial = false;
 
   // Perform the swap on Stripe with proration.
   try {
@@ -107,6 +109,11 @@ export async function POST(req: NextRequest) {
     // Downgrades/lateral moves keep create_prorations: the credit rides the next
     // invoice, so we never owe a cash refund.
     const addingSeats = targetPlan === "office" && seats > (item.quantity ?? 1);
+    // Office has no free trial: a Pro trial moved up to Office ends now and is
+    // charged (the /checkout review page quotes exactly this). Without it the
+    // subscription stayed trialing and the office ran free until the Pro
+    // trial's end date — with nothing telling the owner so.
+    endsTrial = sub.status === "trialing" && targetPlan === "office" && !wasOffice;
     const upgrading = isUpgrade(current, { plan: targetPlan, interval }) || addingSeats;
 
     // Honour the timestamp the preview quoted from, so the amount we showed is
@@ -123,7 +130,11 @@ export async function POST(req: NextRequest) {
     // Idempotency key derived from the exact transition, so a network-level
     // retry of the same change can't double-apply (mirrors the seats route).
     // (billing audit #12)
-    const idempotencyKey = `change:${profile.stripe_subscription_id}:${item.price?.id}->${targetPriceId}:${seats}`;
+    // …scoped to the moment (the quoted prorationDate, else the minute). Stripe
+    // keeps keys for 24 hours, and the same transition made AGAIN later that
+    // day (Office → Pro → Office) replayed the first response: nothing changed
+    // on Stripe while the plan below was written anyway.
+    const idempotencyKey = `change:${profile.stripe_subscription_id}:${item.price?.id}->${targetPriceId}:${seats}:${prorationDate ?? Math.floor(nowSec / 60)}`;
     await getStripe().subscriptions.update(profile.stripe_subscription_id, {
       items: [{ id: item.id, price: targetPriceId, quantity: seats }],
       proration_behavior: upgrading ? "always_invoice" : "create_prorations",
@@ -135,6 +146,7 @@ export async function POST(req: NextRequest) {
       // decline (billing audit — this previously granted the upgrade for free).
       ...(upgrading ? { payment_behavior: "error_if_incomplete" as const } : {}),
       ...(prorationDate ? { proration_date: prorationDate } : {}),
+      ...(endsTrial ? { trial_end: "now" as const } : {}),
       cancel_at_period_end: false, // switching plans clears any pending cancel
     }, { idempotencyKey });
   } catch (err) {
@@ -161,6 +173,12 @@ export async function POST(req: NextRequest) {
 
   // Reflect the new plan immediately (the webhook also reconciles this).
   const cust = await getPlanCleanCustomization(admin, subjectId);
+  if (endsTrial) {
+    // The trial is over: no "trial ends" banner or day-7 charge notice for it.
+    delete cust._trialEndsAt;
+    delete cust._trialChargeCents;
+    delete cust._trialChargeInterval;
+  }
   await admin.from("profiles").update({ plan: DB_PLAN[targetPlan], customization: cust }).eq("id", subjectId);
 
   if (targetPlan === "office") {

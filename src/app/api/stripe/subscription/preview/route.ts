@@ -69,6 +69,15 @@ export async function POST(req: NextRequest) {
 
     const current = planFromPriceId(item.price?.id);
     const upgrading = isUpgrade(current, { plan: targetPlan, interval });
+    // Office has no free trial, so moving a Pro TRIAL up to Office ends the
+    // trial and starts Office now — change-plan does exactly the same. Left
+    // alone, Stripe kept the trial running and the office was free until the
+    // Pro trial's end date, while this page said "pay $0.00 today".
+    const trialing = sub.status === "trialing";
+    const endsTrial = trialing && targetPlan === "office" && current?.plan !== "office";
+    // A new billing period (monthly ↔ annual) restarts the cycle today, so
+    // Stripe charges the whole new period now — not just the proration lines.
+    const intervalChanges = !!current && current.interval !== interval;
 
     // Pin the instant we prorate from, and quote from exactly that instant.
     const prorationDate = Math.floor(Date.now() / 1000);
@@ -80,6 +89,7 @@ export async function POST(req: NextRequest) {
         items: [{ id: item.id, price: targetPriceId, quantity: seats }],
         proration_behavior: "create_prorations",
         proration_date: prorationDate,
+        ...(endsTrial ? { trial_end: "now" as const } : {}),
       },
     });
 
@@ -102,8 +112,22 @@ export async function POST(req: NextRequest) {
       // Net of the credit for unused time on the old plan. Can be negative on a
       // downgrade — that's a credit, not a refund.
       prorationCents,
-      // What Stripe would actually collect if we invoice now (never below zero).
-      dueTodayCents: Math.max(0, prorationCents),
+      // What Stripe will actually collect when the change is made:
+      //   • still in a trial that carries on → nothing today;
+      //   • the trial ends, or the billing period changes → the whole invoice
+      //     Stripe raises now (new period, less the credit) — summing only the
+      //     proration lines quoted $0.00 for Pro monthly → Office annual while
+      //     Stripe then charged ~$210;
+      //   • otherwise → the prorated difference.
+      dueTodayCents: trialing && !endsTrial
+        ? 0
+        : endsTrial || intervalChanges
+          ? Math.max(0, preview.amount_due ?? 0)
+          : Math.max(0, prorationCents),
+      // So the page can say what actually happens to the billing date / trial.
+      billingDateResets: (endsTrial || intervalChanges) && !(trialing && !endsTrial),
+      endsTrial,
+      trialContinuesUntil: trialing && !endsTrial && sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
       currency: preview.currency ?? "usd",
     });
   } catch (err) {
