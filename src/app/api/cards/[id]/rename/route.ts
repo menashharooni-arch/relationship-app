@@ -4,6 +4,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { normalizeSlug } from "@/lib/username";
 import { isReservedSlug } from "@/lib/slug";
 import { slugHeldAsAlias } from "@/lib/slug-alias";
+import { revalidateCardPage } from "@/lib/card-page-data";
 
 // POST /api/cards/[id]/rename { slug }
 // Changes a card's public URL slug and atomically migrates every row keyed by
@@ -80,6 +81,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       admin.storage.from("card-signatures").remove([`${oldSlug}.png`]).then(() => {}, () => {}),
     ]);
   }
+
+  // The public pages are cached per address: without this the OLD address
+  // kept serving the card for up to a minute after it was given up, and the
+  // new one could miss it for as long.
+  if (!result.unchanged) revalidateCardPage(result.old ?? null, slug);
 
   return NextResponse.json({ ok: true, slug, unchanged: !!result.unchanged });
 }

@@ -398,7 +398,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           // Nothing the signature shows changed (a links edit, an internal
           // flag) — the freshness work above still ran where needed, but the
           // owner gets no "re-copy your signature" nudge for it.
-          return NextResponse.json({ ok: true, ...(renamedTo ? { renamedTo } : {}) });
+          return NextResponse.json({ ok: true, ...(renamedTo ? { renamedTo } : {}), slug: renamedTo ?? ((beforeCard as { username?: string } | null)?.username ?? null) });
         }
         const { data: pending } = await admin
           .from("notifications")
@@ -427,7 +427,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     /* notification is a nicety; a card save must still succeed */
   }
 
-  return NextResponse.json({ ok: true, ...(renamedTo ? { renamedTo } : {}) });
+  return NextResponse.json({ ok: true, ...(renamedTo ? { renamedTo } : {}), slug: renamedTo ?? ((beforeCard as { username?: string } | null)?.username ?? null) });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

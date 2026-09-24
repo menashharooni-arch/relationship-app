@@ -625,7 +625,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
         // A name/company change may have auto-renamed the card URL — follow the
         // slug the server reports, or ?card= selects a card that no longer exists.
         const okJson = await res.json().catch(() => ({} as { renamedTo?: string }));
-        const slugNow = okJson.renamedTo || card.username;
+        // The card's address NOW — renamed by a name change (renamedTo), or by
+        // hand in "Card URL" earlier in this session (slug). card.username is
+        // the address the page loaded with, and sending the dashboard there
+        // after a manual rename found no card (and pinned a dead address as
+        // the active card).
+        const slugNow = okJson.renamedTo || okJson.slug || card.username;
         // Show the "Saved" confirmation briefly, then return to THIS card's
         // dashboard (not the bare picker).
         // A teammate who just joined (?joined=1) goes on to the tour — the
