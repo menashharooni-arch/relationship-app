@@ -93,7 +93,14 @@ export async function POST(req: NextRequest) {
   // Enforce Free limits on the customization blob (Pro-only colors snapped to
   // the nearest Free preset, link buttons capped) — backend-enforced, not just
   // hidden in the UI.
-  let cust = sanitizeCustomizationForPlan((customization ?? {}) as Record<string, unknown>, treatAsPaid, template);
+  // "_"-prefixed keys are the server's own bookkeeping — _prevSlugs (which
+  // old addresses redirect here), _claimDraftId, office markers. The edit
+  // route has always dropped them from a request; create didn't, so a crafted
+  // create carrying _prevSlugs: ["<someone's old address>"] could take over
+  // the redirect of another user's printed QR codes and links.
+  const incomingCust = { ...((customization ?? {}) as Record<string, unknown>) };
+  for (const k of Object.keys(incomingCust)) if (k.startsWith("_")) delete incomingCust[k];
+  let cust = sanitizeCustomizationForPlan(incomingCust, treatAsPaid, template);
   // Custom designer is Pro-only — Free can't save a "custom" template.
   let safeTemplate = !treatAsPaid && template === "custom" ? "classic-pro" : (template || "classic-pro");
 

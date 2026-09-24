@@ -27,16 +27,24 @@ describe("normalizeSlug — safe [a-z0-9-] URL slug", () => {
 });
 
 // A tiny fake admin client that reports a fixed set of taken slugs. Mirrors the
-// chain ensureUniqueUsername uses: from(table).select().eq("username",v).limit().maybeSingle().
-function fakeAdmin(taken: Set<string>) {
+// chains ensureUniqueUsername uses: from(table).select().eq("username",v).limit().maybeSingle()
+// for live addresses, and .contains("customization", { _prevSlugs: [v] }) for a
+// card's OLD addresses (which still redirect, so they count as taken).
+function fakeAdmin(taken: Set<string>, oldAddresses: Set<string> = new Set()) {
   return {
     from() {
       let wanted = "";
+      let alias = "";
       const chain: Record<string, unknown> = {
         select() { return chain; },
         eq(_col: string, val: string) { wanted = val; return chain; },
+        contains(_col: string, val: { _prevSlugs?: string[] }) { alias = val._prevSlugs?.[0] ?? ""; return chain; },
+        neq() { return chain; },
         limit() { return chain; },
-        async maybeSingle() { return { data: taken.has(wanted) ? { id: "x" } : null }; },
+        async maybeSingle() {
+          if (alias) return { data: oldAddresses.has(alias) ? { id: "x" } : null, error: null };
+          return { data: taken.has(wanted) ? { id: "x" } : null };
+        },
       };
       return chain;
     },
@@ -52,6 +60,11 @@ describe("ensureUniqueUsername — never blocks, always returns a free slug", ()
   it("appends -2, -3… when the base (and variants) are taken", async () => {
     const out = await ensureUniqueUsername("aaron-lavi", fakeAdmin(new Set(["aaron-lavi", "aaron-lavi-2"])));
     expect(out).toBe("aaron-lavi-3");
+  });
+
+  it("skips another card's OLD address — it still redirects to that card", async () => {
+    const out = await ensureUniqueUsername("aaron-lavi", fakeAdmin(new Set(), new Set(["aaron-lavi"])));
+    expect(out).toBe("aaron-lavi-2");
   });
 
   it("falls back to 'card' for empty/junk bases", async () => {

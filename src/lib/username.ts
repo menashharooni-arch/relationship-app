@@ -1,5 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { normalizeSlug, isReservedSlug } from "@/lib/slug";
+import { slugHeldAsAlias } from "@/lib/slug-alias";
 
 // ── Public card slug (username) uniqueness ───────────────────────────────────
 // A card's `username` is only the public URL slug (/<username>) — it is NOT
@@ -30,11 +31,15 @@ export async function slugTaken(admin: Admin, slug: string): Promise<boolean> {
   // Card pages live at the ROOT since 2026-08-19, so an app route name is
   // permanently "taken" — a card at /pricing would be unreachable.
   if (isReservedSlug(slug)) return true;
-  const [{ data: card }, { data: profile }] = await Promise.all([
+  const [{ data: card }, { data: profile }, heldAsAlias] = await Promise.all([
     admin.from("cards").select("id").eq("username", slug).limit(1).maybeSingle(),
     admin.from("profiles").select("id").eq("username", slug).limit(1).maybeSingle(),
+    // A card's OLD address (customization._prevSlugs) still redirects to that
+    // card, so it is not free: a new card given it would receive the other
+    // owner's QR scans, NFC taps and shared links.
+    slugHeldAsAlias(admin, slug),
   ]);
-  return !!card || !!profile;
+  return !!card || !!profile || heldAsAlias;
 }
 
 // Return an available slug based on `base`, appending -2, -3, … then a short

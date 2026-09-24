@@ -94,7 +94,12 @@ export function buildClaimInsert(
   // Snap Pro-only design keys to the nearest Free-safe preset / cap links for
   // Free — backend-enforced, not UI-hidden. `paid` here already accounts for a
   // guest's picked-but-not-yet-paid-for Pro/Office intent (see claim route).
-  const rawCustomization = (p.customization ?? {}) as Record<string, unknown>;
+  // Never the client's word on server bookkeeping ("_"-prefixed keys such as
+  // _prevSlugs, which decide where an old address redirects) — same rule as
+  // the card create and edit routes. The claim route stamps its own
+  // _claimDraftId after this.
+  const rawCustomization = { ...((p.customization ?? {}) as Record<string, unknown>) };
+  for (const k of Object.keys(rawCustomization)) if (k.startsWith("_")) delete rawCustomization[k];
   // "Converted" means the card will look different from the one they built —
   // decided by the converter itself, not by whether a design key exists. A
   // guest who tapped a Free Look used to land on /welcome being told their

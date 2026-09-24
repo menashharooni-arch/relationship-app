@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { normalizeSlug } from "@/lib/username";
 import { isReservedSlug } from "@/lib/slug";
+import { slugHeldAsAlias } from "@/lib/slug-alias";
 
 // POST /api/cards/[id]/rename { slug }
 // Changes a card's public URL slug and atomically migrates every row keyed by
@@ -31,9 +32,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "That URL is reserved — try another." }, { status: 409 });
   }
 
+  const admin = getAdminSupabase();
+  // Another account's card still answers at this address as a redirect (its
+  // old URL, in _prevSlugs). The database function only checks live URLs, so
+  // without this a hand-picked URL could take over someone else's printed QR
+  // codes. Your OWN old address is fine to take back.
+  if (await slugHeldAsAlias(admin, slug, user.id)) {
+    return NextResponse.json({ error: "That URL is already taken — try another." }, { status: 409 });
+  }
+
   // The function itself re-checks ownership (p_user_id) and uniqueness, and does
   // the migration atomically — so a partial rename can never orphan data.
-  const admin = getAdminSupabase();
   const { data, error } = await admin.rpc("rename_card_slug", {
     p_card_id: id,
     p_user_id: user.id,
