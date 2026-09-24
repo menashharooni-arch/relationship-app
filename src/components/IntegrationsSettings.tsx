@@ -48,8 +48,11 @@ async function openConnect(href: string): Promise<void> {
   }
 }
 
+// Names every destination the list below offers. It used to name three of the
+// six, so the iPhone paywall told someone tapping Salesforce that Pro unlocks
+// "Zapier, Google Contacts, and HubSpot" — not the thing they tapped.
 const INTEGRATIONS_NATIVE_COPY =
-  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan";
+  "Pro feature — Salesforce, GoHighLevel, Pipedrive, HubSpot, Google Contacts and Zapier are only available on the Pro plan";
 
 type Integration = "google" | "hubspot" | "pipedrive" | "highlevel" | "salesforce";
 

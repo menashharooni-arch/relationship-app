@@ -31,12 +31,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "no_token", message: "Paste your HubSpot access token." }, { status: 400 });
   }
 
-  // Confirm the token is real before storing it — a lightweight, read-only
-  // call that needs no scopes beyond "the token is valid for some portal".
-  const check = await fetch("https://api.hubapi.com/account-info/v3/details", {
-    headers: { Authorization: `Bearer ${trimmed}` },
-  }).catch(() => null);
-  if (!check || !check.ok) {
+  // Confirm the token is real before storing it. Two read-only probes, either
+  // of which proves the key reaches a portal: account details first, then one
+  // contact — the call the scopes we ask for (contacts.read) definitely allow.
+  // A service key granted ONLY the contact scopes must not be refused here
+  // because the account-info endpoint wants a scope the setup text never
+  // mentioned; that would reject a key that syncs perfectly well.
+  const probe = (url: string) =>
+    fetch(url, { headers: { Authorization: `Bearer ${trimmed}` } }).then((r) => r.ok).catch(() => false);
+  const accepted =
+    (await probe("https://api.hubapi.com/account-info/v3/details")) ||
+    (await probe("https://api.hubapi.com/crm/v3/objects/contacts?limit=1"));
+  if (!accepted) {
     return NextResponse.json(
       { error: "invalid_token", message: "That token wasn't accepted by HubSpot — check it and try again." },
       { status: 400 },

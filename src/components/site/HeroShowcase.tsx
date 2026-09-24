@@ -275,13 +275,7 @@ const LINKS_NATURAL_W = 430;
 const LINKS_NATURAL_H = 1150; // taller since the page gained a featured tile + compact row
 const LINKS_SCALE = 0.46;
 const LINKS_W = Math.round(LINKS_NATURAL_W * LINKS_SCALE); // 198
-const LINKS_H = Math.round(LINKS_NATURAL_H * LINKS_SCALE); // 529
-// The PHONE's screen, shorter than the page it shows (owner, 2026-09-24: the
-// Swift Links phone was "awkwardly long and skinny"). Sized to the whole page,
-// its body stood 213×544 — 2.55:1 beside the centre phone's 2.14:1. 441 gives
-// it the centre phone's proportions at the same small width; the page keeps
-// its size and simply continues below the fold, as it would on a real phone.
-const LINKS_SCREEN_H = 441;
+const LINKS_H = Math.round(LINKS_NATURAL_H * LINKS_SCALE); // 451
 
 /** The blue scalloped verified seal from the live Swift Links page. */
 function Verified({ size = 22 }: { size?: number }) {
@@ -646,9 +640,7 @@ function Stage({ persona, entered, preload }: { persona: Persona; entered: boole
           phone, and a second device reads as a desk instead of a floating
           slab. 213px body ≈ the 198px page width this panel is drawn at. */}
       <div
-        // 140, not 96: the phone lost 88px of height, and half of it goes to
-        // the top so the device keeps the same centre on the stage.
-        className="absolute left-0 top-[140px] z-10"
+        className="absolute left-0 top-[96px] z-10"
         // 0.9, not 0.945: the page is in a phone body now (213px wide), and at
         // 0.945 its right edge slipped under the centre phone — the owner’s
         // standing rule is that nothing hides under it. Smaller also reads as
@@ -664,7 +656,7 @@ function Stage({ persona, entered, preload }: { persona: Persona; entered: boole
             statusBar="overlay"
             statusTone={persona.look.mode === "light" ? "dark" : "light"}
             indicatorTone={persona.look.mode === "light" ? "dark" : "light"}
-            screenStyle={{ height: LINKS_SCREEN_H, background: persona.look.sheet }}
+            screenStyle={{ height: LINKS_H, background: persona.look.sheet }}
             ariaLabel="A Swift Links page open on a phone"
           >
             <div key={persona.key + "-links"} className={`sc-hs-slide-l ${entered ? "" : "sc-hs-hidden-l"}`}>

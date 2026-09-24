@@ -6,7 +6,7 @@ import { PlanGate } from "@/components/PlanGate";
 import { IapProPill } from "@/components/NativePaywall";
 
 const INTEGRATIONS_NATIVE_COPY =
-  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan";
+  "Pro feature — Salesforce, GoHighLevel, Pipedrive, HubSpot, Google Contacts and Zapier are only available on the Pro plan";
 
 type Props = {
   initialNotifications: boolean;

@@ -30,12 +30,12 @@ const SITES: Site[] = [
     // read as nagging rather than as an offer.
     file: "src/components/ZapierSettings.tsx",
     web: [">Pro</Link>", "Upgrade to Pro to connect Zapier and automate your lead workflow."],
-    native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan"],
+    native: ["Pro feature — Salesforce, GoHighLevel, Pipedrive, HubSpot, Google Contacts and Zapier are only available on the Pro plan"],
   },
   {
     file: "src/components/CrmEventSettings.tsx",
     web: [">Pro</Link>"],
-    native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan"],
+    native: ["Pro feature — Salesforce, GoHighLevel, Pipedrive, HubSpot, Google Contacts and Zapier are only available on the Pro plan"],
   },
   {
     // The web copy changed on 2026-09-11: five identical "Upgrade · Pro"
@@ -45,7 +45,7 @@ const SITES: Site[] = [
     // dropped and leave a locked row with no way out of it.
     file: "src/components/IntegrationsSettings.tsx",
     web: [">Pro</Link>", "Get Pro"],
-    native: ["Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan"],
+    native: ["Pro feature — Salesforce, GoHighLevel, Pipedrive, HubSpot, Google Contacts and Zapier are only available on the Pro plan"],
   },
   // LeadCard's entry was removed with the component (no importers left —
   // ContactsClient replaced it). Its AI-drafts cap copy was a hardcoded

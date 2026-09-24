@@ -7,7 +7,7 @@ import { IapProLock, Lock } from "@/components/NativePaywall";
 import CardScopePicker, { ScopeChooser, scopeChoiceReady, scopeChoiceValue, type ScopeChoice, type ScopeCard, type Scope } from "@/components/CardScopePicker";
 
 const INTEGRATIONS_NATIVE_COPY =
-  "Pro feature — Zapier, Google Contacts, and HubSpot are only available on the Pro plan";
+  "Pro feature — Salesforce, GoHighLevel, Pipedrive, HubSpot, Google Contacts and Zapier are only available on the Pro plan";
 
 export default function ZapierSettings({
   initialUrl,
