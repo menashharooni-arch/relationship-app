@@ -35,7 +35,7 @@ describe("card editor — one preview per tab, of the right kind", () => {
   it("Card design: the CARD preview is pinned at the top of the tab", () => {
     const s = src();
     const tab = at(s, 'tab === "design" &&', "design tab");
-    const preview = at(s, "<PinnedCardPreview>{cardTemplateEl}</PinnedCardPreview>", "card-design preview");
+    const preview = at(s, "<PinnedCardPreview undo={cardHistory}>{cardTemplateEl}</PinnedCardPreview>", "card-design preview");
     const photos = s.indexOf('label="Logo & headshot"', tab);
     expect(preview).toBeGreaterThan(tab);
     expect(preview, "the pinned preview dropped below Logo & headshot").toBeLessThan(photos);
@@ -61,7 +61,7 @@ describe("card editor — one preview per tab, of the right kind", () => {
 
   it("Social design: the SWIFT LINKS preview is pinned at the top of the step", () => {
     const s = src();
-    const preview = at(s, "<PinnedLinkPreview>{linkPreviewInner}</PinnedLinkPreview>", "social-design preview");
+    const preview = at(s, "<PinnedLinkPreview undo={linkHistory}>{linkPreviewInner}</PinnedLinkPreview>", "social-design preview");
     const controls = at(s, "<SwiftLinkStyleControls", "style controls");
     expect(preview, "the preview dropped below the controls").toBeLessThan(controls);
   });
@@ -87,7 +87,7 @@ describe("add-card wizard — the same four placements", () => {
   it("step 2: the CARD preview is pinned at the top of the step", () => {
     const s = src();
     const step2 = at(s, "{step === 2 && (", "step 2");
-    const preview = at(s, "<PinnedCardPreview>{cardTemplateEl}</PinnedCardPreview>", "step 2 preview");
+    const preview = at(s, "<PinnedCardPreview undo={cardHistory}>{cardTemplateEl}</PinnedCardPreview>", "step 2 preview");
     const title = s.indexOf(">Card design</h1>", step2);
     expect(preview).toBeGreaterThan(step2);
     expect(preview, "the pinned preview dropped below the step title").toBeLessThan(title);
@@ -103,7 +103,7 @@ describe("add-card wizard — the same four placements", () => {
   it("step 4: the SWIFT LINKS preview stays above the style controls", () => {
     const s = src();
     const step4 = at(s, "{step === 4 && (", "step 4");
-    const preview = s.indexOf("<PinnedLinkPreview>{linkPageEl}</PinnedLinkPreview>", step4);
+    const preview = s.indexOf("<PinnedLinkPreview undo={linkHistory}>{linkPageEl}</PinnedLinkPreview>", step4);
     const controls = s.indexOf("<SwiftLinkStyleControls", step4);
     expect(preview).toBeGreaterThan(step4);
     expect(preview, "the preview dropped below the controls").toBeLessThan(controls);
@@ -198,8 +198,8 @@ describe("Card design — the pinned preview", () => {
   });
 
   it("Social design pins the Swift Links page the same way in both editors", () => {
-    expect(code(EDITOR)).toContain("<PinnedLinkPreview>{linkPreviewInner}</PinnedLinkPreview>");
-    expect(code(WIZARD)).toContain("<PinnedLinkPreview>{linkPageEl}</PinnedLinkPreview>");
+    expect(code(EDITOR)).toContain("<PinnedLinkPreview undo={linkHistory}>{linkPreviewInner}</PinnedLinkPreview>");
+    expect(code(WIZARD)).toContain("<PinnedLinkPreview undo={linkHistory}>{linkPageEl}</PinnedLinkPreview>");
   });
 
   it("tapping a pinned preview opens it full size, above everything", () => {
@@ -211,7 +211,7 @@ describe("Card design — the pinned preview", () => {
 
   it("both editors render the same card element in it", () => {
     for (const f of [EDITOR, WIZARD]) {
-      expect(code(f), f).toContain("<PinnedCardPreview>{cardTemplateEl}</PinnedCardPreview>");
+      expect(code(f), f).toContain("<PinnedCardPreview undo={cardHistory}>{cardTemplateEl}</PinnedCardPreview>");
     }
   });
 });

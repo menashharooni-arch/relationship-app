@@ -21,6 +21,8 @@ import TemplateStyleControls from "@/components/card-templates/TemplateStyleCont
 import TemplatePicker, { PRESET_TEMPLATES } from "@/components/card-templates/TemplatePicker";
 import LinkButtonsControls from "@/components/LinkButtonsControls";
 import PinnedCardPreview, { PinnedLinkPreview } from "@/components/PinnedCardPreview";
+import UndoDesignButton from "@/components/UndoDesignButton";
+import { useDesignHistory, useUndoShortcut, changedKeys } from "@/lib/use-design-history";
 import AddressInput, { EMPTY_ADDRESS } from "@/components/AddressInput";
 import { withoutSocials } from "@/components/card-templates/types";
 import type { TemplateStyle } from "@/components/card-templates/shared";
@@ -148,6 +150,14 @@ function ManagedTag() {
 // server wrapper (cards/new/page.tsx) passes guest={!user}. Every change is
 // snapshotted to a localStorage draft; the "Create card" action is gated behind
 // auth (requireAuth) and the draft is claimed → real card after they sign in.
+// Social design's per-link look, and the link it belongs to (see CardEditForm).
+function linkKeyOf(l: CardLink): string {
+  return `${l.kind ?? "link"}|${l.label}|${l.url}`;
+}
+function linkStyleOf(l: CardLink) {
+  return { k: linkKeyOf(l), size: l.size, rowStyle: l.rowStyle, glass: l.glass, media: l.media };
+}
+
 export default function NewCardWizard({ isPro, guest = false, isFirstCard = false, trialEligible = true, referralGift = false, tourOnDone = false, org = null, linkedinEnabled = false, draftOwner = null }: {
   isPro: boolean;
   /** A friend's free month is waiting (server-resolved): offered in the plan gate. */
@@ -459,6 +469,42 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
   // Social-design toggle: the faint "View SwiftCard →" link on the Swift
   // Links page. ON by default — hiding it is the owner's explicit choice.
   const [showCardLinkBtn, setShowCardLinkBtn] = useState(true);
+
+  // ── Undo — the Card design and Social design steps (lib/use-design-history).
+  // Same two histories as the card editor: one per step, a press steps back one
+  // change, and creating the card ends them.
+  const cardHistory = useDesignHistory(
+    { template, customLayout, style: templateStyleState, logoShape, logo: logoUrl, photo: headshotUrl },
+    (s) => {
+      setTemplate(s.template);
+      setCustomLayout(s.customLayout);
+      setTemplateStyleState(s.style);
+      setLogoShape(s.logoShape);
+      setLogoUrl(s.logo);
+      setHeadshotUrl(s.photo);
+    },
+  );
+  // Only each link's LOOK is Social design's (links belong to Socials) — see
+  // the card editor for why they are matched back by link.
+  const linkHistory = useDesignHistory(
+    { style: linkStyleState, showCardLink: showCardLinkBtn, linkStyles: links.map(linkStyleOf) },
+    (s) => {
+      setLinkStyleState(s.style);
+      setShowCardLinkBtn(s.showCardLink);
+      setLinks((cur) => cur.map((l) => {
+        const was = s.linkStyles.find((x) => x.k === linkKeyOf(l));
+        return was ? { ...l, size: was.size, rowStyle: was.rowStyle, glass: was.glass, media: was.media } : l;
+      }));
+    },
+    {
+      describe: (prev, next) =>
+        prev.linkStyles.map((x) => x.k).join("\n") === next.linkStyles.map((x) => x.k).join("\n")
+          ? changedKeys(prev, next)
+          : null,
+    },
+  );
+  useUndoShortcut(step === 2, cardHistory);
+  useUndoShortcut(step === 4, linkHistory);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
   // Step 1's one required field, flagged in place when Next finds it empty.
@@ -1114,6 +1160,9 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     // Remember the slug the server actually saved (it may have been deduped).
     const savedUsername = (data?.card?.username as string | undefined) || username;
     setCreatedUsername(savedUsername);
+    // The card exists now — nothing before this is undoable any more.
+    cardHistory.clear();
+    linkHistory.clear();
     // Created — the account's unfinished-card draft is done with. (A guest's
     // is cleared by the claim, which is what creates their card.)
     if (!guest) drafts.clear();
@@ -1175,7 +1224,10 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 
   const livePreview = (
     <>
-      <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-2">Live preview</p>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide">Live preview</p>
+        {step === 2 && <UndoDesignButton history={cardHistory} variant="pill" />}
+      </div>
       {/* Look-only — design is changed with the controls, never by
           clicking the card itself. See InertPreview. */}
       <InertPreview className="rounded-2xl overflow-hidden border border-gray-800">
@@ -1224,9 +1276,12 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
 
   const linkPagePreview = (
     <>
-      <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-2">
-        Your Swift Links page — this is how it will look
-      </p>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide">
+          Your Swift Links page — this is how it will look
+        </p>
+        {step === 4 && <UndoDesignButton history={linkHistory} variant="pill" className="shrink-0" />}
+      </div>
       {linkPageEl}
       {/* Both Swift Links steps share this preview, so the caption names what
           the step you are on actually changes. */}
@@ -1921,7 +1976,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                 the top of the screen while every control below scrolls under
                 it. Not while the custom designer is open — that IS the card. */}
             {!(customSelected && customDesignAvailable && !designLocked) && (
-              <PinnedCardPreview>{cardTemplateEl}</PinnedCardPreview>
+              <PinnedCardPreview undo={cardHistory}>{cardTemplateEl}</PinnedCardPreview>
             )}
             <div className="mb-1">
               <h1 className="text-2xl font-bold text-white">Card design</h1>
@@ -2053,7 +2108,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
                   {/* canScan={isPro}, NOT designUnlocked: the designer is shown
                       to guests and Free first-card users as a preview, but
                       /api/scan-design needs a session and a paid plan. */}
-                  <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} />
+                  <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} undo={cardHistory} />
                 </div>
               ) : null}
 
@@ -2098,7 +2153,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
             {/* Phone: the Swift Links page sits at the top of the step and stays
                 pinned while every control below scrolls under it; tap it to
                 see the whole page. */}
-            <PinnedLinkPreview>{linkPageEl}</PinnedLinkPreview>
+            <PinnedLinkPreview undo={linkHistory}>{linkPageEl}</PinnedLinkPreview>
             <div className="mb-1">
               <h1 className="text-2xl font-bold text-white">Social design</h1>
               <p className="text-gray-400 text-sm mt-1">

@@ -30,6 +30,8 @@ import TemplateStyleControls from "@/components/card-templates/TemplateStyleCont
 import TemplatePicker, { PRESET_TEMPLATES } from "@/components/card-templates/TemplatePicker";
 import LinkButtonsControls from "@/components/LinkButtonsControls";
 import PinnedCardPreview, { PinnedLinkPreview } from "@/components/PinnedCardPreview";
+import UndoDesignButton from "@/components/UndoDesignButton";
+import { useDesignHistory, useUndoShortcut, changedKeys } from "@/lib/use-design-history";
 import { SwiftLinkStyleControls, type SwiftLinkStyle } from "@/components/SwiftLinkDesign";
 import { MoreOptions, Segmented, Switch } from "@/components/ui/DesignControls";
 import SwiftLinkLivePreview from "@/components/SwiftLinkLivePreview";
@@ -131,6 +133,15 @@ function ManagedTag({ owner }: { owner?: boolean }) {
 
 /** The three pieces of a card's look that "Save without them" converts. */
 type FreeDesign = { template: string; templateStyleState: TemplateStyle; linkStyleState: SwiftLinkStyle };
+
+// Social design's per-link look, and the link it belongs to (by what it is,
+// not where it sits, so a list changed on Socials never mismatches).
+function linkKeyOf(l: CardLink): string {
+  return `${l.kind ?? "link"}|${l.label}|${l.url}`;
+}
+function linkStyleOf(l: CardLink) {
+  return { k: linkKeyOf(l), size: l.size, rowStyle: l.rowStyle, glass: l.glass, media: l.media };
+}
 
 export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, isPro = false, trialEligible = false, isPrimary = false, org = null, linkedinEnabled = false, initialTab, tourAfterSave = false }: Props) {
   const saveUrl = isPrimary ? "/api/profile" : `/api/cards/${card.id}`;
@@ -302,6 +313,44 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
   function patchLinkStyle(patch: Partial<SwiftLinkStyle>) {
     setLinkStyleState((prev) => ({ ...prev, ...patch }));
   }
+
+  // ── Undo — Card design and Social design (lib/use-design-history) ─────────
+  // Each tab has its own history of what ITS controls change; a press steps
+  // back one change, newest first, and a save ends both histories.
+  const cardHistory = useDesignHistory(
+    { template, customLayout, style: templateStyleState, logoShape, logo: cardLogoUrl, photo: photoState },
+    (s) => {
+      setTemplate(s.template);
+      setCustomLayout(s.customLayout);
+      setTemplateStyleState(s.style);
+      setLogoShape(s.logoShape);
+      setCardLogoUrl(s.logo);
+      setPhotoState(s.photo);
+    },
+  );
+  // Social design styles each link (tile size, row style, blur, tile photo)
+  // but the links themselves belong to the Socials tab — so only those style
+  // fields are tracked, matched back by link, and a link added or removed
+  // there is never a step to undo here.
+  const linkHistory = useDesignHistory(
+    { style: linkStyleState, showCardLink: showCardLinkBtn, linkStyles: links.map(linkStyleOf) },
+    (s) => {
+      setLinkStyleState(s.style);
+      setShowCardLinkBtn(s.showCardLink);
+      setLinks((cur) => cur.map((l) => {
+        const was = s.linkStyles.find((x) => x.k === linkKeyOf(l));
+        return was ? { ...l, size: was.size, rowStyle: was.rowStyle, glass: was.glass, media: was.media } : l;
+      }));
+    },
+    {
+      describe: (prev, next) =>
+        prev.linkStyles.map((x) => x.k).join("\n") === next.linkStyles.map((x) => x.k).join("\n")
+          ? changedKeys(prev, next)
+          : null,
+    },
+  );
+  useUndoShortcut(tab === "design", cardHistory);
+  useUndoShortcut(tab === "linkdesign", linkHistory);
 
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
@@ -568,6 +617,10 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       });
       if (res.ok) {
         setStatus("saved");
+        // Saved: what is on screen is now the card. Undo only ever reaches
+        // back to the last save.
+        cardHistory.clear();
+        linkHistory.clear();
         // A name/company change may have auto-renamed the card URL — follow the
         // slug the server reports, or ?card= selects a card that no longer exists.
         const okJson = await res.json().catch(() => ({} as { renamedTo?: string }));
@@ -914,7 +967,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                 the top of the screen while every control below scrolls under
                 it. Not while the custom designer is open — that IS the card. */}
             {!(customSelected && isPro && !designLocked) && (
-              <PinnedCardPreview>{cardTemplateEl}</PinnedCardPreview>
+              <PinnedCardPreview undo={cardHistory}>{cardTemplateEl}</PinnedCardPreview>
             )}
             {/* Photos — open while something is missing, folded to a one-row
                 summary once both are set, so a returning owner lands on the
@@ -1030,7 +1083,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
                   its own live card — so it replaces the inline preview rather than
                   sitting beside a second one. */}
               {customSelected && isPro ? (
-                <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} />
+                <CustomCardDesigner layout={customLayout} data={previewData} onChange={setCustomLayout} canScan={isPro} undo={cardHistory} />
               ) : null}
 
               {/* Restyle the chosen preset, one numbered step at a time. Looks,
@@ -1304,7 +1357,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             {/* Phone: the Swift Links page sits at the top of the tab and stays
                 pinned while every control below scrolls under it; tap it to see
                 the whole page. */}
-            <PinnedLinkPreview>{linkPreviewInner}</PinnedLinkPreview>
+            <PinnedLinkPreview undo={linkHistory}>{linkPreviewInner}</PinnedLinkPreview>
             {/* The "View SwiftCard →" link at the bottom of the page — theirs to
                 keep or hide. A genuine on/off, so it is the shared Switch: the
                 whole row is the target rather than a 44x24 track, and it is the
@@ -1419,9 +1472,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
       <div className="hidden lg:block order-1 lg:order-2 lg:sticky lg:top-6">
         {tab === "linkdesign" || tab === "sharing" ? (
           <>
-            <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide mb-2">
-              Your Swift Links page — this is how it will look
-            </p>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide">
+                Your Swift Links page — this is how it will look
+              </p>
+              {tab === "linkdesign" && <UndoDesignButton history={linkHistory} variant="pill" className="shrink-0" />}
+            </div>
             {linkPreviewInner}
             <p className="text-gray-600 text-[0.6875rem] mt-2 leading-snug">
               {tab === "sharing"
@@ -1434,7 +1490,9 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
             <div className="flex items-center justify-between mb-2">
               <p className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-wide">Live preview</p>
               {/* "View live" removed entirely (owner request) — both the header and
-                  this preview link are gone from the card editor. */}
+                  this preview link are gone from the card editor. The slot holds
+                  Card design's Undo instead. */}
+              {tab === "design" && <UndoDesignButton history={cardHistory} variant="pill" />}
             </div>
             {cardPreviewInner}
             {/* Only Card info and Card design reach this branch now, and both

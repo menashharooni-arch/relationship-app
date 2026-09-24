@@ -22,6 +22,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import CardScaler from "@/components/CardScaler";
 import InertPreview from "@/components/InertPreview";
+import UndoDesignButton from "@/components/UndoDesignButton";
+import type { DesignHistory } from "@/lib/use-design-history";
 
 function PinnedPreview({
   label,
@@ -93,17 +95,47 @@ function PinnedPreview({
 }
 
 /** Card design: the card itself (the template element, exactly as the editor builds it). */
-export default function PinnedCardPreview({ children, stickBelow }: { children: React.ReactNode; stickBelow?: string }) {
+export default function PinnedCardPreview({ children, stickBelow, undo }: {
+  children: React.ReactNode;
+  stickBelow?: string;
+  /** The design tab's Undo (lib/use-design-history): a round button on the
+   *  card's top-left corner, opposite the full-size cue. Omitted = none. */
+  undo?: DesignHistory;
+}) {
   const card = (
     <InertPreview className="rounded-xl overflow-hidden border border-gray-800 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
       <CardScaler>{children}</CardScaler>
     </InertPreview>
   );
+  const sized = <div className="w-[min(320px,calc(100vw-40px))]">{card}</div>;
   return (
     <PinnedPreview
       label="See your card full size"
       stickBelow={stickBelow}
-      pinned={<div className="w-[min(320px,calc(100vw-40px))]">{card}</div>}
+      // With Undo the strip holds two buttons, so the card is no longer ONE
+      // tap target (a button inside a button is invalid): the card + cue stay
+      // the full-size button, Undo sits beside it on the other corner.
+      pinned={undo ? (expand) => (
+        <div className="relative w-fit mx-auto">
+          <button
+            type="button"
+            onClick={expand}
+            aria-label="See your card full size"
+            className="relative block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+          >
+            {sized}
+            <span
+              aria-hidden
+              className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gray-900 text-white ring-2 ring-white/80 flex items-center justify-center shadow"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+              </svg>
+            </span>
+          </button>
+          <UndoDesignButton history={undo} variant="corner" />
+        </div>
+      ) : sized}
       full={<div className="w-full max-w-[460px] my-auto">{card}</div>}
     />
   );
@@ -137,7 +169,7 @@ const SECTION_LABEL: Record<Section, string> = { top: "Top", socials: "Socials",
 
 /** The scrollable mini phone plus its section controls. Exported for the
  *  homepage SwiftLink builder, whose modal already pins its own strip. */
-export function LinkPageViewport({ children, onExpand }: { children: React.ReactNode; onExpand?: () => void }) {
+export function LinkPageViewport({ children, onExpand, undo }: { children: React.ReactNode; onExpand?: () => void; undo?: DesignHistory }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [section, setSection] = useState<Section>("top");
   const [hasLinks, setHasLinks] = useState(false);
@@ -261,18 +293,19 @@ export function LinkPageViewport({ children, onExpand }: { children: React.React
             Full size
           </button>
         )}
+        {undo && <UndoDesignButton history={undo} variant="pill" className="mt-1" />}
       </div>
     </div>
   );
 }
 
 /** Social design (phone): the scrollable page viewport, pinned. */
-export function PinnedLinkPreview({ children, stickBelow }: { children: React.ReactNode; stickBelow?: string }) {
+export function PinnedLinkPreview({ children, stickBelow, undo }: { children: React.ReactNode; stickBelow?: string; undo?: DesignHistory }) {
   return (
     <PinnedPreview
       label="See your Swift Links page full size"
       stickBelow={stickBelow}
-      pinned={(expand) => <LinkPageViewport onExpand={expand}>{children}</LinkPageViewport>}
+      pinned={(expand) => <LinkPageViewport onExpand={expand} undo={undo}>{children}</LinkPageViewport>}
       full={<div className="w-full max-w-[390px]">{children}</div>}
     />
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import type { DesignHistory } from "@/lib/use-design-history";
+
 // Pro custom-card designer.
 //
 // ONE screen, not two. An earlier version opened on a "choose a starting point"
@@ -136,6 +138,7 @@ export default function CustomCardDesigner({
   // available and the button teaches rather than breaks.
   canScan = true,
   teamBrand = false,
+  undo: tabUndo,
 }: {
   layout: CustomLayout;
   data: CardData;
@@ -148,6 +151,13 @@ export default function CustomCardDesigner({
    * with their details baked in (lib/custom-layout teamCustomLayout).
    */
   teamBrand?: boolean;
+  /**
+   * The Card design tab's own Undo (lib/use-design-history), which already
+   * records every layout change along with colours, fonts and photos. When
+   * given, this designer's Undo button IS that one — one Undo on the tab, not
+   * two that disagree. Office Branding passes none and keeps the local one.
+   */
+  undo?: DesignHistory;
 }) {
   const history = useRef<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -197,6 +207,7 @@ export default function CustomCardDesigner({
   );
 
   function commit(next: CustomLayout) {
+    if (tabUndo) { onChange(next); return; }
     history.current.push(JSON.stringify(layout));
     if (history.current.length > 50) history.current.shift();
     setCanUndo(true);
@@ -692,8 +703,8 @@ export default function CustomCardDesigner({
             <p className={head}>Style</p>
             <button
               type="button"
-              onClick={undo}
-              disabled={!canUndo}
+              onClick={tabUndo ? tabUndo.undo : undo}
+              disabled={tabUndo ? !tabUndo.canUndo : !canUndo}
               className="text-[0.6875rem] px-2.5 py-1 rounded-lg border border-gray-700 text-gray-300 disabled:opacity-40 hover:border-gray-500 shrink-0"
             >
               ↶ Undo
