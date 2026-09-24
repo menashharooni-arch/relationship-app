@@ -5,6 +5,7 @@ import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOfficeBrand } from "@/lib/office-brand";
 import { isInviteExpired } from "@/lib/office-invite";
 import { officeCompanyName } from "@/lib/office-display-name";
+import { invitedEmailHasAccount } from "@/lib/invite-account";
 import JoinButton from "@/components/JoinButton";
 import JoinSignIn from "@/components/JoinSignIn";
 import JoinSwitchAccount from "@/components/JoinSwitchAccount";
@@ -151,11 +152,14 @@ export default async function JoinPage({
   const inviteEmail = invite.invite_email as string;
 
   if (!user) {
+    // One way in, fixed to the invited address: create the account — or, only
+    // if that address already has one, sign in (lib/invite-account).
+    const hasAccount = await invitedEmailHasAccount(inviteEmail);
     return (
       <main className="sc-app min-h-screen bg-gray-950 flex items-center justify-center px-5">
         <div className="w-full max-w-sm">
           {header}
-          <JoinSignIn token={token} inviteEmail={inviteEmail} linkFailed={link === "expired"} />
+          <JoinSignIn token={token} inviteEmail={inviteEmail} hasAccount={hasAccount} linkFailed={link === "expired"} />
         </div>
       </main>
     );
@@ -230,9 +234,10 @@ export default async function JoinPage({
 
         <JoinButton token={token} />
 
+        {/* No "Switch account": only the invited address can accept, and this
+            IS the invited address — any other account would be refused. */}
         <p className="text-center text-gray-600 text-xs mt-4">
-          Signed in as {user.email} ·{" "}
-          <Link href={`/login?next=${encodeURIComponent(`/join/${token}`)}`} className="hover:text-gray-400 transition-colors">Switch account</Link>
+          Signed in as {user.email}
         </p>
       </div>
     </main>

@@ -1,5 +1,6 @@
 import LoginForm from "@/components/LoginForm";
 import SwiftCardLogo from "@/components/SwiftCardLogo";
+import { inviteEmailForNext } from "@/lib/invite-account";
 
 export default async function LoginPage({
   searchParams,
@@ -18,6 +19,12 @@ export default async function LoginPage({
   // /onboarding from the sc_ref cookie. (Signup is open to everyone — no code.)
   const isReferral = ref === "1";
 
+  // A TEAM INVITE is for one address (owner, 2026-09-24). Arriving from
+  // /join/<token> (the app's invite screen sends people here), the form is
+  // fixed to the invited email and offers no Sign in / Create account switch —
+  // the invite page already chose the one that applies (lib/invite-account).
+  const inviteEmail = await inviteEmailForNext(next);
+
   return (
     <main className="min-h-screen bg-cream flex items-center justify-center px-5">
       <div className="w-full max-w-sm">
@@ -33,7 +40,11 @@ export default async function LoginPage({
                 (the builder's Create-account gate, a checkout bounce, the
                 app's Office hand-off) read "Sign in to accept your invitation"
                 under "Create your account" — to people nobody had invited. */}
-            {next?.startsWith("/join/")
+            {inviteEmail
+              ? initialMode === "signup"
+                ? <>Create your account with <span className="font-semibold text-slate-800 break-all">{inviteEmail}</span> — the email your team invited.</>
+                : <>Sign in with <span className="font-semibold text-slate-800 break-all">{inviteEmail}</span> to accept your invitation.</>
+              : next?.startsWith("/join/")
               ? initialMode === "signup" ? "Create your account to accept your invitation." : "Sign in to accept your invitation."
               : next?.startsWith("/checkout")
                 ? "Create your account or sign in to continue to checkout."
@@ -49,7 +60,7 @@ export default async function LoginPage({
           </p>
         </div>
         <div className="bg-warm-card border border-warm-card-border rounded-2xl p-6 shadow-sm">
-          <LoginForm redirectTo={next} initialMode={initialMode} />
+          <LoginForm redirectTo={next} initialMode={initialMode} lockedEmail={inviteEmail ?? undefined} />
         </div>
       </div>
     </main>

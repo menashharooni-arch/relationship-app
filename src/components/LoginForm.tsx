@@ -62,9 +62,14 @@ export function friendlySignupError(
 export default function LoginForm({
   redirectTo,
   initialMode = "signin",
+  lockedEmail,
 }: {
   redirectTo?: string;
   initialMode?: "signin" | "signup";
+  /** A team invite's address (/login?next=/join/<token>): the email field is
+   *  fixed to it and there is no Sign in / Create account switch — an invite
+   *  is for one address and offers one way in (owner, 2026-09-24). */
+  lockedEmail?: string;
 }) {
   // One form for web AND the iOS shell (owner decision 2026-08-27, IAP live):
   // the app creates accounts exactly like the website — the old sign-in-only
@@ -74,7 +79,7 @@ export default function LoginForm({
   // form — the submit button's gate (see it below).
   const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(lockedEmail ?? "");
   const [password, setPassword] = useState("");
   // Create-account only: the second password box, and the errors that belong
   // to one field rather than to the form.
@@ -240,7 +245,7 @@ export default function LoginForm({
     // then went out EMPTY — "missing email or phone" from Supabase, on a form
     // the person could see was filled (found by the nightly run, 2026-09-11).
     const fd = new FormData(e.currentTarget as HTMLFormElement);
-    const emailNow = (typeof fd.get("email") === "string" ? (fd.get("email") as string) : email).trim();
+    const emailNow = lockedEmail ?? (typeof fd.get("email") === "string" ? (fd.get("email") as string) : email).trim();
     const passwordNow = typeof fd.get("password") === "string" ? (fd.get("password") as string) : password;
     const confirmNow = typeof fd.get("confirm_password") === "string" ? (fd.get("confirm_password") as string) : confirm;
     if (emailNow !== email) setEmail(emailNow);
@@ -256,7 +261,13 @@ export default function LoginForm({
     if (mode === "signin") {
       const { error } = await supabase.auth.signInWithPassword({ email: emailNow, password: passwordNow });
       if (error) {
-        if (error.message === "Invalid login credentials") {
+        if (error.message === "Invalid login credentials" && lockedEmail) {
+          // An invite's sign-in: the invite page only sends people here when
+          // the invited address already has an account, so this is the
+          // password — including an account first made by an emailed link or
+          // Google, which never had one. No "Create an account" beside it.
+          setErrorMsg("That password isn't right. If you've never set one, tap Forgot password.");
+        } else if (error.message === "Invalid login credentials") {
           // Could be a wrong password OR no account — Supabase won't say which.
           // Guide them to Create-account without a false "no account" claim.
           setErrorMsg("We couldn't sign you in. If you don't have an account yet, create one — it's free.");
@@ -288,7 +299,8 @@ export default function LoginForm({
       //    moment a typo can still be caught — after it, the account exists at
       //    an address nobody reads and the reset email goes there too.
       const typo = suggestDomain(emailNow);
-      if (typo && suggestionDismissed !== emailNow) {
+      // Never for an invite's fixed address: it is exactly what the admin sent.
+      if (typo && !lockedEmail && suggestionDismissed !== emailNow) {
         setEmailSuggestion(typo);
         setStatus("idle");
         emailRef.current?.focus();
@@ -328,11 +340,22 @@ export default function LoginForm({
       const silentDuplicate = !error && !!data.user && !data.session && (data.user.identities?.length ?? 0) === 0;
       if (error || silentDuplicate) {
         const friendly = friendlySignupError(error ?? { message: "user already registered" }, policy);
-        if (friendly.field === "email") setEmailError(friendly.text);
-        else if (friendly.field === "password") setPasswordError(friendly.text);
-        else setErrorMsg(friendly.text);
-        setExistingAccount(friendly.existing);
-        setStatus("error");
+        if (lockedEmail && friendly.existing) {
+          // The invited address turned out to have an account after all (made
+          // since the invite page looked). Same address, same single form — it
+          // becomes the sign-in, with no switch to pick.
+          setMode("signin");
+          setPassword("");
+          setConfirm("");
+          setErrorMsg("You already have a SwiftCard account with this email. Enter its password to accept.");
+          setStatus("idle");
+        } else {
+          if (friendly.field === "email") setEmailError(friendly.text);
+          else if (friendly.field === "password") setPasswordError(friendly.text);
+          else setErrorMsg(friendly.text);
+          setExistingAccount(friendly.existing);
+          setStatus("error");
+        }
       } else if (!data.session) {
         // Confirmation required: /onboarding would only bounce back to /login
         // with no explanation. Tell them what happens next instead.
@@ -442,7 +465,10 @@ export default function LoginForm({
           account when you save it, then choose a plan (owner, 2026-09-16).
           Arriving WITH a destination (the builder's "Save & create account"
           gate, a team invite) keeps the real "Create account" form, because
-          that is exactly where the account gets made. */}
+          that is exactly where the account gets made.
+          Not shown at all for a team invite (lockedEmail): one address, one
+          way in, chosen by the invite page. */}
+      {!lockedEmail && (
       <div className="flex bg-[#EDE8E0] border border-[#E4DDD4] rounded-full p-1">
         {(["signin", "signup"] as const).map((m) => (
           <button
@@ -463,6 +489,7 @@ export default function LoginForm({
           </button>
         ))}
       </div>
+      )}
 
 
       {/* method="post" is the pre-hydration backstop, not decoration.
@@ -506,11 +533,16 @@ export default function LoginForm({
             required
             ref={emailRef}
             value={email}
-            onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(""); if (emailSuggestion) setEmailSuggestion(null); }}
-            onBlur={(e) => { if (mode === "signup") { const t = suggestDomain(e.target.value); setEmailSuggestion(t && suggestionDismissed !== e.target.value.trim() ? t : null); } }}
+            // A team invite's address can't be edited — the invite only
+            // accepts that one (lockedEmail). readOnly, not disabled, so the
+            // value still submits and the pre-hydration POST stays whole.
+            readOnly={!!lockedEmail}
+            aria-readonly={lockedEmail ? true : undefined}
+            onChange={(e) => { if (lockedEmail) return; setEmail(e.target.value); if (emailError) setEmailError(""); if (emailSuggestion) setEmailSuggestion(null); }}
+            onBlur={(e) => { if (mode === "signup" && !lockedEmail) { const t = suggestDomain(e.target.value); setEmailSuggestion(t && suggestionDismissed !== e.target.value.trim() ? t : null); } }}
             aria-invalid={emailError ? true : undefined}
             aria-describedby={emailError ? "auth-email-error" : emailSuggestion ? "auth-email-hint" : undefined}
-            className="sc-input w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm"
+            className={`sc-input w-full border border-[#E4DDD4] placeholder-slate-400 rounded-xl px-4 py-3 text-sm ${lockedEmail ? "bg-[#F4F0EA] text-slate-700 cursor-default" : "bg-white text-slate-900"}`}
           />
           {emailError && (
             <p id="auth-email-error" role="alert" className="text-xs text-red-700">{emailError}</p>
@@ -689,7 +721,7 @@ export default function LoginForm({
           </button>
         )
       ) : (
-        <GoogleSignInButton redirectTo={redirectTo} oneTap intent={mode} />
+        <GoogleSignInButton redirectTo={redirectTo} oneTap intent={mode} loginHint={lockedEmail} />
       )}
 
       {/* Sign in with Apple — in the app (Apple requires it alongside other
