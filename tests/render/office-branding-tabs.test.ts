@@ -1,9 +1,16 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { Browser } from "playwright";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { launchBrowser, appCss } from "./harness";
 import OfficeLinksBranding from "@/components/OfficeLinksBranding";
+
+// Branding refreshes the page after a save (useRouter); a static render has no router.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace() {}, push() {}, refresh() {} }),
+  usePathname: () => "/office/admin/branding",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 // The Links half of Branding. Measured rather than trusted: it is the screen an
 // office admin sets their whole team's link-in-bio page from, and it has to

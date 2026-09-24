@@ -1,9 +1,16 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { Browser } from "playwright";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { launchBrowser, appCss } from "./harness";
 import OfficeBranding from "@/components/OfficeBranding";
+
+// Branding refreshes the page after a save (useRouter); a static render has no router.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace() {}, push() {}, refresh() {} }),
+  usePathname: () => "/office/admin/branding",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 // The CARD half of Branding, and the tab bar that now sits above both halves.
 // (The Links half has its own file: office-branding-tabs.test.ts.)

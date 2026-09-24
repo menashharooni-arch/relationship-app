@@ -104,7 +104,7 @@ async function rig(office: Record<string, unknown>, width = 1280): Promise<{ pag
   });
   await page.goto(`${ORIGIN}/`);
   await page.evaluate((o) => (window as unknown as { mount: (x: unknown) => void }).mount(o), office);
-  await page.waitForSelector("button[aria-pressed]");
+  await page.locator("button[aria-pressed]:visible").first().waitFor();
   return { page, saves };
 }
 
@@ -120,7 +120,9 @@ async function rig(office: Record<string, unknown>, width = 1280): Promise<{ pag
 // colours actually painted in the preview.
 
 const previewColors = (page: Page) => page.evaluate(() => {
-  const root = document.querySelector("[inert]")!;
+  // The VISIBLE preview: the Links tab stays mounted (hidden) above the Card
+  // tab and carries its own inert preview, which no accent pick touches.
+  const root = [...document.querySelectorAll<HTMLElement>("[inert]")].find((el) => el.offsetParent !== null)!;
   const set = new Set<string>();
   root.querySelectorAll("*").forEach((el) => {
     const s = getComputedStyle(el);

@@ -109,7 +109,7 @@ async function rig(office: Record<string, unknown>, width = 1280): Promise<{ pag
   });
   await page.goto(`${ORIGIN}/`);
   await page.evaluate((o) => (window as unknown as { mount: (x: unknown) => void }).mount(o), office);
-  await page.waitForSelector("button[aria-pressed]");
+  await page.locator("button[aria-pressed]:visible").first().waitFor();
   return { page, saves };
 }
 
