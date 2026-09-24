@@ -20,7 +20,21 @@ const PAGE_ONLY_KEYS = [
   // image, so a card whose only change is a new background photo must not
   // count as a card that needs its signature re-rendered.
   "linkBgMedia", "linkBgMediaType", "linkBgDim", "linkGlass",
+  // The "View SwiftCard" button at the bottom of the Swift Links page.
+  "hideCardLink",
 ] as const;
+
+/**
+ * Is this customization key about the Swift Links PAGE rather than the card?
+ * The listed keys, plus EVERY `link…` style key (linkHero*, linkButton*,
+ * linkAccentColor, … — camelCase, so the "linkedin" social never matches):
+ * the list above missed the newer ones, and changing only a Swift Links hero
+ * or button style told the owner to re-copy their signature. One rule, shared
+ * with lib/card-changed so the capture and the reminder can't disagree.
+ */
+export function isLinksPageOnlyKey(k: string): boolean {
+  return (PAGE_ONLY_KEYS as readonly string[]).includes(k) || /^link[A-Z]/.test(k);
+}
 
 /** Short stable hash (djb2) — small, deterministic, good enough for change detection. */
 export function hashStr(s: string): string {
@@ -32,7 +46,7 @@ export function hashStr(s: string): string {
 /** The card data with links-page-only keys stripped: what the signature can see. */
 export function cardImageData(d: CardData): CardData {
   const c = { ...(d.customization ?? {}) } as Record<string, unknown>;
-  for (const k of PAGE_ONLY_KEYS) delete c[k];
+  for (const k of Object.keys(c)) if (isLinksPageOnlyKey(k)) delete c[k];
   return { ...d, customization: c } as CardData;
 }
 

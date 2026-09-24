@@ -1000,7 +1000,12 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
               {!org && (
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1.5">Company logo</label>
-                  <ImageUpload field="logo" currentUrl={cardLogoUrl} label="Upload your company logo" shape="square" cardId={logoCardId} onUploaded={(url) => setCardLogoUrl(url || null)} />
+                  {/* defer: the logo waits for Save, like the headshot below and the
+                      builder. Without it an upload or Remove wrote cards.logo_url
+                      on the spot — live even after Cancel — and because the row
+                      already held the new logo when Save ran, the save saw "no
+                      change": no signature refresh, no Wallet pass update. */}
+                  <ImageUpload field="logo" currentUrl={cardLogoUrl} label="Upload your company logo" shape="square" cardId={logoCardId} defer onUploaded={(url) => setCardLogoUrl(url || null)} />
                   <LogoSuggest company={company} email={email} onConfirm={(url) => setCardLogoUrl(url || null)} />
                   {cardLogoUrl && (
                     <div className="mt-2">

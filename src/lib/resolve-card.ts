@@ -125,15 +125,17 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
         })()
       : null;
 
+  const style = templateStyle({
+    customization: sanitizeCustomizationForPlan(cust as Record<string, unknown>, isPaidPlan(plan), rawTemplate || "classic-pro"),
+  });
+
   return {
     // Through the same render-time plan filter the card page runs. A Free
     // account can still have Pro colours, a finish or a panel photo SAVED (a
     // downgraded Pro — see sanitizeCustomizationForPlan); the page hides them,
     // so the Wallet pass copying this card must hide them too, or it shows a
     // design the card itself no longer has.
-    style: templateStyle({
-      customization: sanitizeCustomizationForPlan(cust as Record<string, unknown>, isPaidPlan(plan), rawTemplate || "classic-pro"),
-    }),
+    style,
     custom,
     name: str(src.name),
     title: str(src.title),
@@ -144,7 +146,10 @@ export async function resolveCardMeta(username: string): Promise<ResolvedCardMet
     email: str(src.email),
     website: str(src.website),
     address: str(src.address) ?? str(cust.address),
-    accentColor: str(cust.accentColor),
+    // The FILTERED accent, like everything else here: the raw value let a
+    // Free card's share image (and the signature fallback) show a Pro accent
+    // colour the card page itself hides.
+    accentColor: str(style.accentColor),
     template,
   };
 }

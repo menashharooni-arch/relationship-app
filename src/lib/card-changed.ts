@@ -15,6 +15,8 @@
 // is how they drift apart, and the drift is invisible: the wrong answer is a
 // notification, not an error.
 
+import { isLinksPageOnlyKey } from "./signature-content";
+
 /** Fields rendered ON the card. `label` is an internal name and is NOT one. */
 export const ON_CARD_SCALARS = [
   "name", "title", "company", "phone", "email", "website",
@@ -77,7 +79,9 @@ function stripSignatureIrrelevant(cust: unknown): unknown {
   if (!cust || typeof cust !== "object" || Array.isArray(cust)) return cust;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(cust as Record<string, unknown>)) {
-    if (k === "links" || k.startsWith("_")) continue;
+    // Swift Links page keys (links, bio, every link* style, hideCardLink) —
+    // the same rule the signature capture uses, so they can't disagree.
+    if (k.startsWith("_") || isLinksPageOnlyKey(k)) continue;
     out[k] = v;
   }
   return out;

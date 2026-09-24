@@ -16,6 +16,10 @@ export type PreviewMeta = {
   photoUrl?: string | null; logoUrl?: string | null; template?: string | null;
   accentColor?: string | null; phone?: string | null; email?: string | null;
   website?: string | null; address?: string | null;
+  /** The card's plan-filtered design (colours, font, finish, panel photo…)
+   *  and custom layout. A design-only edit used to leave the URL unchanged,
+   *  so iMessage / WhatsApp / Slack kept showing the old card for days. */
+  style?: unknown; custom?: unknown;
 };
 
 // Short, stable content hash (djb2). Messengers cache the image BY URL, so a
@@ -24,6 +28,10 @@ export function previewVersion(p: PreviewMeta): string {
   const s = JSON.stringify([
     p.name, p.title, p.company, p.photoUrl, p.logoUrl, p.template,
     p.accentColor, p.phone, p.email, p.website, p.address,
+    // Only appended when present, so a card with no design overrides keeps
+    // the version it already had (no needless re-fetch of every preview).
+    ...(p.style && Object.values(p.style as Record<string, unknown>).some((v) => v !== undefined && v !== null) ? [p.style] : []),
+    ...(p.custom ? [p.custom] : []),
   ]);
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;

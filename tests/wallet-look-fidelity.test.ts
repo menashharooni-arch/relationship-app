@@ -183,6 +183,9 @@ describe("the pass follows the card's plan", () => {
     // A downgraded Pro can still have a finish or Pro colours SAVED; the card
     // page hides them, and the pass copying the card must too.
     const s = readFileSync(join(process.cwd(), "src/lib/resolve-card.ts"), "utf8");
-    expect(s).toMatch(/style: templateStyle\(\{\s*customization: sanitizeCustomizationForPlan\(/);
+    // (computed once as `style`, then returned — and the accent comes from it)
+    expect(s).toMatch(/const style = templateStyle\(\{\s*customization: sanitizeCustomizationForPlan\(/);
+    expect(s).toMatch(/^\s*style,$/m);
+    expect(s).toContain("accentColor: str(style.accentColor),");
   });
 });
