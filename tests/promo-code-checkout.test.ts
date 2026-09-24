@@ -65,6 +65,12 @@ describe("a code that can't apply says why — never a silent full price", () =>
     const r = await run();
     expect(!r.ok && r.reason).toMatch(/isn't set up for payments/);
   });
+  it("with no plan picked yet (the /welcome chooser) a scoped code is accepted and says which plan it is for", async () => {
+    db.promo = { ...base, id: "p4b", discount_type: "free_time", free_days: 30, applies_to: "office", interval_target: "annual" };
+    const r = await run({ purchase: null });
+    expect(r.ok).toBe(true);
+    expect(r.ok && r.detail).toBe("This code is for the Office plan, billed annually. Choose that plan below.");
+  });
   it("a code for Office doesn't apply to Pro", async () => {
     db.promo = { ...base, id: "p4", discount_type: "free_time", free_days: 30, applies_to: "office" };
     expect(!((await run()).ok)).toBe(true);
@@ -98,12 +104,32 @@ describe("wiring", () => {
     expect(s).toContain("const check = await checkPromoForPurchase({");
     expect(s).toMatch(/if \(!check\.ok\) \{\s*return NextResponse\.json\(\{ error: check\.reason, promoUnusable: true/);
   });
-  it("the order page has the box, checks codes before payment, and offers to continue without a refused one", () => {
-    const s = read("src/app/checkout/CheckoutClient.tsx");
+  it("the one box checks codes before payment and offers to continue without a refused one", () => {
+    const s = read("src/components/PromoCodeBox.tsx");
     expect(s).toContain("Have a promo code?");
     expect(s).toContain('fetch("/api/promo/check"');
     expect(s).toContain("Continue without the code");
     expect(s).toMatch(/<form\s+method="post"/); // no input can ever reach a URL before hydration
+  });
+  it("every web checkout has the box: the order page and the new account's plan step (owner, 2026-09-24)", () => {
+    // /checkout: the code rides the URL and is sent with the purchase.
+    const checkout = read("src/app/checkout/CheckoutClient.tsx");
+    expect(checkout).toContain("<PromoCodeBox");
+    expect(checkout).toContain("usePromoCode({ plan, interval, initialCode: promoCode, onCodeChange: setPromoParam })");
+    // /welcome: a new account paying here had nowhere to type a code. The
+    // box is in BOTH places a purchase starts — the "Complete your Pro
+    // subscription" panel and under the plan cards — and the applied code
+    // is what the checkout request carries.
+    const welcome = read("src/components/WelcomePlan.tsx");
+    expect(welcome.match(/<PromoCodeBox/g)?.length).toBe(2);
+    expect(welcome).toContain("...(code ? { promoCode: code } : {})");
+    expect(welcome).toContain("const code = opts?.withoutPromo ? undefined : promo.appliedCode;");
+    // A refusal at checkout is shown, never a silent full price.
+    expect(welcome).toContain("promo.refuseAtCheckout(code,");
+    expect(welcome).toMatch(/if \(promo\.blocksPurchase && !opts\?\.withoutPromo\)/);
+    // The chooser's box asks with no plan, and the check route allows that.
+    const check = read("src/app/api/promo/check/route.ts");
+    expect(check).toContain("purchase: plan ? { plan, interval } : null");
   });
   it("the admin funnel's 'Picked a plan' step is recorded — Free choice and first paid checkout", () => {
     const choose = read("src/app/api/account/choose-plan/route.ts");

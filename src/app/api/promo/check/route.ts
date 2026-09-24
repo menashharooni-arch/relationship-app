@@ -24,7 +24,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const code = normalizePromoCode(body.code);
   if (!code) return NextResponse.json({ error: "Enter a code." }, { status: 400 });
-  const plan = body.plan === "office" ? "office" : "pro";
+  // No plan yet (the /welcome chooser's box): check everything but the fit,
+  // which is settled when a plan is picked.
+  const plan = body.plan === "office" ? "office" : body.plan === "pro" ? "pro" : null;
   const interval = body.interval === "annual" ? "annual" : "monthly";
 
   let accountPlan: string | null = null;
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
     accountPlan = (profile?.plan as string | null) ?? "free";
   }
 
-  const result = await checkPromoForPurchase({ code, userId: user?.id ?? null, accountPlan, purchase: { plan, interval } });
+  const result = await checkPromoForPurchase({ code, userId: user?.id ?? null, accountPlan, purchase: plan ? { plan, interval } : null });
   if (!result.ok) {
     return NextResponse.json({ error: result.reason, ...(result.grant ? { grant: true } : {}) }, { status: 422 });
   }

@@ -8,6 +8,7 @@ import { PLAN_PRICES, PLAN_LIMITS, TRIAL_DAYS } from "@/lib/plan";
 import { formatUsd, seatSubtotalCents, perMonthCents } from "@/lib/currency";
 import { SwiftCardIcon } from "@/components/SwiftCardLogo";
 import { track } from "@/lib/events";
+import PromoCodeBox, { usePromoCode } from "@/components/PromoCodeBox";
 
 type Plan = "pro" | "office";
 type Interval = "monthly" | "annual";
@@ -59,86 +60,17 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
   const native = useIsNativeApp();
 
   // ── "Have a promo code?" ──────────────────────────────────────────────────
-  // Every code is entered HERE — Stripe's own promo field is off (see
-  // /api/stripe/checkout): it could only take money-off codes, so a free-time
-  // code typed on Stripe's page was always "invalid". The code lives in the
-  // URL (?promo=), which is what the checkout request, a login bounce and a
-  // cancelled Stripe visit all carry; this only checks it and shows what it
-  // gives. Nothing is spent until they continue to payment.
-  type PromoState =
-    | { status: "none" }
-    | { status: "checking" }
-    | { status: "applied"; code: string; label: string; detail: string }
-    | { status: "refused"; code: string; message: string; grant?: boolean; atCheckout?: boolean };
-  const [promo, setPromo] = useState<PromoState>({ status: "none" });
-  const [promoOpen, setPromoOpen] = useState(false);
-  const [promoInput, setPromoInput] = useState("");
-  const [granting, setGranting] = useState(false);
-
+  // The shared box (components/PromoCodeBox) — the same one /welcome shows.
+  // Here the code lives in the URL (?promo=), which is what the checkout
+  // request, a login bounce and a cancelled Stripe visit all carry.
   const setPromoParam = useCallback((code: string | null) => {
     const q = new URLSearchParams(params.toString());
     if (code) q.set("promo", code); else q.delete("promo");
     q.delete("canceled");
     router.replace(`/checkout?${q.toString()}`, { scroll: false });
   }, [params, router]);
-
-  const checkPromo = useCallback(async (code: string): Promise<boolean> => {
-    setPromo({ status: "checking" });
-    try {
-      const res = await fetch("/api/promo/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, plan, interval }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        setPromo({ status: "applied", code: data.code, label: data.label, detail: data.detail ?? "" });
-        return true;
-      }
-      setPromo({ status: "refused", code, message: data.error || "That code can't be used.", grant: data.grant === true });
-      return false;
-    } catch {
-      setPromo({ status: "refused", code, message: "Couldn't check that code — check your connection and try again." });
-      return false;
-    }
-  }, [plan, interval]);
-
-  // A code that arrived in the link (/pricing, an email, a cancelled Stripe
-  // visit): check it once, so the page says what it gives — or why not —
-  // before anyone pays.
-  useEffect(() => {
-    if (!promoCode) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async check of the code already in the URL; the state it sets is the answer
-    void checkPromo(promoCode);
-  }, [promoCode, checkPromo]);
-
-  const applyPromo = useCallback(async () => {
-    const code = promoInput.trim().toUpperCase();
-    if (!code) return;
-    if (await checkPromo(code)) { setPromoParam(code); setPromoInput(""); setPromoOpen(false); }
-  }, [promoInput, checkPromo, setPromoParam]);
-
-  const removePromo = useCallback(() => {
-    setPromo({ status: "none" });
-    setErr(null);
-    setPromoParam(null);
-  }, [setPromoParam]);
-
-  // A tester code switches the plan on with no payment at all — the same thing
-  // the Pricing page's box does with it.
-  const switchOnGrant = useCallback(async (code: string) => {
-    setGranting(true);
-    try {
-      const res = await fetch("/api/promo/redeem", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.granted) { window.location.href = "/dashboard"; return; }
-      setPromo({ status: "refused", code, message: data.error || "Couldn't switch that code on." });
-    } catch {
-      setPromo({ status: "refused", code, message: "Couldn't reach the server. Try again." });
-    } finally {
-      setGranting(false);
-    }
-  }, []);
+  const promo = usePromoCode({ plan, interval, initialCode: promoCode, onCodeChange: setPromoParam });
+  const refusePromo = promo.refuseAtCheckout;
 
   // Native app (App Store 3.1.1): the checkout order summary + Stripe hand-off
   // is a purchase flow and must never appear inside the Capacitor shell — same
@@ -250,7 +182,7 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
         // The code stopped applying between the check and now (the last use
         // went, it expired, Stripe's own rules). Say so — never charge full
         // price behind the person's back.
-        setPromo({ status: "refused", code, message: data.error || "That code can't be used for this purchase.", grant: data.grant === true, atCheckout: true });
+        refusePromo(code, data.error || "That code can't be used for this purchase.", data.grant === true);
         return;
       }
       if (data.url) { window.location.href = data.url; return; }
@@ -260,7 +192,7 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
     } finally {
       setBusy(false);
     }
-  }, [plan, interval, seats, promoCode, trial, preview, changePlan]);
+  }, [plan, interval, seats, promoCode, trial, preview, changePlan, refusePromo]);
 
   // Auto-continue after returning from account creation / login (spec §1:
   // "automatically continue to checkout for the originally selected plan").
@@ -374,74 +306,7 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
         {/* Promo codes apply to a NEW subscription. A plan change on an
             existing one is a price swap on it — no code box there. */}
         {!preview && !previewLoading && (
-          <div className="mt-4">
-            {promo.status === "applied" ? (
-              <div className="flex items-start justify-between gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-3.5 py-2.5">
-                <div className="min-w-0">
-                  <p className="text-green-300 text-xs font-semibold">✓ {promo.code} — {promo.label}</p>
-                  {promo.detail && <p className="text-emerald-200 text-[0.6875rem] mt-0.5">{/^[A-Z]/.test(promo.detail) ? promo.detail : `Off ${promo.detail}.`}</p>}
-                </div>
-                <button type="button" onClick={removePromo} className="shrink-0 text-[0.6875rem] text-gray-400 hover:text-white underline">Remove</button>
-              </div>
-            ) : promo.status === "refused" ? (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5">
-                <p className="text-amber-300 text-xs font-semibold">{promo.code}: {promo.message}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {promo.grant && (
-                    <button type="button" onClick={() => switchOnGrant(promo.code)} disabled={granting}
-                      className="text-[0.6875rem] font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-3 py-1.5 rounded-full">
-                      {granting ? "Switching it on…" : "Switch it on"}
-                    </button>
-                  )}
-                  {promo.atCheckout ? (
-                    <button type="button" onClick={() => { removePromo(); void start({ withoutPromo: true }); }} disabled={busy}
-                      className="text-[0.6875rem] font-semibold text-white bg-gray-800 border border-gray-700 hover:bg-gray-700 px-3 py-1.5 rounded-full">
-                      Continue without the code
-                    </button>
-                  ) : (
-                    <>
-                      <button type="button" onClick={() => { removePromo(); setPromoOpen(false); }}
-                        className="text-[0.6875rem] font-semibold text-white bg-gray-800 border border-gray-700 hover:bg-gray-700 px-3 py-1.5 rounded-full">
-                        Remove code
-                      </button>
-                      <button type="button" onClick={() => { removePromo(); setPromoOpen(true); }}
-                        className="text-[0.6875rem] font-semibold text-gray-300 hover:text-white underline">
-                        Try another code
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ) : promo.status === "checking" ? (
-              <p className="text-gray-500 text-xs">Checking your code…</p>
-            ) : promoOpen ? (
-              <form
-                method="post"
-                action="#"
-                onSubmit={(e) => { e.preventDefault(); void applyPromo(); }}
-                className="flex gap-2"
-              >
-                <input
-                  value={promoInput}
-                  onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                  placeholder="Promo code"
-                  aria-label="Promo code"
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  autoFocus
-                  className="min-w-0 flex-1 rounded-full bg-gray-800 border border-gray-700 px-4 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-blue-500"
-                />
-                <button type="submit" disabled={!promoInput.trim()}
-                  className="shrink-0 rounded-full bg-gray-800 border border-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-50">
-                  Apply
-                </button>
-              </form>
-            ) : (
-              <button type="button" onClick={() => setPromoOpen(true)} className="text-xs text-blue-400 hover:text-blue-300">
-                Have a promo code?
-              </button>
-            )}
-          </div>
+          <PromoCodeBox className="mt-4" promo={promo} busy={busy} onContinueWithoutCode={() => { void start({ withoutPromo: true }); }} />
         )}
 
         {err && <p className="mt-3 rounded-lg bg-red-500/10 border border-red-500/25 text-red-300 text-xs px-3 py-2">{err}</p>}
@@ -461,7 +326,7 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
 
         <button
           onClick={() => { void start(); }}
-          disabled={busy || previewLoading || promo.status === "checking" || (promo.status === "refused" && !!promoCode)}
+          disabled={busy || previewLoading || promo.blocksPurchase || (promo.state.status === "refused" && !!promoCode)}
           className="mt-5 w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm py-3 rounded-full transition-colors"
         >
           {previewLoading

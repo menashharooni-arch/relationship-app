@@ -50,7 +50,10 @@ export async function checkPromoForPurchase(input: {
   userId: string | null;
   /** profiles.plan of the buyer; null for a visitor with no account. */
   accountPlan: string | null;
-  purchase: PromoPurchase;
+  /** null while the plan is still being chosen (the /welcome chooser's box):
+   *  the code is checked for everything but its fit, which the checkout
+   *  route settles — under this same function — once a plan is picked. */
+  purchase: PromoPurchase | null;
 }): Promise<PromoCheck> {
   const code = normalizePromoCode(input.code);
   if (!/^[A-Z0-9][A-Z0-9_-]{0,39}$/.test(code)) return { ok: false, reason: NOT_FOUND };
@@ -67,7 +70,7 @@ export async function checkPromoForPurchase(input: {
   if (promo.expires_at && new Date(promo.expires_at as string) <= new Date()) {
     return { ok: false, reason: "This promo code has expired." };
   }
-  if (!promoFitsPurchase(promo, input.purchase)) return { ok: false, reason: promoScopeMessage(promo) };
+  if (input.purchase && !promoFitsPurchase(promo, input.purchase)) return { ok: false, reason: promoScopeMessage(promo) };
 
   let redemption: { id: string; consumed_at: string | null } | null = null;
   if (input.userId) {
@@ -101,10 +104,15 @@ export async function checkPromoForPurchase(input: {
   if (freeTime ? !freeDays : !couponId) {
     return { ok: false, reason: "This code isn't set up for payments yet. Please contact support." };
   }
+  // With no plan picked yet, a scoped code says which plan it is for, so the
+  // person picks that one instead of finding out at payment.
+  const scoped = (promo.applies_to ?? "any") !== "any" || (promo.interval_target ?? "any") !== "any";
   return {
     ok: true, source: "swiftcard", promo, redemption, freeDays, couponId,
     label: promoLabel(promo),
-    detail: freeTime ? "Free days are added before your first payment." : durationLabel(promo),
+    detail: !input.purchase && scoped
+      ? `${promoScopeMessage(promo)} Choose that plan below.`
+      : freeTime ? "Free days are added before your first payment." : durationLabel(promo),
   };
 }
 

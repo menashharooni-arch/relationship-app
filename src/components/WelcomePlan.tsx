@@ -8,10 +8,11 @@ import { GetTheAppCard } from "@/components/AppStoreBadge";
 import PlanCards, { type PaidPlan } from "@/components/PlanCards";
 import FreeDesignChoice from "@/components/FreeDesignChoice";
 import { consumePlanIntent, type PlanIntent } from "@/lib/plan-intent";
-import { detectNativeApp } from "@/lib/platform";
+import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import { TRIAL_DAYS, PLAN_PRICES, PLAN_LIMITS } from "@/lib/plan";
 import { formatUsd, seatSubtotalCents } from "@/lib/currency";
 import ReferralGiftPanel from "@/components/ReferralGiftPanel";
+import PromoCodeBox, { usePromoCode } from "@/components/PromoCodeBox";
 
 // Onboarding step shown once, right after a brand-new account's first card is
 // saved (routed here by GuestDraftClaim → /welcome?card=slug). It turns on
@@ -58,6 +59,7 @@ export default function WelcomePlan({
   proDesignChanges?: string[];
 }) {
   const router = useRouter();
+  const native = useIsNativeApp();
   // undefined = not read yet (avoids a hydration flash); null = no stored choice.
   const [intent, setIntent] = useState<PlanIntent | null | undefined>(undefined);
   const [loading, setLoading] = useState<"free" | PaidPlan | null>(null);
@@ -206,7 +208,32 @@ export default function WelcomePlan({
     <ReferralGiftPanel onStart={startGiftMonth} busy={loading !== null} starting={loading === "pro"} />
   ) : null;
 
-  async function checkout(plan: PaidPlan, annual: boolean, seats: number) {
+  const paidIntent = intent && (intent.plan === "pro" || intent.plan === "office") ? intent : null;
+
+  // ── "Have a promo code?" ──────────────────────────────────────────────────
+  // The same box as the order page (/checkout). A new account paying here
+  // used to have nowhere to type a code: only one carried over from /pricing
+  // was sent, silently. With a plan already picked (/pricing → signup) the
+  // code is checked against it; on the open chooser it is checked for
+  // validity and its fit is settled when a plan card is pressed.
+  const promo = usePromoCode({
+    plan: paidIntent?.plan === "office" ? "office" : paidIntent ? "pro" : null,
+    interval: paidIntent ? (paidIntent.annual ? "annual" : "monthly") : null,
+    initialCode: paidIntent?.promo ?? null,
+  });
+  // The last plan pressed, so "Continue without the code" retries exactly it.
+  const lastCheckout = useRef<{ plan: PaidPlan; annual: boolean; seats: number } | null>(null);
+
+  async function checkout(plan: PaidPlan, annual: boolean, seats: number, opts?: { withoutPromo?: boolean }) {
+    // A code refused at checkout stays on screen with its two ways out
+    // (remove it, or continue without it) — never a full price behind
+    // the person's back.
+    if (promo.blocksPurchase && !opts?.withoutPromo) {
+      setError(promo.state.status === "checking" ? "Still checking your promo code…" : "Your promo code couldn't be applied — remove it or continue without it above.");
+      return;
+    }
+    const code = opts?.withoutPromo ? undefined : promo.appliedCode;
+    lastCheckout.current = { plan, annual, seats };
     setLoading(plan);
     setError("");
     try {
@@ -218,7 +245,7 @@ export default function WelcomePlan({
           plan: plan === "office" ? "office" : "pro",
           interval: annual ? "annual" : "monthly",
           seats: plan === "office" ? seats : 1,
-          ...(intent?.promo ? { promoCode: intent.promo } : {}),
+          ...(code ? { promoCode: code } : {}),
           // Office owners go to the Office dashboard after payment; Pro keeps the
           // guided-tour landing. (The card was already created before payment in
           // this guest flow, so no post-payment card step is needed here.)
@@ -228,11 +255,18 @@ export default function WelcomePlan({
         }),
       });
       if (res.status === 401) { window.location.href = "/login?next=/welcome"; return; }
-      const { url, error: err, message, redirect } = await res.json();
+      const { url, error: err, message, redirect, promoUnusable, grant } = await res.json();
       if (url) { window.location.href = url; return; }
       // 409 already_subscribed: this account paid (often in another tab) — go
       // where the server says, never show the raw error code.
       if (res.status === 409 && typeof redirect === "string" && redirect.startsWith("/")) { window.location.href = redirect; return; }
+      // The code doesn't apply to THIS purchase (the other plan, expired, the
+      // last use went): say so in the box, with "Continue without the code".
+      if (res.status === 409 && promoUnusable && code) {
+        promo.refuseAtCheckout(code, err || "That code can't be used for this purchase.", grant === true);
+        setLoading(null);
+        return;
+      }
       setError(message || err || "Couldn't start checkout. Please try again.");
       setLoading(null);
     } catch {
@@ -241,7 +275,6 @@ export default function WelcomePlan({
     }
   }
 
-  const paidIntent = intent && (intent.plan === "pro" || intent.plan === "office") ? intent : null;
   const planName = paidIntent?.plan === "office" ? "Office" : "Pro";
   // What they will pay, from plan.ts — the same arithmetic /checkout and
   // Stripe use (unit price × seats), so this panel never shows another number.
@@ -251,6 +284,11 @@ export default function WelcomePlan({
       ? seatSubtotalCents(paidIntent.annual ? PLAN_PRICES.OFFICE_ANNUAL_PER_SEAT_CENTS : PLAN_PRICES.OFFICE_MONTHLY_PER_SEAT_CENTS, paidSeats)
       : paidIntent.annual ? PLAN_PRICES.PRO_ANNUAL_CENTS : PLAN_PRICES.PRO_MONTHLY_CENTS
     : 0;
+
+  const continueWithoutCode = () => {
+    const last = lastCheckout.current;
+    if (last) void checkout(last.plan, last.annual, last.seats, { withoutPromo: true });
+  };
 
   return (
     <main className="sc-app min-h-screen bg-gray-950 px-5 py-12">
@@ -312,9 +350,10 @@ export default function WelcomePlan({
                 ? <>You picked Pro · free for your first {TRIAL_DAYS} days, then {formatUsd(paidTotal)}/{paidIntent.annual ? "year" : "month"}. Add a card with Stripe to start your trial.</>
                 : <>You picked {planName}{paidIntent.plan === "office" ? ` · ${paidSeats} seats (incl. you)` : ""} · {formatUsd(paidTotal)}/{paidIntent.annual ? "year" : "month"}. Pay securely with Stripe to unlock it.</>}
             </p>
+            <PromoCodeBox className="mt-4" promo={promo} busy={loading !== null} onContinueWithoutCode={continueWithoutCode} />
             <button
               onClick={() => checkout(paidIntent.plan as PaidPlan, !!paidIntent.annual, paidSeats)}
-              disabled={loading !== null}
+              disabled={loading !== null || promo.blocksPurchase}
               className="sc-dark-sheet mt-5 w-full py-3.5 rounded-full text-sm font-bold text-white transition-colors disabled:opacity-50"
               style={{ background: "var(--rd-aurora)" }}
             >
@@ -377,6 +416,12 @@ export default function WelcomePlan({
             )}
             {giftPanel}
             <PlanCards onFree={chooseFree} onPaid={checkout} busy={loading} onIapPurchased={goFree} freeLabel="Continue with Free →" trialEligible={offerTrial} initialTier={initialTier} onLeftForOffice={() => { leftForOffice.current = true; }} />
+            {/* Under the plans, like /pricing — the code rides along with
+                whichever paid card is pressed. Web only: the app sells
+                through the App Store, where codes are Apple's (3.1.1). */}
+            {!native && (
+              <PromoCodeBox className="max-w-md mx-auto mt-6 text-center" promo={promo} busy={loading !== null} onContinueWithoutCode={continueWithoutCode} />
+            )}
           </>
         )}
 

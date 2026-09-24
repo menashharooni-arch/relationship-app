@@ -152,7 +152,7 @@ describe("the rules are enforced where the money is", () => {
   it("checkout drops a code that doesn't fit the plan being bought", () => {
     // Judged in lib/promo-check (shared with the order page box) against the
     // purchase checkout actually makes…
-    expect(read("src/lib/promo-check.ts")).toContain("if (!promoFitsPurchase(promo, input.purchase)) return { ok: false, reason: promoScopeMessage(promo) };");
+    expect(read("src/lib/promo-check.ts")).toContain("if (input.purchase && !promoFitsPurchase(promo, input.purchase)) return { ok: false, reason: promoScopeMessage(promo) };");
     const src = read("src/app/api/stripe/checkout/route.ts");
     expect(src).toContain('purchase: { plan: isOffice ? "office" : "pro", interval },');
     // …and it is resolved AFTER the plan is known, or it could not be judged.
