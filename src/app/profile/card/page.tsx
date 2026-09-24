@@ -5,6 +5,7 @@ import Link from "next/link";
 import { isPaidPlan } from "@/lib/plan";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOfficeSubUserContext } from "@/lib/office-roles";
+import { ownLiveHref } from "@/lib/self-pass";
 
 export default async function PrimaryCardEditPage() {
   const supabase = await createClient();
@@ -55,7 +56,7 @@ export default async function PrimaryCardEditPage() {
             Settings
           </Link>
           <a
-            href={`${APP_URL}/${profile.username}`}
+            href={ownLiveHref(user.id, `${APP_URL}/${profile.username}`, APP_URL)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-blue-400 hover:text-blue-300 transition-colors"

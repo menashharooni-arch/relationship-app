@@ -8,6 +8,7 @@ import MobileNavGate from "@/components/MobileNavGate";
 import CopyButton from "@/components/CopyButton";
 import DashboardLink from "@/components/DashboardLink";
 import { resolveOfficeContext, canSeeBilling } from "@/lib/office-roles";
+import { ownLiveHref } from "@/lib/self-pass";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -55,7 +56,7 @@ export default async function ProfilePage() {
         {/* Live card link */}
         <div className="mb-6 flex items-center gap-2 bg-white border border-warm-card-border rounded-2xl px-4 py-3 shadow-sm">
           <a
-            href={`${APP_URL}/${profile.username}`}
+            href={ownLiveHref(user.id, `${APP_URL}/${profile.username}`, APP_URL)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 min-w-0 text-blue-600 text-xs font-mono truncate hover:underline"
@@ -64,7 +65,7 @@ export default async function ProfilePage() {
           </a>
           <CopyButton text={`${APP_URL}/${profile.username}`} />
           <a
-            href={`${APP_URL}/${profile.username}`}
+            href={ownLiveHref(user.id, `${APP_URL}/${profile.username}`, APP_URL)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-900 text-white hover:bg-slate-700 transition-colors shrink-0"

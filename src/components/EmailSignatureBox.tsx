@@ -29,6 +29,8 @@ type Props = {
   name: string;
   company: string;
   cardUrl: string;
+  /** The on-screen preview's link to the owner's own card (lib/self-pass): opening it is not counted as a view. Never used in the copied signature. */
+  previewHref?: string;
   username: string;
   storageUrl: string;
   ogUrl: string;
@@ -126,7 +128,7 @@ ${header}
 </td></tr></table>`;
 }
 
-export default function EmailSignatureBox({ cardData, template, name, company, cardUrl, username, storageUrl }: Props) {
+export default function EmailSignatureBox({ cardData, template, name, company, cardUrl, previewHref, username, storageUrl }: Props) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [status, setStatus] = useState<"idle" | "working" | "error">("idle");
@@ -435,8 +437,8 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
                   <p className="mt-2">Best,</p>
                   <div className="mt-3">
                     <p className="text-[0.875rem] text-gray-900 mb-1.5"><strong>{name}</strong>{company ? ` | ${company}` : ""}</p>
-                    <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="block w-[300px] max-w-full"><CardPreview src={displaySrc} ready={ready} status={status} onLoad={onLoad} onError={onImgError} /></a>
-                    <a href={cardUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[0.875rem] font-bold text-blue-600 no-underline">Contact me</a>
+                    <a href={previewHref ?? cardUrl} target="_blank" rel="noopener noreferrer" className="block w-[300px] max-w-full"><CardPreview src={displaySrc} ready={ready} status={status} onLoad={onLoad} onError={onImgError} /></a>
+                    <a href={previewHref ?? cardUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-[0.875rem] font-bold text-blue-600 no-underline">Contact me</a>
                   </div>
                 </div>
               </div>

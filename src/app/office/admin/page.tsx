@@ -8,6 +8,7 @@ import { PageHead } from "@/components/office/OfficeUI";
 import { AddMemberButton } from "@/components/office/TeamActions";
 import TeamList from "@/components/office/TeamList";
 import AdminTourButton from "@/components/office/AdminTourButton";
+import { ownLiveHref } from "@/lib/self-pass";
 
 export const metadata = { title: "Team — Admin — SwiftCard" };
 
@@ -51,7 +52,7 @@ function Step({ n, done, children }: { n: number; done: boolean; children: React
 }
 
 export default async function OfficeTeamPage() {
-  const { office, officeId, ownerId, caps, isOwner: viewerIsOwner } = await requireOfficeAdmin();
+  const { userId, office, officeId, ownerId, caps, isOwner: viewerIsOwner } = await requireOfficeAdmin();
 
   // On Office but no office row yet → the one thing to do is name the team.
   if (!office || !officeId || !ownerId) {
@@ -216,6 +217,9 @@ export default async function OfficeTeamPage() {
             people={people}
             invites={invites}
             appUrl={APP_URL}
+            // The viewer's OWN row opens through lib/self-pass, so looking at
+            // their own card from here is never counted as a view.
+            self={selfLive(people, userId)}
             caps={{ canInvite: caps.canInvite, canRemove: caps.canRemove, canManageCards: caps.canManageCards, canManageSeats: caps.canManageSeats, viewerIsOwner }}
           />
         ) : (
@@ -230,4 +234,11 @@ export default async function OfficeTeamPage() {
       </div>
     </div>
   );
+}
+
+/** The viewer's own row in the team list, if they have a card there. */
+function selfLive(people: { userId: string; username: string }[], userId: string) {
+  const me = people.find((p) => p.userId === userId);
+  if (!me?.username) return undefined;
+  return { userId, href: ownLiveHref(userId, `${APP_URL}/${me.username}`, APP_URL) };
 }

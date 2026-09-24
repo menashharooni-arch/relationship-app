@@ -18,6 +18,7 @@ import { buildCardData } from "@/lib/card-data";
 import { isPaidPlan } from "@/lib/plan";
 import { pickFreeLiveCardIds } from "@/lib/card-active";
 import { canViewOfficeAdmin, getOfficeSubUserContext } from "@/lib/office-roles";
+import { ownLiveHref } from "@/lib/self-pass";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -190,7 +191,7 @@ export default async function SharePage({
                 <span className="text-blue-400 text-xs truncate flex-1">{swiftUrl.replace("https://", "")}</span>
                 <CopyButton text={swiftUrl} />
               </div>
-              <a href={swiftUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">
+              <a href={ownLiveHref(user.id, swiftUrl, APP_URL)} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-full py-2 transition-colors">
                 Open Swift Links →
               </a>
             </div>
@@ -206,6 +207,7 @@ export default async function SharePage({
               name={activeSource.name ?? ""}
               company={activeSource.company ?? ""}
               cardUrl={cardUrl}
+              previewHref={ownLiveHref(user.id, cardUrl, APP_URL)}
               username={activeUsername}
               storageUrl={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/card-signatures/${activeUsername}.png`}
               ogUrl={`${APP_URL}/${activeUsername}/opengraph-image`}

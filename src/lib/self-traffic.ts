@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { createClient } from "@/lib/supabase-server";
 import { DEVICE_COOKIE, isDeviceId } from "@/lib/device";
+import { SELF_PASS_COOKIE, decodeSelfPass } from "@/lib/self-pass";
 
 // ── Owner self-traffic exclusion (shared across every analytics ingest) ──────
 // A card owner poking at their own card/SwiftLink/preview must NEVER count as a
@@ -134,6 +135,18 @@ async function deviceClaimants(admin: Admin): Promise<string[]> {
   }
 }
 
+// The THIRD signal: the owner's pass (lib/self-pass), left by their own "View
+// live" link on whatever browser it opened in — in the iPhone app that is
+// Safari, which has neither a session nor a device claim. Signed and httpOnly,
+// so it cannot be forged by a page or a visitor. Fails towards counting.
+async function selfPassClaimants(): Promise<string[]> {
+  try {
+    return decodeSelfPass((await cookies()).get(SELF_PASS_COOKIE)?.value);
+  } catch {
+    return [];
+  }
+}
+
 // Full server-side check: is the CURRENT request coming from the slug's owner?
 // Safe to call unconditionally — with neither signal (signed-out visitor, cron,
 // bot, automated preview) it returns false and the event is recorded normally.
@@ -151,7 +164,7 @@ export async function isOwnerRequest(admin: Admin, slug: string): Promise<boolea
       // exactly the outage/expiry case it exists for.
     }
 
-    return claimsOwner(await deviceClaimants(admin), ownerId);
+    return claimsOwner([...(await selfPassClaimants()), ...(await deviceClaimants(admin))], ownerId);
   } catch {
     // No request context available (e.g. invoked from a script) — treat as a
     // visitor; never let a lookup failure drop a legitimate event.
@@ -171,5 +184,5 @@ export async function isOwnerActivity(
 ): Promise<boolean> {
   if (!ownerId) return false;
   if (isSelfTraffic(ownerId, sessionUserId)) return true;
-  return claimsOwner(await deviceClaimants(admin), ownerId);
+  return claimsOwner([...(await selfPassClaimants()), ...(await deviceClaimants(admin))], ownerId);
 }

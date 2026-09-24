@@ -138,7 +138,9 @@ describe("wiring — the ingest route actually enforces this server-side", () =>
     // one": one browser is routinely signed into two of the same person's
     // accounts, and taking only the freshest row named the wrong account and
     // counted the owner as a stranger (owner report, 2026-09-18).
-    expect(selfTraffic).toMatch(/claimsOwner\(await deviceClaimants\(admin\), ownerId\)/);
+    // (Joined 2026-09-24 by the owner's "View live" pass — lib/self-pass,
+    // pinned in tests/self-pass.test.ts.)
+    expect(selfTraffic).toMatch(/claimsOwner\(\[\.\.\.\(await selfPassClaimants\(\)\), \.\.\.\(await deviceClaimants\(admin\)\)\], ownerId\)/);
     // Still never an IP.
     expect(selfTraffic).not.toMatch(/\bip\b\s*[:=]/);
   });

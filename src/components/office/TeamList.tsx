@@ -15,6 +15,9 @@ import { InviteRowActions, RemoveMemberButton, DeleteMemberAccountButton } from 
 // One list for real members and pending invitations, plus the detail drawer.
 // Everything is plain English: no slugs, no enums, no ids on screen.
 
+/** The viewer's own "View live card" link (lib/self-pass) — opening your own card is not a view. */
+type SelfLive = { userId: string; href: string };
+
 type Caps = {
   canInvite: boolean; canRemove: boolean; canManageCards: boolean; canManageSeats: boolean;
   /** The person looking is the office owner (not a delegated admin). The
@@ -105,8 +108,8 @@ function QrModal({ url, name, onClose }: { url: string; name: string; onClose: (
 
 // ── Detail drawer ────────────────────────────────────────────────────────────
 
-function Drawer({ person, appUrl, caps, onClose }: {
-  person: TeamPerson; appUrl: string; caps: Caps; onClose: () => void;
+function Drawer({ person, appUrl, caps, self, onClose }: {
+  person: TeamPerson; appUrl: string; caps: Caps; self?: SelfLive; onClose: () => void;
 }) {
   const [qr, setQr] = useState(false);
   const clock = useDisplayClock();
@@ -176,7 +179,7 @@ function Drawer({ person, appUrl, caps, onClose }: {
           ) : (
             <div className="flex flex-wrap gap-2 mb-5">
               {cardUrl && (
-                <a href={cardUrl} target="_blank" rel="noopener noreferrer"
+                <a href={self && self.userId === person.userId ? self.href : cardUrl} target="_blank" rel="noopener noreferrer"
                   className="text-xs font-semibold text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 px-3.5 py-2 rounded-full transition-colors">
                   View live card ↗
                 </a>
@@ -222,8 +225,8 @@ function Drawer({ person, appUrl, caps, onClose }: {
 
 // ── The list ─────────────────────────────────────────────────────────────────
 
-export default function TeamList({ people, invites, appUrl, caps }: {
-  people: TeamPerson[]; invites: TeamInvite[]; appUrl: string; caps: Caps;
+export default function TeamList({ people, invites, appUrl, caps, self }: {
+  people: TeamPerson[]; invites: TeamInvite[]; appUrl: string; caps: Caps; self?: SelfLive;
 }) {
   const [open, setOpen] = useState<TeamPerson | null>(null);
   // Hydration-safe times (components/DisplayClock): a UTC server printing
@@ -318,7 +321,7 @@ export default function TeamList({ people, invites, appUrl, caps }: {
         </div>
       </div>
 
-      {open && <Drawer person={open} appUrl={appUrl} caps={caps} onClose={() => setOpen(null)} />}
+      {open && <Drawer person={open} appUrl={appUrl} caps={caps} self={self} onClose={() => setOpen(null)} />}
     </>
   );
 }
