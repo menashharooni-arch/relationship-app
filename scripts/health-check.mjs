@@ -258,7 +258,10 @@ for (const slug of REAL_CARDS) {
 // ── Speed budget ─────────────────────────────────────────────────────────────
 // "Constantly moving as fast as it can" needs a number that fails, not a
 // report somebody reads. Median of three full-response timings per route,
-// measured from the GitHub runner (US east, same coast as Vercel iad1). The
+// measured from the GitHub runner (US east). Functions run in Vercel pdx1
+// since 2026-09-24, beside the database (Supabase us-west-2): the runner pays
+// one cross-country hop per request, where each page used to pay one per
+// database query from iad1. The
 // budgets are ~2x the healthy baseline so a slow deploy trips them and a
 // single network blip does not; the three-try wrapper above absorbs the rest.
 const SPEED_BUDGET_MS = { "/": 2500, "/card/demo-sales": 2500, "/links/demo-sales": 2500, "/login": 2500, "/pricing": 2500, "/api/health": 1500 };

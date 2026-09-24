@@ -76,8 +76,11 @@ export function SaveScene() {
           </div>
           <div className="flex flex-col items-center pt-2">
             <div className="relative">
+              {/* Lazy: an eager <img> in a server component becomes a preload
+                  hint in the homepage's RSC payload, so every page that
+                  prefetched "/" (any logo link) downloaded this 119KB photo. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={DEMO_HEADSHOT} alt="" className="w-[52px] h-[52px] rounded-full object-cover" />
+              <img src={DEMO_HEADSHOT} alt="" loading="lazy" decoding="async" className="w-[52px] h-[52px] rounded-full object-cover" />
               <span className="hp-pop hp-pop-2 absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#34C759] grid place-items-center ring-2 ring-[#F2F2F7]">
                 <svg viewBox="0 0 20 20" className="w-2.5 h-2.5 text-white" fill="currentColor"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
               </span>
