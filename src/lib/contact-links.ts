@@ -39,8 +39,6 @@ export const CONTACT_LINK_PARAM = "ct";
 
 export const MAX_DEVICES_PER_LINK = 3;
 
-// "manual_copy" (the contact panel's old Copy personal link, removed
-// 2026-09-23) is still allowed by the table's CHECK for the rows it minted.
 export type ContactLinkChannel = "sms" | "email" | "share_card" | "scanner";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

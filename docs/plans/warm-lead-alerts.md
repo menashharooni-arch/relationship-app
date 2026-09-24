@@ -4,6 +4,7 @@
 > - **Pro** gets named alerts and scores. **Free** gets a blurred teaser, with no pricing language.
 > - **Tracked per-contact links** are in scope, so manually added and scanned contacts are covered too.
 > - **"Met at"** is filled automatically (date + source), plus an owner-set event tag.
+> - **Removed 2026-09-23 (owner decision):** the contact panel's "Copy personal link" button and its per-contact "Alert me when they come back" mute switch. Links SwiftCard sends for the owner (SMS/email/share-card/scanner) still carry the token; a contact's lock-screen alerts are stopped only by Not interested / Closed (D5) or the Returning contacts switch in Settings. The per-contact mute and "Copy personal link" items below are history.
 > Note: `docs/research/must-have-features.md` does not exist in the repo or in any branch. This plan works from the brief instead.
 
 ## Context
