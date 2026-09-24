@@ -50,10 +50,12 @@ function design(theme: AiTheme, colors: string[], ctx: DesignContext, opts: { he
 
 // ── Create with AI: three briefs, three finished cards ──────────────────────
 
+// Variants chosen from a contact sheet of every theme × variant (2026-09-24):
+// the three cleanest compositions the engine makes with a photo AND a logo on.
 const BRIEFS: { theme: AiTheme; colors: [string, string]; variant?: number }[] = [
-  { theme: "modern", colors: ["#1e3a8a", "#4da8f5"] },
-  { theme: "luxury", colors: ["#0c0a09", "#c9a96e"] },
-  { theme: "creative", colors: ["#7c3aed", "#ec4899"] },
+  { theme: "modern", colors: ["#1e3a8a", "#4da8f5"], variant: 3 },  // photo-right
+  { theme: "luxury", colors: ["#0c0a09", "#c9a96e"], variant: 1 },  // centered
+  { theme: "creative", colors: ["#7c3aed", "#ec4899"], variant: 0 }, // orb-corner
 ];
 const DESIGNS = BRIEFS.map((b) => ({
   ...b,
@@ -165,40 +167,40 @@ function CreatePanel() {
           blurb="Your headshot, logo, colors and a style. AI does the rest."
         />
 
-        <div ref={ref} className="mt-6 grid sm:grid-cols-[minmax(0,10.5rem)_minmax(0,1fr)] gap-5 sm:gap-6 items-center">
-          {/* The brief: what the owner gives it. */}
+        <div ref={ref} className="flex-1 flex flex-col mt-6">
+          {/* The brief: what the owner gives it, as one quiet row. */}
           <div className="hp-ai-brief" aria-label="What you give it">
-            <div className="flex items-center gap-2.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={DEMO_HEADSHOT} alt="" className="w-9 h-9 rounded-full object-cover ring-2 ring-white shadow-sm" />
-              {/* The demo mark is white (it ships on Logo First's navy), so it sits on a navy plate here too. */}
-              <span className="w-9 h-9 rounded-xl grid place-items-center overflow-hidden ring-2 ring-white shadow-sm" style={{ background: "#1e3a8a" }}>
+            <span className="hp-ai-brief-item">
+              <span className="flex -space-x-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={DEMO_LOGO} alt="" className="w-6 h-6 object-contain" />
+                <img src={DEMO_HEADSHOT} alt="" className="w-7 h-7 rounded-full object-cover ring-2 ring-white" />
+                {/* The demo mark is white (it ships on Logo First's navy), so it sits on a navy plate here too. */}
+                <span className="w-7 h-7 rounded-full grid place-items-center overflow-hidden ring-2 ring-white" style={{ background: "#1e3a8a" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={DEMO_LOGO} alt="" className="w-4 h-4 object-contain" />
+                </span>
               </span>
-              <span className="text-[0.75rem] text-slate-500 font-medium">Headshot + logo</span>
-            </div>
-            <div className="mt-3 flex items-center gap-2.5">
-              {active.colors.map((c, i) => (
-                <span key={i} className="hp-ai-swatch" style={{ background: c }} />
-              ))}
-              <span className="text-[0.75rem] text-slate-500 font-medium">Your colors</span>
-            </div>
-            <div className="mt-3 flex items-center gap-2">
+              Headshot &amp; logo
+            </span>
+            <span className="hp-ai-brief-item">
+              <span className="flex -space-x-1">
+                {active.colors.map((c, i) => (
+                  <span key={i} className="hp-ai-swatch" style={{ background: c }} />
+                ))}
+              </span>
+              Colors
+            </span>
+            <span className="hp-ai-brief-item">
               <span className="hp-ai-chip">{active.label}</span>
-              <span className="text-[0.75rem] text-slate-500 font-medium">Style</span>
-            </div>
-            <div className="mt-3 pt-3 border-t border-slate-200/80 space-y-1.5 text-[0.75rem] text-slate-700">
-              <p className="font-semibold truncate">{DEMO.name}</p>
-              <p className="text-slate-500 truncate">{DEMO.title} · {DEMO.company}</p>
-            </div>
-            <div className="hp-ai-generate mt-4" aria-hidden="true">
-              <Sparkle className="w-3.5 h-3.5" /> Generate my design
-            </div>
+              Style
+            </span>
+            <span className="hp-ai-generate" aria-hidden="true">
+              <Sparkle className="w-3 h-3" /> Generate
+            </span>
           </div>
 
           {/* The result: three real designs, one on top at a time. */}
-          <div>
+          <div className="hp-ai-stage flex-1 flex flex-col justify-center mt-4">
             <div className="relative" style={{ aspectRatio: "460 / 263" }}>
               {DESIGNS.map((d, i) => (
                 <div key={d.theme} className={`hp-ai-slide absolute inset-0 ${i === idx ? "is-on" : ""}`} aria-hidden={i !== idx}>
@@ -206,19 +208,19 @@ function CreatePanel() {
                 </div>
               ))}
             </div>
-            <div className="mt-4 flex items-center justify-center gap-2" role="group" aria-label="Example designs">
-              {DESIGNS.map((d, i) => (
-                <button
-                  key={d.theme}
-                  type="button"
-                  onClick={() => { setIdx(i); setPaused(true); }}
-                  aria-label={`${d.label} design`}
-                  aria-pressed={i === idx}
-                  className="hp-ai-dot"
-                  data-on={i === idx ? "" : undefined}
-                />
-              ))}
-            </div>
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-2" role="group" aria-label="Example designs">
+            {DESIGNS.map((d, i) => (
+              <button
+                key={d.theme}
+                type="button"
+                onClick={() => { setIdx(i); setPaused(true); }}
+                aria-label={`${d.label} design`}
+                aria-pressed={i === idx}
+                className="hp-ai-dot"
+                data-on={i === idx ? "" : undefined}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -238,30 +240,24 @@ function RecreatePanel() {
           blurb="Upload a card you like. AI rebuilds that look with your details."
         />
 
-        <div className="flex-1 mt-6 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_2.25rem_minmax(0,1fr)] gap-4 sm:gap-3 items-center content-center">
+        <div className="hp-ai-stage flex-1 mt-6 flex flex-col items-center justify-center gap-3">
           {/* What they uploaded: someone else's card, as a photo. */}
-          <div className="relative px-3 sm:px-0">
+          <div className="w-full max-w-[340px] px-2">
             <div className="hp-ai-photo">
               <Still data={STRANGER} layout={RECREATED} />
               <span className="hp-ai-scan" aria-hidden="true" />
             </div>
-            <span className="hp-ai-file" aria-hidden="true">
-              <Ico d="M4 16l4.5-4.5a1.5 1.5 0 012 0L15 16m-2-2l1.5-1.5a1.5 1.5 0 012 0L20 16M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" className="w-3.5 h-3.5" />
-              IMG_2041.jpg
-            </span>
           </div>
 
-          {/* The arrow: across on wide screens, down on phones. */}
           <div className="flex items-center justify-center text-blue-600" aria-hidden="true">
             <span className="hp-ai-arrow">
               <Sparkle className="w-3 h-3 hp-ai-arrow-spark" />
-              <Ico d="M5 12h14M13 6l6 6-6 6" className="w-5 h-5 hidden sm:block" />
-              <Ico d="M12 5v14M6 13l6 6 6-6" className="w-5 h-5 sm:hidden" />
+              <Ico d="M12 5v14M6 13l6 6 6-6" className="w-5 h-5" />
             </span>
           </div>
 
           {/* The same design, now theirs. */}
-          <div className="relative px-3 sm:px-0" data-reveal style={{ transitionDelay: "260ms" }}>
+          <div className="relative w-full max-w-[340px] px-2" data-reveal style={{ transitionDelay: "260ms" }}>
             <Still data={DEMO} layout={RECREATED} />
             <span className="hp-ai-file hp-ai-file-you" aria-hidden="true">
               <Sparkle className="w-3 h-3" /> Yours
