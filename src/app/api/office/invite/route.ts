@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { NextResponse } from "next/server";
 import { sendRawEmail, isOptedOut, contactUnsubUrl } from "@/lib/messaging";
-import { buildInviteEmail } from "@/lib/office-invite-email";
+import { buildInviteEmail, inviteReplyTo } from "@/lib/office-invite-email";
 import { PLAN_LIMITS } from "@/lib/plan";
 import { isRateLimited } from "@/lib/rate-limit";
 import { getOfficeSeatUsage } from "@/lib/office-seats";
@@ -310,9 +310,11 @@ export async function POST(req: Request) {
     // Reply-To below so "who are you?" reaches the person who can answer.
     sender: "support",
     // The inviting admin's verified auth email — from supabase.auth.getUser(),
-    // never a free-text profile field. Gives a stranger a real mailbox to reply
-    // to, which is the strongest positive signal a receiver can observe.
-    replyTo: user.email ?? null,
+    // never a free-text profile field — so a stranger's "who is this?" reaches
+    // them. Only at a company address: a gmail.com Reply-To on mail From
+    // swiftcard.me is a spam rule on its own, so those fall back to support@
+    // (inviteReplyTo, lib/office-invite-email).
+    replyTo: inviteReplyTo(user.email),
   });
   const emailSent = sendResult === "sent";
 

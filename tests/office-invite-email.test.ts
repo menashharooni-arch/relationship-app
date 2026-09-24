@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildInviteEmail } from "@/lib/office-invite-email";
+import { buildInviteEmail, inviteReplyTo } from "@/lib/office-invite-email";
 import { senderFrom } from "@/lib/messaging";
 import { htmlToText } from "@/lib/email-text";
 
@@ -29,11 +29,15 @@ describe("office invite email", () => {
     else process.env.RESEND_FROM_EMAIL = prev;
   });
 
-  it("From names the inviter and the office on the verified address", () => {
+  it("From names the inviter — never the company — on the verified address", () => {
     // support@ — a team invitation is the platform writing to a stranger on a
     // customer's behalf. The route passes sender:"support" (api/office/invite).
     const from = senderFrom(invite().fromName, "support");
-    expect(from).toBe("Dana (Acme Realty) via SwiftCard <support@swiftcard.me>");
+    // No company in the From: an organisation's name on mail from a domain
+    // that isn't theirs is what impersonation filters flag (owner report
+    // 2026-09-24, invites in spam). The company is in the subject and body.
+    expect(from).toBe("Dana via SwiftCard <support@swiftcard.me>");
+    expect(from).not.toContain("Acme");
     // The bug this replaces: header said "SwiftCard", body said "Dana invited you".
     expect(from).not.toBe(BASE);
   });
@@ -98,7 +102,8 @@ describe("office invite email", () => {
     expect(e.subject).toBe("You're invited to create your Acme Realty digital business card");
     expect(e.html).toContain("You've been added to the <strong>Acme Realty</strong> team on SwiftCard");
     expect(e.html).toContain("because a team admin entered your email address");
-    expect(e.fromName).toBe("Acme Realty");
+    expect(e.fromName).toBe("");
+    expect(senderFrom(e.fromName, "support")).toBe("SwiftCard <support@swiftcard.me>");
   });
 
   it("an office with no company name reads as a sentence, not a placeholder", () => {
@@ -155,5 +160,24 @@ describe("office invite App Store badge", () => {
     expect(tpl).toMatch(/\$\{appStoreEmailBlock\(/);
     const lib = readFileSync(join(process.cwd(), "src/lib/app-store.ts"), "utf8");
     expect(lib).toMatch(/if \(!APP_STORE_URL\) return "";/);
+  });
+});
+
+// Owner report 2026-09-24: invites landing in the invitee's spam. A personal
+// mailbox as the Reply-To on mail From swiftcard.me is a spam rule on its own
+// (SpamAssassin FREEMAIL_FORGED_REPLYTO), so only a company address is used.
+describe("the invite's Reply-To", () => {
+  it("is the inviter at a company address, so 'who is this?' reaches them", () => {
+    expect(inviteReplyTo("dana@meridianbank.com")).toBe("dana@meridianbank.com");
+    expect(inviteReplyTo("  dana@acme-realty.co.uk ")).toBe("dana@acme-realty.co.uk");
+  });
+
+  it("falls back to support@ (null) for a personal mailbox, or no address", () => {
+    for (const e of ["dana@gmail.com", "Dana@GMAIL.com", "d@icloud.com", "d@yahoo.com", "d@outlook.com", "d@hotmail.com", "d@aol.com", "d@proton.me"]) {
+      expect(inviteReplyTo(e), e).toBeNull();
+    }
+    expect(inviteReplyTo(null)).toBeNull();
+    expect(inviteReplyTo("")).toBeNull();
+    expect(inviteReplyTo("not-an-email")).toBeNull();
   });
 });

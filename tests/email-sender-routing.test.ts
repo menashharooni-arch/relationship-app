@@ -150,8 +150,9 @@ describe("every send site declares its identity", () => {
     expect(read("src/app/api/admin/create-card/route.ts")).toMatch(/sender: "support"/);
     const inv = read("src/app/api/office/invite/route.ts");
     expect(inv).toMatch(/sender: "support"/);
-    // A stranger's "who are you?" must reach the inviter, not us.
-    expect(inv).toMatch(/replyTo: user\.email \?\? null/);
+    // A stranger's "who are you?" reaches the inviter at a company address;
+    // a personal mailbox falls back to support@ (see office-invite-email).
+    expect(inv).toMatch(/replyTo: inviteReplyTo\(user\.email\)/);
   });
 
   it("campaigns no longer have their sender overwritten", () => {

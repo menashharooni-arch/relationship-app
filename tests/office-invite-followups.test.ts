@@ -24,7 +24,9 @@ describe("the invite's sign-in email is ours, and works on any device", () => {
 
   it("says who it's from and what it's for — not Supabase's bare template", () => {
     expect(mail.subject).toBe("Your sign-in link to join Meridian Bank on SwiftCard");
-    expect(mail.fromName).toBe("Meridian Bank");
+    // Plain SwiftCard: a bank-named sender with a sign-in link is the phishing
+    // template filters catch (owner report 2026-09-24).
+    expect(mail.fromName).toBe("");
     expect(mail.html).toContain("finish joining your <strong>Meridian Bank</strong> team on SwiftCard");
     expect(mail.html).toContain("dana@meridianbank.com");
     expect(mail.html).toContain('<img src="https://cdn.example.com/meridian.png"');

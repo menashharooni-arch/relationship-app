@@ -1,5 +1,6 @@
 import { escapeHtml } from "@/lib/escape";
 import { INVITE_TTL_MS } from "@/lib/office-invite";
+import { extractEmailDomain, isPersonalEmailDomain } from "@/lib/logo-provider";
 
 // ── Office invite email ──────────────────────────────────────────────────────
 // Pure builder: no IO, so tests assert the real bytes instead of grepping the
@@ -110,14 +111,36 @@ export function buildInviteEmail(opts: {
 
   return {
     subject: `${ownerRaw ? `${ownerRaw} invited you` : "You're invited"} to create your ${officeRaw ? `${officeRaw} ` : "company "}digital business card`,
-    // Reconciles the From header with the body's claim and gives the recipient a
-    // name they actually recognise. Previously the header said "SwiftCard" while
-    // the body said "<Owner> invited you" — a stranger recognised neither.
+    // "Dana via SwiftCard": the From names the person the body says invited
+    // them, so the header and the body agree. The COMPANY is deliberately NOT in
+    // the From (owner report 2026-09-24: invites landing in the invitee's spam).
+    // "Dana (Meridian Bank) via SwiftCard <support@swiftcard.me>" is an
+    // organisation's name on mail from a domain that isn't theirs, which is the
+    // exact shape Outlook's and Gmail's impersonation filters look for, and a
+    // bank or brokerage name makes it worse. The company is in the subject and
+    // the body, where it reads as content rather than a claimed identity.
     // Sanitized downstream by senderFrom(); never concatenate this yourself.
-    // Empty when neither is known, which leaves the From as plain "SwiftCard".
-    fromName: ownerRaw && officeRaw ? `${ownerRaw} (${officeRaw})` : ownerRaw ?? officeRaw ?? "",
+    // Empty when the inviter has no name, which leaves the From as "SwiftCard".
+    fromName: ownerRaw ?? "",
     html,
   };
+}
+
+/**
+ * The invite's Reply-To: the inviting admin, but only at a COMPANY address.
+ *
+ * A stranger's "who is this?" should reach the person who invited them, and a
+ * company address (dana@meridianbank.com) makes that possible. A personal
+ * mailbox (gmail.com, icloud.com, …) as the Reply-To on mail From swiftcard.me
+ * is a standard spam rule (SpamAssassin FREEMAIL_FORGED_REPLYTO, about +2 on
+ * its own), and on first contact with a stranger it can be the point that
+ * tips the invite into spam. For those, null leaves the sender's default
+ * (support@swiftcard.me), which is aligned with the From and is monitored.
+ */
+export function inviteReplyTo(inviterEmail: string | null | undefined): string | null {
+  const domain = extractEmailDomain(inviterEmail ?? "");
+  if (!domain || isPersonalEmailDomain(domain)) return null;
+  return inviterEmail!.trim();
 }
 
 // ── The invite's sign-in email ───────────────────────────────────────────────
@@ -167,7 +190,11 @@ export function buildJoinSignInEmail(opts: {
 
   return {
     subject: officeRaw ? `Your sign-in link to join ${officeRaw} on SwiftCard` : "Your SwiftCard sign-in link",
-    fromName: officeRaw ?? "",
+    // Plain "SwiftCard", never "Meridian Bank via SwiftCard". A company-named
+    // sender plus a sign-in link, from a domain that isn't the company's, is
+    // the credential-phishing template that spam filters are built to catch
+    // (owner report 2026-09-24). The company is in the subject and the body.
+    fromName: "",
     html,
   };
 }
