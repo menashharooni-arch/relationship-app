@@ -124,6 +124,7 @@ describe("the marketing demo card never offers live contact links", () => {
     // WalletPassFace facsimile (0909aff), which renders no anchors at all,
     // so there is nothing to neutralise there anymore.
     "src/app/templates/page.tsx",
+    "src/components/site/AiDesignerShowcase.tsx",
     "src/components/site/TemplateGallery.tsx",
     "src/components/site/LeadCapturePhone.tsx",
     "src/components/site/SignatureDemo.tsx",

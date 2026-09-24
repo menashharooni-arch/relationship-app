@@ -212,3 +212,67 @@
 .hp-page-hero { position: relative; overflow: hidden; background: #fff; }
 .hp-page-hero::before { content: ""; position: absolute; inset: -40% -10% auto -10%; height: 90%; pointer-events: none;
   background: radial-gradient(50% 60% at 50% 30%, rgba(77,168,245,.16), transparent 70%); }
+
+/* ── AI Card Designer showcase (/templates, components/site/AiDesignerShowcase) ─
+   Two panels with a quiet gradient edge — the same frame the in-app AI buttons
+   wear (sc-magic-frame in CustomCardDesigner), toned down for a light page.
+   Everything moving here is stilled under reduced motion. */
+.hp-ai-panel { position: relative; border-radius: 26px; padding: 1.5px; isolation: isolate;
+  background: linear-gradient(110deg, rgba(37,99,235,.55), rgba(124,58,237,.45), rgba(6,182,212,.5), rgba(37,99,235,.55));
+  background-size: 300% 300%; animation: hp-ai-border 8s ease-in-out infinite;
+  box-shadow: 0 30px 60px -36px rgba(29,63,184,.35); }
+.hp-ai-panel-in { background: #fff; border-radius: 24.5px; padding: 1.5rem; height: 100%; display: flex; flex-direction: column; }
+@media (min-width: 640px) { .hp-ai-panel-in { padding: 1.75rem; } }
+@keyframes hp-ai-border { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.hp-ai-ico { flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(135deg, #2563eb, #7c3aed); box-shadow: 0 10px 22px -10px rgba(99,102,241,.7); }
+
+/* The brief: a small white card of what the owner gives the designer. */
+.hp-ai-brief { background: var(--hp-soft); border: 1px solid var(--hp-line); border-radius: 18px; padding: 1rem; }
+.hp-ai-swatch { width: 26px; height: 26px; border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(11,16,34,.12);
+  transition: background .6s cubic-bezier(.2,.7,.2,1); }
+.hp-ai-chip { display: inline-block; font-size: .75rem; font-weight: 600; padding: .25rem .65rem; border-radius: 999px;
+  background: #fff; color: #1D3FB8; box-shadow: inset 0 0 0 1px rgba(37,99,235,.25); }
+.hp-ai-generate { display: inline-flex; align-items: center; gap: .4rem; font-size: .7rem; font-weight: 600; color: #fff; white-space: nowrap;
+  padding: .45rem .7rem; border-radius: 10px; background: linear-gradient(90deg, #2563eb, #7c3aed); }
+
+/* The three designs, stacked; one on top at a time. */
+.hp-ai-slide { opacity: 0; transform: scale(.965) translateY(8px);
+  transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1); }
+.hp-ai-slide.is-on { opacity: 1; transform: none; }
+.hp-ai-dot { width: 8px; height: 8px; border-radius: 999px; background: rgba(11,16,34,.18); transition: transform .3s, background .3s; padding: 0; }
+.hp-ai-dot[data-on] { background: var(--rd-aurora); transform: scale(1.35); }
+.hp-ai-dot::after { content: ""; position: absolute; inset: -8px; } /* a finger-sized target around a small dot */
+.hp-ai-dot { position: relative; }
+
+/* The uploaded card: a photo with a scan light passing over it. */
+.hp-ai-photo { position: relative; background: #fff; padding: 6px; border-radius: 14px; transform: rotate(-3deg);
+  box-shadow: 0 24px 40px -22px rgba(11,16,34,.45), 0 0 0 1px rgba(11,16,34,.06); overflow: hidden; }
+.hp-ai-scan { position: absolute; left: 0; right: 0; top: -30%; height: 30%; pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(77,168,245,.28) 50%, rgba(37,99,235,.55) 92%, transparent);
+  animation: hp-ai-scan 3.2s cubic-bezier(.45,0,.35,1) infinite; }
+@keyframes hp-ai-scan { 0% { top: -30%; } 70%, 100% { top: 105%; } }
+.hp-ai-file { position: absolute; left: 0; bottom: -10px; display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .6875rem; font-weight: 600; color: #3B4256; background: #fff; padding: .25rem .55rem; border-radius: 999px;
+  box-shadow: 0 8px 20px -10px rgba(11,16,34,.4), 0 0 0 1px rgba(11,16,34,.08); }
+.hp-ai-file-you { left: auto; right: 0; color: #fff; background: var(--rd-aurora); box-shadow: 0 8px 20px -10px rgba(29,63,184,.6); }
+.hp-ai-arrow { position: relative; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; background: #fff;
+  box-shadow: 0 10px 24px -12px rgba(29,63,184,.5), 0 0 0 1px rgba(37,99,235,.18); }
+.hp-ai-arrow-spark { position: absolute; top: -5px; right: -4px; color: #7c3aed; animation: hp-twinkle 3.4s ease-in-out infinite; opacity: 0; }
+
+/* The four steps: compact tiles under the track. */
+.hp-track-4 .hp-track-line { left: 12.5%; right: 12.5%; }
+.hp-track-4 > div:nth-child(5) .hp-node::after { animation-delay: 1.95s; }
+.hp-ai-step { background: #fff; border: 1px solid var(--hp-line); border-radius: 20px; padding: 1.15rem 1.15rem 1.3rem;
+  transition: transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s; }
+.hp-ai-step:hover { transform: translateY(-4px); box-shadow: 0 30px 60px -30px rgba(29,63,184,.3); }
+/* On desktop the track carries the numbers (same rule as .hp-step; unlayered
+   home.css outranks a Tailwind md:hidden, so it is repeated here). */
+@media (min-width: 768px) { .hp-ai-step .hp-step-num { display: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hp-ai-panel, .hp-ai-scan, .hp-ai-arrow-spark { animation: none !important; }
+  .hp-ai-scan { display: none; }
+  .hp-ai-arrow-spark { opacity: .6; }
+  .hp-ai-slide { transition: none; }
+}

@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Templates — SwiftCard",
   description:
-    "Designer templates for your SwiftCard digital business card — your colors, photo, and logo, with a scannable QR and Save Contact button built in.",
+    "Design your SwiftCard with AI — from your headshot, logo and colors, or from a card design you love — or pick one of six designer templates. Scannable QR and Save Contact built in.",
 };
 
 export default function TemplatesLayout({ children }: { children: React.ReactNode }) {

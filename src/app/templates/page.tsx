@@ -13,6 +13,9 @@ import LuxuryMinimal from "@/components/card-templates/LuxuryMinimal";
 import LogoFirst from "@/components/card-templates/LogoFirst";
 import { SAMPLE_DATA_WITH_PHOTO, withoutSocials } from "@/components/card-templates/types";
 import HomeHeadingReveal from "@/components/site/HomeHeadingReveal";
+import ScrollReveal from "@/components/ScrollReveal";
+import Eyebrow from "@/components/site/Eyebrow";
+import AiDesignerShowcase from "@/components/site/AiDesignerShowcase";
 import "@/app/home.css";
 
 const TEMPLATES = [
@@ -103,19 +106,30 @@ export default function TemplatesPage() {
           end for anyone arriving from a link or the footer. */}
       <SiteNav />
       <HomeHeadingReveal />
+      {/* data-reveal needs the site-wide observer; only the headings had one here. */}
+      <ScrollReveal />
 
       <section className="hp-page-hero">
         <div className="relative px-5 pt-28 sm:pt-36 pb-10 sm:pb-14 max-w-2xl mx-auto" data-hp-head>
           <h1 className="rd-display text-slate-900 text-[clamp(2.2rem,5vw,3.4rem)]">Your card, <span className="hp-fill">your way.</span></h1>
           <p className="hp-lede mt-4">
-            Choose the design that fits your business. You can change it anytime.
+            Design it with AI, or start from a template. You can change it anytime.
           </p>
         </div>
       </section>
 
+      {/* The AI Card Designer: two capabilities and the four-step flow. Every
+          card in it is a real design from the product's own engine. */}
+      <AiDesignerShowcase />
+
       {/* Template list */}
-      <section className="hp-soft pt-12 sm:pt-16 pb-16">
+      <section className="hp-soft pt-16 sm:pt-20 pb-16">
       <div className="max-w-2xl mx-auto px-5 space-y-12">
+        <div className="text-center" data-hp-head>
+          <Eyebrow dark={false}>Templates</Eyebrow>
+          <h2 className="rd-h2 text-[clamp(1.9rem,4vw,2.8rem)] text-slate-900 mt-4">Or start from <span className="hp-fill">a template.</span></h2>
+          <p className="hp-lede mt-3">Six designer templates. Pick one and make it yours.</p>
+        </div>
         {TEMPLATES.map((tmpl, i) => {
           const { Component } = tmpl;
           const isSelected = selected === tmpl.id;
