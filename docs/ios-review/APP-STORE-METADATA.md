@@ -204,26 +204,30 @@ the design that script now produces. A listing refresh means steps 1–3 in orde
 on a machine that has the service-role key.
 
 ## Version
-- 1.0.2, build 13. "What's New": `This update is all about accessibility.
-  • Larger Text: SwiftCard now follows your iPhone's text size, right up to the
-  largest accessibility sizes. • VoiceOver and Voice Control: clearer labels
-  and a more predictable reading order throughout. • Better contrast, and
-  Reduce Motion is now respected across the app.`
-  (1.0.2 is the ACCESSIBILITY release: Dynamic Type in MainViewController's
-  web view, the VoiceOver/contrast/reduced-motion pass, and the system rating
-  prompt. Build 11 predates all of it, so the live 1.0.1 does not scale with
-  Larger Text even though the accessibility labels published 2026-09-11 say it
-  does — that gap is what 1.0.2 closes. The "What's New" text above is the
-  source of truth for `scripts/asc-whats-new.mjs`.
-
-  BUILD 13 SUPERSEDES BUILD 12, same version and same release notes: it is
-  build 12 plus the v3 launch screen (the owner's field and mark, with the
-  lightning drawn into it — `scripts/build-splash-v3.mjs`, the launch images in
-  `Splash.imageset`, and `SwiftCardSplash/3` in the user agent so the server
-  serves the matching animation). A launch screen is not a "What's New" line,
-  which is why the copy is unchanged. Upload build 13 and attach THAT one; build
-  12 was staged in App Store Connect and never submitted. NOT submitted either
-  way — Menash presses Add for Review.)
+- 1.0.3, build 13. "What's New": `A new launch screen, and notifications now
+  show as banners while you're using the app. Also fixed: the app no longer
+  quietly stops receiving notifications after the first one.`
+  (1.0.3 = build 13, uploaded 2026-09-24: build 12 plus the v3 launch screen —
+  the owner's field and mark with the lightning drawn into it,
+  `scripts/build-splash-v3.mjs`, the launch images in `Splash.imageset`, and
+  `SwiftCardSplash/3` in the user agent so the server serves the matching
+  animation — plus `presentationOptions` in capacitor.config.ts so a push shows
+  as a banner while the app is in the foreground. The APNs "phone deleted after
+  its first push" fix (00f477f9) is server-side and already live, but the
+  symptom was in the app, so the note names it. Ships with the v7 screenshot
+  set, recaptured 2026-09-24 after Hot/Warm scoring, "Copy personal link" and
+  the per-contact alert switch were removed from the app. Build 13 was
+  originally staged as a 1.0.2 re-upload and never uploaded; 1.0.2 went live as
+  build 12. The "What's New" text in `scripts/asc-whats-new.mjs` tracks the
+  CURRENT in-flight version, so it carries the 1.0.3 copy.)
+- 1.0.2, build 12 shipped 2026-09-11 and is live. "What's New": `This update is
+  all about accessibility. • Larger Text: SwiftCard now follows your iPhone's
+  text size, right up to the largest accessibility sizes. • VoiceOver and Voice
+  Control: clearer labels and a more predictable reading order throughout. •
+  Better contrast, and Reduce Motion is now respected across the app.`
+  (The ACCESSIBILITY release: Dynamic Type in MainViewController's web view,
+  the VoiceOver/contrast/reduced-motion pass, and the system rating prompt.
+  Build 11 predated all of it.)
 - 1.0.1, build 11 shipped 2026-09-03 and is live. "What's New": `Push
   notifications now work — get alerted the moment someone views your card or
   saves their details. Also fixes Universal Links and the home-screen widget.`

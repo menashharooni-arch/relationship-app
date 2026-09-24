@@ -248,15 +248,17 @@ const FRAMES = [
     sub: "Views by day, by source, by town. Who came back, and when.",
     bar: { bg: "#fbf7f1", fg: "#111" },
     pops: [
-      { html: stat("SwiftCard views · Month", "4,345", "Best day <b>Sep 3</b> · 700"), at: `top:${UPPER}px; left:${EDGE}px`, rot: -3 },
-      { html: chip(`${pin}<span>Portland, OR · <b>3,193</b> views</span>`), at: `top:${LOWER}px; right:34px`, rot: 2.5 },
+      // Typed from the raw capture of 2026-09-24 (the seed draws fresh numbers
+      // every run) — re-read _raw/dashboard.png after each re-capture.
+      { html: stat("SwiftCard views · Month", "4,336", "Best day <b>Sep 18</b> · 700"), at: `top:${UPPER}px; left:${EDGE}px`, rot: -3 },
+      { html: chip(`${pin}<span>Portland, OR · <b>3,175</b> views</span>`), at: `top:${LOWER}px; right:34px`, rot: 2.5 },
     ] },
   { n: "07", src: "dashboard-locations", y: 2270, kicker: "Locations",
     title: "Which towns\n<em>find you</em>",
     sub: "Every view placed on the map, split between your card and Swift Links.",
     bar: { bg: "#fbf7f1", fg: "#111" },
     pops: [
-      { html: loc("Portland, OR", "3,193", "2,574", "619"), at: `top:${UPPER}px; right:${EDGE}px`, rot: 2.5 },
+      { html: loc("Portland, OR", "3,175", "2,531", "644"), at: `top:${UPPER}px; right:${EDGE}px`, rot: 2.5 },
     ] },
   // y=1284, not 0: at the top of the page this frame was her photo and a bio,
   // and the links — the thing it is captioned for — were below the fold, with
@@ -322,7 +324,9 @@ const popStyle = (p) => {
   return `${p.at}; ${rot}`;
 };
 
-const page = (f, srcH) => `<style>
+// The charset is declared, not sniffed: a frame with only a curly apostrophe
+// and a middot in it (06) got guessed as windows-1252 and rendered "whoâ€™s".
+const page = (f, srcH) => `<!doctype html><meta charset="utf-8"><style>
   @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&display=swap');
   * { margin: 0; box-sizing: border-box; }
   body {

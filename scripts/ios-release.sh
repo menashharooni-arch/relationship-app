@@ -119,8 +119,41 @@ npx cap sync ios
 rm -rf "$ARCHIVE" "$EXPORT_DIR"
 mkdir -p "$BUILD"
 cd "$ROOT/ios/App"
+
+# ── --no-watch: archive from a project copy that does not build the watch ────
+# The watch targets are signed MANUALLY against "SwiftCard Watch App Store" and
+# "SwiftCard Watch Complication App Store", and those profiles do not exist yet
+# (the complication bundle id is still refused by Apple — see
+# docs/ios-review/SHELL-RUNBOOK.md §6c). Building the App scheme pulls both
+# watch targets in through the App target's dependency + "Embed Watch Content"
+# phase, so the archive dies at GatherProvisioningInputs before compiling a line.
+#
+# Rather than editing project.pbxproj in the shared working tree (several
+# sessions commit from it), archive from a SIBLING COPY of the .xcodeproj with
+# those two references stripped. Relative paths inside a project resolve from
+# its parent directory, so a copy next to the original builds the same sources.
+# The copy is removed on exit, success or failure.
+PROJECT="App.xcodeproj"
+if (( NO_WATCH )); then
+  PROJECT="App-NoWatch.xcodeproj"
+  rm -rf "$PROJECT"
+  cp -R App.xcodeproj "$PROJECT"
+  trap 'rm -rf "$ROOT/ios/App/App-NoWatch.xcodeproj"' EXIT
+  # The App target references the watch exactly twice: the embed phase and the
+  # target dependency. Both lines carry their comment, which is what we match.
+  sed -i '' -e '/DD0000000000000000000001 \/\* Embed Watch Content \*\/,/d' \
+            -e '/DD0000000000000000000003 \/\* PBXTargetDependency \*\/,/d' \
+            "$PROJECT/project.pbxproj"
+  # (The copy-files phase itself and its file entry stay; only the App target's
+  # two references go, which is enough for the phase never to run.)
+  if grep -q 'DD0000000000000000000001 /\* Embed Watch Content \*/,' "$PROJECT/project.pbxproj" || grep -q 'DD0000000000000000000003 /\* PBXTargetDependency \*/,' "$PROJECT/project.pbxproj"; then
+    die "--no-watch: could not strip the watch references from the project copy — the pbxproj ids changed; update this script."
+  fi
+  echo "Archiving WITHOUT the Apple Watch app (--no-watch), from $PROJECT."
+fi
+
 echo "Archiving (signed with the App Store distribution profile)…"
-xcodebuild -scheme App -configuration Release \
+xcodebuild -project "$PROJECT" -scheme App -configuration Release \
   -destination 'generic/platform=iOS' \
   -archivePath "$ARCHIVE" \
   OTHER_CODE_SIGN_FLAGS="--keychain $KC" \

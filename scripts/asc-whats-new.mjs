@@ -11,14 +11,14 @@ import { asc, APP_ID } from "./lib/asc.mjs";
 
 const APPLY = process.argv.includes("--apply");
 
-// Build 11 (2026-09-03) already carried the push entitlements fix. The only
-// native work since is the accessibility commit — Dynamic Type in the web view,
-// the VoiceOver/contrast/reduced-motion pass, and the system rating prompt.
-const WHATS_NEW = `This update is all about accessibility.
+// 1.0.3 / build 13 (2026-09-24). Native changes since the live build 12: the
+// v3 launch screen and foreground push banners (presentationOptions). The
+// "stops receiving notifications" fix is server-side and already live, but its
+// symptom was in the app, so the note names it. History lives in
+// docs/ios-review/APP-STORE-METADATA.md "## Version".
+const WHATS_NEW = `A new launch screen, and notifications now show as banners while you're using the app.
 
-• Larger Text: SwiftCard now follows your iPhone's text size, right up to the largest accessibility sizes.
-• VoiceOver and Voice Control: clearer labels and a more predictable reading order throughout.
-• Better contrast, and Reduce Motion is now respected across the app.`;
+Also fixed: the app no longer quietly stops receiving notifications after the first one.`;
 
 const vers = await asc("GET", `/apps/${APP_ID}/appStoreVersions?limit=5&fields[appStoreVersions]=versionString,appStoreState`);
 const v = (vers.data ?? []).find((x) => x.attributes.appStoreState === "PREPARE_FOR_SUBMISSION");

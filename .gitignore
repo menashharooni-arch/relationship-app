@@ -83,3 +83,6 @@ qa-prod-probe-out/
 # emails, phone numbers and captured leads — the restore path for an
 # irreversible purge, and the last thing that should ever reach a git remote.
 .account-backups/
+
+# scripts/ios-release.sh --no-watch archives from a throwaway project copy
+ios/App/App-NoWatch.xcodeproj/
