@@ -22,7 +22,8 @@ describe("a pending team invite finds the person by email", () => {
     expect(s).toContain("<PendingInviteBanner officeName={pendingInvite.officeName} token={pendingInvite.token} primary />");
     expect(s).toContain("{pendingInvite && <PendingInviteBanner");
     // Office members never see it — they already have a seat.
-    expect(s).toContain("isEnterprise ? null : await findPendingInviteForEmail(user.email, user.id)");
+    // (Awaited beside the trial check, not after it — same rule.)
+    expect(s).toContain("isEnterprise ? null : findPendingInviteForEmail(user.email, user.id)");
   });
 
   it("the lookup only returns live, pending invites for the exact address", () => {

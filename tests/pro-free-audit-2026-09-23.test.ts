@@ -69,6 +69,6 @@ describe("an App Store subscriber's referral claim never burns their months", ()
 
 describe("the dashboard's Add card trial offer asks the same question checkout does", () => {
   it("uses trialHistoryFor, which includes a friend's free month on offer", () => {
-    expect(read("src/app/dashboard/page.tsx")).toMatch(/isProTrialEligible\([^;]*trialHistoryFor\(user\.id, user\.email\)/);
+    expect(read("src/app/dashboard/page.tsx")).toMatch(/trialHistoryFor\(user\.id, user\.email\)\.then\(\(h\) => isProTrialEligible\([^;]*, h\)\)/);
   });
 });

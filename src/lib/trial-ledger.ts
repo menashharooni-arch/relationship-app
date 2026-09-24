@@ -51,22 +51,29 @@ export async function trialHistoryFor(
   userId: string,
   accountEmail: string | null | undefined,
 ): Promise<{ proTrialStartedAt: string | null; accountEmail: string | null; referralGiftOffered: boolean }> {
-  let proTrialStartedAt: string | null = null;
-  // A friend's free month on offer IS this account's free Pro period — the
-  // 14-day trial is not offered or granted beside it (fails open to false).
-  let referralGiftOffered = false;
-  try {
-    const { referralGiftOffered: offered } = await import("./referral-server");
-    referralGiftOffered = await offered(userId);
-  } catch { /* no record → no gift */ }
-  try {
-    const { data, error } = await getAdminSupabase()
-      .from("profiles")
-      .select("pro_trial_started_at")
-      .eq("id", userId)
-      .maybeSingle();
-    if (!error) proTrialStartedAt = (data as { pro_trial_started_at?: string | null } | null)?.pro_trial_started_at ?? null;
-  } catch { /* pre-migration */ }
+  // The two reads are independent, so they run together: one database round
+  // trip of wait instead of two, on every page that asks (dashboard, /upgrade,
+  // /checkout). Each keeps its own fallback.
+  const [referralGiftOffered, proTrialStartedAt] = await Promise.all([
+    // A friend's free month on offer IS this account's free Pro period — the
+    // 14-day trial is not offered or granted beside it (fails open to false).
+    (async () => {
+      try {
+        const { referralGiftOffered: offered } = await import("./referral-server");
+        return await offered(userId);
+      } catch { return false; /* no record → no gift */ }
+    })(),
+    (async (): Promise<string | null> => {
+      try {
+        const { data, error } = await getAdminSupabase()
+          .from("profiles")
+          .select("pro_trial_started_at")
+          .eq("id", userId)
+          .maybeSingle();
+        return error ? null : (data as { pro_trial_started_at?: string | null } | null)?.pro_trial_started_at ?? null;
+      } catch { return null; /* pre-migration */ }
+    })(),
+  ]);
   return { proTrialStartedAt, accountEmail: accountEmail ?? null, referralGiftOffered };
 }
 

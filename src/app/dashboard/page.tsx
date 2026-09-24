@@ -159,13 +159,17 @@ export default async function DashboardPage({
   // Whether the Add-card offer may promise the free trial. Same helper the
   // checkout API enforces with, so the button and the Stripe session agree.
   // Free and never subscribed → no Stripe customer → true with no network call.
-  const trialEligible = isPro
-    ? false
+  //
+  // Started here and awaited beside the pending-invite lookup below: neither
+  // needs the other, and waiting for them one after the other was a wasted
+  // database round trip on every Free dashboard load.
+  const trialEligibleP = isPro
+    ? Promise.resolve(false)
     // trialHistoryFor, exactly like /upgrade, /checkout and the checkout API:
     // a hand-built history here left out `referralGiftOffered`, so an account
     // with a friend's free month on offer was promised a 14-day trial that
     // checkout then refused.
-    : await isProTrialEligible(profile.stripe_customer_id as string | null, undefined, await trialHistoryFor(user.id, user.email));
+    : trialHistoryFor(user.id, user.email).then((h) => isProTrialEligible(profile.stripe_customer_id as string | null, undefined, h));
 
   // App-level Pro grant (14-day reverse trial or a stacked referral/free month):
   // plan is pro, with an expiry, and NO real Stripe subscription behind it.
@@ -201,7 +205,10 @@ export default async function DashboardPage({
   // An unaccepted team invite for this email: the person reached the dashboard
   // without tapping the invite link (installed the app first, or signed in on
   // the web). Only looked up for accounts that aren't already Office members.
-  const pendingInvite = isEnterprise ? null : await findPendingInviteForEmail(user.email, user.id);
+  const [trialEligible, pendingInvite] = await Promise.all([
+    trialEligibleP,
+    isEnterprise ? null : findPendingInviteForEmail(user.email, user.id),
+  ]);
 
   // The plan step, once, for every NEW account (owner, 2026-09-16: start on
   // Free unless they choose Pro at the plan step — and they must get to see
