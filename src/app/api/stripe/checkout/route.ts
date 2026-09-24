@@ -121,6 +121,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unknown plan price." }, { status: 400 });
     }
 
+    // ── Pro already paid for through the App Store ───────────────────────────
+    // The guard above only knows Stripe subscriptions. An Apple subscriber has
+    // no stripe_subscription_id, so /pricing → checkout sold them a SECOND,
+    // Stripe-billed plan while Apple kept renewing Pro — and nothing told them
+    // to cancel Apple.
+    //   • Pro again: a pure duplicate. Refused.
+    //   • Office: a real upgrade Apple can't sell (it has no team plans), so it
+    //     is allowed — but only after the order page has told them that Office
+    //     includes everything in Pro and that the Apple subscription is theirs
+    //     to cancel (acknowledgeApple). We can't cancel an Apple subscription.
+    const appleBacked =
+      isPaidPlan(profile.plan) &&
+      !profile.stripe_subscription_id &&
+      ((profile.customization as Record<string, unknown> | null)?._planSource === "apple");
+    if (appleBacked && isPro) {
+      return NextResponse.json(
+        { error: "already_subscribed", message: "You already have Pro through the App Store. Manage it in your Apple subscription settings.", redirect: "/settings/flows?billing=1" },
+        { status: 409 },
+      );
+    }
+    if (appleBacked && isOffice && body.acknowledgeApple !== true) {
+      return NextResponse.json(
+        {
+          error: "apple_subscriber",
+          appleSubscriber: true,
+          message: "You pay for Pro through the App Store. Office includes everything in Pro, so once your team is set up, turn off auto-renew for SwiftCard Pro in your iPhone's Settings → your name → Subscriptions — otherwise Apple keeps billing you for Pro as well.",
+        },
+        { status: 409 },
+      );
+    }
+
     // Seats: Office is per-seat with a minimum; Pro is always a single seat.
     const requestedQty = typeof body.quantity === "number" ? Math.floor(body.quantity)
       : typeof body.seats === "number" ? Math.floor(body.seats) : 1;

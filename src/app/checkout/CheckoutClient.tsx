@@ -53,6 +53,8 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Set when the account's Pro is billed by the App Store (checkout 409).
+  const [appleNotice, setAppleNotice] = useState<string | null>(null);
   const router = useRouter();
   const native = useIsNativeApp();
 
@@ -209,7 +211,7 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
     }
   }, [plan, interval, seats]);
 
-  const start = useCallback(async (opts?: { withoutPromo?: boolean }) => {
+  const start = useCallback(async (opts?: { withoutPromo?: boolean; acknowledgeApple?: boolean }) => {
     // Already paying → this is a plan change, not a second subscription.
     if (preview) { await changePlan(preview); return; }
     const code = opts?.withoutPromo ? undefined : promoCode;
@@ -223,7 +225,7 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
         headers: { "Content-Type": "application/json" },
         // A first plan chosen inside the card builder returns through the
         // "Your card is live!" setup step, like /welcome (?success=/welcome...).
-        body: JSON.stringify({ plan, interval, seats, trial, ...(code ? { promoCode: code } : {}), ...(successParam ? { successPath: successParam } : {}) }),
+        body: JSON.stringify({ plan, interval, seats, trial, ...(code ? { promoCode: code } : {}), ...(successParam ? { successPath: successParam } : {}), ...(opts?.acknowledgeApple ? { acknowledgeApple: true } : {}) }),
       });
       if (res.status === 401) {
         // Not signed in → create account / log in, then auto-resume here.
@@ -237,6 +239,11 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
         // Already subscribed but we had no quote (preview failed) — send them to
         // Billing rather than risk a duplicate subscription.
         window.location.href = data.redirect;
+        return;
+      }
+      if (res.status === 409 && data.appleSubscriber) {
+        // Pro is billed by Apple: say so and ask once before selling Office.
+        setAppleNotice(data.message || "You already pay for Pro through the App Store.");
         return;
       }
       if (res.status === 409 && data.promoUnusable && code) {
@@ -438,6 +445,19 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
         )}
 
         {err && <p className="mt-3 rounded-lg bg-red-500/10 border border-red-500/25 text-red-300 text-xs px-3 py-2">{err}</p>}
+        {appleNotice && (
+          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3">
+            <p className="text-amber-200 text-xs leading-relaxed">{appleNotice}</p>
+            <button
+              type="button"
+              onClick={() => { setAppleNotice(null); void start({ acknowledgeApple: true }); }}
+              disabled={busy}
+              className="mt-2.5 w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold py-2 rounded-full"
+            >
+              I understand — continue to Office
+            </button>
+          </div>
+        )}
 
         <button
           onClick={() => { void start(); }}

@@ -228,7 +228,7 @@ export default function ManageAccount({ isPro, plan = "free", email = "", isOffi
         <div className={`mt-3 bg-gray-900 border rounded-2xl p-5 ${quietEntry ? "border-gray-800" : "border-red-900/40"}`}>
           <p className="text-white text-sm font-semibold">Delete account</p>
           <p className="text-gray-500 text-xs mt-0.5 mb-3 leading-relaxed">
-            Permanently deletes your cards and contacts and cancels any subscription. Your email can&apos;t be used to sign up again.
+            Permanently deletes your cards and contacts and cancels a subscription billed by SwiftCard (an App Store subscription is cancelled in your Apple subscription settings). Your email can&apos;t be used to sign up again.
           </p>
           {/* Native (App Store 5.1.1 + 3.1.1): the Plan-and-billing section is
               hidden inside the Capacitor shell, so this pointer would be a dead
@@ -262,13 +262,13 @@ export default function ManageAccount({ isPro, plan = "free", email = "", isOffi
                 <p className="text-white font-bold text-base mb-2">
                   {saved === "grant" && "Pro is on — enjoy it"}
                   {saved === "discount" && "Discount applied"}
-                  {saved === "downgrade" && "You're on Free — nothing was deleted"}
+                  {saved === "downgrade" && "Pro is cancelled — nothing was deleted"}
                   {saved === "quiet" && "We'll stop emailing you"}
                 </p>
                 <p className="text-gray-400 text-sm mb-4 leading-relaxed">
                   {saved === "grant" && "Your account is on Pro now, free, and it ends on its own — there's nothing to cancel. Your card, your link and your contacts are exactly where you left them."}
                   {saved === "discount" && "It comes off your next invoices automatically. Nothing else changes — same account, same card, same everything."}
-                  {saved === "downgrade" && "Billing has stopped. Your card is still live, your link still works, and every contact you've collected is still here."}
+                  {saved === "downgrade" && "You won't be charged again. Pro stays on until the end of the period you've paid for, then you move to Free and choose which card stays live. Every contact you've collected stays here. Changed your mind? Keep Subscription is in Settings → Plan and billing."}
                   {saved === "quiet" && "Every SwiftCard email to you is off. Your card, your link and your contacts are untouched — come back whenever you want."}
                 </p>
                 <button type="button" onClick={() => setModal(false)} className="w-full text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 rounded-full py-2.5 transition-colors">
@@ -407,7 +407,13 @@ export default function ManageAccount({ isPro, plan = "free", email = "", isOffi
                     <div className="text-gray-400 text-sm mb-4 leading-relaxed space-y-2">
                       <p>
                         <span className="text-white font-semibold">Deleted:</span> your account, your cards and their public links, and{" "}
-                        <span className="text-white font-semibold">all of your contacts</span>. Any subscription is canceled so you won&apos;t be billed again.
+                        <span className="text-white font-semibold">all of your contacts</span>.{" "}
+                        {/* We can't cancel what Apple bills. This was the last thing an App
+                            Store subscriber read before confirming, and it said the opposite
+                            of the step before it — and Apple kept billing them. */}
+                        {source === "apple"
+                          ? "Your App Store subscription is NOT cancelled by this — turn off auto-renew in your Apple subscription settings, or Apple keeps billing you."
+                          : "Any subscription is canceled so you won't be billed again."}
                       </p>
                       <p>
                         <span className="text-white font-semibold">Kept for one month:</span> everything above is held for 30 days so you can reopen your account — after that it&apos;s gone for good and can&apos;t be recovered. Your email can&apos;t be used to sign up again while the account is held.

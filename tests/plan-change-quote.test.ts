@@ -55,3 +55,48 @@ describe("the same change made again later is a new request to Stripe", () => {
     expect(change).toMatch(/const idempotencyKey = `change:[^`]*:\$\{prorationDate \?\? Math\.floor\(nowSec \/ 60\)\}`;/);
   });
 });
+
+describe("'Cancel Pro, keep my account' keeps the time already paid for", () => {
+  const route = readFileSync("src/app/api/account/downgrade/route.ts", "utf8");
+  it("schedules the cancellation at period end instead of cancelling now", () => {
+    expect(route).toContain("cancel_at_period_end: true");
+    expect(route).not.toMatch(/subscriptions\.cancel\(/);
+  });
+  it("leaves stripe_subscription_id in place, so the deletion webhook still runs the Pro-ended step", () => {
+    expect(route).not.toMatch(/stripe_subscription_id: null/);
+    expect(route).toContain("_cancelAtPeriodEnd: true");
+  });
+  it("says so — no more 'Billing stops today'", () => {
+    expect(readFileSync("src/lib/retention.ts", "utf8")).not.toContain("Billing stops today");
+  });
+});
+
+describe("an App Store Pro subscriber is never billed twice by the website", () => {
+  const route = readFileSync("src/app/api/stripe/checkout/route.ts", "utf8");
+  it("buying Pro again on the web is refused", () => {
+    expect(route).toMatch(/if \(appleBacked && isPro\) \{/);
+    expect(route).toContain("You already have Pro through the App Store.");
+  });
+  it("Office is allowed only after the page has said to cancel the Apple subscription", () => {
+    expect(route).toMatch(/if \(appleBacked && isOffice && body\.acknowledgeApple !== true\)/);
+    expect(page).toContain("I understand — continue to Office");
+    expect(page).toContain("acknowledgeApple: true");
+  });
+});
+
+describe("no 50%-off offer where it can't honestly be made", () => {
+  it("never inside the app (the delete-account flow)", () => {
+    expect(readFileSync("src/lib/retention.ts", "utf8")).toMatch(/if \(!elig\.discount \|\| native\) return null;/);
+  });
+  it("never during a free trial (the Billing cancel flow)", () => {
+    expect(modal).toMatch(/const canOfferDiscount = !sub\.retentionUsed && !sub\.trialEnd &&/);
+  });
+});
+
+describe("deleting the account doesn't claim to cancel what Apple bills", () => {
+  it("the final confirm tells an App Store subscriber to cancel in Apple settings", () => {
+    const s = readFileSync("src/components/ManageAccount.tsx", "utf8");
+    expect(s).toContain('source === "apple"');
+    expect(s).toContain("Your App Store subscription is NOT cancelled by this");
+  });
+});

@@ -224,7 +224,10 @@ export function offerStep(plan: RetentionPlan, elig: Eligibility, native: boolea
       decline: "No thanks, keep deleting",
     };
   }
-  if (!elig.discount) return null;
+  // Never inside the app: a discount on the WEB (Stripe) subscription is a
+  // price offer for a purchase Apple doesn't process — App Review 3.1.1, and
+  // the billing panel's own rule ("no retention offers on native").
+  if (!elig.discount || native) return null;
   return {
     title: `Stay for ${RETENTION_DISCOUNT_PERCENT}% off the next ${RETENTION_DISCOUNT_MONTHS} months`,
     body: `We'd rather cut the price than lose you. Press the button and ${RETENTION_DISCOUNT_PERCENT}% comes off your next ${RETENTION_DISCOUNT_MONTHS} invoices automatically — same account, same card, same everything, nothing else to do.`,
@@ -266,7 +269,7 @@ export function keepStep(plan: RetentionPlan, elig: Eligibility, source: PlanSou
   return {
     title: "Switch to Free instead of deleting",
     body: elig.downgrade
-      ? "Billing stops today and nothing is destroyed: your card stays live, your link keeps working, and every contact you've collected stays in your account. You can come back to Pro any time — or never."
+      ? "You won't be charged again. Pro stays on until the end of the period you've already paid for, then your account moves to Free — nothing is destroyed: your card stays live, your link keeps working, and every contact you've collected stays in your account. You can come back to Pro any time — or never."
       : "Your subscription can be cancelled without deleting anything: your card stays live, your link keeps working, and every contact stays in your account.",
     accept: elig.downgrade ? "Cancel Pro, keep my account" : null,
     action: elig.downgrade ? "downgrade" : null,
