@@ -10,12 +10,28 @@ import { track, type EventName, type EventProps } from "@/lib/events";
 //
 // Guarded against React's double-invoke in dev StrictMode so the funnel doesn't
 // double-count locally.
-export default function TrackEvent({ event, props }: { event: EventName; props?: EventProps }) {
+export default function TrackEvent({ event, props, clearParams }: {
+  event: EventName;
+  props?: EventProps;
+  /** Query params that MARK the milestone — removed from the address once it
+   *  is recorded, so a reload neither records it again nor re-shows whatever
+   *  the server renders for it ("?upgraded=true" re-fired checkout_completed
+   *  and "Welcome to Pro!" on every refresh). */
+  clearParams?: string[];
+}) {
   const fired = useRef(false);
   useEffect(() => {
     if (fired.current) return;
     fired.current = true;
     track(event, props);
-  }, [event, props]);
+    if (clearParams?.length) {
+      try {
+        const u = new URL(window.location.href);
+        let changed = false;
+        for (const p of clearParams) if (u.searchParams.has(p)) { u.searchParams.delete(p); changed = true; }
+        if (changed) window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash);
+      } catch { /* the address stays as it is */ }
+    }
+  }, [event, props, clearParams]);
   return null;
 }

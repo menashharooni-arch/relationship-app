@@ -129,7 +129,14 @@ describe("every new-account redirect carries a marker the tour acts on", () => {
   ] as const) {
     it(`${label} sends the dashboard a welcome=1 or tour=1`, () => {
       const src = read(file);
-      const dashboardRedirects = [...src.matchAll(/["'`]\/dashboard\?([^"'`]*)["'`]/g)].map((m) => m[1]);
+      const dashboardRedirects = [...src.matchAll(/["'`]\/dashboard\?([^"'`]*)["'`]/g)].map((m) => m[1])
+        // The one deliberate exception: an EXISTING account upgrading is not
+        // new, so checkout success sends it to plain ?upgraded=true — and only
+        // after an account-age check that keeps new accounts on welcome=1.
+        .filter((q) => !(file.includes("checkout/success") && q === "upgraded=true"));
+      if (file.includes("checkout/success")) {
+        expect(src).toContain("redirect(safeNext ?? (newAccount ? WELCOME : UPGRADED));");
+      }
       expect(dashboardRedirects.length, `${file} should redirect to /dashboard with params`).toBeGreaterThan(0);
       for (const q of dashboardRedirects) {
         expect(q, `${file} → /dashboard?${q} would skip the tour`).toMatch(/welcome=1|tour=1/);

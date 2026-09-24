@@ -27,6 +27,18 @@ export const dynamic = "force-dynamic";
 
 const SAFE_PATH = /^\/[a-zA-Z0-9?=&_.\-/]*$/;
 const WELCOME = "/dashboard?upgraded=true&welcome=1";
+// An EXISTING account that upgrades is not a new account. Every purchase used
+// to land on WELCOME, and welcome=1 means "just created": someone on Free for
+// months who bought Pro got "Your account is ready!" and the whole first-run
+// tour. New accounts (created in the last day — e.g. sign up, pick Pro on
+// /pricing, build the card, pay) still get WELCOME and the tour.
+const UPGRADED = "/dashboard?upgraded=true";
+const NEW_ACCOUNT_MS = 24 * 60 * 60 * 1000;
+function isNewAccount(createdAt: string | undefined): boolean {
+  const createdMs = createdAt ? Date.parse(createdAt) : NaN;
+  // Unknown age → treat as new: an extra tour beats a missing one.
+  return !Number.isFinite(createdMs) || Date.now() - createdMs < NEW_ACCOUNT_MS;
+}
 
 export default async function CheckoutSuccessPage({
   searchParams,
@@ -86,5 +98,6 @@ export default async function CheckoutSuccessPage({
   }
 
   const safeNext = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") && SAFE_PATH.test(next) ? next : null;
-  redirect(safeNext ?? WELCOME);
+  const newAccount = isNewAccount(user!.created_at);
+  redirect(safeNext ?? (newAccount ? WELCOME : UPGRADED));
 }
