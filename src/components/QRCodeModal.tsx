@@ -80,7 +80,7 @@ export default function QRCodeModal({ url, firstName }: { url: string; firstName
 
           {/* Tap to close hint — under the card, never pinned to the screen
               bottom where a tab bar or the home indicator sits. */}
-          <p className="mt-4 text-slate-500 text-xs">Tap outside to close</p>
+          <p className="mt-4 rounded-full bg-black/60 px-3 py-1 text-white/80 text-xs">Tap outside to close</p>
         </div>,
         document.body
       )}

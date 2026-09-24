@@ -76,7 +76,7 @@ export default function ScanToConnectButton({ url }: { url: string }) {
           </div>
           {/* Under the card, not pinned to the screen bottom: there it sat on
               the app's tab bar, printed across its labels. */}
-          <p className="mt-4 text-gray-500 text-xs">Tap outside to close</p>
+          <p className="mt-4 rounded-full bg-black/60 px-3 py-1 text-white/80 text-xs">Tap outside to close</p>
         </div>,
         document.body,
       )}

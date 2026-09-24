@@ -41,7 +41,8 @@ describe("nothing sits on the phone's tab bar or edge", () => {
     for (const f of ["src/components/ScanToConnectButton.tsx", "src/components/QRCodeModal.tsx"]) {
       const s = read(f);
       expect(s, f).not.toMatch(/absolute bottom-8[^"]*">Tap outside to close/);
-      expect(s, f).toMatch(/<p className="mt-4 [^"]*">Tap outside to close<\/p>/);
+      // On its own pill: under the card it can land over dimmed page text.
+      expect(s, f).toMatch(/<p className="mt-4 rounded-full bg-black\/60 [^"]*">Tap outside to close<\/p>/);
       expect(s, f).toMatch(/fixed inset-0 z-\[\d+\] flex flex-col items-center justify-center/);
     }
   });
