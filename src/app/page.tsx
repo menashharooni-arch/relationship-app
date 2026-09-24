@@ -22,6 +22,7 @@ import IntegrationLogos from "@/components/site/IntegrationLogos";
 import ShareWaysPhones from "@/components/site/ShareWaysPhones";
 import WatchShareImage from "@/components/site/WatchShareImage";
 import TemplateGallery from "@/components/site/TemplateGallery";
+import { AiDesignerTeaser } from "@/components/site/AiDesignerShowcase";
 import TeamsDashboard from "@/components/site/TeamsDashboard";
 import WideDemo from "@/components/site/WideDemo";
 import NativeHidden from "@/components/NativeHidden";
@@ -64,7 +65,7 @@ const Check = ({ className = "w-3 h-3" }: { className?: string }) => (
   <svg viewBox="0 0 20 20" className={className} fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
 );
 
-const RIBBON = ["Share by link", "QR code", "NFC card", "Apple Wallet", "Link in Bio", "Email signature", "Lead capture", "Email & text follow-up", "CRM sync", "Live analytics"];
+const RIBBON = ["Share by link", "QR code", "NFC card", "Apple Wallet", "AI card designer", "Link in Bio", "Email signature", "Lead capture", "Email & text follow-up", "CRM sync", "Live analytics"];
 
 export default function Home() {
   // LinkedIn photo-import is offered in the homepage builders' "Suggest my
@@ -277,6 +278,10 @@ export default function Home() {
             </div>
             <div className="mt-14" data-reveal>
               <TemplateGallery linkedinEnabled={linkedinEnabled} />
+            </div>
+            {/* The AI Card Designer, briefly: the full showcase is on /templates. */}
+            <div className="mt-12" data-reveal>
+              <AiDesignerTeaser />
             </div>
           </div>
         </section>

@@ -127,16 +127,16 @@ function PanelHead({ icon, title, blurb }: { icon: string; title: string; blurb:
   );
 }
 
-// ── Panel A ─────────────────────────────────────────────────────────────────
+// ── The cycling card: three real designs, one on top at a time ─────────────
+// Shared by the Templates page's Create panel and the homepage strip.
 
-function CreatePanel() {
+/** Cycle while on screen, the tab is visible, motion is welcome, and the visitor hasn't picked one. */
+function useDesignCycle() {
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const [live, setLive] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Cycle only while the panel is on screen, the tab is visible, motion is
-  // welcome, and the visitor hasn't picked a design themselves.
   useEffect(() => {
     const el = ref.current;
     if (!el || !("IntersectionObserver" in window)) { setLive(true); return; }
@@ -156,8 +156,77 @@ function CreatePanel() {
     return () => window.clearInterval(id);
   }, [live, paused]);
 
-  const active = DESIGNS[idx];
+  const pick = (i: number) => { setIdx(i); setPaused(true); };
+  return { ref, idx, pick };
+}
 
+function DesignCycler({ className = "" }: { className?: string }) {
+  const { ref, idx, pick } = useDesignCycle();
+  const active = DESIGNS[idx];
+  return (
+    <div ref={ref} className={`flex flex-col ${className}`.trim()}>
+      {/* The brief: what the owner gives it, as one quiet row. */}
+      <div className="hp-ai-brief" aria-label="What you give it">
+        <span className="hp-ai-brief-item">
+          <span className="flex -space-x-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={DEMO_HEADSHOT} alt="" className="w-7 h-7 rounded-full object-cover ring-2 ring-white" />
+            {/* The demo mark is white (it ships on Logo First's navy), so it sits on a navy plate here too. */}
+            <span className="w-7 h-7 rounded-full grid place-items-center overflow-hidden ring-2 ring-white" style={{ background: "#1e3a8a" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={DEMO_LOGO} alt="" className="w-4 h-4 object-contain" />
+            </span>
+          </span>
+          Headshot &amp; logo
+        </span>
+        <span className="hp-ai-brief-item">
+          <span className="flex -space-x-1">
+            {active.colors.map((c, i) => (
+              <span key={i} className="hp-ai-swatch" style={{ background: c }} />
+            ))}
+          </span>
+          Colors
+        </span>
+        <span className="hp-ai-brief-item">
+          <span className="hp-ai-chip">{active.label}</span>
+          Style
+        </span>
+        <span className="hp-ai-generate" aria-hidden="true">
+          <Sparkle className="w-3 h-3" /> Generate
+        </span>
+      </div>
+
+      {/* The result. */}
+      <div className="hp-ai-stage flex-1 flex flex-col justify-center mt-4">
+        {/* Capped at the card's natural width: CardScaler never scales up, so a wider box is just empty stage. */}
+        <div className="relative w-full max-w-[460px] mx-auto" style={{ aspectRatio: "460 / 263" }}>
+          {DESIGNS.map((d, i) => (
+            <div key={d.theme} className={`hp-ai-slide absolute inset-0 ${i === idx ? "is-on" : ""}`} aria-hidden={i !== idx}>
+              <Still data={DEMO} layout={d.layout} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-center gap-2" role="group" aria-label="Example designs">
+        {DESIGNS.map((d, i) => (
+          <button
+            key={d.theme}
+            type="button"
+            onClick={() => pick(i)}
+            aria-label={`${d.label} design`}
+            aria-pressed={i === idx}
+            className="hp-ai-dot"
+            data-on={i === idx ? "" : undefined}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Panel A ─────────────────────────────────────────────────────────────────
+
+function CreatePanel() {
   return (
     <div className="hp-ai-panel" data-reveal>
       <div className="hp-ai-panel-in">
@@ -166,62 +235,37 @@ function CreatePanel() {
           title="Create with AI"
           blurb="Your headshot, logo, colors and a style. AI does the rest."
         />
+        <DesignCycler className="flex-1 mt-6" />
+      </div>
+    </div>
+  );
+}
 
-        <div ref={ref} className="flex-1 flex flex-col mt-6">
-          {/* The brief: what the owner gives it, as one quiet row. */}
-          <div className="hp-ai-brief" aria-label="What you give it">
-            <span className="hp-ai-brief-item">
-              <span className="flex -space-x-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={DEMO_HEADSHOT} alt="" className="w-7 h-7 rounded-full object-cover ring-2 ring-white" />
-                {/* The demo mark is white (it ships on Logo First's navy), so it sits on a navy plate here too. */}
-                <span className="w-7 h-7 rounded-full grid place-items-center overflow-hidden ring-2 ring-white" style={{ background: "#1e3a8a" }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={DEMO_LOGO} alt="" className="w-4 h-4 object-contain" />
-                </span>
-              </span>
-              Headshot &amp; logo
-            </span>
-            <span className="hp-ai-brief-item">
-              <span className="flex -space-x-1">
-                {active.colors.map((c, i) => (
-                  <span key={i} className="hp-ai-swatch" style={{ background: c }} />
-                ))}
-              </span>
-              Colors
-            </span>
-            <span className="hp-ai-brief-item">
-              <span className="hp-ai-chip">{active.label}</span>
-              Style
-            </span>
-            <span className="hp-ai-generate" aria-hidden="true">
-              <Sparkle className="w-3 h-3" /> Generate
-            </span>
-          </div>
+// ── The homepage strip ──────────────────────────────────────────────────────
+// One panel under the template gallery in the Swift Cards section: the pitch
+// on the left, the cycling card on the right, and a link to the full showcase.
+// No pricing link here — tests/native-suppression pins the homepage to none.
 
-          {/* The result: three real designs, one on top at a time. */}
-          <div className="hp-ai-stage flex-1 flex flex-col justify-center mt-4">
-            <div className="relative" style={{ aspectRatio: "460 / 263" }}>
-              {DESIGNS.map((d, i) => (
-                <div key={d.theme} className={`hp-ai-slide absolute inset-0 ${i === idx ? "is-on" : ""}`} aria-hidden={i !== idx}>
-                  <Still data={DEMO} layout={d.layout} />
-                </div>
-              ))}
-            </div>
+export function AiDesignerTeaser() {
+  return (
+    <div className="hp-ai-panel">
+      {/* The grid lives on its own wrapper: .hp-ai-panel-in is a flex column in
+          home.css, and unlayered CSS outranks a Tailwind grid utility. */}
+      <div className="hp-ai-panel-in">
+        <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-8 lg:gap-12 items-center">
+        <div data-hp-head>
+          <Eyebrow dark={false}>AI Card Designer</Eyebrow>
+          <h3 className="rd-h2 text-[clamp(1.8rem,3.4vw,2.6rem)] text-slate-900 mt-4">
+            Or let AI <span className="hp-fill">design it.</span>
+          </h3>
+          <p className="hp-lede mt-4 max-w-[460px]">
+            Give it your headshot, logo and colors, or a card you like, and get a polished card in seconds.
+          </p>
+          <div className="mt-7">
+            <Link href="/templates#ai-designer" className="rd-btn rd-btn-ghost-l">See the AI Card Designer →</Link>
           </div>
-          <div className="mt-4 flex items-center justify-center gap-2" role="group" aria-label="Example designs">
-            {DESIGNS.map((d, i) => (
-              <button
-                key={d.theme}
-                type="button"
-                onClick={() => { setIdx(i); setPaused(true); }}
-                aria-label={`${d.label} design`}
-                aria-pressed={i === idx}
-                className="hp-ai-dot"
-                data-on={i === idx ? "" : undefined}
-              />
-            ))}
-          </div>
+        </div>
+        <DesignCycler />
         </div>
       </div>
     </div>
@@ -280,7 +324,7 @@ const STEPS = [
 
 export default function AiDesignerShowcase() {
   return (
-    <section className="hp-ai relative overflow-hidden bg-white py-16 sm:py-24" aria-labelledby="ai-designer-heading">
+    <section id="ai-designer" className="hp-ai relative overflow-hidden bg-white py-16 sm:py-24 scroll-mt-16" aria-labelledby="ai-designer-heading">
       <div className="max-w-6xl mx-auto px-5 sm:px-6">
         <div className="max-w-2xl mx-auto text-center" data-hp-head>
           <Eyebrow dark={false}>AI Card Designer</Eyebrow>
