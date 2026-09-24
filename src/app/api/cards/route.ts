@@ -100,6 +100,11 @@ export async function POST(req: NextRequest) {
   // the redirect of another user's printed QR codes and links.
   const incomingCust = { ...((customization ?? {}) as Record<string, unknown>) };
   for (const k of Object.keys(incomingCust)) if (k.startsWith("_")) delete incomingCust[k];
+  // A NEW card states its own headshot, even "none". Without the key it is
+  // read as a legacy card and shows the ACCOUNT photo — another card's
+  // picture. The wizard always sends it; the server no longer relies on that
+  // (isolation audit 2026-09-24; lib/card-media cardHeadshot).
+  if (!Object.prototype.hasOwnProperty.call(incomingCust, "photoUrl")) incomingCust.photoUrl = null;
   let cust = sanitizeCustomizationForPlan(incomingCust, treatAsPaid, template);
   // Custom designer is Pro-only — Free can't save a "custom" template.
   let safeTemplate = !treatAsPaid && template === "custom" ? "classic-pro" : (template || "classic-pro");

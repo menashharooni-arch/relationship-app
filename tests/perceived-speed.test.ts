@@ -72,15 +72,18 @@ describe("Contacts does not load itself twice", () => {
     // tab. The user saw skeleton → contacts → skeleton → contacts.
     const src = read("src/app/contacts/page.tsx");
     expect(src).toMatch(/ACTIVE_CARD_COOKIE/);
-    expect(src).toMatch(/cardParam \?\?/);
+    expect(src).toMatch(/ownsCard\(cardParam\) \? cardParam/);
   });
 
   it("validates that cookie against the user's own cards", () => {
     // The cookie outlives the card it names. Filtering by a deleted card would
     // render an empty Contacts page, which reads as lost data — the client
     // effect guarded this, so moving the work to the server must carry it.
+    // Both the cookie AND an explicit ?card= (isolation audit 2026-09-24: a
+    // previous account's address in the URL printed "Showing /<theirs>").
     const src = read("src/app/contacts/page.tsx");
-    expect(src).toMatch(/cardList\.some\(\(c\) => c\.username === cookieCard\)/);
+    expect(src).toMatch(/const ownsCard = \(u: string \| undefined \| null\) => !!u && cardList\.some\(\(c\) => c\.username === u\);/);
+    expect(src).toMatch(/ownsCard\(cookieCard\)/);
   });
 
   it("still lets an explicit ?card= win", () => {
@@ -91,7 +94,7 @@ describe("Contacts does not load itself twice", () => {
     expect(i, "assignment not found").toBeGreaterThan(-1);
     // The statement wraps across lines; read to its terminator, not to EOL.
     const stmt = src.slice(i, src.indexOf(";", i));
-    expect(stmt).toMatch(/cardParam \?\?/);
+    expect(stmt).toMatch(/ownsCard\(cardParam\) \? cardParam/);
     expect(stmt.indexOf("cardParam"), "cardParam must be the first operand").toBeLessThan(
       stmt.indexOf("cookieCard"),
     );

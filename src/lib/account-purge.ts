@@ -1,4 +1,5 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
+import { releaseSlugArtifacts, prevSlugsOf } from "@/lib/release-slug";
 import { getStripe } from "@/lib/stripe";
 import { reportError } from "@/lib/report-error";
 import { memberFallbackPlan } from "@/lib/office-brand";
@@ -70,7 +71,7 @@ export async function purgeUserData(admin: Admin, userId: string): Promise<boole
   }
 
   // Card usernames own the lead/view/event data (keyed by slug, not user_id).
-  const { data: cards } = await admin.from("cards").select("username").eq("user_id", userId);
+  const { data: cards } = await admin.from("cards").select("username, customization").eq("user_id", userId);
   // …and the PROFILE handle: manual contacts and legacy profile-card captures
   // are keyed on it. Cards-only left those contacts behind after the purge,
   // and whoever registered the freed handle next inherited them through
@@ -153,11 +154,11 @@ export async function purgeUserData(admin: Admin, userId: string): Promise<boole
   // at its public URL forever — contradicting the deletion promise — and any
   // freed slug re-registered later would serve this account's image on the new
   // owner's link previews and email signature.
-  if (usernames.length) {
-    const objects = usernames.map((u) => `${u}.png`);
-    await safeDelete(() => admin.storage.from("card-shares").remove(objects));
-    await safeDelete(() => admin.storage.from("card-signatures").remove(objects));
-  }
+  // …and at every OLD address the cards still redirected from, together with
+  // the Wallet registrations keyed on all of them: once purged, each address is
+  // free for anyone, and a pass left registered would be pushed the next
+  // owner's card (lib/release-slug; isolation audit 2026-09-24).
+  await releaseSlugArtifacts(admin, [...usernames, ...(cards ?? []).flatMap((c) => prevSlugsOf(c.customization))]);
 
   // card-uploads is the third public bucket and it was never cleaned. It holds
   // the ORIGINALS — every headshot and company logo the user ever uploaded,

@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { createBrowserClient } from "@supabase/ssr";
-import { clearPersonScopedState, LAST_AUTH_UID_KEY } from "@/lib/account-state";
-import { unbindDevicePush } from "@/lib/push-device";
+import { releaseDevice } from "@/lib/device-sign-out";
 
 type Variant = "text" | "danger";
 
@@ -16,11 +14,6 @@ type Variant = "text" | "danger";
 export default function SignOutButton({ variant = "text" }: { variant?: Variant }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   // Esc closes the dialog, and the page behind it must not scroll while it is
   // open — on a phone the confirm card would otherwise drift off-screen.
@@ -41,33 +34,14 @@ export default function SignOutButton({ variant = "text" }: { variant?: Variant 
   async function handleSignOut() {
     if (busy) return;
     setBusy(true);
-    // Sever this DEVICE's push binding BEFORE the session goes away (the
-    // DELETE needs auth) — otherwise the signed-out account's lead/view
-    // notifications keep landing on this lock screen, where the next person
-    // to use the device reads them. Bounded internally, never throws.
-    await unbindDevicePush();
-    try {
-      await supabase.auth.signOut();
-    } catch {
-      /* clear locally + navigate anyway */
-    }
-    // Account-scoped client state must not survive into the NEXT session on
-    // this browser — the active-card pointer, the visitor-identity blob that
-    // attributes card views, the share/save maps, the device visitor id, and
-    // any marketing-sketch prefill all belong to the account that just left.
-    // One shared list (lib/account-state.ts) with AccountIsolationGuard, so
-    // sign-out and account-switch can never disagree on what "clean" means.
-    // (The guest draft is intentionally kept: it belongs to the person at the
-    // keyboard, and it can only ever be claimed via the explicit account gate.)
-    clearPersonScopedState({ includeGuestFlow: true });
-    try {
-      localStorage.removeItem(LAST_AUTH_UID_KEY);
-    } catch {
-      /* storage blocked — nothing to clear */
-    }
-    // HARD navigation to the marketing front page — a full reload guarantees no
-    // stale client state or in-memory session survives the sign-out.
-    window.location.href = "/";
+    // The one shared release (lib/device-sign-out): push binding severed,
+    // session ended, every person-scoped key and the visitor cookie cleared —
+    // the same steps on every path that lets go of a person.
+    await releaseDevice();
+    // HARD navigation to the marketing front page, REPLACING this entry — a
+    // full reload leaves no client state or cached screen behind, and Back
+    // can't bring the signed-out account's page up from history.
+    window.location.replace("/");
   }
 
   const triggerClass =

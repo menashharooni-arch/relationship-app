@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useIsNativeApp } from "@/lib/platform";
 import { createBrowserClient } from "@supabase/ssr";
 import DownloadLink from "@/components/DownloadLink";
+import { releaseDevice } from "@/lib/device-sign-out";
 import {
   reasonsFor,
   reasonById,
@@ -192,9 +193,12 @@ export default function ManageAccount({ isPro, plan = "free", email = "", isOffi
         setLoading(false);
         return;
       }
-      // assign(), not `location.href =` — the same navigation, but a method
-      // call rather than a write to a value the component does not own.
-      window.location.assign("/account-deleted");
+      // The server ended the session; let go of this DEVICE too (push binding,
+      // person-scoped state, visitor cookie) — a deleted account's alerts and
+      // prefilled share details stayed on the phone (isolation audit
+      // 2026-09-24). replace(): Back can't reopen the deleted account's pages.
+      await releaseDevice({ serverAlreadySignedOut: true });
+      window.location.replace("/account-deleted");
     } catch {
       setError("Couldn't delete the account. Try again.");
       setLoading(false);

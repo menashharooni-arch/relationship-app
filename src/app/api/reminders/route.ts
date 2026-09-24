@@ -72,13 +72,25 @@ async function resolveCardSender(supabase: ReturnType<typeof getAdminSupabase>, 
   // Deleted accounts send NOTHING — no automation may keep emailing/texting
   // a deleted account's contacts. Single choke point for both flows.
   if ((profile.customization as { _deleted?: boolean } | null)?._deleted) return null;
-  const sender = {
-    name: (card?.name as string) || (profile.name as string) || null,
-    title: (card?.title as string) || (profile.title as string) || null,
-    company: (card?.company as string) || (profile.company as string) || null,
-    email: (card?.email as string) || (profile.email as string) || null, // replies go to the card's email
-    phone: (card?.phone as string) || (profile.phone as string) || null,
-  };
+  // A CARD speaks only as itself. Filling its blank fields from the profile
+  // signed card B's follow-ups with card A's legacy title/company and put the
+  // private SIGNUP email in Reply-To (isolation audit 2026-09-24). The profile
+  // stands in only for a legacy profile-card, which has no card row at all.
+  const sender = card
+    ? {
+        name: (card.name as string) || (profile.name as string) || null,
+        title: (card.title as string) || null,
+        company: (card.company as string) || null,
+        email: (card.email as string) || null, // replies go to the card's email
+        phone: (card.phone as string) || null,
+      }
+    : {
+        name: (profile.name as string) || null,
+        title: (profile.title as string) || null,
+        company: (profile.company as string) || null,
+        email: (profile.email as string) || null,
+        phone: (profile.phone as string) || null,
+      };
   const ownerId = (card?.user_id as string) ?? (profile.id as string) ?? null;
   return { profile, sender, ownerId };
 }

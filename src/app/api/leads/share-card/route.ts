@@ -152,10 +152,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const ownerName = (card?.name as string) || (profile?.name as string) || "A SwiftCard user";
-  const ownerCompany = (card?.company as string) || (profile?.company as string) || null;
+  // The card's own identity only — the profile stands in just for a legacy
+  // profile-card with no card row (isolation audit 2026-09-24: card B's shares
+  // carried card A's company and the private signup email as Reply-To).
+  const ownerCompany = card ? ((card.company as string) || null) : ((profile?.company as string) || null);
   const ownerTitle = (card?.title as string) || null;
   const ownerPhone = (card?.phone as string) || null;
-  const replyTo = (card?.email as string) || (profile?.email as string) || null;
+  const replyTo = card ? ((card.email as string) || null) : ((profile?.email as string) || null);
   // Pro/Office is sold as "no SwiftCard branding" — drop the attribution lines
   // for paid senders (the STOP notice and the unsubscribe link always stay:
   // those are compliance, not branding).

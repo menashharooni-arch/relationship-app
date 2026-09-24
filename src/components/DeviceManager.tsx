@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { releaseDevice } from "@/lib/device-sign-out";
 import { DEVICE_LIMIT } from "@/lib/device";
 
 export type DeviceRow = {
@@ -63,16 +63,12 @@ export default function DeviceManager({
         // and dropped the cookies; this clears the browser client's in-memory
         // copy too, so nothing is left believing it is still signed in, and
         // refresh() makes the server re-render /login with no session.
-        try {
-          await createBrowserClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          ).auth.signOut();
-        } catch {
-          /* already gone server-side — nothing here can make that worse */
-        }
-        router.replace("/login");
-        router.refresh();
+        // The full shared release (lib/device-sign-out) — this path used to
+        // skip it, leaving the push binding, person-scoped state and cached
+        // screens behind, so Back brought this account's dashboard up for the
+        // next person (isolation audit 2026-09-24). Then a HARD navigation.
+        await releaseDevice();
+        window.location.replace("/login");
         return;
       }
       setRows((r) => r.filter((d) => d.device_id !== deviceId));

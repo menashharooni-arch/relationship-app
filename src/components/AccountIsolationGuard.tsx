@@ -74,13 +74,16 @@ export default function AccountIsolationGuard() {
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
     let cancelled = false;
+    // An unbind that never reached the server (offline sign-out) is retried
+    // on every load until it does — signed in or not.
+    void import("@/lib/push-device").then(({ retryPendingPushUnbind }) => retryPendingPushUnbind()).catch(() => {});
 
     const reconcile = (sessionUid: string | null) => {
       const lastUid = readLastAuthUid();
       if (!shouldResetPersonState(lastUid, sessionUid)) return;
 
       const realSwitch = isAccountSwitch(lastUid, sessionUid);
-      clearPersonScopedState({ includeGuestFlow: realSwitch });
+      clearPersonScopedState({ includeGuestFlow: realSwitch, signedInUid: sessionUid });
       writeLastAuthUid(sessionUid);
 
       // A login this state wasn't stamped with means the device's push binding
@@ -92,6 +95,10 @@ export default function AccountIsolationGuard() {
       // to this device. Fire-and-forget — identity hygiene must never delay a
       // page.
       void import("@/lib/push-device").then(({ unbindDevicePush }) => unbindDevicePush()).catch(() => {});
+      // The visitor cookie too (httpOnly — only the server can drop it): kept,
+      // the next person's card views were credited to whoever used this
+      // browser before them (isolation audit 2026-09-24).
+      if (realSwitch) void fetch("/api/visit-identity/reset", { method: "POST", keepalive: true }).catch(() => {});
     };
 
     // No session cookie → no session → nothing this guard can act on. Resolve
@@ -114,9 +121,11 @@ export default function AccountIsolationGuard() {
         // getSession() decodes the cookie locally (no network) — all that's
         // needed here is the uid to compare. Server code never trusts this
         // value; it does its own getUser()/getClaims() per request.
+        let pageUid: string | null = null;
         try {
           const { data: { session } } = await supabase.auth.getSession();
-          if (!cancelled) reconcile(session?.user?.id ?? null);
+          pageUid = session?.user?.id ?? null;
+          if (!cancelled) reconcile(pageUid);
         } finally {
           // Trackers hold their first event until this first pass lands, so a
           // view right after an account switch can't ship the previous
@@ -127,10 +136,27 @@ export default function AccountIsolationGuard() {
 
         // Belt and braces for auth changes that happen without a full
         // navigation (multi-tab sign-ins broadcast here too).
+        //
+        // …and a BACKGROUND tab whose account changed in another tab reloads:
+        // it was still showing the previous person's contacts and bell, and
+        // its client router cache served their pages on the next tap
+        // (isolation audit 2026-09-24). Only when hidden — the tab doing the
+        // signing in/out runs its own cleanup and navigation, which a reload
+        // here would cut short. It reloads the moment it is looked at again.
+        let reloadOnVisible = false;
+        const onVisible = () => {
+          if (reloadOnVisible && document.visibilityState === "visible") window.location.reload();
+        };
+        document.addEventListener("visibilitychange", onVisible);
         const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-          reconcile(session?.user?.id ?? null);
+          const uid = session?.user?.id ?? null;
+          reconcile(uid);
+          if (uid !== pageUid && document.visibilityState === "hidden") reloadOnVisible = true;
         });
-        unsubscribe = () => sub.subscription.unsubscribe();
+        unsubscribe = () => {
+          sub.subscription.unsubscribe();
+          document.removeEventListener("visibilitychange", onVisible);
+        };
       } catch {
         // The SDK chunk failed to load (offline, cache miss on a flaky
         // connection). Releasing the barrier is the safe direction: it restores

@@ -648,7 +648,11 @@ export async function POST(req: NextRequest) {
               // opening their contact would print it. A Free tap lands on the
               // notification itself, where the name stays blurred.
               url: returning && isPaidPlan(owner.plan as string | null)
-                ? `${APP_URL}/contacts?card=${encodeURIComponent(card_owner_username)}&lead=${returning.leadId}`
+                // The contact lives under the card they were CAPTURED on,
+                // which may be another of this owner's cards: opening it
+                // under this card showed a contact missing from that card's
+                // list (isolation audit 2026-09-24).
+                ? `${APP_URL}/contacts?card=${encodeURIComponent(returning.cardOwner || card_owner_username)}&lead=${returning.leadId}`
                 : returning
                   ? `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner_username)}&view=notifications`
                   : `${APP_URL}/dashboard?card=${encodeURIComponent(card_owner_username)}`,

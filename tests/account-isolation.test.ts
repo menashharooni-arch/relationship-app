@@ -147,15 +147,22 @@ describe("wiring — the guard and sign-out actually run this", () => {
     expect(layout).toMatch(/<AccountIsolationGuard \/>/);
   });
 
-  it("(2) sign-out unbinds push BEFORE the session dies, then clears the shared key list", () => {
-    // The DELETE needs the session; after signOut it would 401 and the old
-    // account's notifications would keep landing on this device.
-    const unbindAt = signOut.indexOf("await unbindDevicePush()");
-    const signOutAt = signOut.indexOf("supabase.auth.signOut()");
+  it("(2) every sign-out path runs ONE release: push unbound first, then the session, the key list, the visitor cookie", () => {
+    // lib/device-sign-out is the single sequence (isolation audit 2026-09-24:
+    // Settings → Devices and account delete used to skip it).
+    const release = read("src/lib/device-sign-out.ts");
+    const unbindAt = release.indexOf("await unbindDevicePush()");
+    const signOutAt = release.indexOf(".auth.signOut()");
     expect(unbindAt).toBeGreaterThan(-1);
     expect(signOutAt).toBeGreaterThan(unbindAt);
-    expect(signOut).toMatch(/clearPersonScopedState\(\{ includeGuestFlow: true \}\)/);
-    expect(signOut).toContain("LAST_AUTH_UID_KEY");
+    expect(release).toMatch(/clearPersonScopedState\(\{ includeGuestFlow: true \}\)/);
+    expect(release).toContain("LAST_AUTH_UID_KEY");
+    expect(release).toContain('"/api/visit-identity/reset"');
+    expect(signOut).toContain("await releaseDevice();");
+    expect(signOut).toContain('window.location.replace("/")');
+    expect(read("src/components/JoinSwitchAccount.tsx")).toContain("await releaseDevice();");
+    expect(read("src/components/DeviceManager.tsx")).toContain("await releaseDevice();");
+    expect(read("src/components/ManageAccount.tsx")).toContain("await releaseDevice({ serverAlreadySignedOut: true });");
   });
 
   it(`the uid stamp key is stable ("${LAST_AUTH_UID_KEY}") — both sides read the same slot`, () => {
@@ -189,10 +196,17 @@ describe("push binding — a device never keeps serving an account that left it"
     expect(postHandler).toMatch(/\.delete\(\)\s*\.eq\("user_id", user\.id\)\s*\.eq\("endpoint", replaces\)/);
   });
 
-  it("DELETE still requires a signed-in caller; POST still binds strictly to the session user", () => {
+  it("DELETE needs only the endpoint (retryable after sign-out), throttled per IP; POST still binds strictly to the session user", () => {
+    // Isolation audit 2026-09-24: requiring a session meant an unbind that
+    // failed at sign-out could never be retried, and the old account's alerts
+    // kept reaching the device. Possession of the endpoint is the authority.
     const deleteHandler = route.slice(route.indexOf("export async function DELETE"));
-    expect(deleteHandler).toMatch(/status: 401/);
+    expect(deleteHandler).not.toMatch(/auth\.getUser\(\)/);
+    expect(deleteHandler).toMatch(/isRateLimited\(`push-unbind:\$\{clientIp\(req\)\}`/);
     expect(route).toMatch(/upsert\(\s*\{ user_id: user\.id/);
+    // …and the device forgets its endpoint only once the server let go.
+    expect(device).toMatch(/if \(severed\) \{\s*\n\s*try \{ localStorage\.removeItem\(APNS_ENDPOINT_KEY\)/);
+    expect(read("src/components/AccountIsolationGuard.tsx")).toContain("retryPendingPushUnbind()");
   });
 
   it("the client helper caps the serviceWorker.ready wait so sign-out can never hang on it", () => {

@@ -365,7 +365,15 @@ export async function PATCH(req: NextRequest) {
           // Supersede, don't stack: their previous unread brand notice is
           // replaced by this one, which describes the card as it is now.
           await admin.from("notifications").delete().eq("user_id", uid).eq("type", BRAND_NOTICE_TYPE).eq("read", false);
-          await insertNotification({ user_id: uid, type: BRAND_NOTICE_TYPE, title: notice.title, body: notice.body });
+          // Tagged with THEIR office card, so it sits on that card's panel
+          // and not on every personal card's too (isolation audit 2026-09-24).
+          const { data: officeCard } = await admin
+            .from("cards").select("username").eq("user_id", uid).eq("is_office_card", true)
+            .order("created_at", { ascending: true }).limit(1).maybeSingle();
+          await insertNotification({
+            user_id: uid, type: BRAND_NOTICE_TYPE, title: notice.title, body: notice.body,
+            ...(officeCard?.username ? { card_owner: officeCard.username as string } : {}),
+          });
         }
       } catch { /* a notice must never fail a Branding save */ }
     });

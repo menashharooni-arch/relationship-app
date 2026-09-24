@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateCardPage } from "@/lib/card-page-data";
+import { releaseSlugArtifacts, prevSlugsOf } from "@/lib/release-slug";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isPaidPlan, sanitizeCustomizationForPlan } from "@/lib/plan";
@@ -452,14 +453,17 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   // nothing for them.
   const { data: cardRow } = await admin
     .from("cards")
-    .select("username")
+    .select("username, customization")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
   if (!cardRow) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const username = cardRow.username as string;
-  revalidateCardPage(username);
+  // Every address this card is giving up: its own and every old one it still
+  // redirects from (an auto-rename keeps the old images and passes there).
+  const released = [username, ...prevSlugsOf(cardRow.customization)];
+  revalidateCardPage(...released);
 
   // Lead-child rows are keyed by lead_id, so they must be cleared BEFORE the
   // leads themselves — otherwise deleting the card orphaned every message and
@@ -486,14 +490,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     // registers this freed slug next would have THEIR link previews and email
     // signatures serve THIS card's image. Same cross-account reasoning as the
     // table cleanup above. Best-effort — a missing object must not fail the delete.
-    admin.storage.from("card-shares").remove([`${username}.png`]).then(() => {}, () => {}),
-    admin.storage.from("card-signatures").remove([`${username}.png`]).then(() => {}, () => {}),
     // Wallet passes are keyed by the card's address (serial = username). Left
     // behind, a later card given the freed address would be pushed to every
     // phone still holding this card's pass — a stranger's card in their
     // Wallet. The deleted card's pass simply stops updating instead.
-    admin.from("wallet_registrations").delete().eq("serial", username).then(() => {}, () => {}),
-    admin.from("wallet_passes").delete().eq("serial", username).then(() => {}, () => {}),
+    // (lib/release-slug: images + passes, for the aliases too.)
+    releaseSlugArtifacts(admin, released),
   ]);
 
   const { error } = await admin
@@ -503,6 +505,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     .eq("user_id", user.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Again AFTER the row is gone: a visit during the cleanup above re-cached
+  // the live card, and that entry is served stale to the first visitor after
+  // someone else claims the address (isolation audit 2026-09-24).
+  revalidateCardPage(...released);
   return NextResponse.json({ ok: true });
 }
 

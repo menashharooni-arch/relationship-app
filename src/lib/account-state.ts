@@ -57,6 +57,17 @@ export const PERSON_SCOPED_STORAGE_KEYS = [
   // brand-new account, previously-used phone.
   "sc_tour_completed",
   "sc_admin_tour_completed",
+  // …and the rest of the tour's per-person state (isolation audit 2026-09-24):
+  // the previous account's plan/office context drove the next account's tour
+  // wording, and a tour running at sign-out resumed for the next person on
+  // the previous person's card address.
+  "sc_tour_ctx",
+  "sc_admin_tour_seen",
+  "sc_tour_running",
+  "sc_tour_index",
+  "sc_tour_card",
+  "sc_admin_tour_running",
+  "sc_admin_tour_index",
   // The timezone this ACCOUNT has already reported from this device
   // (TimezoneSync). Quiet hours are stored per profile, so the record of
   // "already told the server" belongs to the person, not the phone: on a shared
@@ -121,7 +132,7 @@ export function isAccountSwitch(
  * Remove person-scoped keys (localStorage, the sessionStorage fallback copies,
  * and the cookie mirror). Pass `includeGuestFlow` on a real account switch.
  */
-export function clearPersonScopedState(opts?: { includeGuestFlow?: boolean }): void {
+export function clearPersonScopedState(opts?: { includeGuestFlow?: boolean; signedInUid?: string | null }): void {
   if (typeof window === "undefined") return;
   const keys: readonly string[] = opts?.includeGuestFlow
     ? [...PERSON_SCOPED_STORAGE_KEYS, ...GUEST_FLOW_STORAGE_KEYS]
@@ -134,6 +145,20 @@ export function clearPersonScopedState(opts?: { includeGuestFlow?: boolean }): v
   try {
     document.cookie = `${ACTIVE_CARD_COOKIE}=; path=/; max-age=0; samesite=lax`;
   } catch { /* ignore */ }
+  // OTHER accounts' unfinished card drafts (swiftcard_card_draft:<uid>) once
+  // someone is signed in — never shown to anyone else, but a previous person's
+  // draft, photos included, has no business staying on a device someone else
+  // now uses. The signed-in person's own draft stays; a plain sign-out keeps
+  // them all, since the same person may be back.
+  if (opts?.signedInUid) {
+    const own = `swiftcard_card_draft:${opts.signedInUid}`;
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("swiftcard_card_draft:") && k !== own) localStorage.removeItem(k);
+      }
+    } catch { /* storage blocked */ }
+  }
 }
 
 // ── Identity-reconciled barrier ──────────────────────────────────────────────

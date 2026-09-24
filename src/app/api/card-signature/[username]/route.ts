@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isCardActive } from "@/lib/card-active";
+import { storedCaptureIsCurrent } from "@/lib/stored-capture";
+import { resolveCardMeta } from "@/lib/resolve-card";
+import { shareImageUrl } from "@/lib/share-preview";
+import { getAdminSupabase } from "@/lib/supabase-admin";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const BUCKET = "card-signatures";
@@ -31,14 +35,19 @@ export async function GET(
     return NextResponse.json({ error: "bad username" }, { status: 400 });
   }
 
-  const live = `${APP_URL}/${slug}/opengraph-image`;
+  // The content-VERSIONED render, like the card page's og:image: the bare
+  // URL is edge-cached for a day and could keep drawing the previous card.
+  const meta = await resolveCardMeta(slug).catch(() => null);
+  const live = meta ? shareImageUrl(APP_URL, slug, meta) : `${APP_URL}/${slug}/opengraph-image`;
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   let target = live;
 
   // Only a LIVE card may serve its stored picture. A deleted account's or an
   // offline card's PNG outlived it here (security audit 2026-09-24); the live
   // render below already knows to show nothing personal for those.
-  if (base && (await isCardActive(slug))) {
+  // …and only a picture of the card that holds this address NOW, never one a
+  // previous card left behind (lib/stored-capture).
+  if (base && (await isCardActive(slug)) && (await storedCaptureIsCurrent(getAdminSupabase(), "card-signatures", slug))) {
     const stored = `${base}/storage/v1/object/public/${BUCKET}/${encodeURIComponent(slug)}.png`;
     try {
       // HEAD, not GET: we only need to know it's there, and this runs on the

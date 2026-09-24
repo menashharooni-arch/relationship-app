@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { ACTIVE_CARD_COOKIE } from "@/lib/active-card";
 import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import ZapierSettings from "@/components/ZapierSettings";
@@ -119,6 +121,13 @@ export default async function FlowSettingsPage({
       .order("created_at", { ascending: true });
   }
   const { data: cards } = cardsRes;
+  // The Share links name the selected card (validated against this account's
+  // own cards): a bare /share could come back from the client router cache
+  // rendered for another card (isolation audit 2026-09-24).
+  const activeCookie = (await cookies()).get(ACTIVE_CARD_COOKIE)?.value ?? null;
+  const shareHref = activeCookie && (cards ?? []).some((c) => c.username === activeCookie)
+    ? `/share?card=${encodeURIComponent(activeCookie)}`
+    : "/share";
 
   // These two need profile.plan, so they follow the batch — together, one trip.
   const [officeCtx, isOfficeAdmin] = await Promise.all([
@@ -283,7 +292,7 @@ export default async function FlowSettingsPage({
         <div data-tour="settings-cards" className="space-y-3">
           <ManageCards cards={cards ?? []} canDelete={!isOfficeSubUser} canRestore={!isOfficeSubUser} />
           <Link
-            href="/share"
+            href={shareHref}
             className="flex items-center justify-center gap-1.5 text-sm font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 rounded-full py-2.5 transition-colors"
           >
             Share your card &amp; links
@@ -523,7 +532,7 @@ export default async function FlowSettingsPage({
             </DashboardLink>
             {[
               { href: "/contacts",  label: "Contacts" },
-              { href: "/share", label: "Links" },
+              { href: shareHref, label: "Links" },
             ].map(({ href, label }) => (
               <Link key={href} href={href}
                 className="text-sm px-3 py-1.5 rounded-lg transition-colors text-gray-400 hover:text-white hover:bg-gray-800/60">

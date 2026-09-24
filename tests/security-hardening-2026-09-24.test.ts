@@ -165,7 +165,7 @@ describe("owner-typed colours and fonts are only ever colours and fonts", () => 
 
 describe("personal data stops being public when it should", () => {
   it("a deleted or offline card no longer serves its stored signature image", () => {
-    expect(read("src/app/api/card-signature/[username]/route.ts")).toContain("if (base && (await isCardActive(slug)))");
+    expect(read("src/app/api/card-signature/[username]/route.ts")).toContain("if (base && (await isCardActive(slug)) && (await storedCaptureIsCurrent(");
   });
   it("account delete removes the rendered card images at once", () => {
     const s = read("src/app/api/account/delete/route.ts");

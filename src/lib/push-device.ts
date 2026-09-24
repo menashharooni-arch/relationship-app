@@ -16,6 +16,16 @@
 import { detectNativeApp } from "@/lib/platform";
 
 const APNS_ENDPOINT_KEY = "swiftcard_apns_endpoint";
+// Set when an unbind could not reach the server; retried on the next load.
+const UNBIND_PENDING_KEY = "swiftcard_push_unbind_pending";
+
+/** An earlier unbind never reached the server — try it again now. */
+export async function retryPendingPushUnbind(): Promise<void> {
+  try {
+    if (localStorage.getItem(UNBIND_PENDING_KEY) !== "1") return;
+  } catch { return; }
+  await unbindDevicePush();
+}
 
 // navigator.serviceWorker.ready never REJECTS — with no active registration it
 // simply never settles. Sign-out awaits this module, so an unresolved promise
@@ -64,13 +74,18 @@ async function collectDeviceEndpoints(): Promise<string[]> {
 export async function unbindDevicePush(): Promise<void> {
   try {
     const endpoints = await collectDeviceEndpoints();
-    await Promise.all(endpoints.map((endpoint) =>
+    // Did the SERVER actually let go? An HTTP error used to count as success:
+    // the stashed APNs endpoint was forgotten below, the next account's
+    // unbind had nothing left to delete, and the previous account's alerts
+    // kept reaching this iPhone for good (isolation audit 2026-09-24).
+    const results = await Promise.all(endpoints.map((endpoint) =>
       fetch("/api/push/subscribe", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint }),
-      }).catch(() => { /* offline — the row outlives this attempt; sends to it fail safe */ })
+      }).then((r) => r.ok, () => false)
     ));
+    const severed = results.every(Boolean);
 
     // Browser-side subscription: drop it so push state reads "off" for the
     // next account. Permission stays granted, so re-enabling is one tap.
@@ -81,7 +96,15 @@ export async function unbindDevicePush(): Promise<void> {
       } catch { /* ignore */ }
     }
 
-    try { localStorage.removeItem(APNS_ENDPOINT_KEY); } catch { /* ignore */ }
+    // Forget the endpoint only once the server row is gone. Kept, the next
+    // unbind (sign-in on this device, or the launch-time retry in
+    // AccountIsolationGuard) deletes it then.
+    if (severed) {
+      try { localStorage.removeItem(APNS_ENDPOINT_KEY); } catch { /* ignore */ }
+      try { localStorage.removeItem(UNBIND_PENDING_KEY); } catch { /* ignore */ }
+    } else {
+      try { localStorage.setItem(UNBIND_PENDING_KEY, "1"); } catch { /* ignore */ }
+    }
     // The owner stamp too — the silent launch-time re-registration must not
     // rebind a token for an account whose binding was just severed.
     try { localStorage.removeItem("swiftcard_push_uid"); } catch { /* ignore */ }

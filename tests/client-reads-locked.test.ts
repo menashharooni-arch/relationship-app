@@ -15,7 +15,7 @@ describe("notifications are read with the service role, scoped to the user", () 
     const r = code("src/app/api/notifications/route.ts");
     expect(r).not.toMatch(/supabase\s*\.from\("notifications"\)/);
     const queries = r.split(/db\s*\.from\("notifications"\)/).slice(1);
-    expect(queries.length).toBe(8);
+    expect(queries.length).toBe(6); // the two unscoped card-panel fallbacks are gone (isolation audit 2026-09-24)
     for (const q of queries) expect(q.slice(0, 260)).toContain('.eq("user_id", user.id)');
   });
 

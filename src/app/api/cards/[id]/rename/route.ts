@@ -5,6 +5,7 @@ import { normalizeSlug } from "@/lib/username";
 import { isReservedSlug } from "@/lib/slug";
 import { slugHeldAsAlias } from "@/lib/slug-alias";
 import { revalidateCardPage } from "@/lib/card-page-data";
+import { releaseSlugArtifacts } from "@/lib/release-slug";
 
 // POST /api/cards/[id]/rename { slug }
 // Changes a card's public URL slug and atomically migrates every row keyed by
@@ -37,8 +38,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Another account's card still answers at this address as a redirect (its
   // old URL, in _prevSlugs). The database function only checks live URLs, so
   // without this a hand-picked URL could take over someone else's printed QR
-  // codes. Your OWN old address is fine to take back.
-  if (await slugHeldAsAlias(admin, slug, user.id)) {
+  // codes. Only THIS card may take back its own old address — not another of
+  // the same account's cards (isolation audit 2026-09-24).
+  if (await slugHeldAsAlias(admin, slug, id)) {
     return NextResponse.json({ error: "That URL is already taken — try another." }, { status: 409 });
   }
 
@@ -76,10 +78,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // email signature. Best-effort — never fail a completed rename over an image.
   if (!result.unchanged && result.old) {
     const oldSlug = result.old;
-    await Promise.all([
-      admin.storage.from("card-shares").remove([`${oldSlug}.png`]).then(() => {}, () => {}),
-      admin.storage.from("card-signatures").remove([`${oldSlug}.png`]).then(() => {}, () => {}),
-    ]);
+    // …and its Wallet registrations: the old serial is free for anyone now,
+    // and the daily sweep would push THEIR card to this card's Wallet holders.
+    await releaseSlugArtifacts(admin, [oldSlug]);
   }
 
   // The public pages are cached per address: without this the OLD address

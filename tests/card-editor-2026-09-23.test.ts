@@ -51,9 +51,13 @@ describe("Swift Links-only edits don't ask for a signature re-copy", () => {
 
 describe("a deleted card's address can't pull a stranger's card into someone's Wallet", () => {
   it("card delete clears the Wallet registrations and fingerprint for its serial", () => {
+    // Through lib/release-slug since 2026-09-24 — for the card's old addresses too.
     const s = readFileSync("src/app/api/cards/[id]/route.ts", "utf8");
-    expect(s).toContain('admin.from("wallet_registrations").delete().eq("serial", username)');
-    expect(s).toContain('admin.from("wallet_passes").delete().eq("serial", username)');
+    expect(s).toContain("const released = [username, ...prevSlugsOf(cardRow.customization)];");
+    expect(s).toContain("releaseSlugArtifacts(admin, released)");
+    const r = readFileSync("src/lib/release-slug.ts", "utf8");
+    expect(r).toContain('admin.from("wallet_registrations").delete().in("serial", list)');
+    expect(r).toContain('admin.from("wallet_passes").delete().in("serial", list)');
   });
 });
 

@@ -150,14 +150,22 @@ type OpenVisit = { id: string; type: string; visit_key: string };
 // under either the current or the previous bucket whose timestamp is still
 // inside the window. Returns null when the column isn't migrated yet, which
 // degrades the whole file to insert-and-push (i.e. the old behaviour).
+//
+// EVERY query here is scoped to the recipient (user_id). The key is built from
+// the card slug, and a slug can change hands: rename "alex" → "alex-smith" and
+// someone else can register "alex" at once. Unscoped, the new owner's lead
+// found the OLD owner's open row and rewrote it — the old owner's bell showed a
+// stranger's contact (isolation audit 2026-09-24).
 async function openVisit(
   admin: ReturnType<typeof getAdminSupabase>,
+  userId: string,
   keys: { current: string; previous: string },
   now: number,
 ): Promise<OpenVisit | null> {
   const { data } = await admin
     .from("notifications")
     .select("id, type, visit_key, created_at")
+    .eq("user_id", userId)
     .in("visit_key", [keys.current, keys.previous])
     .gte("created_at", new Date(now - VIEW_VISIT_WINDOW_MS).toISOString())
     .order("created_at", { ascending: false })
@@ -191,7 +199,7 @@ export async function notifyVisit(opts: {
   // Join the visit already in progress when this person's last notification is
   // still inside the window — even if the clock has since crossed a bucket
   // boundary. Otherwise start a new one.
-  const open = await openVisit(admin, keys, now);
+  const open = await openVisit(admin, opts.userId, keys, now);
   const key = open?.visit_key ?? keys.current;
   const tag = visitPushTag(key);
 
@@ -241,7 +249,7 @@ export async function notifyVisit(opts: {
   // Known open visit: upgrade it, or stay quiet. No second row, no second buzz.
   if (open) {
     if (rankOf(notice.type) <= rankOf(open.type)) return "suppressed";
-    return (await upgrade(admin, open.id, notice)) ? (await push(true), "upgraded") : "failed";
+    return (await upgrade(admin, opts.userId, open.id, notice)) ? (await push(true), "upgraded") : "failed";
   }
 
   const { error } = await admin.from("notifications").insert(row);
@@ -285,11 +293,22 @@ export async function notifyVisit(opts: {
     const { data: existing } = await admin
       .from("notifications")
       .select("id, type")
+      .eq("user_id", opts.userId)
       .eq("visit_key", key)
       .maybeSingle();
-    if (!existing) return "failed";
+    if (!existing) {
+      // The key is held by ANOTHER account's row (the unique index is on the
+      // key alone, and this slug belonged to them minutes ago). Never touch
+      // theirs: this owner still gets their own row, just outside the ledger.
+      const { visit_key: _k, ...unkeyed } = row;
+      void _k;
+      const { error: e2 } = await admin.from("notifications").insert(unkeyed);
+      if (e2) return "failed";
+      await push();
+      return "created";
+    }
     if (rankOf(notice.type) <= rankOf(existing.type as string)) return "suppressed";
-    return (await upgrade(admin, existing.id as string, notice)) ? (await push(true), "upgraded") : "failed";
+    return (await upgrade(admin, opts.userId, existing.id as string, notice)) ? (await push(true), "upgraded") : "failed";
   }
 
   return "failed";
@@ -298,6 +317,7 @@ export async function notifyVisit(opts: {
 /** Rewrite the visit's notification to say the newer, bigger thing. */
 async function upgrade(
   admin: ReturnType<typeof getAdminSupabase>,
+  userId: string,
   id: string,
   notice: VisitNotice,
 ): Promise<boolean> {
@@ -316,19 +336,19 @@ async function upgrade(
     // anonymous-shaped upgrade, for the same reason as the milestone.
     ...(notice.leadId ? { lead_id: notice.leadId } : {}),
   };
-  const { error } = await admin.from("notifications").update(patch).eq("id", id);
+  const { error } = await admin.from("notifications").update(patch).eq("id", id).eq("user_id", userId);
   if (!error) return true;
   const code = (error as { code?: string } | null)?.code;
   if (notice.leadId && (code === "42703" || code === "PGRST204")) {
     const { lead_id: _l, ...withoutLead } = patch as typeof patch & { lead_id?: string };
     void _l;
-    const { error: e1 } = await admin.from("notifications").update(withoutLead).eq("id", id);
+    const { error: e1 } = await admin.from("notifications").update(withoutLead).eq("id", id).eq("user_id", userId);
     if (!e1) return true;
   }
   if (notice.milestone && (code === "42703" || code === "PGRST204")) {
     const { milestone: _m, ...withoutMilestone } = patch;
     void _m;
-    const { error: retryError } = await admin.from("notifications").update(withoutMilestone).eq("id", id);
+    const { error: retryError } = await admin.from("notifications").update(withoutMilestone).eq("id", id).eq("user_id", userId);
     return !retryError;
   }
   return false;

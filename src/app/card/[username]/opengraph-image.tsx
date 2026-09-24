@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { resolveCardMeta } from "@/lib/resolve-card";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isCardActive } from "@/lib/card-active";
+import { storedCaptureIsCurrent } from "@/lib/stored-capture";
 
 // A pixel-perfect PNG of the real card, captured client-side on the dashboard
 // and stored here. When present it IS the share preview, so the link unfurls
@@ -10,6 +11,9 @@ import { isCardActive } from "@/lib/card-active";
 async function storedCardImage(username: string): Promise<ArrayBuffer | null> {
   try {
     const admin = getAdminSupabase();
+    // Only a picture of the card that holds this address NOW
+    // (lib/stored-capture) — never one left behind by a previous card.
+    if (!(await storedCaptureIsCurrent(admin, "card-shares", username))) return null;
     const { data, error } = await admin.storage.from("card-shares").download(`${username}.png`);
     if (error || !data) return null;
     const buf = await data.arrayBuffer();

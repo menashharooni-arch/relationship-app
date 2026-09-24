@@ -64,6 +64,7 @@ import { isProTrialEligible } from "@/lib/trial-eligibility";
 import { trialHistoryFor } from "@/lib/trial-ledger";
 import EventTagChip from "@/components/EventTagChip";
 import { activeEvent } from "@/lib/event-tag";
+import { ownLiveHref } from "@/lib/self-pass";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -536,7 +537,9 @@ export default async function DashboardPage({
       .order("read", { ascending: true })
       .order("created_at", { ascending: false })
       .limit(20);
-    panelNotifications ??= fallback;
+    // The BELL is account-wide anyway. The per-card PANEL is not: an unscoped
+    // fallback put another card's rows under this card (isolation audit
+    // 2026-09-24), so a failed panel read shows nothing instead.
     bellNotifications ??= fallback;
   }
   // A Free account never receives the place a view came from — the Locations
@@ -717,6 +720,11 @@ export default async function DashboardPage({
   const isOfficeMember = isEnterprise && !ownedOffice && !!profile.office_id;
 
   const cardUrl = `${APP_URL}/${activeUsername}`;
+  // The owner's OWN opens of it go through /api/self-view, so whichever browser
+  // they land in — Safari, from the iPhone app — is marked as theirs and the
+  // visit is never counted as a view (lib/self-pass). Sharing and copying
+  // still use the plain address.
+  const liveHref = ownLiveHref(user.id, cardUrl, APP_URL);
 
   // Bell tags: username → human label, so every notification shows which card
   // it came from ("Work", "Personal", …) instead of a raw slug.
@@ -827,7 +835,10 @@ export default async function DashboardPage({
           real claim already happens on /cards/new?claim=1 in every auth path. */}
       {params.claim === "1" && <GuestDraftClaim />}
       <Suspense>
-        <CardSelectionPersist selectedCard={selectedCard} />
+        {/* Only a card THIS account owns is remembered: the raw ?card= could
+            be the previous account's address carried over by the nav on the
+            first page after a sign-in (isolation audit 2026-09-24). */}
+        <CardSelectionPersist selectedCard={selectedCard && activeCard?.username === selectedCard ? selectedCard : null} />
       </Suspense>
       {/* Persist plan/role so the guided tour describes the right plan. */}
       <TourContextPersist tier={tourTier} isOfficeMember={isOfficeMember} hasCards />
@@ -984,7 +995,7 @@ export default async function DashboardPage({
                   non-shrinking wrapper does not prevent on its own. */}
               <div className="flex items-center gap-2 shrink-0">
                 <a
-                  href={cardUrl}
+                  href={liveHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Open your live card in a new tab"
@@ -1306,6 +1317,10 @@ export default async function DashboardPage({
                 {/* Lead list */}
                 {view === "notifications" ? (
                   <NotificationsPanel
+                    // One panel per card: ?card= is a search param, so without
+                    // a key React kept card A's list under card B until the
+                    // next poll (isolation audit 2026-09-24).
+                    key={activeUsername}
                     initial={(panelNotifications ?? []) as unknown as Parameters<typeof NotificationsPanel>[0]["initial"]}
                     card={activeUsername}
                     leads={visibleLeads.map((l) => ({ id: l.id as string, name: (l.name as string) || "" }))}
@@ -1339,7 +1354,7 @@ export default async function DashboardPage({
                         ownCard
                       />
                       <a
-                        href={cardUrl}
+                        href={liveHref}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block text-center text-gray-500 hover:text-gray-300 text-[0.6875rem] py-1 transition-colors"

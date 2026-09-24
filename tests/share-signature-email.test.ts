@@ -40,7 +40,9 @@ describe("the signature URL always resolves to a card", () => {
 
   it("falls through to the live card render when there is no stored image", () => {
     const src = sigRoute();
-    expect(src).toMatch(/const live = `\$\{APP_URL\}\/\$\{slug\}\/opengraph-image`/);
+    // Content-versioned since the isolation audit (2026-09-24); the bare URL
+    // remains only for a slug with no card metadata.
+    expect(src).toMatch(/const live = meta \? shareImageUrl\(APP_URL, slug, meta\) : `\$\{APP_URL\}\/\$\{slug\}\/opengraph-image`/);
     expect(src).toMatch(/let target = live/);
   });
 

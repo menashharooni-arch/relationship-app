@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { writePushPrefs } from "@/lib/push-prefs";
 import { isRateLimited } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
 import { assertSafeUrl } from "@/lib/safe-fetch";
 
 // A browser push endpoint (or apns:<token> row) belongs to a DEVICE; on a
@@ -101,12 +102,18 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // NO SESSION REQUIRED. Holding the endpoint is the authorization (below), and
+  // requiring a session meant a sign-out whose DELETE failed could never be
+  // retried once signed out — the previous account's alerts kept arriving on
+  // this device (isolation audit 2026-09-24). Throttled per IP instead.
+  if (await isRateLimited(`push-unbind:${clientIp(req)}`, 30, 10 * 60 * 1000)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
 
-  const { endpoint } = await req.json();
-  if (!endpoint) return NextResponse.json({ error: "Missing endpoint" }, { status: 400 });
+  const { endpoint } = await req.json().catch(() => ({ endpoint: null }));
+  if (typeof endpoint !== "string" || !endpoint || endpoint.length > 1000) {
+    return NextResponse.json({ error: "Missing endpoint" }, { status: 400 });
+  }
 
   const admin = getAdminSupabase();
   // Authorized by ENDPOINT POSSESSION, not row ownership. The endpoint is a

@@ -32,7 +32,14 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // Clear the account-level photo or logo.
+  // A card's own image (headshot, card background …) lives in that card's
+  // customization, which the caller clears. Never the ACCOUNT's photo/logo on
+  // a card's behalf — that blanked it on every other card (isolation audit
+  // 2026-09-24).
+  if (cardId) return NextResponse.json({ ok: true });
+
+  // Clear the account-level photo or logo — only those two.
+  if (field !== "photo" && field !== "logo") return NextResponse.json({ ok: true });
   const column = field === "photo" ? "photo_url" : "logo_url";
   const admin = getAdminSupabase();
   const { error } = await admin.from("profiles").update({ [column]: null }).eq("id", user.id);
@@ -188,7 +195,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: publicUrl });
   }
 
-  // Save url directly to the correct profile column
+  // Only "photo" and "logo" have an ACCOUNT column. Anything else (cardbg, a
+  // future field) used to fall through to logo_url and replace the account's
+  // logo on every card (isolation audit 2026-09-24).
+  if (field !== "photo" && field !== "logo") return NextResponse.json({ url: publicUrl });
   const column = field === "photo" ? "photo_url" : "logo_url";
   const { error: updateError } = await admin
     .from("profiles")

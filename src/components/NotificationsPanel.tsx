@@ -89,6 +89,8 @@ export default function NotificationsPanel({
   // does, scoped to this card, and let server truth win.
   const lastOpRef = useRef(0);
   useEffect(() => {
+    // A reply for a card we've since left must never land in this one's list.
+    let cancelled = false;
     const poll = async () => {
       // Grace window: an optimistic local change (read/dismiss) may still be
       // in flight — polling over it would resurrect the old state for a beat.
@@ -99,6 +101,7 @@ export default function NotificationsPanel({
         const res = await fetch(`/api/notifications${card ? `?card=${encodeURIComponent(card)}` : ""}`);
         if (!res.ok) return;
         const fresh: Notification[] = await res.json();
+        if (cancelled) return;
         setItems((prev) => {
           // Title too: an upgrade in place ("…and tapped your Calendly link")
           // keeps the id and the read flag, and must still show.
@@ -118,6 +121,7 @@ export default function NotificationsPanel({
     // card" is worth seeing while it is still true. Hidden tabs skip (above).
     const id = setInterval(poll, 10000);
     return () => {
+      cancelled = true;
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);

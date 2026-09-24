@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
-import { clearPersonScopedState, LAST_AUTH_UID_KEY } from "@/lib/account-state";
-import { unbindDevicePush } from "@/lib/push-device";
+import { releaseDevice } from "@/lib/device-sign-out";
 
 // The /join page when the browser is signed in as SOMEONE ELSE. The invite can
 // only be accepted by the invited address (/api/join refuses anything else),
@@ -18,21 +16,7 @@ export default function JoinSwitchAccount({ inviteEmail }: { inviteEmail: string
   async function switchAccount() {
     if (busy) return;
     setBusy(true);
-    await unbindDevicePush();
-    try {
-      await createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      ).auth.signOut();
-    } catch {
-      /* clear locally + reload anyway */
-    }
-    clearPersonScopedState({ includeGuestFlow: true });
-    try {
-      localStorage.removeItem(LAST_AUTH_UID_KEY);
-    } catch {
-      /* storage blocked — nothing to clear */
-    }
+    await releaseDevice();
     window.location.reload();
   }
 

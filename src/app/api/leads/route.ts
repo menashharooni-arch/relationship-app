@@ -153,12 +153,21 @@ export async function POST(req: NextRequest) {
     // ISOLATION RULE: the account's signup email must never appear on anything
     // card-facing. Everything shown to the LEAD comes from the CARD's own
     // identity (falling back to the profile only for legacy profile-cards).
-    const cardIdentity = {
-      name: (cardRow?.name as string) || ownerProfile?.name || "",
-      email: (cardRow?.email as string) || ownerProfile?.email || "",
-      phone: (cardRow?.phone as string) || ownerProfile?.phone || "",
-      company: (cardRow?.company as string) || ownerProfile?.company || "",
-    };
+    // (It used to fall back field by field even WITH a card row — a card with
+    // no email showed the signup email. Isolation audit 2026-09-24.)
+    const cardIdentity = cardRow
+      ? {
+          name: (cardRow.name as string) || ownerProfile?.name || "",
+          email: (cardRow.email as string) || "",
+          phone: (cardRow.phone as string) || "",
+          company: (cardRow.company as string) || "",
+        }
+      : {
+          name: ownerProfile?.name || "",
+          email: ownerProfile?.email || "",
+          phone: ownerProfile?.phone || "",
+          company: ownerProfile?.company || "",
+        };
 
     // Kill-switch: no lead capture for nonexistent slugs, deleted accounts, or
     // plan-deactivated extra cards — the page 404s, and this API must not be a

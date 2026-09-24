@@ -36,7 +36,7 @@ describe("an old address is not free for someone else", () => {
 
   it("a hand-picked URL can't take another account's old address, but can take back your own", () => {
     const s = read("src/app/api/cards/[id]/rename/route.ts");
-    expect(s).toContain("slugHeldAsAlias(admin, slug, user.id)");
+    expect(s).toContain("slugHeldAsAlias(admin, slug, id)");
     expect(s.indexOf("slugHeldAsAlias(")).toBeLessThan(s.indexOf('rpc("rename_card_slug"'));
   });
 

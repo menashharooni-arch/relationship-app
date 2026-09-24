@@ -18,9 +18,33 @@ vi.mock("@/lib/supabase-admin", () => ({
   }),
 }));
 
+// Old addresses other cards still redirect from (lib/slug-alias).
+const heldAliases = new Set<string>();
+const aliasChecks: Array<{ slug: string; exceptCardId?: string }> = [];
+vi.mock("@/lib/slug-alias", () => ({
+  slugHeldAsAlias: async (_admin: unknown, slug: string, exceptCardId?: string) => {
+    aliasChecks.push({ slug, exceptCardId });
+    return heldAliases.has(slug);
+  },
+}));
+
 import { autoRenameCardSlug } from "@/lib/auto-rename-slug";
 
-beforeEach(() => { rpcCalls.length = 0; rpcResult = { data: { ok: true } }; });
+beforeEach(() => { rpcCalls.length = 0; rpcResult = { data: { ok: true } }; heldAliases.clear(); aliasChecks.length = 0; });
+
+describe("never another card's old address (isolation audit 2026-09-24)", () => {
+  it("skips a canonical another card still redirects from, and checks by CARD", async () => {
+    heldAliases.add("aaronlavi-nadlanhomes");
+    const out = await autoRenameCardSlug({
+      cardId: "c1", userId: "u1",
+      before: { username: "aaronlavi-malvecapital", name: "Aaron Lavi", company: "Malve Capital" },
+      afterName: "Aaron Lavi", afterCompany: "Nadlan Homes",
+    });
+    expect(out).toBe("aaronlavi-nadlanhomes-2");
+    expect(rpcCalls.map((c) => c.p_new_slug)).toEqual(["aaronlavi-nadlanhomes-2"]);
+    expect(aliasChecks[0]).toEqual({ slug: "aaronlavi-nadlanhomes", exceptCardId: "c1" });
+  });
+});
 
 describe("the card URL follows the card", () => {
   it("renames an auto-managed slug when the company changes", async () => {

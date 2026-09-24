@@ -202,8 +202,10 @@ describe("wired the way the rules assume", () => {
     expect(events).toMatch(/contact\.kind === "known" && isReturnVisit\(contact\) && \(!isLockedContact\(contact\) \|\| isPaidPlan\(owner\.plan as string \| null\)\) \? contact : null/);
   });
 
-  it("a returning contact's push opens their contact", () => {
-    expect(events).toMatch(/\/contacts\?card=\$\{encodeURIComponent\(card_owner_username\)\}&lead=\$\{returning\.leadId\}/);
+  it("a returning contact's push opens their contact — under the card they were captured on", () => {
+    // Isolation audit 2026-09-24: opened under the VISITED card, a contact
+    // captured on another of the owner's cards was missing from that list.
+    expect(events).toMatch(/\/contacts\?card=\$\{encodeURIComponent\(returning\.cardOwner \|\| card_owner_username\)\}&lead=\$\{returning\.leadId\}/);
   });
 
   it("the per-contact cap is counted from push_log.lead_id", () => {

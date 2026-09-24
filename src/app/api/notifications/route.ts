@@ -35,6 +35,13 @@ export async function GET(req: NextRequest) {
 
   // If the card_owner column migration hasn't run yet, selecting/filtering on
   // it errors and the bell would show nothing — fall back to the plain query.
+  // Never for a CARD-scoped read: an unscoped retry after ANY error (a timeout,
+  // not just a missing column) listed every card's rows in card B's panel.
+  // The column is live everywhere now; a scoped read that fails shows nothing
+  // rather than the wrong card (isolation audit 2026-09-24).
+  if (error && card) {
+    return NextResponse.json([]);
+  }
   if (error) {
     ({ data } = await db
       .from("notifications")
@@ -85,15 +92,9 @@ export async function PATCH(req: NextRequest) {
       .eq("read", false);
     if (card) q = q.or(`card_owner.eq.${card},card_owner.is.null`);
     const { error } = await q;
-    // card_owner column missing → scoped update errors; retry unscoped so the
-    // button still works (matches pre-migration behavior).
-    if (error && card) {
-      await db
-        .from("notifications")
-        .update({ read: true })
-        .eq("user_id", user.id)
-        .eq("read", false);
-    }
+    // A failed card-scoped update is NOT retried unscoped: that marked every
+    // other card's rows read from card B's panel (isolation audit 2026-09-24).
+    if (error) return NextResponse.json({ error: "Couldn't update notifications." }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });
@@ -121,11 +122,9 @@ export async function DELETE(req: NextRequest) {
     let q = db.from("notifications").delete().eq("user_id", user.id).eq("read", true);
     if (card) q = q.or(`card_owner.eq.${card},card_owner.is.null`);
     const { error } = await q;
-    if (error && card) {
-      // Column missing → fall back to the old unscoped clear (read-only rows,
-      // and the user explicitly asked to clear them).
-      await db.from("notifications").delete().eq("user_id", user.id).eq("read", true);
-    }
+    // Never retried unscoped: "Clear read" on card B deleted card A's rows
+    // whenever the scoped delete failed (isolation audit 2026-09-24).
+    if (error) return NextResponse.json({ error: "Couldn't clear notifications." }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

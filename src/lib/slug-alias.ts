@@ -35,10 +35,15 @@ export async function findSlugAlias(oldSlug: string): Promise<string | null> {
  * would send all of those to a stranger's card. Fails CLOSED: if the lookup
  * errors, the slug counts as held and the caller picks another.
  */
+//
+// `exceptCardId` is the ONE card allowed through: a card taking back its own
+// old address. It used to be the whole ACCOUNT — so card B could take card A's
+// old address in the same account, and A's printed QR codes, NFC tags and
+// Wallet passes opened B (isolation audit 2026-09-24).
 export async function slugHeldAsAlias(
   admin: ReturnType<typeof getAdminSupabase>,
   slug: string,
-  exceptUserId?: string,
+  exceptCardId?: string,
 ): Promise<boolean> {
   if (!slug) return false;
   try {
@@ -47,7 +52,7 @@ export async function slugHeldAsAlias(
       .select("id")
       .contains("customization", { _prevSlugs: [slug] })
       .limit(1);
-    if (exceptUserId) q = q.neq("user_id", exceptUserId);
+    if (exceptCardId) q = q.neq("id", exceptCardId);
     const { data, error } = await q.maybeSingle();
     if (error) return true;
     return !!data;

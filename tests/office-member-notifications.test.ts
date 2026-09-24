@@ -120,7 +120,8 @@ describe("office news about their card is clear and correct", () => {
     const block = s.slice(s.indexOf("after(async () => {"));
     const del = block.indexOf('.delete().eq("user_id", uid).eq("type", BRAND_NOTICE_TYPE).eq("read", false)');
     expect(del).toBeGreaterThan(-1);
-    expect(block.indexOf("await insertNotification({ user_id: uid, type: BRAND_NOTICE_TYPE")).toBeGreaterThan(del);
+    // Tagged with the member's office card since 2026-09-24 (isolation audit).
+    expect(block.search(/await insertNotification\(\{\s*user_id: uid, type: BRAND_NOTICE_TYPE/)).toBeGreaterThan(del);
     expect(block.slice(0, block.indexOf("await writeAudit"))).not.toContain("sendPushToUser");
   });
 

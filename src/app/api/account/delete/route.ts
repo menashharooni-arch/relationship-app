@@ -8,6 +8,7 @@ import { officeSubUserBlockMessage } from "@/lib/office-roles";
 import { tearDownOfficeForOwner } from "@/lib/office-billing-sync";
 import { revokeAppleTokensOnDelete } from "@/lib/apple-revoke";
 import { revalidateUserCards } from "@/lib/card-page-data";
+import { prevSlugsOf } from "@/lib/release-slug";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -81,14 +82,21 @@ export async function POST(req: NextRequest) {
   // company in the <title> and link-preview tags (2026-09-23 review).
   await revalidateUserCards(user.id);
 
+  // Every device's push binding, NOW. They lived until the 30-day purge, so a
+  // deleted account's recap and catch-up pushes kept reaching every phone it
+  // was ever signed into — including phones someone else uses now (isolation
+  // audit 2026-09-24). Reopening asks for notifications again.
+  await admin.from("push_subscriptions").delete().eq("user_id", user.id).then(() => {}, () => {});
+
   // …and the rendered card IMAGES. They sit in public buckets at predictable
   // URLs (<slug>.png) and carry the name, phone, email and headshot; only the
   // 30-day purge removed them, so "Delete my account" left the card itself
   // downloadable for a month (security audit 2026-09-24). Both are caches that
   // are drawn again on demand, so a reopened account loses nothing.
   try {
-    const { data: owned } = await admin.from("cards").select("username").eq("user_id", user.id);
-    const objects = (owned ?? []).map((c) => `${c.username as string}.png`);
+    const { data: owned } = await admin.from("cards").select("username, customization").eq("user_id", user.id);
+    // Old addresses too: an auto-rename leaves the images at the old slug.
+    const objects = (owned ?? []).flatMap((c) => [c.username as string, ...prevSlugsOf(c.customization)]).map((s) => `${s}.png`);
     if (objects.length) {
       await admin.storage.from("card-shares").remove(objects);
       await admin.storage.from("card-signatures").remove(objects);

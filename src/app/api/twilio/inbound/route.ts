@@ -95,11 +95,20 @@ export async function POST(req: NextRequest) {
   if (digits.length >= 7) {
     try {
       const admin = getAdminSupabase();
+      // `phone` is stored as TYPED — "(212) 555-1234", "212.555.1234", "+1 212…"
+      // — so a plain "%5551234%" missed every formatted copy. When the account
+      // that actually texted had it formatted and one other account had it bare,
+      // the bare one was the ONLY candidate and got the reply, its words in the
+      // bell and on the lock screen (isolation audit 2026-09-24). A wildcard
+      // between every digit finds every spelling; the exact normalized compare
+      // below keeps only true matches. No small cap: a cut-off could drop the
+      // account that texted before the "who texted last" rule ever saw it.
+      const spread = `%${digits.split("").join("%")}%`;
       const { data: leads } = await admin
         .from("leads")
         .select("id, card_owner, phone, name")
-        .ilike("phone", `%${digits.slice(-7)}%`)
-        .limit(25);
+        .ilike("phone", spread)
+        .limit(1000);
       const matches = (leads ?? []).filter((l) => l.phone && normalizePhone(l.phone) === digits);
 
       let target: { id: string; card_owner: string | null; name?: string | null } | null = null;

@@ -1,5 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { cardSlug, isReservedSlug } from "@/lib/slug";
+import { slugHeldAsAlias } from "@/lib/slug-alias";
 
 // The card URL FOLLOWS the card (owner order 2026-08-26: "don't give options —
 // just update it"). When a save changes the name or company, the slug moves to
@@ -43,6 +44,12 @@ export async function autoRenameCardSlug(opts: {
     // Try the canonical, then numbered variants if it's taken by someone else.
     for (let i = 0; i < 4; i++) {
       const candidate = i === 0 ? target : `${target}-${i + 1}`;
+      // Another CARD's old address is taken (any account, this one included),
+      // exactly as creation and the manual rename treat it. The RPC only checks live slugs, so
+      // this path could claim "johnsmith-acme" while it still redirected to
+      // another John Smith's card: their printed QR codes, NFC tags and Wallet
+      // passes opened this card (isolation audit 2026-09-24).
+      if (await slugHeldAsAlias(admin, candidate, opts.cardId)) continue;
       const { data, error } = await admin.rpc("rename_card_slug", {
         p_card_id: opts.cardId,
         p_user_id: opts.userId,

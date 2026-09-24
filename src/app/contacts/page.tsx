@@ -99,10 +99,13 @@ export default async function ContactsPage({
   // the list down to a card that no longer exists, showing an empty Contacts
   // page that reads as lost data. ContactsClient's effect had this same guard;
   // moving the resolution to the server has to bring the guard with it.
-  // An explicit ?card= is left alone: that is a deliberate act, and the
-  // existing downstream code already handles an unknown one.
+  // An explicit ?card= is validated the same way: one this account doesn't own
+  // (the previous account's address, carried by the nav on the first page
+  // after a sign-in) printed "Showing /<their address>" here (isolation audit
+  // 2026-09-24). An unknown one simply shows every card.
+  const ownsCard = (u: string | undefined | null) => !!u && cardList.some((c) => c.username === u);
   const selectedCardParam =
-    cardParam ?? (cookieCard && cardList.some((c) => c.username === cookieCard) ? cookieCard : undefined);
+    ownsCard(cardParam) ? cardParam : (ownsCard(cookieCard) ? cookieCard! : undefined);
   const allUsernames = cardList.map((c) => c.username);
 
   // Leads depend on the card list above; the office-admin gate doesn't depend
@@ -158,6 +161,10 @@ export default async function ContactsPage({
   // Carry the selected card back to the dashboard so it doesn't flip to the first card.
   const dashCard = selectedCardParam ?? cardList[0]?.username;
   const dashHref = dashCard ? `/dashboard?card=${dashCard}` : "/dashboard";
+  // Links names its card too: a bare /share could come back from the client
+  // router cache still rendered for the card viewed before (isolation audit
+  // 2026-09-24).
+  const shareHref = dashCard ? `/share?card=${dashCard}` : "/share";
 
   // The header count and the Export button must describe the LIST BELOW. That
   // list shows EVERY card's contacts until one is picked — ContactsClient gets
@@ -201,7 +208,7 @@ export default async function ContactsPage({
             <Link href="/contacts" className="text-sm text-white font-medium px-3 py-1.5 rounded-lg bg-gray-800">
               Contacts
             </Link>
-            <Link href="/share" className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
+            <Link href={shareHref} className="text-sm text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors">
               Links
             </Link>
             {showOfficeAdmin && (
