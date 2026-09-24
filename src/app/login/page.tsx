@@ -42,8 +42,8 @@ export default async function LoginPage({
                 under "Create your account" — to people nobody had invited. */}
             {inviteEmail
               ? initialMode === "signup"
-                ? <>Create your account with <span className="font-semibold text-slate-800 break-all">{inviteEmail}</span> — the email your team invited.</>
-                : <>Sign in with <span className="font-semibold text-slate-800 break-all">{inviteEmail}</span> to accept your invitation.</>
+                ? <>Create your account with <span className="font-semibold text-slate-800 break-words">{inviteEmail}</span> — the email your team invited.</>
+                : <>Sign in with <span className="font-semibold text-slate-800 break-words">{inviteEmail}</span> to accept your invitation.</>
               : next?.startsWith("/join/")
               ? initialMode === "signup" ? "Create your account to accept your invitation." : "Sign in to accept your invitation."
               : next?.startsWith("/checkout")

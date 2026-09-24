@@ -48,9 +48,9 @@ describe("the account form after it", () => {
     expect(form).toContain("const emailNow = lockedEmail ?? ");
   });
 
-  it("an address that already has an account turns the same form into its sign-in", () => {
+  it("an address that gains an account meanwhile goes back to the invite, which then offers its sign-in", () => {
     const form = code("src/components/LoginForm.tsx");
-    expect(form).toMatch(/if \(lockedEmail && friendly\.existing\) \{\s*setMode\("signin"\);/);
+    expect(form).toMatch(/if \(lockedEmail && friendly\.existing\) \{\s*window\.location\.replace\(safeNextPath\(redirectTo\) \?\? "\/login"\);/);
     // The address the admin sent is never second-guessed as a typo.
     expect(form).toContain("if (typo && !lockedEmail && suggestionDismissed !== emailNow) {");
   });

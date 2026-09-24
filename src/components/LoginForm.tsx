@@ -342,13 +342,11 @@ export default function LoginForm({
         const friendly = friendlySignupError(error ?? { message: "user already registered" }, policy);
         if (lockedEmail && friendly.existing) {
           // The invited address turned out to have an account after all (made
-          // since the invite page looked). Same address, same single form — it
-          // becomes the sign-in, with no switch to pick.
-          setMode("signin");
-          setPassword("");
-          setConfirm("");
-          setErrorMsg("You already have a SwiftCard account with this email. Enter its password to accept.");
-          setStatus("idle");
+          // since the invite page looked). Back to the invite, which checks
+          // again and now says "You already have a SwiftCard account with …"
+          // with its one Sign-in path — flipping this form in place left the
+          // page heading still reading "Create your account" above a sign-in.
+          window.location.replace(safeNextPath(redirectTo) ?? "/login");
         } else {
           if (friendly.field === "email") setEmailError(friendly.text);
           else if (friendly.field === "password") setPasswordError(friendly.text);
