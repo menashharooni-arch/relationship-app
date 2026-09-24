@@ -64,7 +64,13 @@ export default function DownloadCardButton({ cardRef, filename = "swiftcard.png"
         const { Share } = await import("@capacitor/share");
         await Share.share({ url: shareUrl });
         return;
-      } catch { /* fall through to the capture path */ }
+      } catch {
+        // Cancelling the share sheet throws too — and falling through started
+        // the PNG capture below, whose data-URL download does nothing in
+        // WKWebView: a spinner, then nothing. In the app there is no web
+        // fallback worth running; stop here.
+        return;
+      }
     }
     setStatus("working");
     // Neutralize any display scaling so the capture is full resolution.

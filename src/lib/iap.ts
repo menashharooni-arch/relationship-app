@@ -308,6 +308,10 @@ export async function manageIapSubscription(): Promise<void> {
   // Reported, not swallowed: this exact call was once a silently dead button
   // (apps.apple.com missing from the plugin's host allow-list — the rejection
   // vanished into an empty catch).
-  await ext?.open({ url: "https://apps.apple.com/account/subscriptions" })
-    .catch((e) => reportIapFailure("manage", e));
+  const url = "https://apps.apple.com/account/subscriptions";
+  // An older app build without the plugin used to short-circuit to nothing
+  // (ext?.open) — a dead "Manage subscription" button. Capacitor hands an
+  // external https navigation to the system, so that is the fallback.
+  if (!ext?.open) { window.location.href = url; return; }
+  await ext.open({ url }).catch((e) => reportIapFailure("manage", e));
 }
