@@ -26,7 +26,7 @@ export type CardTestimonial = {
   text: string;
 };
 
-export type CustomElementType = "field" | "text" | "logo" | "headshot" | "socials" | "social" | "qr" | "divider";
+export type CustomElementType = "field" | "text" | "logo" | "headshot" | "socials" | "social" | "qr" | "divider" | "shape";
 export type CustomField = "name" | "title" | "company" | "phone" | "email" | "website" | "address" | "fax";
 export type CustomSocial = "instagram" | "linkedin" | "twitter" | "tiktok" | "snapchat" | "youtube" | "facebook";
 
@@ -44,6 +44,51 @@ export type CustomElement = {
   italic?: boolean;      // text/field
   size?: number;         // px (logo/headshot/qr)
   width?: number;        // px (divider)
+
+  // ── Free design (AI design + its fine-tune editor, 2026-09-23) ─────────────
+  // All optional, so a card saved by the previous positioned designer renders
+  // exactly as before. Sizes stay in design px at the 460px card, like
+  // fontSize/size above; positions stay in % of the card.
+  /** Which point `x` names: the left edge (default), the centre, or the right edge. */
+  align?: "left" | "center" | "right";
+  /** This element's own font (a CSS stack); the card's font when absent. */
+  font?: string;
+  /** Font weight, 300-900. Wins over `bold`. */
+  weight?: number;
+  /** Uppercase text. */
+  upper?: boolean;
+  /** Letter spacing in em, -0.05 to 0.5. */
+  tracking?: number;
+  /** Contact fields (phone, email, website, address, fax): draw the matching icon before the text. */
+  icon?: boolean;
+  /** Headshot / logo frame. Headshots default to "circle", logos to "rounded". */
+  frame?: "circle" | "rounded" | "square";
+  /** type "shape": which shape. */
+  shape?: "rect" | "circle";
+  /** type "shape": width and height, % of the card's width and height. */
+  w?: number;
+  h?: number;
+  /** type "shape": its fill — a colour or a gradient. */
+  fill?: string;
+  /** type "shape": corner radius, design px (rect only). */
+  radius?: number;
+  /** type "shape": outline colour and width (design px). */
+  stroke?: string;
+  strokeWidth?: number;
+  /** 0.05-1. Shapes, and anything else that should sit back. */
+  opacity?: number;
+  /** Degrees, -60 to 60. Shapes only. */
+  rotate?: number;
+};
+
+/** The choices an AI design was made from, so "Try another" can reuse them. */
+export type AiDesignBrief = {
+  theme: string;
+  colors: string[];
+  headshot: boolean;
+  logo: boolean;
+  /** How many designs have been generated from this brief; each one differs. */
+  variant: number;
 };
 
 // ── Block layout (the current custom designer) ──────────────────────────────
@@ -102,6 +147,11 @@ export type CustomLayout = {
    * an https URL on our own storage/app hosts.
    */
   faceImage?: string;
+  /**
+   * Set on a design made by AI design: the choices it was made from. Only
+   * used by the designer ("Try another"); the card never reads it.
+   */
+  ai?: AiDesignBrief;
 };
 
 export type CardAddress = {

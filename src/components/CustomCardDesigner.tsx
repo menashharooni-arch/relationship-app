@@ -4,138 +4,48 @@ import type { DesignHistory } from "@/lib/use-design-history";
 
 // Pro custom-card designer.
 //
-// ONE screen, not two. An earlier version opened on a "choose a starting point"
-// picker and only then showed the editor, which read as a broken state: the
-// page's own live preview was still rendering the legacy scattered layout while
-// the designer showed a grid of thumbnails, so the card looked like it had
-// exploded. The layout now always exists, the card is always right, and the
-// starting points are a strip inside the editor you can hover to try.
+// TWO WAYS IN, ONE CARD (owner, 2026-09-23): "Custom design will just be the
+// copy … or AI design."
 //
-// On desktop this is a WORKSPACE: the card is pinned on the left at the size it
-// will actually publish at, every control sits in a column beside it, and the
-// page's own preview column stands down (see designerIsCanvas in the editor and
-// the wizard) so there is exactly one card on screen instead of two.
+//   • Copy a card or template you like — unchanged: upload a design, approve an
+//     exact rebuild with your details (or take its layout to edit instead).
+//   • AI design — choose colours, a theme, and whether your headshot and logo go
+//     on it; AI designs the card (components/AiDesignSheet → /api/design-generate
+//     → lib/ai-card-design). "Try another" makes a different one from the same
+//     choices.
 //
-// The preview is the REAL renderer (CustomBlockCard) inside CardScaler at the
-// same 460 design width the public card page uses — the previous designer drew
-// its own canvas at whatever width the column happened to be while element sizes
-// were absolute px, so the same name filled 35.5% of the card while you designed
-// it and 24.7% once it published.
+// Either way the result is a FREE design — positioned elements — and the owner
+// fine-tunes it right on the card: tap anything, drag to move, drag the corner
+// to resize, restyle font and colour (components/FreeCardEditor). The eight
+// Looks, the Style box and "What's on your card" were removed in the same
+// change; a card already saved with them still renders exactly as it was.
 //
-// Every action is forgiving: toggle a block, move it between zones, reorder it,
-// or change its emphasis. No coordinates, no font sizes, and undo on all of it.
+// The preview is the REAL renderer inside CardScaler at the same 460 design
+// width the public card page uses, so what you arrange is what publishes.
+//
+// On desktop this is a WORKSPACE: the card is pinned on the left, the actions
+// and the fine-tune panel sit in a column beside it, and the page's own preview
+// column stands down (designerIsCanvas in the editor and the wizard).
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { CardData, CardEmphasis, CardSkeleton, CardZone, CustomBlock, CustomLayout } from "@/components/card-templates/types";
+import { useEffect, useRef, useState } from "react";
+import type { AiDesignBrief, CardData, CustomLayout } from "@/components/card-templates/types";
 import CustomCard, { CustomBlockCard, FaceCard } from "@/components/card-templates/CustomCard";
 import CardScaler from "@/components/CardScaler";
-import {
-  ADDABLE, LAYOUT_PRESETS, MAX_VISIBLE_BLOCKS, SKELETONS, blockHasValue, blockLabel,
-  blockLoad, buildPreset, canChangeZone, hasBlocks, isFull, legacyToBlocks, newBlockId,
-  normalizeCustomLayout, zoneFor, zoneLabels,
-} from "@/lib/custom-layout";
-
-const FONTS = [
-  { label: "Sans", value: "var(--font-geist-sans), system-ui, sans-serif" },
-  { label: "Serif", value: "Georgia, 'Times New Roman', serif" },
-  { label: "Mono", value: "'Courier New', ui-monospace, monospace" },
-  { label: "Rounded", value: "'Trebuchet MS', system-ui, sans-serif" },
-];
-
-// Coordinated grounds. Each carries its own text + accent so one tap restyles
-// the whole card correctly, instead of leaving six colours to fix by hand.
-const GROUNDS = [
-  { label: "Navy",     background: "#2c3a52", textColor: "#ffffff", accentColor: "#ffffff" },
-  { label: "Midnight", background: "#141b26", textColor: "#ffffff", accentColor: "#7fa6f0" },
-  { label: "Indigo",   background: "#312e81", textColor: "#ffffff", accentColor: "#c7d2fe" },
-  { label: "Forest",   background: "#16352c", textColor: "#ffffff", accentColor: "#8fd3b6" },
-  { label: "Oxblood",  background: "#33191d", textColor: "#f6ece9", accentColor: "#e0a3a0" },
-  { label: "Graphite", background: "#1f2430", textColor: "#ffffff", accentColor: "#9fb2cc" },
-  { label: "Ivory",    background: "#faf9f6", textColor: "#1c1612", accentColor: "#b08d57" },
-  { label: "Bone",     background: "#f4f2ed", textColor: "#141b26", accentColor: "#2c3a52" },
-];
-
-const EMPHASIS: { key: CardEmphasis; label: string }[] = [
-  { key: "hero", label: "Big" },
-  { key: "normal", label: "Normal" },
-  { key: "quiet", label: "Small" },
-];
-
-/**
- * A look, drawn as a diagram rather than a name.
- *
- * A 96px screenshot of a real card is unreadable mush, and a text chip that says
- * "Meridian" tells you nothing — so this draws the SHAPE (which side the panel
- * is on, how big the name runs, where the QR sits) in the look's own colours.
- * You can tell the eight apart at a glance, which is the whole job; hovering
- * then puts the real thing on the real card.
- */
-function LookThumb({ layout }: { layout: CustomLayout }) {
-  const stacked = layout.skeleton === "stacked";
-  const mirror = layout.skeleton === "mirror";
-  const hasPanel = (layout.blocks ?? []).some((b) => b.on && zoneFor(b) === "left");
-  const ink = layout.textColor;
-  const bar = (w: string, h: number, o: number, color = ink) => (
-    <span style={{ display: "block", width: w, height: h, borderRadius: 1, background: color, opacity: o }} />
-  );
-  return (
-    <span
-      aria-hidden
-      style={{
-        display: "flex",
-        flexDirection: stacked ? "column" : mirror ? "row-reverse" : "row",
-        width: "100%", aspectRatio: "1.75 / 1", borderRadius: 5, overflow: "hidden",
-        background: layout.background, fontFamily: layout.fontFamily,
-      }}
-    >
-      {hasPanel && (
-        <span
-          style={{
-            flex: stacked ? "0 0 30%" : "0 0 32%",
-            background: layout.panelBackground ?? layout.background,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: layout.panelBackground ? "none" : `inset -1px 0 0 ${ink}22`,
-          }}
-        >
-          {/* Sized off the SHORT axis of the band. Sized by width, a stacked
-              band's mark came out taller than the band that holds it. */}
-          <span style={{
-            display: "block", aspectRatio: "1 / 1", borderRadius: 2,
-            ...(stacked ? { height: "52%" } : { width: "42%" }),
-            background: layout.panelTextColor ?? ink, opacity: 0.5,
-          }} />
-        </span>
-      )}
-      <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "13%  11%" }}>
-        <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {bar("72%", 4, 0.95)}
-          {bar("48%", 2, 0.5, layout.accentColor || ink)}
-        </span>
-        <span style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 4 }}>
-          <span style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
-            {bar("86%", 2, 0.42)}
-            {bar("64%", 2, 0.42)}
-          </span>
-          <span style={{
-            display: "block", width: "22%", aspectRatio: "1 / 1", borderRadius: 1,
-            background: ink, opacity: 0.28,
-          }} />
-        </span>
-      </span>
-    </span>
-  );
-}
+import FreeCardEditor from "@/components/FreeCardEditor";
+import AiDesignSheet from "@/components/AiDesignSheet";
+import { buildPreset, hasBlocks, normalizeCustomLayout } from "@/lib/custom-layout";
+import { compositionOf, freeFromBlocks, type DesignContext } from "@/lib/ai-card-design";
 
 export default function CustomCardDesigner({
   layout,
   data,
   onChange,
-  // Copying a layout costs an AI call, so /api/scan-design requires a
-  // session AND a paid plan. The wizard shows this whole designer to guests and
-  // to Free first-card users as a preview (designUnlocked), which would put a
-  // button in front of people the route answers 401/403 — they'd retake the
-  // photo and fail again. So the caller says whether scanning is actually
-  // available and the button teaches rather than breaks.
+  // Copying a layout and AI design both cost an AI call, so their routes
+  // require a session AND a paid plan. The wizard shows this whole designer to
+  // guests and to Free first-card users as a preview (designUnlocked), which
+  // would put buttons in front of people the routes answer 401/403 — so the
+  // caller says whether they are actually available and the buttons teach
+  // rather than break.
   canScan = true,
   teamBrand = false,
   undo: tabUndo,
@@ -146,7 +56,7 @@ export default function CustomCardDesigner({
   canScan?: boolean;
   /**
    * Designing the look a WHOLE TEAM inherits (Office Branding). A photo then
-   * copies only the LAYOUT, as editable blocks each member's card fills with
+   * copies only the LAYOUT, as an editable design each member's card fills with
    * their own details — never the exact-copy image, which is one person's card
    * with their details baked in (lib/custom-layout teamCustomLayout).
    */
@@ -154,14 +64,13 @@ export default function CustomCardDesigner({
   /**
    * The Card design tab's own Undo (lib/use-design-history), which already
    * records every layout change along with colours, fonts and photos. When
-   * given, this designer's Undo button IS that one — one Undo on the tab, not
-   * two that disagree. Office Branding passes none and keeps the local one.
+   * given, this designer's Undo IS that one — one Undo on the tab, not two that
+   * disagree. Office Branding passes none and keeps the local one.
    */
   undo?: DesignHistory;
 }) {
   const history = useRef<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -170,41 +79,22 @@ export default function CustomCardDesigner({
    *  upload too, so "Try again" and "make it editable instead" never ask them
    *  to find the same file twice. */
   const [transfer, setTransfer] = useState<{ src: string; b64: string; url: string; checklist: string[] } | null>(null);
-  const [hoverLook, setHoverLook] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
-  // A layout with no blocks comes in two kinds, and they must not be treated
-  // alike.
-  //
-  // EMPTY (no blocks, no positioned elements): the live card already renders it
-  // as the default block layout (normalizeCustomLayout falls back to ink), so
-  // filling the blocks in here changes nothing anyone can see. Done once, as
-  // before.
-  //
-  // LEGACY (positioned `elements` from the pre-2026-08-07 designer): the live
-  // card still renders those elements exactly where their owner put them. This
-  // used to be "upgraded" on mount too — so merely opening the Design tab
-  // replaced the owner's layout with the stock one, and any Save (even a
-  // phone-number edit) made that permanent. Now the card is shown as it is and
-  // converts only when its owner presses Convert.
-  const isLegacy = !hasBlocks(layout) && normalizeCustomLayout(layout).elements.length > 0;
+  // An EMPTY layout (no blocks, no elements) — Custom just chosen — becomes the
+  // starter card once, exactly as before: the live card already renders it as
+  // that, so filling it in changes nothing anyone can see.
+  const norm = normalizeCustomLayout(layout);
+  const isFree = !hasBlocks(layout) && norm.elements.length > 0;
   const upgraded = useRef(false);
   useEffect(() => {
-    if (hasBlocks(layout) || isLegacy || upgraded.current) return;
+    if (hasBlocks(layout) || isFree || upgraded.current) return;
     upgraded.current = true;
     const base = buildPreset("ink");
     onChange({ ...base, ...layout, blocks: base.blocks, elements: [] });
-  }, [layout, isLegacy, onChange]);
-
-  const blocks = useMemo(() => layout.blocks ?? [], [layout.blocks]);
-  const zones = zoneLabels(layout.skeleton);
-  const full = isFull(blocks);
-
-  // Built once, not per render: the thumbnails read colours off these and the
-  // hover preview hands one straight to the renderer.
-  const looks = useMemo(
-    () => Object.entries(LAYOUT_PRESETS).map(([key, p]) => ({ key, ...p, preview: p.build() })),
-    [],
-  );
+  }, [layout, isFree, onChange]);
 
   function commit(next: CustomLayout) {
     if (tabUndo) { onChange(next); return; }
@@ -219,17 +109,18 @@ export default function CustomCardDesigner({
     setCanUndo(history.current.length > 0);
     onChange(JSON.parse(prev) as CustomLayout);
   }
-  const setBlocks = (next: CustomBlock[]) => commit({ ...layout, blocks: next });
-  const patch = (id: string, p: Partial<CustomBlock>) =>
-    setBlocks(blocks.map((b) => (b.id === id ? { ...b, ...p } : b)));
+  const undoAvailable = tabUndo ? tabUndo.canUndo : canUndo;
+  const runUndo = () => (tabUndo ? tabUndo.undo() : undo());
 
-  function move(id: string, dir: -1 | 1) {
-    const i = blocks.findIndex((b) => b.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= blocks.length) return;
-    const next = [...blocks];
-    [next[i], next[j]] = [next[j], next[i]];
-    setBlocks(next);
+  /** What the design engine needs to size every line — the owner's own details. */
+  function designContext(): DesignContext {
+    return {
+      name: data.name ?? "", title: data.title ?? "", company: data.company ?? "",
+      phone: data.phone ?? "", email: data.email ?? "", website: data.website ?? "", address: data.address ?? "",
+      // A team design places a headshot slot every member fills with their own photo.
+      hasPhoto: teamBrand || !!data.photoUrl,
+      hasLogo: !!data.logoUrl,
+    };
   }
 
   /** Decode an upload and re-encode it at ≤1400px. A phone photo is 4-6MB and
@@ -357,9 +248,11 @@ export default function CustomCardDesigner({
         setScanError("Couldn't read that image. Try a straight-on shot in good light.");
         return;
       }
-      // Layout-only replaces the face image too: the owner just chose blocks.
-      commit({ ...scanned, faceImage: undefined });
-      setScanNote("Layout copied as editable blocks. Your own details are untouched — change anything below, or Undo.");
+      // Layout-only replaces the face image too: the owner just chose to edit.
+      // Rebuilt as a free design with the copied colours, font and panel, so
+      // it is fine-tuned on the card like an AI design (lib/ai-card-design).
+      commit(freeFromBlocks({ ...scanned, faceImage: undefined }, designContext()));
+      setScanNote("Layout copied. Your own details are untouched — fine-tune anything on the card below, or Undo.");
     } catch (e) {
       setScanError(
         (e as { name?: string })?.name === "AbortError"
@@ -386,92 +279,85 @@ export default function CustomCardDesigner({
     else await transferDesign(prepared);
   }
 
-  // Hovering a look shows it on the card without committing, so you can try all
-  // eight without a single undo.
-  const shown = useMemo(
-    () => looks.find((l) => l.key === hoverLook)?.preview ?? layout,
-    [looks, hoverLook, layout],
-  );
-  const previewData: CardData = useMemo(
-    () => ({ ...data, customization: { ...(data.customization ?? {}), customLayout: shown } }),
-    [data, shown],
-  );
-
-  // Tapping the card selects that block — the card is a control, not just an
-  // output. Delegation reads the data-cb the renderer emits, so CustomCard stays
-  // handler-free and therefore still server-renderable.
-  function onCardPointerDown(e: React.PointerEvent) {
-    const hit = (e.target as HTMLElement).closest?.("[data-cb]");
-    const id = hit?.getAttribute("data-cb");
-    if (id) setOpenId((cur) => (cur === id ? null : id));
+  /** AI design: send the owner's choices, get a finished free design back. */
+  async function generate(choice: Omit<AiDesignBrief, "variant">, variant: number) {
+    setAiError(null);
+    setScanNote(null);
+    setAiBusy(true);
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 45_000);
+    const ctx = designContext();
+    try {
+      const res = await fetch("/api/design-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brief: { ...choice, variant },
+          identity: {
+            name: ctx.name, title: ctx.title, company: ctx.company,
+            phone: ctx.phone, email: ctx.email, website: ctx.website, address: ctx.address,
+          },
+          hasPhoto: ctx.hasPhoto,
+          hasLogo: ctx.hasLogo,
+          // "Try another" never hands back the composition on the card now.
+          avoid: isFree ? compositionOf(norm) ?? undefined : undefined,
+        }),
+        signal: abort.signal,
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setAiError(
+          res.status === 401 ? "Sign in first — AI design needs an account."
+          : res.status === 403 ? ((j as { code?: string; message?: string }).code === "AI_CONSENT_REQUIRED" ? ((j as { message?: string }).message ?? "AI features are off. Turn them on in Settings.") : "AI design is a Pro feature.")
+          : res.status === 429 ? "Too many designs just now — try again in a minute."
+          : (j as { error?: string }).error === "no_ai" ? "AI design is unavailable right now."
+          : "Couldn't design that just now. Try again.",
+        );
+        return;
+      }
+      const { layout: designed } = (await res.json()) as { layout?: CustomLayout };
+      if (!designed?.elements?.length) {
+        setAiError("Couldn't design that just now. Try again.");
+        return;
+      }
+      commit(designed);
+      setAiOpen(false);
+      setScanNote("Here's your AI design. Tap anything on the card to move it, resize it or change its font and colour — or Try another.");
+    } catch (e) {
+      setAiError(
+        (e as { name?: string })?.name === "AbortError"
+          ? "That took too long. Try again in a moment."
+          : "That didn't work. Try again.",
+      );
+    } finally {
+      clearTimeout(timer);
+      setAiBusy(false);
+    }
   }
+
+  const brief = isFree ? norm.ai ?? null : null;
 
   const card = "bg-gray-900 border border-gray-800 rounded-xl";
   const head = "text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-gray-500";
-  const row = "text-[0.6875rem] text-gray-500 w-[52px] shrink-0 pt-2.5";
-  // Same 13px / filled-blue / 44px-on-touch vocabulary as the preset editor
-  // (components/ui/DesignControls). This canvas used to run 12px chips at
-  // ~30px tall, which read as a different product one tab over.
-  const chip = "sc-tap text-[0.8125rem] font-semibold px-3 py-1.5 rounded-lg border transition-colors";
-  const chipOff = "bg-gray-800 border-gray-600 text-gray-100 hover:text-white hover:border-gray-400";
-  const chipOn = "bg-blue-600 border-blue-600 text-white";
+  // The card spans both rows of the left track on desktop and sticks while
+  // the controls scroll beside it; on a phone it sits between the two ways in
+  // and the fine-tune panel.
+  const canvasPlace = "order-2 w-full max-w-[560px] mx-auto lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-6";
+  const panelPlace = "order-3 lg:col-start-2 lg:row-start-2";
+  const previewData: CardData = { ...data, customization: { ...(data.customization ?? {}), customLayout: layout } };
 
-  if (isLegacy) {
-    // Owner-initiated and undoable (commit pushes history): positions become
-    // zones and reading order via legacyToBlocks, keeping colours and font.
-    const convert = () => {
-      const base = buildPreset("ink");
-      const converted = legacyToBlocks(normalizeCustomLayout(layout).elements);
-      commit({ ...base, ...layout, blocks: converted.length ? converted : base.blocks, elements: [] });
-    };
-    return (
-      <div className="space-y-3">
-        <div className="rounded-2xl border border-gray-800 bg-[radial-gradient(120%_90%_at_50%_0%,#141a26_0%,#0b0f17_70%)] p-4 sm:p-6 max-w-[560px] mx-auto">
-          <CardScaler>
-            <CustomCard data={previewData} />
-          </CardScaler>
-        </div>
-        <div className={`${card} p-3 flex flex-col sm:flex-row sm:items-center gap-3 max-w-[560px] mx-auto`}>
-          <p className="text-[0.8125rem] text-gray-300 leading-snug flex-1 min-w-0">
-            This card was made with our previous designer, and it stays exactly as it is.
-            To edit it here, convert it to blocks — you can undo that before saving.
-          </p>
-          <button type="button" onClick={convert} className={`${chip} ${chipOn} shrink-0`}>
-            Convert to edit
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!hasBlocks(layout)) {
+  if (!isFree && !hasBlocks(layout)) {
     return <div className="h-24 rounded-xl bg-gray-900 border border-gray-800 animate-pulse" aria-label="Preparing your design" />;
   }
 
   return (
-    // Three children, so the phone can interleave them and the desktop cannot.
-    //
-    // On a phone this is a flex column ordered Looks -> card -> Style: you pick
-    // a Look, see it on the card immediately below, and only then work down into
-    // Style. Putting the card first (as it was) meant choosing a Look scrolled
-    // its result off the top of the screen.
-    //
-    // At lg it becomes the same two-column grid as before, with every child
-    // placed EXPLICITLY. Auto-placement would flow the third child back under
-    // the canvas; the row/column starts are what keep Looks and Style stacked in
-    // the right-hand track with the card spanning both rows beside them.
     <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-x-5 lg:gap-y-3 lg:items-start">
-      {/* Looks — hover any one to see it on your card, click to keep it. */}
+      {/* The two ways in. */}
       <div className={`${card} p-3 space-y-2.5 order-1 lg:col-start-2 lg:row-start-1`}>
-        <div className="flex items-baseline justify-between gap-2">
-          <p className={head}>Looks</p>
-          <p className="text-[0.65625rem] text-gray-600">hover to preview · click to use</p>
-        </div>
+        <p className={head}>Custom design</p>
         {/* THE headline feature of the custom designer (owner order 2026-08-26:
-            "the best feature we have — make people notice it"). Moved to the
-            TOP of Looks and dressed as the hero: animated gradient frame, soft
-            glow, shine sweep. Behavior is byte-for-byte the old box — same
-            click, same gating, same copy, same file input below. Reduced
+            "the best feature we have — make people notice it"). Dressed as the
+            hero: animated gradient frame, soft glow, shine sweep. Reduced
             motion turns the animation off; the frame still reads as special. */}
         <style>{`
           @keyframes sc-magic-border { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
@@ -530,31 +416,81 @@ export default function CustomCardDesigner({
             </button>
           </div>
         </div>
-        {/* Capped. The controls column has no width of its own below lg, so
-            on a half-screen desktop window (roughly 936-1023px, where the
-            max-w-4xl page has saturated but the two-column layout has not
-            kicked in) each of these diagrams rendered 212x143px — a wall of
-            eight cards above the one card they are miniatures of. */}
-        <div className="grid grid-cols-4 gap-2 max-w-[420px] lg:max-w-none">
-          {looks.map((l) => (
+
+        {/* AI design — the second way in (owner, 2026-09-23). Dressed exactly
+            like Copy above, so the two read as a pair: same frame, glow and
+            shine, same gating and PRO tag when it isn't available. */}
+        <div className="relative">
+          {canScan && !aiBusy && (
+            <div className="sc-magic-halo absolute -inset-1 rounded-2xl bg-gradient-to-r from-violet-600/40 via-fuchsia-500/35 to-blue-600/40 blur-md pointer-events-none" aria-hidden="true" />
+          )}
+          <div className={`relative rounded-xl p-[1.5px] ${canScan ? "sc-magic-frame" : "bg-gray-800"}`}>
             <button
-              key={l.key}
               type="button"
-              title={l.blurb}
-              onMouseEnter={() => setHoverLook(l.key)}
-              onMouseLeave={() => setHoverLook((cur) => (cur === l.key ? null : cur))}
-              onFocus={() => setHoverLook(l.key)}
-              onBlur={() => setHoverLook((cur) => (cur === l.key ? null : cur))}
-              onClick={() => { setHoverLook(null); commit(l.build()); }}
-              className={`rounded-lg p-1 transition-all ${
-                hoverLook === l.key ? "ring-2 ring-blue-500 scale-[1.03]" : "ring-1 ring-gray-800 hover:ring-gray-600"
+              onClick={() => { if (canScan) { setAiError(null); setAiOpen(true); } }}
+              disabled={aiBusy || scanning || !canScan}
+              className={`relative overflow-hidden w-full rounded-[10.5px] px-3.5 py-3.5 text-left transition-colors ${
+                canScan ? "bg-gray-950 hover:bg-gray-900 disabled:opacity-70" : "bg-gray-950/90 cursor-default"
               }`}
             >
-              <LookThumb layout={l.preview} />
-              <span className="block text-[0.625rem] text-gray-400 mt-1 truncate">{l.label}</span>
+              {canScan && !aiBusy && (
+                <span className="sc-magic-shine pointer-events-none absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" aria-hidden="true" />
+              )}
+              <span className="flex items-center gap-3">
+                <span className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${canScan ? "bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-[0_0_14px_rgba(168,85,247,0.45)]" : "bg-gray-800 text-gray-500"}`}>
+                  {aiBusy ? (
+                    <span className="block w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+                    </svg>
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className={`block text-[0.84375rem] font-semibold ${canScan ? "text-white" : "text-gray-400"}`}>
+                    {aiBusy ? "Designing your card…" : "AI design"}
+                    {canScan && !aiBusy && (
+                      <span className="ml-1.5 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white align-middle tracking-wide">✨ NEW</span>
+                    )}
+                    {!canScan && (
+                      <span className="ml-1.5 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white align-middle">PRO</span>
+                    )}
+                  </span>
+                  <span className="block text-[0.6875rem] text-gray-400 leading-snug mt-0.5">
+                    {teamBrand
+                      ? "Pick colours and a theme — AI designs the team's card, and every teammate's card fills it with their own details."
+                      : canScan
+                      ? "Pick your colours, a theme, and whether your headshot and logo go on it — AI designs your card. Then move, resize and restyle anything."
+                      : "On Pro, pick your colours and a theme and AI designs your card for you."}
+                  </span>
+                </span>
+              </span>
             </button>
-          ))}
+          </div>
         </div>
+
+        {/* Another from the same choices, or change them. */}
+        {brief && canScan && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={aiBusy || scanning}
+              onClick={() => void generate({ theme: brief.theme, colors: brief.colors, headshot: brief.headshot, logo: brief.logo }, brief.variant + 1)}
+              className="sc-tap text-[0.8125rem] font-semibold px-3 py-1.5 rounded-lg border bg-gray-800 border-gray-600 text-gray-100 hover:text-white hover:border-gray-400 disabled:opacity-50"
+            >
+              ↻ Try another
+            </button>
+            <button
+              type="button"
+              disabled={aiBusy || scanning}
+              onClick={() => { setAiError(null); setAiOpen(true); }}
+              className="sc-tap text-[0.8125rem] font-medium px-3 py-1.5 rounded-lg text-gray-400 hover:text-gray-200 disabled:opacity-50"
+            >
+              Change choices
+            </button>
+          </div>
+        )}
+        {aiError && !aiOpen && <p className="text-[0.6875rem] text-amber-400" role="alert">{aiError}</p>}
 
         {/* NO `capture` attribute. With capture="environment" a phone opens
             straight into the camera, which makes the whole "or a template you
@@ -577,7 +513,7 @@ export default function CustomCardDesigner({
         {layout.faceImage && !teamBrand && (
           <div className="rounded-lg border border-blue-500/40 bg-blue-950/30 px-3 py-2.5 flex items-center gap-3">
             <p className="text-[0.6875rem] text-blue-200 leading-snug flex-1">
-              Exact design is on — your card shows the approved image. Looks and Style below won&apos;t change it.
+              Exact design is on — your card shows the approved image. Remove it to go back to your own design.
             </p>
             <button
               type="button"
@@ -662,261 +598,67 @@ export default function CustomCardDesigner({
         )}
       </div>
 
-      {/* ── The canvas. Pinned on desktop: it stays in view while you work
-             down the controls beside it. Capped and centred so the caption sits
-             under the CARD rather than at the far edge of the track.
-             row-span-2 gives the sticky box a containing block tall enough to
-             travel in — a single-row area would pin it in place. ── */}
-      <div className="order-2 w-full max-w-[560px] mx-auto lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-6">
-        <div className="rounded-2xl border border-gray-800 bg-[radial-gradient(120%_90%_at_50%_0%,#141a26_0%,#0b0f17_70%)] p-4 sm:p-6">
-          <div onPointerDown={onCardPointerDown} className="cursor-pointer">
-            <CardScaler>
-              {/* An approved exact design IS the card — show it. This canvas
-                  rendered CustomBlockCard unconditionally, so pressing "Use
-                  this design" committed the face image and the preview showed
-                  ... the same block layout as before. To the owner the button
-                  did nothing (report 2026-08-26); the design only appeared on
-                  the live card page. The live renderer (CustomCard) makes the
-                  same face-first choice. */}
-              {shown.faceImage && !teamBrand ? <FaceCard data={previewData} src={shown.faceImage} /> : <CustomBlockCard data={previewData} placeholder />}
-            </CardScaler>
-          </div>
-        </div>
-        <p className="text-[0.6875rem] text-gray-500 mt-2 min-w-0 truncate">
-          {hoverLook
-            ? `${looks.find((l) => l.key === hoverLook)?.label} — click to use it`
-            : "Tap anything on the card to style it."}
-        </p>
-      </div>
 
-      {/* ── The rest of the controls ── */}
-      <div className="space-y-3 order-3 lg:col-start-2 lg:row-start-2">
-        {/* Style — colour, type and arrangement in one place, one row each, so
-            it reads as a single decision instead of three stacked boxes. */}
-        <div className={`${card} p-3 space-y-2.5`}>
-          {/* Undo lives here rather than under the card. It reverses every
-              change — a Look, a copied layout, a colour, a moved block — so it
-              belongs with the controls that make them, and on a phone that puts
-              it within thumb's reach of the thing you just regretted instead of
-              a scroll back up past the preview. */}
-          <div className="flex items-center justify-between gap-2">
-            <p className={head}>Style</p>
-            <button
-              type="button"
-              onClick={tabUndo ? tabUndo.undo : undo}
-              disabled={tabUndo ? !tabUndo.canUndo : !canUndo}
-              className="text-[0.6875rem] px-2.5 py-1 rounded-lg border border-gray-700 text-gray-300 disabled:opacity-40 hover:border-gray-500 shrink-0"
-            >
-              ↶ Undo
-            </button>
-          </div>
-
-          <div className="flex gap-2">
-            <span className={row}>Colour</span>
-            <div className="flex flex-wrap gap-1.5 min-w-0">
-              {GROUNDS.map((g) => (
-                <button
-                  key={g.label}
-                  type="button"
-                  title={g.label}
-                  aria-label={g.label}
-                  onClick={() => commit({ ...layout, background: g.background, textColor: g.textColor, accentColor: g.accentColor, panelBackground: undefined, panelTextColor: undefined })}
-                  aria-pressed={layout.background === g.background}
-                  className="sc-tap-sq w-6 h-6 rounded-lg transition-transform hover:scale-110"
-                  style={{
-                    background: g.background,
-                    // The offset ring the preset editor uses, so "selected"
-                    // is one mark across both design surfaces.
-                    boxShadow: layout.background === g.background
-                      ? "0 0 0 2px #0b0f16, 0 0 0 4px #3b82f6"
-                      : "inset 0 0 0 1px rgba(148,163,184,.35)",
-                  }}
-                />
-              ))}
-              <label className="flex items-center gap-1 text-[0.625rem] text-gray-500">
-                <input
-                  type="color"
-                  aria-label="Custom background colour"
-                  value={/^#[0-9a-f]{6}$/i.test(layout.background) ? layout.background : "#2c3a52"}
-                  onChange={(e) => commit({ ...layout, background: e.target.value })}
-                  className="sc-tap-sq w-6 h-6 rounded bg-transparent border border-gray-700"
-                />
-                custom
-              </label>
+      {isFree && !(norm.faceImage && !teamBrand) ? (
+        <FreeCardEditor
+          layout={norm}
+          data={data}
+          commit={commit}
+          undo={{ canUndo: undoAvailable, run: runUndo }}
+          canvasClassName={canvasPlace}
+          panelClassName={panelPlace}
+        />
+      ) : (
+        <>
+          {/* ── The card, before there is a design to fine-tune (or while an
+                 approved exact design is on). Pinned on desktop. ── */}
+          <div className={canvasPlace}>
+            <div className="rounded-2xl border border-gray-800 bg-[radial-gradient(120%_90%_at_50%_0%,#141a26_0%,#0b0f17_70%)] p-4 sm:p-6">
+              <CardScaler>
+                {/* An approved exact design IS the card — show it (the live
+                    renderer makes the same face-first choice). */}
+                {norm.faceImage && !teamBrand
+                  ? <FaceCard data={previewData} src={norm.faceImage} />
+                  : hasBlocks(layout) ? <CustomBlockCard data={previewData} placeholder /> : <CustomCard data={previewData} />}
+              </CardScaler>
             </div>
-          </div>
-
-          <div className="flex gap-2">
-            <span className={row}>Type</span>
-            <div className="flex flex-wrap gap-1.5 min-w-0">
-              {FONTS.map((f) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  onClick={() => commit({ ...layout, fontFamily: f.value })}
-                  className={`${chip} ${layout.fontFamily === f.value ? chipOn : chipOff}`}
-                  style={{ fontFamily: f.value }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <span className={row}>Panel</span>
-            <div className="flex flex-wrap gap-1.5 min-w-0">
-              {SKELETONS.map((s) => (
-                <button
-                  key={s.key}
-                  type="button"
-                  onClick={() => commit({ ...layout, skeleton: s.key as CardSkeleton })}
-                  className={`${chip} ${(layout.skeleton ?? "split") === s.key ? chipOn : chipOff}`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* What's on the card */}
-        <div className={`${card} overflow-hidden`}>
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-800">
-            <p className={head}>What&apos;s on your card</p>
-            {/* Counted in ROWS, like the cap itself — three socials share one,
-                so showing raw blocks would have said "full" with room left. */}
-            <p className={`text-[0.6875rem] ${full ? "text-amber-400" : "text-gray-600"}`}>
-              {blockLoad(blocks)} of {MAX_VISIBLE_BLOCKS}
+            <p className="text-[0.6875rem] text-gray-500 mt-2 min-w-0">
+              {norm.faceImage && !teamBrand ? "Your approved exact design." : "Your starting card."}
             </p>
           </div>
-          {full && (
-            <p className="px-3 pt-2 text-[0.6875rem] text-amber-400/90">
-              Your card is full — turn something off to add something else.
-            </p>
-          )}
-
-          <ul className="p-1.5 space-y-1">
-            {blocks.map((b, i) => {
-              const open = openId === b.id;
-              const empty = b.on && !blockHasValue(b, data);
-              return (
-                <li key={b.id} className={`rounded-lg ${open ? "bg-gray-950/60 ring-1 ring-gray-800" : ""}`}>
-                  <div className="flex items-center gap-2 px-2 py-1.5">
-                    <div className="flex flex-col gap-px shrink-0">
-                      <button type="button" onClick={() => move(b.id, -1)} disabled={i === 0}
-                        aria-label={`Move ${blockLabel(b)} up`}
-                        className="w-6 sm:w-5 h-[20px] sm:h-[15px] leading-none text-[0.5625rem] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▲</button>
-                      <button type="button" onClick={() => move(b.id, 1)} disabled={i === blocks.length - 1}
-                        aria-label={`Move ${blockLabel(b)} down`}
-                        className="w-6 sm:w-5 h-[20px] sm:h-[15px] leading-none text-[0.5625rem] rounded border border-gray-700 text-gray-400 disabled:opacity-30 hover:text-white">▼</button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setOpenId(open ? null : b.id)}
-                      aria-expanded={open}
-                      className="flex-1 min-w-0 text-left"
-                    >
-                      <span className={`block text-[0.8125rem] font-medium truncate ${b.on ? "text-white" : "text-gray-500"}`}>
-                        {blockLabel(b)}
-                      </span>
-                      <span className={`block text-[0.65625rem] truncate ${open ? "text-gray-300" : "text-gray-500"}`}>
-                        {empty ? "nothing entered yet — it stays hidden"
-                               : `${zones[zoneFor(b)]} · ${EMPHASIS.find((e) => e.key === b.emphasis)?.label}`}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={b.on}
-                      aria-label={`${b.on ? "Hide" : "Show"} ${blockLabel(b)}`}
-                      disabled={!b.on && full}
-                      title={!b.on && full ? "Your card is full" : undefined}
-                      onClick={() => patch(b.id, { on: !b.on })}
-                      className={`relative w-[38px] h-[22px] rounded-full shrink-0 transition-colors disabled:opacity-40 ${b.on ? "bg-blue-600" : "bg-gray-700"}`}
-                    >
-                      <span className={`absolute top-[3px] left-[3px] w-4 h-4 rounded-full bg-white transition-transform ${b.on ? "translate-x-4" : ""}`} />
-                    </button>
-                  </div>
-
-                  {open && (
-                    <div className="px-2 pb-2.5 pl-9 space-y-2">
-                      {b.type === "text" && (
-                        <input
-                          type="text"
-                          value={b.text ?? ""}
-                          onChange={(e) => patch(b.id, { text: e.target.value })}
-                          placeholder="Type your text"
-                          className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-                        />
-                      )}
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[0.6875rem] font-medium text-gray-400 w-12 shrink-0">Size</span>
-                        {EMPHASIS.map((e) => (
-                          <button key={e.key} type="button" onClick={() => patch(b.id, { emphasis: e.key })}
-                            className={`${chip} ${b.emphasis === e.key ? chipOn : chipOff}`}>{e.label}</button>
-                        ))}
-                      </div>
-                      {/* Only marks can move to the side panel — it is a third of
-                          the card wide and no size reads well there for text. */}
-                      {canChangeZone(b) && (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[0.6875rem] font-medium text-gray-400 w-12 shrink-0">Where</span>
-                          {(["left", "right"] as CardZone[]).map((z) => (
-                            <button key={z} type="button" onClick={() => patch(b.id, { zone: z })}
-                              className={`${chip} ${b.zone === z ? chipOn : chipOff}`}>{zones[z]}</button>
-                          ))}
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => { setBlocks(blocks.filter((x) => x.id !== b.id)); setOpenId(null); }}
-                        // Padded to a real target. As a bare text line it was a
-                        // 17px-tall tap area on a phone, which is a hard thing
-                        // to hit and an easy thing to hit by accident.
-                        className="text-[0.6875rem] text-red-400 hover:text-red-300 py-1.5 pr-2 -ml-0.5 pl-0.5"
-                      >
-                        Remove from card
-                      </button>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-
-          <div className="px-3 pb-3 pt-1 border-t border-gray-800">
-            <p className="text-[0.6875rem] text-gray-500 mb-1.5">Add something</p>
-            <div className="flex flex-wrap gap-1.5">
-              {ADDABLE.filter((a) => !blocks.some((b) =>
-                b.type === a.type && b.field === a.field && b.social === a.social && a.type !== "text" && a.type !== "divider",
-              )).map((a) => (
-                <button
-                  key={a.label}
-                  type="button"
-                  disabled={full}
-                  onClick={() => {
-                    const id = newBlockId(blocks, a.type === "field" ? String(a.field) : a.type === "social" ? String(a.social) : a.type);
-                    setBlocks([...blocks, {
-                      id, type: a.type,
-                      field: a.field as CustomBlock["field"],
-                      social: a.social as CustomBlock["social"],
-                      text: a.type === "text" ? "Your text" : undefined,
-                      on: true, zone: "right", emphasis: "quiet",
-                    }]);
-                    setOpenId(id);
-                  }}
-                  className={`${chip} ${chipOff} disabled:opacity-40`}
-                >
-                  + {a.label}
-                </button>
-              ))}
+          <div className={`${card} p-3 space-y-2 ${panelPlace}`}>
+            <div className="flex items-center justify-between gap-2">
+              <p className={head}>Fine-tune</p>
+              <button
+                type="button"
+                onClick={runUndo}
+                disabled={!undoAvailable}
+                className="text-[0.6875rem] px-2.5 py-1 rounded-lg border border-gray-700 text-gray-300 disabled:opacity-40 hover:border-gray-500 shrink-0"
+              >
+                ↶ Undo
+              </button>
             </div>
+            <p className="text-[0.75rem] text-gray-400 leading-snug">
+              {norm.faceImage && !teamBrand
+                ? "Your card is the exact design you approved. Remove it above to go back to your own design, or use AI design for a new one."
+                : "Use AI design or copy a card you like — then tap anything on your card to move it, resize it or change its font and colour."}
+            </p>
           </div>
-        </div>
-      </div>
+        </>
+      )}
+
+      {aiOpen && (
+        <AiDesignSheet
+          initial={brief}
+          hasPhoto={designContext().hasPhoto}
+          hasLogo={designContext().hasLogo}
+          busy={aiBusy}
+          error={aiError}
+          teamBrand={teamBrand}
+          onGenerate={(choice) => void generate(choice, brief ? brief.variant + 1 : 0)}
+          onClose={() => { if (!aiBusy) { setAiOpen(false); setAiError(null); } }}
+        />
+      )}
     </div>
   );
 }

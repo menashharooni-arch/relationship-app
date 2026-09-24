@@ -201,7 +201,9 @@ describe("Office Branding: a custom design for the whole team", () => {
   it("never an image with one person's details baked in — in the designer, the page, the API or the brand read", () => {
     const designer = read("src/components/CustomCardDesigner.tsx");
     expect(designer).toMatch(/if \(teamBrand\) await scanLayoutOnly\(prepared\.b64\);/);
-    expect(designer).toMatch(/shown\.faceImage && !teamBrand \?/);
+    // A team design never shows (or edits past) one person's exact image.
+    expect(designer).toMatch(/norm\.faceImage && !teamBrand\s*\?\s*<FaceCard/);
+    expect(designer).toContain("isFree && !(norm.faceImage && !teamBrand)");
     expect(office).toMatch(/withoutFaceImage\(normalizeCustomLayout\(office\.brand_custom_layout\)\)/);
     expect(read("src/app/api/office/brand/route.ts")).toMatch(/brand_custom_layout: teamCustomLayout\(body\.customLayout\)/);
     const brand = read("src/lib/office-brand.ts");

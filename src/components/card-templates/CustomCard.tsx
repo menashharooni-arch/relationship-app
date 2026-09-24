@@ -6,8 +6,9 @@
 //   BLOCKS (current)  — content flows inside zones. Nothing is positioned, so
 //                       nothing can overlap, hang off the edge, or render at a
 //                       different scale than the editor showed.
-//   ELEMENTS (legacy) — absolute x/y from the old designer. Rendered exactly as
-//                       before so a card someone already published never moves.
+//   ELEMENTS (free)   — positioned x/y: what AI design builds and its fine-tune
+//                       editor moves (and what the old designer saved). Lines
+//                       shrink to fit the card rather than run off its edge.
 import type { CardData, CustomBlock, CustomElement, CustomLayout, CustomSocial } from "./types";
 import { MiniQR } from "./MiniQR";
 import { fitName, fitPx, formatPhone, IcoPhone, IcoMail, IcoGlobe, IcoPin } from "./shared";
@@ -121,7 +122,60 @@ function socialHandles(data: CardData): string[] {
     .filter(Boolean);
 }
 
-/** Inner content of a single element (no positioning). Shared by renderer + designer. */
+// ── Free design: positioned elements ────────────────────────────────────────
+// What AI design builds and its fine-tune editor moves around, and also what
+// the previous positioned designer saved — one format, one renderer, so a card
+// looks the same in the editor, on the public page and in every image made of
+// it. Positions are % of the card; every size is design px at the 460 card
+// (CardScaler scales the whole thing), so nothing drifts between widths.
+
+/** The card's design width, the width every size here is measured against. */
+export const FREE_CARD_W = 460;
+const FREE_CARD_H = FREE_CARD_W / 1.75;
+
+/** Average advance of one character, in em, by typeface family — for fitting. */
+function charEm(font: string): number {
+  const f = font.toLowerCase();
+  if (f.includes("courier") || f.includes("mono")) return 0.61;
+  if (f.includes("georgia") || f.includes("palatino") || f.includes("serif") && !f.includes("sans")) return 0.53;
+  if (f.includes("trebuchet")) return 0.55;
+  if (f.includes("--font-display")) return 0.56;
+  return 0.55;
+}
+
+/**
+ * The room a line has before it would leave the card, in design px, from where
+ * it is anchored. A line anchored left can run to the right edge; one anchored
+ * in the centre can grow both ways only as far as the nearer edge.
+ */
+function roomPx(el: CustomElement): number {
+  const x = el.x;
+  const margin = 2.5; // % kept clear of the edge
+  const pct = el.align === "center" ? 2 * Math.min(x, 100 - x) - 2 * margin
+    : el.align === "right" ? x - margin
+    : 100 - x - margin;
+  return Math.max(0, (pct / 100) * FREE_CARD_W);
+}
+
+/**
+ * Shrink a line so it fits its room. Deterministic — the same estimate on the
+ * server-rendered card and in the editor — so a long email written after the
+ * design was made gets smaller instead of hanging off the card, and never
+ * differs between the two.
+ */
+function fitLine(base: number, chars: number, el: CustomElement, font: string, extraEm = 0): number {
+  const room = roomPx(el);
+  if (room < 24 || chars <= 0) return base;
+  const perChar = charEm(font) * (el.upper ? 1.12 : 1) + (el.tracking ?? 0);
+  const need = chars * perChar + extraEm;
+  return Math.max(Math.min(base, 5), Math.min(base, room / need));
+}
+
+const FREE_CONTACT_ICON: Record<string, () => React.ReactElement> = {
+  phone: IcoPhone, fax: IcoPhone, email: IcoMail, website: IcoGlobe, address: IcoPin,
+};
+
+/** Inner content of a single element (no positioning). */
 export function CustomElementContent({
   el,
   data,
@@ -133,92 +187,184 @@ export function CustomElementContent({
   layout: CustomLayout;
   placeholder?: boolean;
 }) {
-  if (el.type === "logo") {
-    if (data.logoUrl) {
-      // eslint-disable-next-line @next/next/no-img-element
-      return <img src={data.logoUrl} alt="logo" style={{ width: el.size ?? 46, height: el.size ?? 46, objectFit: "contain", borderRadius: 8, display: "block" }} />;
-    }
-    return placeholder ? (
-      <div style={{ width: el.size ?? 46, height: el.size ?? 46, borderRadius: 8, border: "1px dashed rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: "rgba(255,255,255,0.6)" }}>Logo</div>
-    ) : null;
-  }
+  const font = el.font ?? layout.fontFamily;
+  const ink = el.color ?? layout.textColor;
+  const dashed = `1px dashed ${withOpacity(layout.textColor, 0.45)}`;
 
-  if (el.type === "headshot") {
-    if (data.photoUrl) {
-      // eslint-disable-next-line @next/next/no-img-element
-      return <img src={data.photoUrl} alt="" style={{ width: el.size ?? 64, height: el.size ?? 64, objectFit: "cover", borderRadius: "9999px", display: "block" }} />;
-    }
-    return placeholder ? (
-      <div style={{ width: el.size ?? 64, height: el.size ?? 64, borderRadius: "9999px", border: "1px dashed rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: "rgba(255,255,255,0.6)" }}>Photo</div>
-    ) : null;
-  }
-
-  if (el.type === "socials") {
-    const handles = socialHandles(data);
-    const shown = handles.length ? handles : placeholder ? ["@handle"] : [];
-    if (!shown.length) return null;
+  if (el.type === "shape") {
+    // Sized by its wrapper (FreeElement); this is only the paint.
     return (
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", fontSize: el.fontSize ?? 9, color: el.color ?? layout.textColor, opacity: 0.9 }}>
-        {shown.map((h, i) => (
-          <span key={i} style={{ whiteSpace: "nowrap" }}>{shortHandle(h)}</span>
-        ))}
-      </div>
+      <div
+        style={{
+          width: "100%", height: "100%",
+          background: el.fill ?? layout.accentColor ?? layout.textColor,
+          borderRadius: el.shape === "circle" ? "9999px" : el.radius ?? 0,
+          border: el.stroke && (el.strokeWidth ?? 0) > 0 ? `${el.strokeWidth}px solid ${el.stroke}` : undefined,
+        }}
+      />
     );
   }
 
-  // One platform: its icon + the handle.
+  if (el.type === "logo" || el.type === "headshot") {
+    const src = el.type === "logo" ? data.logoUrl : data.photoUrl;
+    const size = el.size ?? (el.type === "logo" ? 46 : 64);
+    const frame = el.frame ?? (el.type === "headshot" ? "circle" : "rounded");
+    const radius = frame === "circle" ? "9999px" : frame === "rounded" ? Math.round(size * 0.18) : 0;
+    if (src) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={el.type === "logo" ? "logo" : ""}
+          style={{
+            width: size, height: size, maxWidth: "none", borderRadius: radius, display: "block",
+            // A photo fills its frame; a logo is never cropped.
+            objectFit: el.type === "logo" ? "contain" : "cover",
+          }}
+        />
+      );
+    }
+    return placeholder ? (
+      <div style={{ width: size, height: size, borderRadius: radius, border: dashed, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: withOpacity(layout.textColor, 0.7) }}>
+        {el.type === "logo" ? "Logo" : "Photo"}
+      </div>
+    ) : null;
+  }
+
+  if (el.type === "qr") {
+    // Floored: the QR is the one thing on the card with a job beyond looking
+    // right, and a code a phone camera can't read fails at it.
+    return <MiniQR size={Math.max(QR_MIN_PX, Math.round(el.size ?? 52))} bg="#ffffff" fg="#111827" url={data.cardUrl} />;
+  }
+
+  if (el.type === "divider") {
+    return <div style={{ width: el.width ?? 80, height: 2, borderRadius: 2, background: ink, opacity: 0.85 }} />;
+  }
+
+  const textStyle = (fs: number): React.CSSProperties => ({
+    display: "block",
+    fontSize: fs,
+    lineHeight: 1.2,
+    color: ink,
+    fontFamily: el.font,
+    fontWeight: el.weight ?? (el.bold ? 700 : 400),
+    fontStyle: el.italic ? "italic" : "normal",
+    letterSpacing: el.tracking ? `${el.tracking}em` : undefined,
+    textTransform: el.upper ? "uppercase" : undefined,
+    whiteSpace: "nowrap",
+  });
+
+  if (el.type === "socials") {
+    const handles = socialHandles(data);
+    const shown = handles.length ? handles.map(shortHandle) : placeholder ? ["@handle"] : [];
+    if (!shown.length) return null;
+    const base = el.fontSize ?? 9;
+    const fs = fitLine(base, shown.join("   ").length, el, font);
+    return (
+      <span style={{ ...textStyle(fs), display: "flex", gap: fs * 0.9 }}>
+        {shown.map((h, i) => <span key={i}>{h}</span>)}
+      </span>
+    );
+  }
+
   if (el.type === "social") {
     const meta = SOCIAL_META[el.social ?? "instagram"];
     const raw = socialValue(data, el.social ?? "instagram");
     const shown = raw ? shortHandle(raw) : placeholder ? `@your-${el.social ?? "handle"}` : "";
     if (!shown) return null;
-    const fs = el.fontSize ?? 10;
+    const fs = fitLine(el.fontSize ?? 10, shown.length, el, font, 1.6);
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: Math.max(3, fs * 0.4), fontSize: fs, color: el.color ?? layout.textColor, whiteSpace: "nowrap", opacity: raw ? 1 : 0.6 }}>
-        <span style={{ width: fs * 1.15, height: fs * 1.15, display: "inline-flex", flexShrink: 0 }}>
+      <span style={{ ...textStyle(fs), display: "inline-flex", alignItems: "center", gap: Math.max(3, fs * 0.4), opacity: raw ? 1 : 0.6 }}>
+        <span style={{ width: fs * 1.15, height: fs * 1.15, display: "inline-flex", flexShrink: 0, color: layout.accentColor ?? ink }}>
           <PlatformIcon label={meta.icon} className="w-full h-full" />
         </span>
-        <span style={{ fontWeight: el.bold ? 700 : 400 }}>{shown}</span>
+        <span>{shown}</span>
       </span>
     );
   }
 
-  // Scannable QR pointing at this card (marker attr lets the signature hide it).
-  if (el.type === "qr") {
-    return <MiniQR size={el.size ?? 52} bg="#ffffff" fg="#111827" url={data.cardUrl} />;
-  }
-
-  // A simple accent line.
-  if (el.type === "divider") {
-    return <div style={{ width: el.width ?? 80, height: 2, borderRadius: 2, background: el.color ?? layout.textColor, opacity: 0.85 }} />;
-  }
-
   // field or static text
-  const value = el.type === "field" ? fieldValue(data, el.field) : (el.text ?? "");
+  const raw = el.type === "field" ? fieldValue(data, el.field) : (el.text ?? "");
+  const value = el.field === "phone" && raw ? formatPhone(raw) : raw;
   const shown = value || (placeholder ? (el.type === "field" ? `{${el.field}}` : "Text") : "");
   if (!shown) return null;
   const multiline = el.type === "field" && el.field === "address";
-  // The name field is nowrap at a fixed size, so a long first name would run off
-  // the card — auto-fit it down past a 9-letter word, same rule the standard
-  // templates use.
-  const baseFs = el.fontSize ?? 12;
-  const fs = el.type === "field" && el.field === "name" ? fitName(baseFs, value, 16) : baseFs;
-  return (
-    <span
-      style={{
-        fontSize: fs,
-        color: el.color ?? layout.textColor,
-        fontWeight: el.bold ? 700 : 400,
-        fontStyle: el.italic ? "italic" : "normal",
-        whiteSpace: multiline ? "pre-line" : "nowrap",
-        lineHeight: multiline ? 1.35 : undefined,
-        display: multiline ? "block" : undefined,
-      }}
-    >
+  const longest = shown.split("\n").reduce((m, l) => Math.max(m, l.length), 0);
+  const Icon = el.icon && el.type === "field" ? FREE_CONTACT_ICON[el.field ?? ""] : undefined;
+  const base = el.fontSize ?? 12;
+  // The name also fits by its longest WORD, the rule every template uses.
+  const byWord = el.field === "name" ? fitName(base, value, 16) : base;
+  const fs = fitLine(byWord, longest, el, font, Icon ? 1.6 : 0);
+  const text = (
+    <span style={{ ...textStyle(fs), whiteSpace: multiline ? "pre-line" : "nowrap" }}>
       {shown}
     </span>
   );
+  if (!Icon) return text;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: fs * 0.5, color: layout.accentColor ?? ink }}>
+      <span style={{ width: fs * 1.05, height: fs * 1.05, display: "inline-flex", flexShrink: 0 }}><Icon /></span>
+      {text}
+    </span>
+  );
 }
+
+/** One element, placed. `data-el` is what the editor hit-tests. */
+function FreeElement({ el, data, layout, placeholder }: { el: CustomElement; data: CardData; layout: CustomLayout; placeholder: boolean }) {
+  const shift = el.align === "center" ? "-50%" : el.align === "right" ? "-100%" : "0";
+  const box: React.CSSProperties = el.type === "shape"
+    ? {
+        position: "absolute", left: `${el.x}%`, top: `${el.y}%`,
+        width: `${el.w ?? 20}%`,
+        ...(el.shape === "circle" ? { aspectRatio: "1 / 1" } : { height: `${el.h ?? 20}%` }),
+        transform: el.rotate ? `rotate(${el.rotate}deg)` : undefined,
+        opacity: el.opacity,
+      }
+    : {
+        position: "absolute", left: `${el.x}%`, top: `${el.y}%`,
+        // max-content, not shrink-to-fit: an absolutely placed box only gets
+        // the room between its left edge and the card's, so a photo anchored
+        // right (x near 100%) was squeezed into a sliver — and the base style
+        // (img max-width 100%) shrank the picture with it.
+        width: "max-content",
+        transform: shift === "0" ? undefined : `translateX(${shift})`,
+        lineHeight: 1.2,
+        opacity: el.opacity,
+        textAlign: el.align ?? "left",
+      };
+  return (
+    <div data-el={el.id} style={box}>
+      <CustomElementContent el={el} data={data} layout={layout} placeholder={placeholder} />
+    </div>
+  );
+}
+
+/**
+ * A free design, drawn. The shape comes from a padding spacer rather than
+ * aspect-ratio (see CustomBlockCard: an overflow-clipped box can collapse), and
+ * the elements paint in array order — later ones on top.
+ */
+export function FreeCard({ data, layout, placeholder = false }: { data: CardData; layout: CustomLayout; placeholder?: boolean }) {
+  return (
+    <div
+      className="sc-card"
+      style={{
+        position: "relative", width: "100%",
+        background: layout.background, fontFamily: layout.fontFamily, color: layout.textColor,
+        borderRadius: 16, overflow: "hidden",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10)",
+      }}
+    >
+      <div aria-hidden style={{ width: 0, paddingBottom: `${(100 / 1.75).toFixed(3)}%` }} />
+      {layout.elements.map((el) => (
+        <FreeElement key={el.id} el={el} data={data} layout={layout} placeholder={placeholder} />
+      ))}
+    </div>
+  );
+}
+
+/** Design height of the free card, in px — for the editor's drag maths. */
+export const FREE_CARD_H_PX = FREE_CARD_H;
 
 // ── Block rendering ─────────────────────────────────────────────────────────
 
@@ -722,37 +868,14 @@ export default function CustomCard({ data }: { data: CardData }) {
   if (face) return <FaceCard data={data} src={face} />;
   if (hasBlocks(raw as CustomLayout)) return <CustomBlockCard data={data} />;
 
-  // ── Legacy absolute layout ────────────────────────────────────────────────
-  // Through normalizeCustomLayout, exactly like the block renderer, rather than
-  // its own inline guard. The old guard only checked `Array.isArray(elements)
-  // && length`, so `elements: [null]` passed it and then threw on `el.x` —
-  // a 500 on the public card page, reachable by PATCH and through the office
-  // branding seed. Normalising also validates the style sinks (colours,
-  // gradients, font stack), which this path was reading straight from the blob.
+  // ── Free design (AI design, and the previous positioned designer) ─────
+  // Through normalizeCustomLayout, exactly like the block renderer: it validates
+  // every element and every style sink (colours, gradients, fonts) the blob can
+  // carry, and drops anything that isn't an object — `elements: [null]` once
+  // made this path throw on `el.x`, a 500 on the public card page.
   const norm = normalizeCustomLayout(raw);
   const layout = norm.elements?.length
     ? norm
     : { ...norm, elements: DEFAULT_CUSTOM_LAYOUT.elements };
-  return (
-    <div
-      className="sc-card"
-      style={{
-        position: "relative",
-        width: "100%",
-        aspectRatio: "1.75 / 1",
-        background: layout.background,
-        fontFamily: layout.fontFamily,
-        color: layout.textColor,
-        borderRadius: 16,
-        overflow: "hidden",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.10)",
-      }}
-    >
-      {layout.elements.map((el) => (
-        <div key={el.id} style={{ position: "absolute", left: `${el.x}%`, top: `${el.y}%` }}>
-          <CustomElementContent el={el} data={data} layout={layout} />
-        </div>
-      ))}
-    </div>
-  );
+  return <FreeCard data={data} layout={layout} />;
 }

@@ -332,22 +332,28 @@ describe("style panel: one numbered path, in build order", () => {
 });
 
 describe("a card from the previous custom designer", () => {
+  // Positioned elements are what the fine-tune editor edits (owner,
+  // 2026-09-23), so an old card no longer needs converting: it opens straight
+  // into the editor, exactly as saved, and changes only when its owner acts.
   it("is shown as saved and NOT rewritten on mount", async () => {
     const page = await mount("legacy");
     await page.waitForTimeout(400);
     expect(await page.evaluate(() => (window as unknown as { __calls: number }).__calls)).toBe(0);
-    expect(await page.textContent("body")).toContain("previous designer");
+    expect(await page.textContent("body")).toContain("Tap anything on the card");
+    expect(await page.locator(".sc-free-canvas [data-el='n']").count()).toBe(1);
     await page.context().close();
   });
 
-  it("converts only when its owner asks", async () => {
+  it("can be fine-tuned straight away, keeping its own colour and font", async () => {
     const page = await mount("legacy");
-    await page.click("button:has-text('Convert to edit')");
+    await page.locator(".sc-free-canvas [data-el='n']").click();
+    await page.click("button[aria-label='Bigger']");
     await page.waitForTimeout(200);
-    const last = await page.evaluate(() => (window as unknown as { __last: { blocks?: unknown[]; elements?: unknown[]; background?: string } }).__last);
-    expect(last.blocks?.length).toBeGreaterThan(0);
-    expect(last.elements).toEqual([]);
-    expect(last.background, "conversion kept the card's colour").toBe("#0e1b35");
+    const last = await page.evaluate(() => (window as unknown as { __last: { blocks?: unknown[]; elements?: { id: string; fontSize?: number }[]; background?: string; fontFamily?: string } }).__last);
+    expect(last.blocks).toBeUndefined();
+    expect(last.elements?.find((e) => e.id === "n")?.fontSize).toBeGreaterThan(22);
+    expect(last.background, "kept the card's colour").toBe("#0e1b35");
+    expect(last.fontFamily).toBe("Georgia, serif");
     await page.context().close();
   });
 });

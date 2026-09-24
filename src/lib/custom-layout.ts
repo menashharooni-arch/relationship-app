@@ -13,7 +13,7 @@
 // because nothing is positioned and no size is typed in.
 
 import type {
-  CardData, CardEmphasis, CardSkeleton, CardZone, CustomBlock, CustomElement, CustomLayout,
+  AiDesignBrief, CardData, CardEmphasis, CardSkeleton, CardZone, CustomBlock, CustomElement, CustomLayout,
 } from "@/components/card-templates/types";
 
 // ── Sizing ──────────────────────────────────────────────────────────────────
@@ -959,16 +959,82 @@ export function normalizeCustomLayout(raw: unknown): CustomLayout {
   // `Array.isArray([null]) && .length` was happily letting one through.
   const elements = Array.isArray(l.elements)
     ? l.elements
-        .filter((e) => e && typeof e === "object" && typeof e.id === "string" && typeof e.type === "string")
-        .map((e) => ({
-          ...e,
-          x: Number.isFinite(e.x) ? e.x : 0,
-          y: Number.isFinite(e.y) ? e.y : 0,
-          color: safeCssOpt(e.color),
-        }))
+        .filter((e) => e && typeof e === "object" && typeof e.id === "string" && typeof e.type === "string" && ELEMENT_TYPES.has(e.type))
+        .slice(0, MAX_FREE_ELEMENTS)
+        .map(safeElement)
     : [];
-  if (elements.length) return { ...fallback, ...l, ...style, blocks: undefined, elements };
+  if (elements.length) return { ...fallback, ...l, ...style, blocks: undefined, elements, ai: safeBrief(l.ai) };
   return { ...fallback, ...l, ...style, blocks: fallback.blocks, elements: [] };
+}
+
+// ── Free design elements ────────────────────────────────────────────────────
+// A free design (AI design + the fine-tune editor) is positioned elements, the
+// same shape the previous designer wrote, with more style on each. Every value
+// is clamped or whitelisted HERE, the one boundary both renderers pass through,
+// for the same reason as the colours above: the layout is owner-PATCHable JSON.
+const ELEMENT_TYPES = new Set(["field", "text", "logo", "headshot", "socials", "social", "qr", "divider", "shape"]);
+const FIELDS = new Set(["name", "title", "company", "phone", "email", "website", "address", "fax"]);
+const SOCIALS = new Set(["instagram", "linkedin", "twitter", "tiktok", "snapchat", "youtube", "facebook"]);
+/** Far more than any real card holds; a bound on what a PATCH can make every visitor render. */
+export const MAX_FREE_ELEMENTS = 40;
+
+const num = (v: unknown, min: number, max: number): number | undefined =>
+  typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : undefined;
+const oneOf = <T extends string>(v: unknown, allowed: readonly T[]): T | undefined =>
+  typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : undefined;
+
+function safeElement(e: CustomElement): CustomElement {
+  const out: CustomElement = {
+    id: e.id.slice(0, 40),
+    type: e.type,
+    // Positions stay on (or just off) the card: a design can bleed a shape past
+    // an edge on purpose, but nothing can be parked a screen away.
+    x: num(e.x, -60, 160) ?? 0,
+    y: num(e.y, -60, 160) ?? 0,
+  };
+  if (e.type === "field" && typeof e.field === "string" && FIELDS.has(e.field)) out.field = e.field;
+  if (e.type === "social" && typeof e.social === "string" && SOCIALS.has(e.social)) out.social = e.social;
+  if (e.type === "text" && typeof e.text === "string") out.text = e.text.slice(0, 120);
+  const fontSize = num(e.fontSize, 4, 90); if (fontSize !== undefined) out.fontSize = fontSize;
+  const size = num(e.size, 8, 300); if (size !== undefined) out.size = size;
+  const width = num(e.width, 4, 460); if (width !== undefined) out.width = width;
+  const color = safeCssOpt(e.color); if (color) out.color = color;
+  if (e.bold === true) out.bold = true;
+  if (e.italic === true) out.italic = true;
+  const align = oneOf(e.align, ["left", "center", "right"] as const); if (align) out.align = align;
+  if (typeof e.font === "string") { const f = safeFont(e.font, ""); if (f) out.font = f; }
+  const weight = num(e.weight, 300, 900); if (weight !== undefined) out.weight = Math.round(weight / 50) * 50;
+  if (e.upper === true) out.upper = true;
+  const tracking = num(e.tracking, -0.05, 0.5); if (tracking !== undefined) out.tracking = tracking;
+  if (e.icon === true) out.icon = true;
+  const frame = oneOf(e.frame, ["circle", "rounded", "square"] as const); if (frame) out.frame = frame;
+  const shape = oneOf(e.shape, ["rect", "circle"] as const); if (shape) out.shape = shape;
+  const w = num(e.w, 0.5, 250); if (w !== undefined) out.w = w;
+  const h = num(e.h, 0.5, 250); if (h !== undefined) out.h = h;
+  const fill = safeCssOpt(e.fill); if (fill) out.fill = fill;
+  const radius = num(e.radius, 0, 200); if (radius !== undefined) out.radius = radius;
+  const stroke = safeCssOpt(e.stroke); if (stroke) out.stroke = stroke;
+  const strokeWidth = num(e.strokeWidth, 0, 12); if (strokeWidth !== undefined) out.strokeWidth = strokeWidth;
+  const opacity = num(e.opacity, 0.05, 1); if (opacity !== undefined) out.opacity = opacity;
+  const rotate = num(e.rotate, -60, 60); if (rotate !== undefined) out.rotate = rotate;
+  return out;
+}
+
+/** The AI design brief. Only the designer reads it; still validated, like everything in the blob. */
+function safeBrief(v: unknown): AiDesignBrief | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const b = v as Partial<AiDesignBrief>;
+  if (typeof b.theme !== "string" || !/^[a-z-]{1,20}$/.test(b.theme)) return undefined;
+  const colors = Array.isArray(b.colors)
+    ? b.colors.filter((c): c is string => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c)).slice(0, 3)
+    : [];
+  return {
+    theme: b.theme,
+    colors,
+    headshot: b.headshot === true,
+    logo: b.logo === true,
+    variant: num(b.variant, 0, 10_000) ?? 0,
+  };
 }
 
 /** Does this block have anything to show for this card? Drives "hidden" hints. */
