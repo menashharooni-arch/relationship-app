@@ -5,6 +5,7 @@ import RateUsLink from "@/components/RateUsLink";
 import AppStoreBadge from "@/components/AppStoreBadge";
 import { useIsNativeApp } from "@/lib/platform";
 import { shouldShowRateUsBanner } from "@/lib/rate-us";
+import { appStoreReady } from "@/lib/app-store";
 
 // A small dismissible "Rate us" banner at the top of the dashboard, shown only
 // after a good moment (rules + why in lib/rate-us.ts). Dismissing OR clicking
@@ -15,7 +16,9 @@ import { shouldShowRateUsBanner } from "@/lib/rate-us";
 export default function RateUsBanner({ leadCount, viewCount, dismissedAt }: { leadCount: number; viewCount: number; dismissedAt: string | null }) {
   const native = useIsNativeApp();
   const [hidden, setHidden] = useState(false);
-  if (native || hidden || !shouldShowRateUsBanner({ leadCount, viewCount, dismissedAt })) return null;
+  // No App Store listing configured → RateUsLink and the badge both render
+  // nothing, and the banner asked for a review with only "Dismiss" to press.
+  if (native || hidden || !appStoreReady() || !shouldShowRateUsBanner({ leadCount, viewCount, dismissedAt })) return null;
 
   function hide() {
     setHidden(true);

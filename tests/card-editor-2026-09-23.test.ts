@@ -48,3 +48,17 @@ describe("Swift Links-only edits don't ask for a signature re-copy", () => {
     expect(c.hideCardLink).toBeUndefined();
   });
 });
+
+describe("a deleted card's address can't pull a stranger's card into someone's Wallet", () => {
+  it("card delete clears the Wallet registrations and fingerprint for its serial", () => {
+    const s = readFileSync("src/app/api/cards/[id]/route.ts", "utf8");
+    expect(s).toContain('admin.from("wallet_registrations").delete().eq("serial", username)');
+    expect(s).toContain('admin.from("wallet_passes").delete().eq("serial", username)');
+  });
+});
+
+describe("the rate-us banner never asks for a review it can't link to", () => {
+  it("hides without an App Store listing", () => {
+    expect(readFileSync("src/components/RateUsBanner.tsx", "utf8")).toContain("!appStoreReady()");
+  });
+});

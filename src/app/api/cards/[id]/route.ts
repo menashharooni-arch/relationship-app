@@ -488,6 +488,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     // table cleanup above. Best-effort — a missing object must not fail the delete.
     admin.storage.from("card-shares").remove([`${username}.png`]).then(() => {}, () => {}),
     admin.storage.from("card-signatures").remove([`${username}.png`]).then(() => {}, () => {}),
+    // Wallet passes are keyed by the card's address (serial = username). Left
+    // behind, a later card given the freed address would be pushed to every
+    // phone still holding this card's pass — a stranger's card in their
+    // Wallet. The deleted card's pass simply stops updating instead.
+    admin.from("wallet_registrations").delete().eq("serial", username).then(() => {}, () => {}),
+    admin.from("wallet_passes").delete().eq("serial", username).then(() => {}, () => {}),
   ]);
 
   const { error } = await admin
