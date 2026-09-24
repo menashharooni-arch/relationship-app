@@ -170,16 +170,17 @@ Turn them on in Settings, then open that account's card link (shown on its dashb
 
 ## Screenshots
 One 6.9-inch iPhone set at 1320 × 2868 px, ten frames. Newest is
-`app-store/screenshots/6.9-inch-v5` (2026-09-10; the whole phone in frame at
-real iPhone 16 Pro Max proportions, titanium rail, pop-outs moved to the side
-edges, status-bar colour sampled from the capture instead of typed). Each set's
-README explains the persona, the design choices and how to regenerate. Search
-results show the first three, so the story lands there: your card → they save
-you → every lead in your pocket.
+`app-store/screenshots/6.9-inch-v7` (2026-09-24: the v5 device frame — whole
+phone at real iPhone 16 Pro Max proportions, titanium rail, side-edge pop-outs,
+sampled status-bar colour — over a fresh capture of the warm editorial card and
+linen links page, taken after Hot/Warm scoring, "Copy personal link" and the
+per-contact alert switch left the app). Search results show the first three,
+so the story lands there: your card → they save you → every lead in your pocket.
 
-**What is actually on the listing:** the live 1.0.1 shows **v2**; the pending
-1.0.2 holds **v4**. **v5 has never been uploaded.** Never replace a staged set
-without Menash's explicit go.
+**What is actually on the listing:** the live 1.0.2 shows **v4**; the pending
+1.0.3 holds **v7** (uploaded 2026-09-24, replacing v6 which showed the removed
+UI). v3, v5 and v6 were never live. Never replace a staged set without Menash's
+explicit go.
 
 The pipeline is three steps, and only the last one touches Apple:
 
@@ -188,20 +189,17 @@ The pipeline is three steps, and only the last one touches Apple:
    `SUPABASE_SERVICE_ROLE_KEY` and `NEXT_PUBLIC_SUPABASE_URL` in `.env.local`;
    it creates a throwaway account, seeds it, and deletes every row in a
    `finally`. Without the service-role key it cannot run at all.
-2. `node scripts/appstore-compose-v5.mjs` → `6.9-inch-v5` (`ONLY=01,06` for a
-   subset). Re-check the typed pop-out values against the new captures — they
-   are listed in that set's README.
+2. `OUT=app-store/screenshots/6.9-inch-v<N> node scripts/appstore-compose-v5.mjs`
+   (`ONLY=01,06` for a subset). Re-check the typed pop-out values in frames 06
+   and 07 against the new `_raw/dashboard*.png` — the seed draws fresh numbers
+   every run, and they are typed into the script.
 3. `node scripts/asc-upload-screenshots.mjs <dir>` targeting the pending
    version's localization id; it deletes and recreates the set so the listing
    mirrors the directory exactly.
 
-⚠️ OPEN: `appstore-capture.mjs` was retuned on 2026-09-22 (`92a8c3cc`) to shoot
-a lighter card and links page — the Sea Glass preset, teal accent, white info
-panel — because the owner said the frames were too dark and didn't look
-designed. **It has not been re-run.** `_raw` is still the 2026-09-09 capture, so
-v5 and every earlier set still show the old dark card, and no set on disk shows
-the design that script now produces. A listing refresh means steps 1–3 in order,
-on a machine that has the service-role key.
+`_raw` is the 2026-09-24 capture (warm editorial card, linen links page); v7 is
+composed from it. A listing refresh means steps 1–3 in order, on a machine that
+has the service-role key.
 
 ## Version
 - 1.0.3, build 13. "What's New": `A new launch screen, and notifications now
