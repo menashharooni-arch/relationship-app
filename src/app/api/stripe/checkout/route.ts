@@ -7,6 +7,8 @@ import { getAccountEmail } from "@/lib/account-email";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_LIMITS, PLAN_PRICES, TRIAL_DAYS, isPaidPlan } from "@/lib/plan";
 import { checkPromoForPurchase } from "@/lib/promo-check";
+import { recordServerEvent } from "@/lib/server-events";
+import { PLAN_CHOSEN_KEY } from "@/lib/welcome-email";
 import { priceIdForPlan, type BillingInterval } from "@/lib/subscription";
 import { officeSubUserBlockMessage } from "@/lib/office-roles";
 import { isProTrialEligible } from "@/lib/trial-eligibility";
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("email, username, plan, stripe_customer_id, stripe_subscription_id")
+      .select("email, username, plan, stripe_customer_id, stripe_subscription_id, customization")
       .eq("id", user.id)
       .single();
 
@@ -361,6 +363,16 @@ export async function POST(req: NextRequest) {
       // (2026-09-16 website audit).
       idempotencyKey: `checkout:${user.id}:${priceId}:${quantity}:${createHash("sha256").update(JSON.stringify([successPath, trialDays ?? 0, couponId ?? "", promotionCodeId ?? "", promoRedemptionId ?? ""])).digest("hex").slice(0, 16)}:${Math.floor(Date.now() / 60000)}`,
     });
+
+    // "Picked a plan" in the admin funnel, for a new account whose first
+    // choice is paid (the Free choice is counted in /api/account/choose-plan).
+    // Only while no plan has been settled for the account. The plan-chosen
+    // marker is written after payment, so someone who opens Stripe, backs out
+    // and opens it again is counted twice — rare, and on the generous side of
+    // a step that read 0 before.
+    if (!(profile.customization as Record<string, unknown> | null)?.[PLAN_CHOSEN_KEY]) {
+      await recordServerEvent("plan_selected", { plan: planKey }, { path: "/checkout", email: user.email });
+    }
 
     return NextResponse.json({ url: session.url });
   } catch (err) {

@@ -7,6 +7,7 @@ import { PLAN_CHOSEN_KEY, sendWelcomeWhenCardLive } from "@/lib/welcome-email";
 import { revalidateCardPage, revalidateUserCards } from "@/lib/card-page-data";
 import { PRO_ENDED_PENDING_KEY } from "@/lib/billing-state";
 import { referralGiftPending, startReferralGift } from "@/lib/referral-server";
+import { recordServerEvent } from "@/lib/server-events";
 
 // ── "I'll stay on Free" — the moment the plan becomes real ───────────────────
 //
@@ -94,6 +95,12 @@ export async function POST(req: Request) {
     if (!next[PLAN_CHOSEN_KEY]) next[PLAN_CHOSEN_KEY] = alreadyPaid ? profile.plan : "free";
     delete next[PRO_ENDED_PENDING_KEY];
     await admin.from("profiles").update({ customization: next }).eq("id", user.id);
+    // The admin funnel's "Picked a plan" step — counted here, once per
+    // account, when a new account's first choice is Free. (It was never
+    // recorded anywhere, so the step read 0 however many people chose.)
+    if (!cust[PLAN_CHOSEN_KEY] && !alreadyPaid) {
+      after(() => recordServerEvent("plan_selected", { plan: "free" }, { path: "/welcome", email: user.email }));
+    }
   }
 
   // The card that stays live. Validated as theirs — an id that is not one of

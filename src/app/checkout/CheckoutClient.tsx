@@ -362,7 +362,7 @@ export default function CheckoutClient({ trialEligible = true }: { trialEligible
               <div className="flex items-start justify-between gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-3.5 py-2.5">
                 <div className="min-w-0">
                   <p className="text-green-300 text-xs font-semibold">✓ {promo.code} — {promo.label}</p>
-                  {promo.detail && <p className="text-green-200/80 text-[0.6875rem] mt-0.5">{/^[A-Z]/.test(promo.detail) ? promo.detail : `Off ${promo.detail}.`}</p>}
+                  {promo.detail && <p className="text-emerald-200 text-[0.6875rem] mt-0.5">{/^[A-Z]/.test(promo.detail) ? promo.detail : `Off ${promo.detail}.`}</p>}
                 </div>
                 <button type="button" onClick={removePromo} className="shrink-0 text-[0.6875rem] text-gray-400 hover:text-white underline">Remove</button>
               </div>

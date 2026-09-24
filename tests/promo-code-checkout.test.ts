@@ -105,6 +105,14 @@ describe("wiring", () => {
     expect(s).toContain("Continue without the code");
     expect(s).toMatch(/<form\s+method="post"/); // no input can ever reach a URL before hydration
   });
+  it("the admin funnel's 'Picked a plan' step is recorded — Free choice and first paid checkout", () => {
+    const choose = read("src/app/api/account/choose-plan/route.ts");
+    expect(choose).toContain('recordServerEvent("plan_selected", { plan: "free" }');
+    const checkout = read("src/app/api/stripe/checkout/route.ts");
+    expect(checkout).toContain('await recordServerEvent("plan_selected", { plan: planKey }');
+    // Our own traffic is labelled internal, like the browser sink.
+    expect(read("src/lib/server-events.ts")).toContain("isTestMailbox(email)");
+  });
   it("the check route spends nothing", () => {
     const s = read("src/app/api/promo/check/route.ts");
     expect(s).not.toMatch(/\.insert\(|\.update\(/);
