@@ -36,7 +36,7 @@ type Props = {
   ogUrl: string;
 };
 
-import { signatureContentSig } from "@/lib/signature-content";
+import { legacySignatureContentSigV12, signatureContentSig } from "@/lib/signature-content";
 import { escapeHtml } from "@/lib/escape";
 
 async function fetchAsDataUrl(url: string): Promise<string | null> {
@@ -294,12 +294,23 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     setMounted(true);
     // Prompt to re-copy only if they've copied at least once AND the card has
     // changed since — a fresh account with no prior copy shows no nag.
+    // A mark stored under the v12 hash (which still counted socials) that
+    // matches the card as it is now means nothing changed — carry it over, so
+    // the hash format change itself never asks anyone to re-copy or re-capture.
+    const carry = (key: string): string => {
+      const stored = localStorage.getItem(key) || "";
+      if (stored && stored.startsWith("v12|") && stored === legacySignatureContentSigV12(cardData, template, cardUrl)) {
+        localStorage.setItem(key, contentSig);
+        return contentSig;
+      }
+      return stored;
+    };
     try {
-      const copied = localStorage.getItem(copiedKey) || "";
+      const copied = carry(copiedKey);
       setChangedSinceCopy(!!copied && copied !== contentSig);
     } catch { /* ignore */ }
     let prev = "";
-    try { prev = localStorage.getItem(hashKey) || ""; } catch { /* ignore */ }
+    try { prev = carry(hashKey); } catch { /* ignore */ }
     if (prev !== contentSig) {
       // The capture is seconds of main-thread work on a phone (three passes on
       // WebKit), and it used to start 500ms in — exactly while the page was

@@ -195,3 +195,50 @@ describe("signatureContentChanged ignores what the signature can't show", () => 
     }
   });
 });
+
+// ── Owner's rule (2026-09-24): "Update your signature" is for the CARD and
+// CARD DESIGN only — never Socials or Social design. The signature is a copy of
+// the card, and a standard template never draws socials.
+describe("socials and social design never ask for a signature re-copy", () => {
+  const before = {
+    name: "Dana", template: "classic-pro", instagram: "@old", linkedin: "",
+    customization: { accentColor: "#111", facebook: "", youtube: "", snapchat: "", linkLook: "paper" },
+  };
+
+  it("a Socials-tab edit on a standard template is NOT a signature change", () => {
+    expect(signatureContentChanged(before, { instagram: "@new", linkedin: "linkedin.com/in/dana" })).toBe(false);
+    expect(signatureContentChanged(before, {
+      customization: { ...before.customization, facebook: "fb.com/dana", youtube: "@dana", snapchat: "dana" },
+    })).toBe(false);
+  });
+
+  it("a Social design edit is NOT a signature change", () => {
+    expect(signatureContentChanged(before, {
+      customization: { ...before.customization, linkLook: "aura", linkButtonStyle: "outline", hideCardLink: true },
+    })).toBe(false);
+  });
+
+  it("socials + a card change together IS a signature change", () => {
+    expect(signatureContentChanged(before, { instagram: "@new", title: "Broker" })).toBe(true);
+    expect(signatureContentChanged(before, {
+      customization: { ...before.customization, facebook: "fb.com/dana", accentColor: "#f00" },
+    })).toBe(true);
+  });
+
+  it("a Custom card that DRAWS socials does count them — they are on the card", () => {
+    const layout = { background: "#000", textColor: "#fff", fontFamily: "inter", elements: [], blocks: [
+      { id: "s", type: "socials", on: true, zone: "left", emphasis: "normal" },
+    ] };
+    const custom = { ...before, template: "custom", customization: { ...before.customization, customLayout: layout } };
+    expect(signatureContentChanged(custom, { instagram: "@new" })).toBe(true);
+  });
+
+  it("a Custom card whose socials block is OFF does not", () => {
+    const layout = { background: "#000", textColor: "#fff", fontFamily: "inter", elements: [], blocks: [
+      { id: "n", type: "field", field: "name", on: true, zone: "left", emphasis: "hero" },
+      { id: "s", type: "socials", on: false, zone: "left", emphasis: "normal" },
+    ] };
+    const custom = { ...before, template: "custom", customization: { ...before.customization, customLayout: layout } };
+    expect(signatureContentChanged(custom, { instagram: "@new" })).toBe(false);
+  });
+});

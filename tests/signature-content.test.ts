@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { signatureContentSig, cardImageData } from "../src/lib/signature-content";
+import { signatureContentSig, cardImageData, legacySignatureContentSigV12 } from "../src/lib/signature-content";
 import type { CardData } from "../src/components/card-templates/types";
 
 // The owner's rule (2026-08-18): the "you've changed your card design — re-copy
@@ -68,5 +68,23 @@ describe("signature content hash ignores Swift Links page edits", () => {
     expect(c.links).toBeUndefined();
     expect(c.linkLook).toBeUndefined();
     expect(c.accentColor).toBe("#1D4ED8");
+  });
+});
+
+describe("the dashboard's re-copy prompt ignores socials the card doesn't draw", () => {
+  it("a socials edit on a standard template does not move the hash", () => {
+    const edited = {
+      ...base, instagram: "@sam", linkedin: "linkedin.com/in/sam",
+      customization: { ...base.customization, facebook: "fb.com/sam", youtube: "@sam" },
+    } as CardData;
+    expect(sig(edited)).toBe(sig(base));
+  });
+
+  it("the v12 carry-over hash is the old formula (socials counted)", () => {
+    const edited = { ...base, instagram: "@sam" } as CardData;
+    const url = "https://swiftcard.me/card/sam";
+    expect(legacySignatureContentSigV12(edited, "classic-pro", url)).not.toBe(legacySignatureContentSigV12(base, "classic-pro", url));
+    expect(legacySignatureContentSigV12(base, "classic-pro", url)).toMatch(/^v12\|/);
+    expect(sig(base)).toMatch(/^v13\|/);
   });
 });

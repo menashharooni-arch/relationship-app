@@ -15,7 +15,7 @@
 // is how they drift apart, and the drift is invisible: the wrong answer is a
 // notification, not an error.
 
-import { isLinksPageOnlyKey } from "./signature-content";
+import { SOCIAL_KEYS, cardShowsSocials, isLinksPageOnlyKey } from "./signature-content";
 
 /** Fields rendered ON the card. `label` is an internal name and is NOT one. */
 export const ON_CARD_SCALARS = [
@@ -75,13 +75,15 @@ export function cardContentChanged(
  * your card, re-copy your signature" (owner bug report 2026-08-25: the nudge
  * fired for edits the signature doesn't show).
  */
-function stripSignatureIrrelevant(cust: unknown): unknown {
+function stripSignatureIrrelevant(cust: unknown, keepSocials: boolean): unknown {
   if (!cust || typeof cust !== "object" || Array.isArray(cust)) return cust;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(cust as Record<string, unknown>)) {
     // Swift Links page keys (links, bio, every link* style, hideCardLink) —
     // the same rule the signature capture uses, so they can't disagree.
     if (k.startsWith("_") || isLinksPageOnlyKey(k)) continue;
+    // Socials kept in customization (facebook, snapchat, youtube).
+    if (!keepSocials && (SOCIAL_KEYS as readonly string[]).includes(k)) continue;
     out[k] = v;
   }
   return out;
@@ -89,24 +91,34 @@ function stripSignatureIrrelevant(cust: unknown): unknown {
 
 /**
  * Like cardContentChanged, but answering the SIGNATURE's question: did
- * anything the signature/card visual actually shows change? Same scalar
- * comparison; the customization diff ignores `links` and `_`-internal keys.
- * Use this to gate the signature_stale notification (and the signature PNG
- * invalidation). Wallet passes and the share-preview capture DO show links,
- * so they keep the full cardContentChanged.
+ * anything the signature/card visual actually shows change? The owner's rule
+ * (2026-09-24): "Update your signature" is for the card and card design only —
+ * never Socials or Social design. So the customization diff ignores `links`,
+ * every Swift Links page key and `_`-internal keys, and social handles count
+ * only on a card that actually draws them (cardShowsSocials — a Custom card
+ * with a socials block). Use this to gate the signature_stale notification
+ * (and the signature PNG invalidation). Wallet passes and the share-preview
+ * capture DO show links, so they keep the full cardContentChanged.
  */
 export function signatureContentChanged(
   before: Record<string, unknown>,
   updates: Record<string, unknown>,
   scalars: readonly string[] = ON_CARD_SCALARS,
 ): boolean {
+  const pick = (k: string) => (k in updates ? updates[k] : before[k]);
+  // Before OR after: a card that drew socials and no longer does changed its
+  // layout, which the customization diff below reports on its own.
+  const keepSocials =
+    cardShowsSocials(pick("template"), pick("customization")) ||
+    cardShowsSocials(before.template, before.customization);
   for (const k of scalars) {
+    if (!keepSocials && (SOCIAL_KEYS as readonly string[]).includes(k)) continue;
     if (k in updates && String(updates[k] ?? "") !== String(before[k] ?? "")) return true;
   }
   if ("customization" in updates) {
     return (
-      JSON.stringify(canonicalize(stripSignatureIrrelevant(updates.customization ?? {}))) !==
-      JSON.stringify(canonicalize(stripSignatureIrrelevant(before.customization ?? {})))
+      JSON.stringify(canonicalize(stripSignatureIrrelevant(updates.customization ?? {}, keepSocials))) !==
+      JSON.stringify(canonicalize(stripSignatureIrrelevant(before.customization ?? {}, keepSocials)))
     );
   }
   return false;
