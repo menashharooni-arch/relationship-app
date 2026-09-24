@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveDownloadUserId } from "@/lib/download-auth";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { buildVCard } from "@/lib/vcard";
+import { fetchVCardPhoto, resolveLeadImageUrl } from "@/lib/contact-photo";
 import { isPaidPlan, LOCKED_LEAD_TAG } from "@/lib/plan";
 
 export async function GET(req: NextRequest) {
@@ -41,10 +42,17 @@ export async function GET(req: NextRequest) {
 
   if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // The contact's picture (owner order 2026-09-24): a lead has no photo field,
+  // so lib/contact-photo looks one up — their own SwiftCard's headshot or logo
+  // when the email they shared is on a live card, else their company's logo
+  // from a business email domain. Best-effort: nothing found → no PHOTO, and
+  // the contact still saves exactly as before.
+  const image = await resolveLeadImageUrl(admin, lead);
+  const photo = image ? await fetchVCardPhoto(image.url, image.kind) : null;
+
   // Shared builder handles RFC 6350 escaping — these fields are VISITOR-supplied,
   // so a name with an embedded newline or ";" could otherwise inject arbitrary
-  // vCard fields into the contact saved on the owner's phone. A captured lead has
-  // no headshot, so PHOTO is simply omitted.
+  // vCard fields into the contact saved on the owner's phone.
   const vcard = buildVCard({
     name: lead.name,
     company: lead.company,
@@ -57,7 +65,7 @@ export async function GET(req: NextRequest) {
     note: [lead.where_met ? `Met at: ${lead.where_met}` : "", lead.notes ?? ""]
       .filter(Boolean)
       .join(" — "),
-  });
+  }, photo);
 
   const slug = lead.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 

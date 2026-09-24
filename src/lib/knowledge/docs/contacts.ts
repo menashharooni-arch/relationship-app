@@ -57,7 +57,7 @@ export const contactsDocs = defineDocs([
     id: "contact-detail",
     title: "What's inside a contact",
     answer:
-      "Open a contact and you get Call, Share and \"Save to phone\" buttons, then two tabs: \"Conversation\" (a read-only timeline of their activity and every message sent to them) and \"Contact info / Presets\" (their details, Notes, \"Where did you meet?\", and the follow-up automations).",
+      "Open a contact and you get Call, Share and \"Save to phone\" buttons, then two tabs: \"Conversation\" (a read-only timeline of their activity and every message sent to them) and \"Contact info / Presets\" (their details, Notes, \"Where did you meet?\", and the follow-up automations). \"Save to phone\" adds them to your address book with a picture when one can be found: if the email they shared is on their own SwiftCard, it is their headshot (or their card's logo); if it is a company email address, it is that company's logo. A personal address like Gmail or iCloud saves without a picture.",
     audience: ["user"],
     triggers: [
       "conversation", "message", "they sent", "what they wrote", "their message",

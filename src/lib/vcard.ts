@@ -67,6 +67,26 @@ export interface VCardPhoto {
   mime?: string | null;
 }
 
+export type ContactImageKind = "headshot" | "logo";
+
+/**
+ * Which picture a saved contact carries: the person's headshot first, their
+ * company logo when there is no headshot (owner order 2026-09-24 — a contact
+ * exchanged through SwiftCard always lands in the phone with a face or a
+ * logo). Pure and client-safe; the server-side lookup for a captured lead
+ * lives in lib/contact-photo.ts.
+ */
+export function pickContactImage(
+  headshotUrl: string | null | undefined,
+  logoUrl: string | null | undefined,
+): { url: string; kind: ContactImageKind } | null {
+  const h = (headshotUrl ?? "").trim();
+  if (h) return { url: h, kind: "headshot" };
+  const l = (logoUrl ?? "").trim();
+  if (l) return { url: l, kind: "logo" };
+  return null;
+}
+
 // vCard escaping (RFC 6350): a ";", "," or "\" in a value would otherwise shift
 // field boundaries and corrupt (or, for visitor-supplied values, inject into)
 // the saved contact. Newlines are collapsed so they can't add fake fields.

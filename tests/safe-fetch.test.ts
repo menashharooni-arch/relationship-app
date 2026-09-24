@@ -61,14 +61,28 @@ describe("isZapierWebhookUrl", () => {
 // fetch(), which let any card owner point an unauthenticated public endpoint at
 // cloud metadata or an internal address. Flagged by security review 2026-07-31.
 describe("SSRF: user-controlled URLs go through safeFetch", () => {
-  const routes = ["src/app/api/card/[username]/vcard/route.ts"];
+  // The fetch itself moved into lib/contact-photo (fetchVCardPhoto), shared by
+  // the card vCard and the lead vCard since 2026-09-24. Both routes must reach
+  // it only through that helper; the helper itself must use safeFetch.
+  const fetchers = ["src/lib/contact-photo.ts"];
+  const routes = [
+    "src/app/api/card/[username]/vcard/route.ts",
+    "src/app/api/leads/vcard/route.ts",
+  ];
+  const strip = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
-  it.each(routes)("%s uses safeFetch, never bare fetch", (rel) => {
-    const src = readFileSync(join(process.cwd(), rel), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  it.each(fetchers)("%s uses safeFetch, never bare fetch", (rel) => {
+    const src = strip(rel);
     expect(src).toMatch(/safeFetch\(/);
     // `await fetch(` with no safe- prefix is the pattern that was vulnerable.
+    expect(src).not.toMatch(/[^e]\bfetch\(/);
+  });
+
+  it.each(routes)("%s fetches pictures only through fetchVCardPhoto", (rel) => {
+    const src = strip(rel);
+    expect(src).toMatch(/fetchVCardPhoto\(/);
     expect(src).not.toMatch(/[^e]\bfetch\(/);
   });
 });

@@ -40,7 +40,7 @@ export const productDocs = defineDocs([
       "without an app", "app required", "does the other person need",
     ],
     answer:
-      "No app is needed on either side. Your card is a link — share it by QR, text, Apple Wallet, or an NFC card, and it opens in the other person's browser. They save your contact to their phone in one tap.",
+      "No app is needed on either side. Your card is a link — share it by QR, text, Apple Wallet, or an NFC card, and it opens in the other person's browser. They save your contact to their phone in one tap — and the saved contact carries your headshot as its picture, or your company logo if the card has no headshot, so you show up in their address book with a face, not a grey initial.",
     detail:
       "On the public card page a visitor gets, in this order down the page: the card itself at the top; an optional \"What people say\" block of testimonials you've added; a one-tap save-to-contacts (a .vcf download); your Swift Links block (your bio, social icons and extra link buttons, with a \"View Swift Link page →\" chip); a \"Share your info\" form that sends their name, email and phone straight into your contacts; and a share sheet for passing your card on. There is a SwiftCard iOS app, but it is for card OWNERS to manage their own cards — nobody needs it to receive a card.",
   },

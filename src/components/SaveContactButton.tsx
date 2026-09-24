@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith, hasSavedContact, markSavedContact } from "@/lib/visitor";
 import { triggerSignupNudge, triggerSignupNudgeWhenVisible } from "@/lib/nudge";
-import { buildVCard, type VCardPhoto } from "@/lib/vcard";
+import { buildVCard, pickContactImage, type VCardPhoto } from "@/lib/vcard";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
 import { MiniQR } from "@/components/card-templates/MiniQR";
 import MadeWithSwiftCard from "@/components/MadeWithSwiftCard";
@@ -26,6 +26,8 @@ interface Person {
   tiktok?: string;
   /** THIS card owner's headshot — embedded in the saved contact when present. */
   photoUrl?: string | null;
+  /** The card's company logo — embedded instead when there is no headshot. */
+  logoUrl?: string | null;
 }
 
 // Fetch the card owner's headshot and base64-encode it for embedding. Routed
@@ -190,9 +192,11 @@ export default function SaveContactButton({
     // Escaping + field ordering live in the shared buildVCard (src/lib/vcard.ts),
     // used by the server lead export too so contacts save identically everywhere.
 
-    // Embed THIS card owner's headshot when they have one. Best-effort — a failed
-    // fetch just omits the photo and the contact still saves.
-    const photo = person.photoUrl ? await fetchHeadshotPhoto(person.photoUrl) : null;
+    // Embed THIS card owner's headshot, or the card's logo when they have no
+    // headshot (owner order 2026-09-24). Best-effort — a failed fetch just
+    // omits the picture and the contact still saves.
+    const image = pickContactImage(person.photoUrl, person.logoUrl);
+    const photo = image ? await fetchHeadshotPhoto(image.url) : null;
 
     const vcard = buildVCard(
       {

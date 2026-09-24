@@ -289,6 +289,8 @@ export default async function CardPage({
     // Embed the CORRECT owner's headshot in the saved contact (same per-card
     // resolution the card render uses — never another card's/user's photo).
     photoUrl: cardData.photoUrl,
+    // …and the card's logo as the fallback picture when there is no headshot.
+    logoUrl: cardData.logoUrl,
   };
 
   // The custom designer is Pro-only — a downgraded card falls back to the

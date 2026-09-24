@@ -1,46 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { isCardActive } from "@/lib/card-active";
-import { buildVCard, type VCardPhone, type VCardPhoto } from "@/lib/vcard";
+import { buildVCard, pickContactImage, type VCardPhone } from "@/lib/vcard";
 import { cardHeadshot } from "@/lib/card-media";
-import { safeFetch } from "@/lib/safe-fetch";
+import { fetchVCardPhoto } from "@/lib/contact-photo";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
-
-/**
- * Fetch the card's headshot and base64-encode it for embedding.
- *
- * Server-side twin of the client's fetchHeadshotPhoto: the QR path never runs
- * that browser code, so without this a scanned contact saved with no photo
- * while the same card saved from a phone got one. Best-effort by design — a
- * slow or oversized image omits PHOTO rather than failing the whole save.
- */
-// photo_url is an owner-controlled field and this endpoint is PUBLIC and
-// unauthenticated, so a plain fetch() here is a server-side request to any
-// address the owner cares to name — cloud metadata, an internal Supabase port,
-// anything on the deployment's network. safeFetch is the repo's existing guard:
-// it rejects non-http(s) schemes, localhost/.internal names, literal private
-// IPs, and pins the transport to a validating DNS lookup so a rebinding host
-// cannot slip a private address past the pre-check at connect time. It also
-// re-validates every redirect hop. Never swap this back to bare fetch().
-async function fetchPhoto(url: string): Promise<VCardPhoto | null> {
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 4000);
-    const res = await safeFetch(url, { signal: ctrl.signal });
-    clearTimeout(timer);
-    if (!res.ok) return null;
-    const type = res.headers.get("content-type") || "";
-    if (!type.startsWith("image/")) return null;
-    const buf = await res.arrayBuffer();
-    // Same ~700KB ceiling the client uses — past that iOS/Android start
-    // refusing the .vcf outright, which would break the save entirely.
-    if (buf.byteLength > 700_000) return null;
-    return { base64: Buffer.from(buf).toString("base64"), mime: type.split(";")[0] };
-  } catch {
-    return null;
-  }
-}
 
 // Public vCard for a card, served with a `text/vcard` content type.
 //
@@ -92,7 +57,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
   } else if (!photoUrl && !cardRow) {
     photoUrl = (str(c.photo_url) ?? null) as string | null;
   }
-  const photo = photoUrl ? await fetchPhoto(photoUrl) : null;
+  // Headshot first, the card's logo when there is none (owner order
+  // 2026-09-24: a contact exchanged through SwiftCard always carries a face or
+  // a logo). fetchVCardPhoto is the SSRF-guarded, resized fetch shared with the
+  // lead export — the QR path never runs the browser's fetch, so without it a
+  // scanned contact saved with no picture while the same card saved from a
+  // phone got one.
+  const image = pickContactImage(photoUrl, str(c.logo_url));
+  const photo = image ? await fetchVCardPhoto(image.url, image.kind) : null;
 
   const vcard = buildVCard(
     {
