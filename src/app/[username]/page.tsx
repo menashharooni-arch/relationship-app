@@ -380,36 +380,17 @@ export default async function CardPage({
       )}
       {!isEmbed && !isOwnerView && <SignupNudgeHost cardUsername={profile.username} />}
 
-      {/* Business card — socials live in Swift Links, not on the card */}
-      {/* -mb-3.5 eats 14px of the page's gap-5 BELOW the hint, leaving 6px
-          (owner, 2026-09-20: "there has to be minimal space between [the
-          hint] and Save user's contact"). 10px above, 6px below — measured
-          EDGE to EDGE, and the white Save box carries its own p-5 inside, so
-          a visually even split needs the smaller number underneath. The
-          page keeps its gap-5 between every other section. */}
-      <div className="w-full max-w-sm sc-card-settle -mb-3.5">
+      {/* Business card — socials live in Swift Links, not on the card.
+          The one-line "swipe down" hint that sat under it, and the tightened
+          gap it needed, were removed (owner, 2026-09-24):
+          the card and "Save …'s contact" are spaced by the page's gap-5 like
+          every other section. */}
+      <div className="w-full max-w-sm sc-card-settle">
         <CardTilt>
           <CardScaler>
             <TemplateComponent data={templateId === "custom" ? cardData : withoutSocials(cardData)} />
           </CardScaler>
         </CardTilt>
-        {/* One light line telling a visitor the card is not the whole page
-            (owner, 2026-09-20). Deliberately quiet: the card is the thing to
-            look at, this is a nudge — small, normal weight, muted, and inside
-            the card's own block so it costs one line of text rather than
-            another row of the page's gap-5.
-            "Swipe" on a touchscreen, "Scroll" with a mouse (globals.css);
-            both are rendered and CSS picks one, so it is right on a phone, a
-            laptop and an iPad with a keyboard without any JavaScript. */}
-        <p className="mt-2.5 text-center text-[0.6875rem] leading-snug text-slate-400">
-          <span className="sc-hint-swipe">Swipe</span>
-          <span className="sc-hint-scroll">Scroll</span>
-          {/* A card with no socials and no links has no socials to promise —
-              the rest of the page is still there, so the line points at what
-              is actually below. The page speaks about the owner in the third
-              person everywhere else ("Save Aaron's contact"), and so does this. */}
-          {hasConnectSection ? " down to view socials and more" : ` down to save ${firstName}'s contact`}
-        </p>
       </div>
 
       <div className="w-full max-w-sm flex flex-col gap-5 items-center sc-page-rise">
