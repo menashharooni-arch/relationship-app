@@ -12,7 +12,6 @@ import GrowLinkButton from "@/components/GrowLinkButton";
 import SettingsLinkButton from "@/components/SettingsLinkButton";
 import { isPaidPlan, LOCKED_LEAD_TAG, PLAN_LIMITS } from "@/lib/plan";
 import { redactPlaceLabel } from "@/lib/location-privacy";
-import { loadIntent } from "@/lib/intent-load";
 import UpgradeButton from "@/components/UpgradeButton";
 import { canViewOfficeAdmin, getOfficeSubUserContext } from "@/lib/office-roles";
 import Link from "next/link";
@@ -152,23 +151,6 @@ export default async function ContactsPage({
   // single highest-intent upsell moment there is: these are real people who
   // already asked to be contacted.
   const lockedCount = paid ? 0 : (rawLeads ?? []).length - (leads ?? []).length;
-
-  // ── Who to follow up with first (lib/intent-score.ts) ───────────────────
-  // Computed here, at read time, for the contacts this page is showing. Scores
-  // are Pro: a Pro account gets each contact's tier and reason; a Free account
-  // gets only HOW MANY are warming up — never which ones, never why — and the
-  // page says so without a word about Pro (the location-blur rule).
-  const intentMap = await loadIntent(
-    admin,
-    (leads ?? []).map((l) => ({ id: l.id as string, created_at: l.created_at as string })),
-  );
-  const intents: Record<string, { tier: string; reason: string | null; lastEngagedAt: string | null }> = {};
-  let warmingCount = 0;
-  for (const [id, r] of intentMap) {
-    if (r.tier === "cold") continue;
-    warmingCount++;
-    if (paid) intents[id] = { tier: r.tier, reason: r.reason, lastEngagedAt: r.lastEngagedAt };
-  }
 
   // showOfficeAdmin resolved in the batch above — the same gate the
   // /office/admin page itself applies, kept for the app-shell "Admin" item.
@@ -359,8 +341,6 @@ export default async function ContactsPage({
           // for a Free account (it pauses the sequence and says so); without
           // this the panel still let them build one that would never go out.
           isPro={paid}
-          intents={intents}
-          warmingCount={paid ? 0 : warmingCount}
           initialCardFilter={selectedCardParam ?? null}
           initialSelectedId={selectedLeadParam ?? null}
           userCards={cardList.map((c) => ({ username: c.username, name: c.label || c.name || c.username }))}

@@ -26,7 +26,6 @@ let profile: Row = {};
 let catchupMarks: Row[] = [];
 let notifications: Row[] = [];
 let leads: Row[] = [];
-let hotLeadIds = new Set<string>();
 const inserted: Row[] = [];
 const pushes: Row[] = [];
 
@@ -72,11 +71,6 @@ vi.mock("@/lib/push", () => ({
   sendPushToUser: async (userId: string, payload: Row) => { pushes.push({ userId, ...payload }); },
 }));
 
-// "Only Hot contacts": the tier comes from lib/intent-load, played from here.
-vi.mock("@/lib/intent-load", () => ({
-  loadIntent: async (_admin: unknown, rows: { id: string }[]) =>
-    new Map(rows.map((r) => [r.id, { tier: hotLeadIds.has(r.id) ? "hot" : "cold" }])),
-}));
 
 import { GET } from "@/app/api/push/catchup/route";
 import { QUIET_END_HOUR, QUIET_WINDOW_MS, quietWindowStart } from "@/lib/push-policy";
@@ -103,7 +97,6 @@ beforeEach(() => {
     { type: "new_lead", title: "New contact: Dana Whitfield", body: "Dana Whitfield shared their info with you.", card_owner: "dana-card", created_at: "2026-09-11T02:40:00.000Z" },
   ];
   leads = [];
-  hotLeadIds = new Set();
   inserted.length = 0;
   pushes.length = 0;
 });
@@ -112,7 +105,7 @@ afterEach(() => { vi.useRealTimers(); });
 
 // ── The contacts the owner silenced stay silent in the morning too ──────────
 //
-// Muting a contact, closing them, or "Only Hot contacts" all hold the alert
+// Muting a contact or closing them holds the alert
 // from the phone by stripping its push category at produce time. The bell row
 // carries no trace of that, and the catch-up is built from bell rows — so
 // until 2026-09-23 the morning announced exactly the contact the owner had
@@ -131,20 +124,6 @@ describe("a silenced contact is not announced at 8am", () => {
       await run();
       expect(pushes).toHaveLength(0);
     }
-  });
-
-  it("under 'Only Hot contacts', a contact who isn't Hot — while a Hot one still comes", async () => {
-    profile = { plan: "pro", customization: { _push: { timezone: "America/New_York", returningHotOnly: true } } };
-    notifications = [returned("L1")];
-    leads = [{ id: "L1", status: "new", created_at: "2026-09-01T00:00:00.000Z" }];
-    await run();
-    expect(pushes).toHaveLength(0);
-
-    catchupMarks = [];
-    hotLeadIds = new Set(["L1"]);
-    await run();
-    expect(pushes).toHaveLength(1);
-    expect(pushes[0]).toMatchObject({ category: "contact_return", title: "Priya re-opened your card" });
   });
 
   it("an ordinary contact is announced as before, and the rest of the night with them", async () => {

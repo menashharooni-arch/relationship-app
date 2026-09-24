@@ -7,7 +7,6 @@ import {
   localHour, quietWindowStart, readPushPrefs, QUIET_END_HOUR, type PushCategory,
 } from "@/lib/push-policy";
 import { contactMayPush } from "@/lib/contact-return-notify";
-import { loadIntent } from "@/lib/intent-load";
 
 // ── The morning after quiet hours ────────────────────────────────────────────
 //
@@ -187,9 +186,9 @@ export async function GET(req: NextRequest) {
           Boolean(x.category) && prefs[x.category] !== false);
 
       // ── The contacts the owner silenced ─────────────────────────────────
-      // A contact marked Not interested / Closed, or — under "Only Hot
-      // contacts" — one who isn't Hot, is held from the phone at produce time
-      // by stripping the push category (card-events, contact-return-notify).
+      // A contact marked Not interested / Closed is held from the phone at
+      // produce time by stripping the push category (card-events,
+      // contact-return-notify).
       // The bell row carries no trace of that, so read back naively this
       // morning would announce exactly the contact they silenced. Same rules,
       // re-applied. A read failure keeps the old behaviour rather than
@@ -198,16 +197,12 @@ export async function GET(req: NextRequest) {
       if (contactRows.length) {
         try {
           const ids = [...new Set(contactRows.map((x) => String(x.row.lead_id)))];
-          const { data: leads } = await admin.from("leads").select("id, status, created_at").in("id", ids);
+          const { data: leads } = await admin.from("leads").select("id, status").in("id", ids);
           const byId = new Map((leads ?? []).map((l) => [l.id as string, l]));
-          const intent = prefs.returningHotOnly
-            ? await loadIntent(admin, (leads ?? []).map((l) => ({ id: l.id as string, created_at: String(l.created_at) })), now)
-            : null;
           const allowed = (leadId: string): boolean => {
             const l = byId.get(leadId);
             if (!l) return true;
             if (!contactMayPush({ status: l.status as string | null })) return false;
-            if (intent && intent.get(leadId)?.tier !== "hot") return false;
             return true;
           };
           held = held.filter((x) => x.category !== "contact_return" || !x.row.lead_id || allowed(String(x.row.lead_id)));

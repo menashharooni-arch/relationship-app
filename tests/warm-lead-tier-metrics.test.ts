@@ -1,48 +1,42 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readPushPrefs } from "@/lib/push-policy";
 import { contactReturnNotice } from "@/lib/contact-return-notify";
 import type { KnownContact } from "@/lib/known-contact";
 import { warmLeadMetrics } from "@/lib/warm-lead-metrics";
 
-// Warm-lead plan PR C4: the tier in the alert, "Only Hot contacts", and the
-// admin scorecard.
+// Warm-lead plan PR C4 shipped a Hot / Warm tier, "Only Hot contacts" and
+// the admin scorecard. The owner removed Hot / Warm everywhere (2026-09-24:
+// "It doesn't connect to anything"); the scorecard — whether returning-contact
+// alerts name the right person — stays.
 
 const priya: KnownContact = {
   kind: "known", leadId: "p", name: "Priya Shah", cardOwner: "dana", confidence: "form",
   capturedAt: "2026-09-10T15:00:00Z", status: null, tags: [], whereMet: "RE/MAX Summit",
 };
 
-describe("the tier in the alert", () => {
-  it("leads a Pro lock screen when the contact is Hot", () => {
-    const n = contactReturnNotice({ contact: priya, eventType: "viewed_card", surface: "card", visitsThisWeek: 3, paid: true, tier: "hot" })!;
-    expect(n.pushBody).toBe("Hot · Met at RE/MAX Summit · 3rd visit this week");
+describe("no Hot / Warm anywhere", () => {
+  it("a returning contact's alert carries no tier", () => {
+    const n = contactReturnNotice({ contact: priya, eventType: "viewed_card", surface: "card", visitsThisWeek: 3, paid: true })!;
+    expect(n.pushBody).toBe("Met at RE/MAX Summit · 3rd visit this week");
+    expect(contactReturnNotice({ contact: priya, eventType: "viewed_card", surface: "card", visitsThisWeek: 3, paid: false })!.pushBody).toBe("Open SwiftCard to see who");
   });
 
-  it("is never on a Free lock screen", () => {
-    const n = contactReturnNotice({ contact: priya, eventType: "viewed_card", surface: "card", visitsThisWeek: 3, paid: false, tier: "hot" })!;
-    expect(n.pushBody).toBe("Open SwiftCard to see who");
-  });
-});
-
-describe("Only Hot contacts", () => {
-  it("is off unless switched on", () => {
-    expect(readPushPrefs({}).returningHotOnly).toBe(false);
-    expect(readPushPrefs({ _push: { returningHotOnly: true } }).returningHotOnly).toBe(true);
-  });
-
-  it("holds a returning contact who isn't Hot to the bell", () => {
-    const route = readFileSync(join(process.cwd(), "src/app/api/card-events/route.ts"), "utf8");
-    expect(route).toMatch(/readPushPrefs\(owner\.customization\)\.returningHotOnly &&\s*\n\s*intent\?\.tier !== "hot"/);
-    expect(route).toMatch(/returnNotice = \{ \.\.\.returnNotice, pushCategory: undefined \};/);
-  });
-
-  it("is saved by the preferences route and shown only while Returning contacts is on", () => {
-    expect(readFileSync(join(process.cwd(), "src/app/api/push/preferences/route.ts"), "utf8"))
-      .toMatch(/if \(typeof body\.returningHotOnly === "boolean"\) push\.returningHotOnly = body\.returningHotOnly;/);
-    expect(readFileSync(join(process.cwd(), "src/components/PushPreferencesForm.tsx"), "utf8"))
-      .toMatch(/\{prefs\.contact_return !== false && \(/);
+  it("the scoring, its badges, filters, sort, lists and the 'Only Hot contacts' switch are gone", () => {
+    for (const f of ["src/lib/intent-score.ts", "src/lib/intent-load.ts", "src/components/FollowUpFirst.tsx", "src/app/office/admin/leads/TeamFollowUp.tsx"]) {
+      expect(existsSync(join(process.cwd(), f)), f).toBe(false);
+    }
+    const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
+    const contacts = read("src/components/ContactsClient.tsx");
+    expect(contacts).not.toMatch(/IntentBadge|tierFilter|warmingCount|Follow Up First|"Hot"|"Warm"/);
+    expect(read("src/app/contacts/page.tsx")).not.toMatch(/loadIntent|warmingCount/);
+    expect(read("src/app/dashboard/page.tsx")).not.toMatch(/FollowUpFirst|loadIntent/);
+    expect(read("src/components/PushPreferencesForm.tsx")).not.toContain("Only Hot contacts");
+    expect(readPushPrefs({ _push: { returningHotOnly: true } })).not.toHaveProperty("returningHotOnly");
+    for (const f of ["src/app/api/card-events/route.ts", "src/app/api/push/catchup/route.ts", "src/app/api/push/preferences/route.ts"]) {
+      expect(read(f), f).not.toMatch(/returningHotOnly|loadIntent/);
+    }
   });
 });
 

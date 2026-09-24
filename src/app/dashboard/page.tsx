@@ -64,9 +64,6 @@ import { isProTrialEligible } from "@/lib/trial-eligibility";
 import { trialHistoryFor } from "@/lib/trial-ledger";
 import EventTagChip from "@/components/EventTagChip";
 import { activeEvent } from "@/lib/event-tag";
-import FollowUpFirst, { type FollowUpItem } from "@/components/FollowUpFirst";
-import { loadIntent } from "@/lib/intent-load";
-import { compareIntent, type IntentResult } from "@/lib/intent-score";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -683,24 +680,6 @@ export default async function DashboardPage({
   const realLeadCount = visibleLeads.filter((l) => !(Array.isArray(l.tags) && l.tags.includes("demo"))).length;
   const lockedCount = isPro ? 0 : allLeads.length - visibleLeads.length;
 
-  // "Follow up first" (lib/intent-score.ts), for this card's visible contacts.
-  // Pro gets up to five named, ordered, with reasons; Free gets a count only.
-  const intentMap = await loadIntent(
-    getAdminSupabase(),
-    visibleLeads.map((l) => ({ id: l.id as string, created_at: l.created_at as string })),
-  );
-  const warming = visibleLeads
-    .map((l) => ({ lead: l, intent: intentMap.get(l.id as string) }))
-    .filter((x): x is { lead: typeof x.lead; intent: IntentResult } => !!x.intent && x.intent.tier !== "cold")
-    .sort((a, b) => compareIntent(a.intent, b.intent));
-  const followUpItems: FollowUpItem[] = isPro
-    ? warming.slice(0, 5).map(({ lead, intent }) => ({
-        id: lead.id as string,
-        name: (lead.name as string) || "",
-        tier: intent.tier as "hot" | "warm",
-        reason: intent.reason,
-      }))
-    : [];
   const monthlyLeadsUsed = readUsage(profile.customization).leads;
 
 
@@ -1289,7 +1268,6 @@ export default async function DashboardPage({
                   </div>
                 </div>
 
-                <FollowUpFirst items={followUpItems} warmingCount={isPro ? 0 : warming.length} card={activeUsername} />
 
                 {/* View toggle — Notifications / Contacts. Filtering, the pipeline,
                     and status management live on the full Contacts page. */}

@@ -55,11 +55,9 @@ describe("the 8am catch-up honours the contacts the owner silenced", () => {
     expect(read("src/lib/contact-return-notify.ts")).toMatch(/const mayPush = contactMayPush\(contact\);/);
   });
 
-  it("re-reads the contact behind a held return alert and applies closed status and Only Hot", () => {
+  it("re-reads the contact behind a held return alert and applies closed status", () => {
     expect(route).toMatch(/\.select\("type, title, body, card_owner, created_at, lead_id"\)/);
     expect(route).toMatch(/if \(!contactMayPush\(\{ status: l\.status as string \| null \}\)\) return false;/);
-    expect(route).toMatch(/const intent = prefs\.returningHotOnly\s*\n\s*\? await loadIntent\(/);
-    expect(route).toMatch(/if \(intent && intent\.get\(leadId\)\?\.tier !== "hot"\) return false;/);
     // Only return alerts are re-checked; a lead or a view is untouched.
     expect(route).toMatch(/held = held\.filter\(\(x\) => x\.category !== "contact_return" \|\| !x\.row\.lead_id \|\| allowed\(String\(x\.row\.lead_id\)\)\);/);
   });

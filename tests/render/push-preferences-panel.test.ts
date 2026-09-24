@@ -36,10 +36,10 @@ describe("the notification preferences panel", () => {
       try {
         const switches = await page.$$('[role="switch"]');
         // Seven live categories (Returning contacts joined in the warm-lead
-        // work; Weekly recap 2026-09-22), "Only Hot contacts" under it while it
-        // is on, and quiet hours. "Team alerts" is admins-only and this panel
-        // is not an admin's, so it must NOT be here.
-        expect(switches.length).toBe(9);
+        // work; Weekly recap 2026-09-22) and quiet hours ("Only Hot contacts"
+        // went with Hot / Warm, 2026-09-24). "Team alerts" is admins-only and
+        // this panel is not an admin's, so it must NOT be here.
+        expect(switches.length).toBe(8);
         expect(await page.$('[role="switch"][aria-label="Team alerts"]')).toBeNull();
 
         const viewport = width;

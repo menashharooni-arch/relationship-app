@@ -15,7 +15,7 @@ import {
 // a feature that does not exist. Saves on toggle, because a "Save" button on a
 // panel of switches is a step people skip and then wonder why nothing changed.
 
-type Prefs = Record<PushCategory, boolean> & { quietHours?: boolean; returningHotOnly?: boolean };
+type Prefs = Record<PushCategory, boolean> & { quietHours?: boolean };
 
 // billingAlerts: whether "Billing problems" means anything to this person. A
 // team member's plan is paid by their company — there is no payment of theirs
@@ -79,18 +79,6 @@ export default function PushPreferencesForm({ billingAlerts = true }: { billingA
           onChange={(v) => set(cat, v)}
         />
       ))}
-
-      {prefs.contact_return !== false && (
-        <Toggle
-          label="Only Hot contacts"
-          // lib/intent-score.ts: Hot = back several times, or tapped a booking
-          // link, in the last few days.
-          description="Returning contacts who aren't Hot show up in the app instead of on your phone."
-          checked={prefs.returningHotOnly === true}
-          disabled={!loaded}
-          onChange={(v) => set("returningHotOnly", v)}
-        />
-      )}
 
       <div className="pt-1" style={{ borderTop: "1px solid #F1EBE3" }} />
 

@@ -80,8 +80,6 @@ export function contactReturnNotice(input: {
   /** Distinct visits by this contact in the last 7 days, this one included. */
   visitsThisWeek: number;
   paid: boolean;
-  /** lib/intent-score.ts, including this visit. "hot" leads the Pro lock screen. */
-  tier?: "hot" | "warm" | "cold" | null;
 }): ContactReturnNotice | null {
   const { contact, eventType, surface, visitsThisWeek, paid } = input;
   const full = contact.name || "Your contact";
@@ -106,7 +104,6 @@ export function contactReturnNotice(input: {
 
   if (eventType === "viewed_card") {
     const lock = [
-      input.tier === "hot" ? "Hot" : null,
       context ? context[0].toUpperCase() + context.slice(1) : null,
       visits,
     ].filter(Boolean).join(" · ");

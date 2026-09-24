@@ -1,8 +1,6 @@
 import { getAdminSupabase } from "@/lib/supabase-admin";
 import { getOfficeUserIds } from "@/lib/office-cards";
 import { followUpState, type FollowUpState, type FollowUpStep } from "@/lib/lead-followup";
-import { loadIntent } from "@/lib/intent-load";
-import { compareIntent, INTENT } from "@/lib/intent-score";
 
 // ── Org-wide leads, with attribution that survives member removal ───────────
 // Leads are keyed by card slug, and a removed member's slugs drop out of the
@@ -209,62 +207,3 @@ export {
   LEAD_STATUS_OPTIONS,
 } from "@/lib/lead-status";
 export type { LeadStatusLabel, LeadStatusView, LeadStatusValue } from "@/lib/lead-status";
-
-// ── The team's "Follow up first" (warm-lead plan PR C5, owner decision D6) ──
-//
-// The office admin sees which of the TEAM's contacts are Hot or Warm right
-// now, and which member they belong to. Found from the activity side, not by
-// scoring every lead the office has ever captured: only a contact with
-// lead_id-stamped activity in the Warm window can be warm at all
-// (lib/intent-score.ts), so that activity names the candidates and only they
-// are scored. Scoped by the same team slug map as the Leads table.
-export type OfficeFollowUp = {
-  id: string;
-  name: string;
-  capturedBy: string;
-  tier: "hot" | "warm";
-  reason: string | null;
-};
-
-const TEAM_FOLLOW_UP_LIMIT = 10;
-const TEAM_CANDIDATE_CAP = 500;
-
-export async function getOfficeFollowUp(officeId: string): Promise<OfficeFollowUp[]> {
-  const admin = getAdminSupabase();
-  const bySlug = await officeSlugMap(officeId);
-  const slugs = Array.from(bySlug.keys());
-  if (!slugs.length) return [];
-
-  const since = new Date(Date.now() - INTENT.warm.maxDaysSinceLast * 24 * 60 * 60 * 1000).toISOString();
-  const viewKeys = [...slugs, ...slugs.map((s) => `${s}__links`)];
-  const [views, events] = await Promise.all([
-    admin.from("card_views").select("lead_id").in("username", viewKeys).not("lead_id", "is", null).gte("viewed_at", since).limit(5000),
-    admin.from("card_events").select("lead_id").in("card_owner_username", slugs).not("lead_id", "is", null).gte("created_at", since).limit(5000),
-  ]);
-  if (views.error && events.error) return [];
-  const candidateIds = [...new Set([...(views.data ?? []), ...(events.data ?? [])].map((r) => r.lead_id as string))]
-    .slice(0, TEAM_CANDIDATE_CAP);
-  if (!candidateIds.length) return [];
-
-  const { data: leads } = await admin
-    .from("leads")
-    .select("id, name, created_at, card_owner")
-    .in("id", candidateIds)
-    .in("card_owner", slugs)
-    .not("tags", "cs", "{demo}");
-  const rows = leads ?? [];
-  const intents = await loadIntent(admin, rows.map((l) => ({ id: l.id as string, created_at: l.created_at as string })));
-
-  return rows
-    .map((l) => ({ lead: l, intent: intents.get(l.id as string) }))
-    .filter((x) => x.intent && x.intent.tier !== "cold")
-    .sort((a, b) => compareIntent(a.intent!, b.intent!))
-    .slice(0, TEAM_FOLLOW_UP_LIMIT)
-    .map(({ lead, intent }) => ({
-      id: lead.id as string,
-      name: (lead.name as string) || "Unnamed contact",
-      capturedBy: bySlug.get(lead.card_owner as string) ?? "Team member",
-      tier: intent!.tier as "hot" | "warm",
-      reason: intent!.reason,
-    }));
-}

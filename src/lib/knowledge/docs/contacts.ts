@@ -13,7 +13,7 @@ export const contactsDocs = defineDocs([
       "who saved my card", "view contacts", "contact list", "find a contact", "search contacts",
     ],
     answer:
-      "\"Contacts\" in the top nav (or the Contacts tab in the mobile bottom bar) opens /contacts. It lists everyone captured by the card you currently have selected, with a search box that matches name, email, phone and company, and a sort dropdown offering Alphabetical, Recently Added, Follow-up Date, and (on Pro) Follow Up First.",
+      "\"Contacts\" in the top nav (or the Contacts tab in the mobile bottom bar) opens /contacts. It lists everyone captured by the card you currently have selected, with a search box that matches name, email, phone and company, and a sort dropdown offering Alphabetical, Recently Added, and Follow-up Date.",
     detail:
       "Contacts are per card and there is deliberately no \"All cards\" option on this page — the grey line above the search box tells you which card you're looking at. To see another card's contacts, switch the selected card on the dashboard. A brand-new card comes with one seeded sample contact, \"Jordan Rivera\", so the screens aren't empty; it is not a real person and deleting it is safe.",
   },
@@ -106,19 +106,6 @@ export const contactsDocs = defineDocs([
       "When someone you already have as a contact opens your card again, the notification names them (\"Priya re-opened your card\") and tapping it opens their contact. There is no per-contact switch for this any more: to stop a contact's phone alerts, mark them Not interested or Closed. Their visits still show in the bell and in their history. To stop returning-contact alerts for everyone, use the Returning contacts switch in Settings → Notifications and preferences.",
     detail:
       "SwiftCard only recognises someone who shared their details with you from that phone or computer, or who opened a text or email SwiftCard sent them for you. If a named notification was about the wrong person, tap \"Wrong person?\" on it in the dashboard's Notifications list, then Confirm: that device is no longer tied to the contact, those visits come off their history, and the notification is removed. If two different people have shared their details from the same device (a shared iPad, say), SwiftCard names neither of them. Contacts marked Not interested or Closed never set off a phone alert. On the Free plan the name is blurred and the alert says \"A contact re-opened your card\"; where you met them still shows, but tapping the alert opens the Notifications list rather than the contact, and there is no \"Wrong person?\" on it.",
-  },
-  {
-    id: "hot-warm-contacts",
-    title: "Hot and Warm contacts",
-    audience: ["user"],
-    triggers: [
-      "hot", "warm", "cold", "hot contact", "warm contact", "follow up first", "intent",
-      "score", "who should i follow up with", "warming up",
-    ],
-    answer:
-      "On Pro, contacts who have come back to your card recently get a red \"Hot\" or amber \"Warm\" badge in the Contacts list and on their contact, with a short reason underneath, such as \"viewed 3× this week, tapped Calendly\". Choose \"Follow Up First\" in the sort dropdown to put them at the top, or tap the Hot / Warm chips under it to show only those.",
-    detail:
-      "The badge comes from what the contact actually did in the last 30 days: coming back to your card, tapping your links (a booking or listing link counts for more), downloading your contact card again, and replying to your messages. Recent activity counts for more than older activity, and Hot also needs something in the last three days. The visit where they first shared their details doesn't count; a contact is only Warm once they come back. Contacts with nothing recent have no badge at all. It only counts visits SwiftCard knows were them (they shared from that device, or opened a text or email SwiftCard sent them for you), and never counts a visit you marked \"Wrong person?\". On the Free plan the list says how many contacts are warming up, without naming them. The old \"Recent Activity\" sort is now called \"Follow-up Date\", which is what it always sorted by.",
   },
   {
     id: "follow-up-automations",

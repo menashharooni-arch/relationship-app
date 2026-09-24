@@ -108,7 +108,7 @@ describe("the sample contact is never a team lead", () => {
   // lead counting 2 so the first-lead alert never fired.
   const files: [string, number][] = [
     ["src/lib/office-analytics.ts", 3],
-    ["src/lib/office-leads.ts", 2],
+    ["src/lib/office-leads.ts", 1],
     ["src/lib/office-team.ts", 2],
     ["src/lib/team-alerts.ts", 1],
     ["src/app/api/push/recap/route.ts", 4],
