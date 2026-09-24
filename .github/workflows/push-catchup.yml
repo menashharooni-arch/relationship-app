@@ -69,3 +69,21 @@ jobs:
           cat "$body"
           echo
           [ "$code" = "200" ]
+
+      # Same schedule, same secret: accounts due for permanent deletion. An
+      # account the owner asked to remove completely (_deletion.purgeNow) goes
+      # within the hour instead of waiting for the daily run; everything else
+      # still waits out its 30-day reopen window (api/account/purge-due).
+      - name: Permanent deletions that are due
+        if: always()
+        env:
+          SECRET: ${{ secrets.PUSH_CATCHUP_SECRET }}
+        run: |
+          body=$(mktemp)
+          code=$(curl -sS --max-time 90 -o "$body" -w "%{http_code}" \
+            -H "Authorization: Bearer $SECRET" \
+            https://swiftcard.me/api/account/purge-due)
+          echo "HTTP $code"
+          cat "$body"
+          echo
+          [ "$code" = "200" ]

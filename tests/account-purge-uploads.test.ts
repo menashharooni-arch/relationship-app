@@ -104,7 +104,8 @@ describe("purgeUserData clears the card-uploads bucket", () => {
     // Storage cleanup is best-effort and must never block the actual deletion.
     const { client, removed } = fakeAdmin({ "card-uploads": [] });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await expect(purgeUserData(client as any, USER)).resolves.toBeUndefined();
+    // true = purged (it now reports whether it did; see the billing guard).
+    await expect(purgeUserData(client as any, USER)).resolves.toBe(true);
     expect(removed.filter((r) => r.bucket === "card-uploads" && r.paths.length)).toHaveLength(0);
   });
 });

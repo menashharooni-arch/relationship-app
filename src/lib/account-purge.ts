@@ -12,14 +12,20 @@ import { memberFallbackPlan } from "@/lib/office-brand";
 // / delete dialog ("after that it's gone for good … removed from our production
 // systems") is actually true — and so Apple's §5.1.1(v) requirement (account
 // deletion must delete the account + associated data, not just deactivate) is
-// met. Called by the daily cron (api/reminders).
+// met. Called by the daily cron (api/reminders) and hourly by api/account/purge-due.
+//
+// PURGE NOW. An account the owner has been asked to remove completely — no
+// reopen window, the address free to sign up again at once — carries
+// `_deletion.purgeNow: true`, and is purged on the next hourly run instead of
+// after 30 days (owner, 2026-09-24).
 
 export const PURGE_GRACE_DAYS = 30; // must match GRACE_DAYS in api/account/reopen
 
 // Pure predicate: is a soft-deleted account past its reopen window and due for
 // permanent deletion? A missing/blank timestamp (legacy soft-delete) counts as
 // due so nothing can linger un-purged forever. Extracted for unit testing.
-export function isPurgeDue(deletionAtIso: string | null | undefined, nowMs: number): boolean {
+export function isPurgeDue(deletionAtIso: string | null | undefined, nowMs: number, purgeNow = false): boolean {
+  if (purgeNow) return true;
   const at = deletionAtIso ? new Date(deletionAtIso).getTime() : 0;
   if (!at || Number.isNaN(at)) return true;
   return nowMs - at >= PURGE_GRACE_DAYS * 24 * 60 * 60 * 1000;
@@ -41,7 +47,28 @@ type Admin = ReturnType<typeof getAdminSupabase>;
 // Purge one user's data across every table, then the profile row and the auth
 // user. Ordered children-first so nothing is orphaned. Idempotent — re-running
 // on an already-mostly-purged user is harmless.
-export async function purgeUserData(admin: Admin, userId: string): Promise<void> {
+//
+// BILLING STOPS FIRST. The purge used to erase the profile — and with it the
+// only record of a Stripe subscription — without cancelling it, and the daily
+// retry (reconcileDeletedSubscriptions) ran AFTER the purge, so an account whose
+// cancellation had failed at delete time was removed while its card kept being
+// charged. Now a live subscription is cancelled before anything is deleted; if
+// Stripe can't be reached the account is left exactly as it is and retried on
+// the next run. Returns whether the account was purged.
+export async function purgeUserData(admin: Admin, userId: string): Promise<boolean> {
+  const { data: billing } = await admin.from("profiles").select("stripe_subscription_id").eq("id", userId).maybeSingle();
+  const subId = (billing?.stripe_subscription_id as string | null) ?? null;
+  if (subId) {
+    const result = await stopSubscription(subId);
+    if (result === "failed") {
+      await reportError("billing.purge-blocked-still-billing", new Error(
+        `Subscription ${subId} for account ${userId} could not be cancelled — the account was NOT purged and will be retried.`,
+      )).catch(() => {});
+      return false;
+    }
+    await safeDelete(() => admin.from("profiles").update({ stripe_subscription_id: null }).eq("id", userId));
+  }
+
   // Card usernames own the lead/view/event data (keyed by slug, not user_id).
   const { data: cards } = await admin.from("cards").select("username").eq("user_id", userId);
   // …and the PROFILE handle: manual contacts and legacy profile-card captures
@@ -115,6 +142,10 @@ export async function purgeUserData(admin: Admin, userId: string): Promise<void>
   // (analytics_events is slug-keyed and handled above — it has no user_id column.)
   await safeDelete(() => admin.from("promo_code_redemptions").delete().eq("user_id", userId));
   await safeDelete(() => admin.from("referrals").delete().eq("referrer_id", userId));
+  // Neither has a foreign key to the account, so deleting the auth user left
+  // them behind: which invite code it used, and the audit trail naming it.
+  await safeDelete(() => admin.from("signup_invite_uses").delete().eq("user_id", userId));
+  await safeDelete(() => admin.from("audit_logs").delete().or(`actor_id.eq.${userId},target_id.eq.${userId}`));
 
   // Stored card IMAGES live in PUBLIC storage buckets keyed by card slug, so
   // deleting the rows above does not remove them: without this, a purged
@@ -160,6 +191,7 @@ export async function purgeUserData(admin: Admin, userId: string): Promise<void>
   await safeDelete(() => admin.from("cards").delete().eq("user_id", userId));
   await safeDelete(() => admin.from("profiles").delete().eq("id", userId));
   await safeDelete(() => admin.auth.admin.deleteUser(userId));
+  return true;
 }
 
 // Find every account whose soft-delete grace window has elapsed and purge it.
@@ -177,10 +209,9 @@ export async function purgeExpiredDeletedAccounts(): Promise<number> {
   const nowMs = Date.now();
   let purged = 0;
   for (const row of candidates ?? []) {
-    const cust = (row.customization ?? {}) as { _deletion?: { at?: string } };
-    if (!isPurgeDue(cust._deletion?.at, nowMs)) continue;
-    await purgeUserData(admin, row.id as string);
-    purged++;
+    const cust = (row.customization ?? {}) as { _deletion?: { at?: string; purgeNow?: boolean } };
+    if (!isPurgeDue(cust._deletion?.at, nowMs, cust._deletion?.purgeNow === true)) continue;
+    if (await purgeUserData(admin, row.id as string)) purged++;
   }
   return purged;
 }

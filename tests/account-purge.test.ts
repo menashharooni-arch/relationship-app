@@ -31,3 +31,41 @@ describe("isPurgeDue — permanent-deletion gate", () => {
     expect(isPurgeDue(new Date(now).toISOString(), now)).toBe(false);
   });
 });
+
+// ── Owner-requested complete deletion (2026-09-24) ──────────────────────────
+import { readFileSync as read_ } from "node:fs";
+import { join as join_ } from "node:path";
+
+describe("purge now: no reopen window, and billing never outlives the account", () => {
+  const src = read_(join_(process.cwd(), "src/lib/account-purge.ts"), "utf8").replace(/\r\n/g, "\n");
+
+  it("an account flagged purgeNow is due at once, whatever its date", () => {
+    const now = Date.now();
+    expect(isPurgeDue(new Date(now).toISOString(), now, true)).toBe(true);
+    expect(isPurgeDue(new Date(now).toISOString(), now, false)).toBe(false);
+    expect(src).toContain("isPurgeDue(cust._deletion?.at, nowMs, cust._deletion?.purgeNow === true)");
+  });
+
+  it("a live subscription is cancelled BEFORE anything is deleted, and a failed cancel stops the purge", () => {
+    const body = src.slice(src.indexOf("export async function purgeUserData"));
+    const stop = body.indexOf("await stopSubscription(subId)");
+    const firstDelete = body.indexOf(".delete()");
+    expect(stop).toBeGreaterThan(-1);
+    expect(stop).toBeLessThan(firstDelete);
+    expect(body).toMatch(/if \(result === "failed"\) \{[\s\S]{0,300}return false;/);
+    expect(src).toContain("if (await purgeUserData(admin, row.id as string)) purged++;");
+  });
+
+  it("the tables with no foreign key to the account are cleared too", () => {
+    expect(src).toContain('admin.from("signup_invite_uses").delete().eq("user_id", userId)');
+    expect(src).toContain('admin.from("audit_logs").delete().or(`actor_id.eq.${userId},target_id.eq.${userId}`)');
+  });
+
+  it("runs hourly from the GitHub schedule, behind the cron secret", () => {
+    const route = read_(join_(process.cwd(), "src/app/api/account/purge-due/route.ts"), "utf8");
+    expect(route).toContain("accepted.length > 0 && !!auth && accepted.includes(auth)");
+    expect(route).toContain("await purgeExpiredDeletedAccounts()");
+    const wf = read_(join_(process.cwd(), ".github/workflows/push-catchup.yml"), "utf8");
+    expect(wf).toContain("https://swiftcard.me/api/account/purge-due");
+  });
+});
