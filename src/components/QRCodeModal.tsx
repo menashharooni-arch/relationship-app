@@ -33,7 +33,7 @@ export default function QRCodeModal({ url, firstName }: { url: string; firstName
           position:fixed and cage the overlay to their own box otherwise. */}
       {open && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-6"
           style={{ background: "rgba(0,0,0,0.85)" }}
           onClick={() => setOpen(false)}
         >
@@ -78,8 +78,9 @@ export default function QRCodeModal({ url, firstName }: { url: string; firstName
             </p>
           </div>
 
-          {/* Tap to close hint */}
-          <p className="absolute bottom-8 text-slate-500 text-xs">Tap outside to close</p>
+          {/* Tap to close hint — under the card, never pinned to the screen
+              bottom where a tab bar or the home indicator sits. */}
+          <p className="mt-4 text-slate-500 text-xs">Tap outside to close</p>
         </div>,
         document.body
       )}

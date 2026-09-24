@@ -56,7 +56,7 @@ export default function ScanToConnectButton({ url }: { url: string }) {
           role="dialog"
           aria-modal="true"
           aria-label="Scan to connect"
-          className="fixed inset-0 z-[10001] flex items-center justify-center p-6"
+          className="fixed inset-0 z-[10001] flex flex-col items-center justify-center p-6"
           style={{ background: "rgba(0,0,0,0.8)" }}
           onClick={(e) => e.target === e.currentTarget && setOpen(false)}
         >
@@ -74,7 +74,9 @@ export default function ScanToConnectButton({ url }: { url: string }) {
                 here repeating it. */}
             <QRCard url={url} />
           </div>
-          <p className="absolute bottom-8 text-gray-500 text-xs">Tap outside to close</p>
+          {/* Under the card, not pinned to the screen bottom: there it sat on
+              the app's tab bar, printed across its labels. */}
+          <p className="mt-4 text-gray-500 text-xs">Tap outside to close</p>
         </div>,
         document.body,
       )}

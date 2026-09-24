@@ -43,6 +43,7 @@ import { socialUrl, socialDestination, normalizeSocial } from "@/lib/social-url"
 import { SOCIAL_INPUTS, socialHint } from "@/lib/social-input";
 import LinkPreviewThumb from "@/components/LinkPreviewThumb";
 import CardUrlEditor from "@/components/CardUrlEditor";
+import { unitLine } from "@/lib/address-unit";
 
 
 type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
@@ -422,7 +423,7 @@ export default function CardEditForm({ card, photoUrl, logoUrl: initialLogoUrl, 
     logoUrl: liveLogoUrl,
     cardUrl: `swiftcard.me/${card.username}`,
     address: [
-      [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
+      [address.street, unitLine(address.unit)].filter(Boolean).join(", "),
       address.city,
       [address.state, address.zip].filter(Boolean).join(" "),
     ].filter(Boolean).join("\n"),

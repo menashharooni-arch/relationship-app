@@ -199,7 +199,7 @@ export default function AddContactModal({
                     type="email"
                     value={form.email}
                     onChange={(e) => set("email", e.target.value)}
-                    placeholder="sarah@example.com"
+                    placeholder="sarah@acme.com"
                     className="w-full bg-gray-800 border border-gray-700 text-white placeholder-gray-600 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 transition-colors"
                   />
                 </div>

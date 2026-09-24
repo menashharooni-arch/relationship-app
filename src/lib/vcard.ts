@@ -12,6 +12,7 @@
 // never corrupts the card.
 
 import { socialUrl } from "@/lib/social-url";
+import { unitLine } from "@/lib/address-unit";
 
 export type VCardPhone = { number: string; label?: string | null; showOnCard?: boolean };
 
@@ -161,7 +162,7 @@ export function buildVCard(person: VCardPerson, photo?: VCardPhoto | null): stri
 
   const addr = person.address;
   if (addr && (addr.street || addr.city || addr.state || addr.zip)) {
-    const street = [addr.street, addr.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(" ");
+    const street = [addr.street, unitLine(addr.unit)].filter(Boolean).join(" ");
     lines.push(`ADR;TYPE=WORK:;;${esc(street)};${esc(addr.city)};${esc(addr.state)};${esc(addr.zip)};`);
   }
 

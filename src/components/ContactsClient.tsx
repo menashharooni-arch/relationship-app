@@ -1011,7 +1011,7 @@ export default function ContactsClient({
   return (
     <div className="flex gap-0 lg:h-[calc(100vh-56px)]">
       {/* Left: contact list — full width on mobile, hidden once a contact is opened */}
-      <div className={`${selected ? "hidden lg:flex" : "flex"} w-full lg:w-80 xl:w-96 shrink-0 border-r border-gray-800 flex-col lg:overflow-hidden`}>
+      <div className={`${selected ? "hidden lg:flex" : "flex"} w-full lg:w-80 xl:w-96 shrink-0 lg:border-r border-gray-800 flex-col lg:overflow-hidden`}>
         {/* Search */}
         <div className="p-4 border-b border-gray-800 space-y-3">
           {/* Add contact — attaches to the currently-selected card */}

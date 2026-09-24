@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
@@ -23,6 +23,8 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 // the literal so a stray value can't accidentally switch it on.
 const APPLE_SIGNIN_ENABLED = process.env.NEXT_PUBLIC_APPLE_SIGNIN_ENABLED === "1";
 
+const noopSubscribe = () => () => {};
+
 export default function LoginForm({
   redirectTo,
   initialMode = "signin",
@@ -34,6 +36,9 @@ export default function LoginForm({
   // the app creates accounts exactly like the website — the old sign-in-only
   // deflection to swiftcard.me is gone, because Pro is now sold in-app.
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
+  // false in the server HTML and during hydration, true once React owns the
+  // form — the submit button's gate (see it below).
+  const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -493,10 +498,17 @@ export default function LoginForm({
           </button>
         )}
 
+        {/* Disabled in the server HTML, live the moment React attaches. The
+            POST backstop above keeps a pre-hydration submit from leaking the
+            password — but it still reloaded to a blank form with no error:
+            a password manager that fills and submits, a fast Enter, a slow
+            phone. A disabled default button also blocks implicit (Enter)
+            submission, so the gap is closed in the markup. Faded only while
+            signing in, so the first paint looks exactly as before. */}
         <button
           type="submit"
-          disabled={status === "loading"}
-          className="w-full bg-[#1D4ED8] hover:bg-[#1740C4] disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm"
+          disabled={!hydrated || status === "loading"}
+          className={`w-full bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm ${status === "loading" ? "opacity-50" : ""}`}
         >
           {status === "loading"
             ? "…"

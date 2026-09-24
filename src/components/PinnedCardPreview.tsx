@@ -253,6 +253,33 @@ export function LinkPageViewport({ children, onExpand, undo }: { children: React
     };
   }, [scrollTo]);
 
+  // A soft fade on whichever edge has more page beyond it. The window is a
+  // fixed height, so its edge always cuts SOMETHING — and a hard cut sliced
+  // the last line in half ("View SwiftCard" under the Connect button, on
+  // every short page), which read as a rendering glitch rather than "scroll
+  // for more" (2026-09-24 UI review). No fade once you reach that end.
+  const [edges, setEdges] = useState({ top: false, bottom: false });
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const measure = () => {
+      const top = frame.scrollTop > 2;
+      const bottom = frame.scrollTop + frame.clientHeight < frame.scrollHeight - 2;
+      setEdges((e) => (e.top === top && e.bottom === bottom ? e : { top, bottom }));
+    };
+    measure();
+    frame.addEventListener("scroll", measure, { passive: true });
+    const ro = new ResizeObserver(measure);
+    ro.observe(frame);
+    if (frame.firstElementChild) ro.observe(frame.firstElementChild);
+    const mo = new MutationObserver(measure);
+    mo.observe(frame, { childList: true, subtree: true });
+    return () => { frame.removeEventListener("scroll", measure); ro.disconnect(); mo.disconnect(); };
+  }, []);
+  const fade = edges.top || edges.bottom
+    ? `linear-gradient(to bottom, ${edges.top ? "transparent 0, #000 22px" : "#000 0"}, ${edges.bottom ? "#000 calc(100% - 22px), transparent 100%" : "#000 100%"})`
+    : undefined;
+
   const sections: Section[] = hasLinks ? ["top", "socials", "connect", "links"] : ["top", "socials", "connect"];
 
   return (
@@ -263,6 +290,7 @@ export function LinkPageViewport({ children, onExpand, undo }: { children: React
         // Scrolls by touch; the page inside is inert, so a tap opens full size.
         className="sc-link-viewport relative self-center w-[min(150px,40vw)] max-h-[min(262px,36vh)] overflow-y-auto overscroll-contain rounded-[22px] cursor-zoom-in [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         aria-label="Your Swift Links page — scroll to see all of it"
+        style={fade ? { maskImage: fade, WebkitMaskImage: fade } : undefined}
       >
         {children}
       </div>

@@ -46,6 +46,7 @@ import FreeDesignChoice from "@/components/FreeDesignChoice";
 import GuestGateModal from "@/components/GuestGateModal";
 import ReferralGiftPanel from "@/components/ReferralGiftPanel";
 import ForceLightTheme from "@/components/ForceLightTheme";
+import { unitLine } from "@/lib/address-unit";
 
 type SocialKey = "linkedin" | "instagram" | "tiktok" | "facebook" | "twitter" | "snapchat" | "youtube";
 
@@ -776,7 +777,7 @@ export default function NewCardWizard({ isPro, guest = false, isFirstCard = fals
     logoUrl,
     cardUrl: `swiftcard.me/${prettyUsername || "your-card"}`,
     address: [
-      [address.street, address.unit ? `Unit ${address.unit}` : ""].filter(Boolean).join(", "),
+      [address.street, unitLine(address.unit)].filter(Boolean).join(", "),
       address.city,
       [address.state, address.zip].filter(Boolean).join(" "),
     ].filter(Boolean).join("\n"),

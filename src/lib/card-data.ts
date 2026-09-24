@@ -2,6 +2,7 @@ import type { CardData, CardCustomization } from "@/components/card-templates/ty
 import { cardSlug, prettyCardSlug } from "@/lib/slug";
 import { cardHeadshot } from "@/lib/card-media";
 import { sanitizeCustomizationForPlan } from "@/lib/plan";
+import { unitLine } from "@/lib/address-unit";
 
 /**
  * ONE builder for the card object every surface renders.
@@ -53,7 +54,7 @@ type Addr = { street?: string; unit?: string; city?: string; state?: string; zip
 export function formatCardAddress(addr: Addr | null | undefined): string {
   if (!addr) return "";
   return [
-    [addr.street, addr.unit ? `Unit ${addr.unit}` : ""].filter(Boolean).join(", "),
+    [addr.street, unitLine(addr.unit)].filter(Boolean).join(", "),
     addr.city ?? "",
     [addr.state, addr.zip].filter(Boolean).join(" "),
   ].filter(Boolean).join("\n");

@@ -151,6 +151,9 @@ const AUDIT = async ({ TOP, BOTTOM }) => {
     if (cy < TOP || cy > H - BOTTOM) continue;
     const hit = document.elementFromPoint(cx, cy);
     if (!hit || hit === el || el.contains(hit) || hit.contains(el)) continue;
+    // A picture of a card (template picker thumbnails, previews) is inert:
+    // its links cannot be reached by tap or keyboard, so "covered" is moot.
+    if (el.closest("[inert]")) continue;
     const hitFixed = isFixedish(hit);
     if (hitFixed && !fx) continue; // content flowing under a bar / the help bubble is normal
     if (hitFixed) { const hr = hitFixed.getBoundingClientRect(); if (hr.width >= W - 1 && hr.height >= H - 1 && !(hit.innerText || "").trim()) continue; } // a modal backdrop over the chrome
@@ -357,7 +360,9 @@ try {
         await audit(page, "wizard-5-live");
         const push = await page.locator("text=/notification/i").count();
         console.log("  push switch present on live screen:", push > 0);
-        const cont = page.locator('button:has-text("Continue to dashboard")').first();
+        // The live screen's button was renamed "Go to my dashboard →"; the old
+        // label made this whole member-tour check skip itself every night.
+        const cont = page.locator('button:has-text("Go to my dashboard"), button:has-text("Continue to dashboard")').first();
         if (await cont.isVisible().catch(() => false)) {
           await cont.click(); await page.waitForTimeout(4000);
           const u = page.url().replace(BASE, "");
@@ -373,7 +378,7 @@ try {
           const skip = page.locator('button:has-text("Skip tour")').first();
           if (await skip.isVisible().catch(() => false)) { await skip.click(); await page.waitForTimeout(800); }
           await audit(page, "member-new-dashboard-after-tour");
-        } else note("wizard-5-live", "missing-button", "Continue to dashboard");
+        } else note("wizard-5-live", "missing-button", "Go to my dashboard");
       } else note("wizard-4-social-design", "missing-button", "Create card →");
     } else note("join-page", "missing-button", "Accept invitation →");
     await ctx.close();

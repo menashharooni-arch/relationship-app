@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import type { CardAddress } from "@/components/card-templates/types";
+import { unitLine } from "@/lib/address-unit";
 
 export const EMPTY_ADDRESS: Required<CardAddress> = { street: "", unit: "", city: "", state: "", zip: "" };
 
 export function formatAddress(a?: CardAddress | null): string {
   if (!a) return "";
-  const line1 = [a.street, a.unit ? `Unit ${a.unit}` : ""].filter(Boolean).join(", ");
+  const line1 = [a.street, unitLine(a.unit)].filter(Boolean).join(", ");
   const line2 = [a.city, a.state, a.zip].filter(Boolean).join(", ");
   return [line1, line2].filter(Boolean).join(" · ");
 }
