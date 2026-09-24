@@ -5,7 +5,10 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { detectNativeApp, useIsNativeApp } from "@/lib/platform";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import PasswordField from "@/components/PasswordField";
 import { safeNextPath } from "@/lib/safe-next";
+import { assessPassword, CONFIRM_MISMATCH, MIN_LENGTH, type PasswordAssessment } from "@/lib/password-policy";
+import { suggestDomain } from "@/lib/email-typo";
 
 // Auth redirects are pinned to the SwiftCard domain, NOT window.location.origin.
 // Origin-based redirects break sign-in if the form is ever loaded on a Vercel
@@ -25,6 +28,37 @@ const APPLE_SIGNIN_ENABLED = process.env.NEXT_PUBLIC_APPLE_SIGNIN_ENABLED === "1
 
 const noopSubscribe = () => () => {};
 
+const CANT_REACH = "We couldn't reach SwiftCard. Check your connection and try again.";
+
+/**
+ * Supabase's own error strings in the user's words. "User already registered"
+ * and "Password should be at least 6 characters" used to reach the screen
+ * verbatim — the two most common signup failures, in the API's voice.
+ * `existing` lets the form offer "Sign in instead" for the first one.
+ */
+export function friendlySignupError(
+  err: { message?: string; status?: number; name?: string },
+  policy: PasswordAssessment,
+): { text: string; existing: boolean; field: "email" | "password" | null } {
+  const msg = err.message ?? "";
+  if (/already (been )?registered|already exists|user_already_exists/i.test(msg)) {
+    return { text: "An account with this email already exists.", existing: true, field: null };
+  }
+  if (err.name === "AuthRetryableFetchError" || /failed to fetch|network|load failed|timeout|timed out/i.test(msg) || err.status === 0 || (err.status ?? 0) >= 500) {
+    return { text: CANT_REACH, existing: false, field: null };
+  }
+  if (/rate limit|too many/i.test(msg)) {
+    return { text: "Too many attempts. Wait a minute and try again.", existing: false, field: null };
+  }
+  if (/invalid.*email|email.*invalid|unable to validate email/i.test(msg)) {
+    return { text: "Enter a valid email address.", existing: false, field: "email" };
+  }
+  if (/password/i.test(msg)) {
+    return { text: policy.reason ?? `Use at least ${MIN_LENGTH} characters.`, existing: false, field: "password" };
+  }
+  return { text: "Something went wrong creating your account. Please try again.", existing: false, field: null };
+}
+
 export default function LoginForm({
   redirectTo,
   initialMode = "signin",
@@ -42,6 +76,18 @@ export default function LoginForm({
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Create-account only: the second password box, and the errors that belong
+  // to one field rather than to the form.
+  const [confirm, setConfirm] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmError, setConfirmError] = useState("");
+  // "An account with this email already exists" → offer Sign in instead.
+  const [existingAccount, setExistingAccount] = useState(false);
+  // The "Did you mean you@gmail.com?" hint, and the address the person chose
+  // to keep anyway (so the hint never nags twice about the same typing).
+  const [emailSuggestion, setEmailSuggestion] = useState<string | null>(null);
+  const [suggestionDismissed, setSuggestionDismissed] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
@@ -51,7 +97,6 @@ export default function LoginForm({
   // has no account or the password was wrong (by design), so we surface an
   // honest "create one if you're new" affordance rather than a false claim.
   const [signinFailed, setSigninFailed] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   // Focused when "Forgot password?" is tapped with the field empty — see
   // handleForgot. Pointing at the box beats an error that blames the user for
   // not having filled in a field they were never asked to fill in.
@@ -88,11 +133,13 @@ export default function LoginForm({
     // Reading the fields here keeps whatever is in them.
     const typedEmail = (document.getElementById("auth-email") as HTMLInputElement | null)?.value ?? "";
     const typedPassword = (document.getElementById("auth-password") as HTMLInputElement | null)?.value ?? "";
+    const typedConfirm = (document.getElementById("auth-confirm-password") as HTMLInputElement | null)?.value ?? "";
     // One-time reads of the URL after mount (SSR-safe): applying them is the
     // whole point of this effect.
     /* eslint-disable react-hooks/set-state-in-effect -- one-time post-mount URL + field read */
     if (typedEmail) setEmail(typedEmail);
     if (typedPassword) setPassword(typedPassword);
+    if (typedConfirm) setConfirm(typedConfirm);
     if (msg) setErrorMsg(msg);
     if (toSignup) setMode("signup");
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -195,10 +242,16 @@ export default function LoginForm({
     const fd = new FormData(e.currentTarget as HTMLFormElement);
     const emailNow = (typeof fd.get("email") === "string" ? (fd.get("email") as string) : email).trim();
     const passwordNow = typeof fd.get("password") === "string" ? (fd.get("password") as string) : password;
+    const confirmNow = typeof fd.get("confirm_password") === "string" ? (fd.get("confirm_password") as string) : confirm;
     if (emailNow !== email) setEmail(emailNow);
     if (passwordNow !== password) setPassword(passwordNow);
+    if (confirmNow !== confirm) setConfirm(confirmNow);
     setStatus("loading");
     setErrorMsg("");
+    setEmailError("");
+    setPasswordError("");
+    setConfirmError("");
+    setExistingAccount(false);
 
     if (mode === "signin") {
       const { error } = await supabase.auth.signInWithPassword({ email: emailNow, password: passwordNow });
@@ -208,6 +261,8 @@ export default function LoginForm({
           // Guide them to Create-account without a false "no account" claim.
           setErrorMsg("We couldn't sign you in. If you don't have an account yet, create one — it's free.");
           setSigninFailed(true);
+        } else if (error.name === "AuthRetryableFetchError" || /failed to fetch|network|load failed/i.test(error.message)) {
+          setErrorMsg(CANT_REACH);
         } else {
           setErrorMsg(error.message);
         }
@@ -226,6 +281,36 @@ export default function LoginForm({
         window.location.href = next ? `/onboarding?next=${encodeURIComponent(next)}` : "/onboarding";
       }
     } else {
+      // Everything below runs BEFORE a request goes out, so a slip costs one
+      // tap on this screen instead of a round-trip and an API error string.
+      //
+      // 1. A misspelled common domain. Confirmation is off, so this is the one
+      //    moment a typo can still be caught — after it, the account exists at
+      //    an address nobody reads and the reset email goes there too.
+      const typo = suggestDomain(emailNow);
+      if (typo && suggestionDismissed !== emailNow) {
+        setEmailSuggestion(typo);
+        setStatus("idle");
+        emailRef.current?.focus();
+        return;
+      }
+      // 2. The password rule (lib/password-policy — the same one the reset
+      //    page and the Supabase project enforce).
+      const policy = assessPassword(passwordNow, emailNow);
+      if (!policy.ok) {
+        setPasswordError(policy.reason ?? `Use at least ${MIN_LENGTH} characters.`);
+        setStatus("idle");
+        (document.getElementById("auth-password") as HTMLInputElement | null)?.focus();
+        return;
+      }
+      // 3. Typed twice, and the same both times.
+      if (confirmNow !== passwordNow) {
+        setConfirmError(CONFIRM_MISMATCH);
+        setStatus("idle");
+        (document.getElementById("auth-confirm-password") as HTMLInputElement | null)?.focus();
+        return;
+      }
+
       await clearExistingSession();
       // Carry a same-origin `next` (e.g. a team invite, or the guest editor)
       // through email-confirmation too — mirrors handleGoogle/handleApple.
@@ -238,8 +323,15 @@ export default function LoginForm({
         ? `${APP_URL}/auth/callback?next=${encodeURIComponent(safeNext)}`
         : `${APP_URL}/auth/callback`;
       const { data, error } = await supabase.auth.signUp({ email: emailNow, password: passwordNow, options: { emailRedirectTo } });
-      if (error) {
-        setErrorMsg(error.message);
+      // Supabase's enumeration-safe shape for "this email already has an
+      // account": a user with no identities and no session, and no error.
+      const silentDuplicate = !error && !!data.user && !data.session && (data.user.identities?.length ?? 0) === 0;
+      if (error || silentDuplicate) {
+        const friendly = friendlySignupError(error ?? { message: "user already registered" }, policy);
+        if (friendly.field === "email") setEmailError(friendly.text);
+        else if (friendly.field === "password") setPasswordError(friendly.text);
+        else setErrorMsg(friendly.text);
+        setExistingAccount(friendly.existing);
         setStatus("error");
       } else if (!data.session) {
         // Confirmation required: /onboarding would only bounce back to /login
@@ -359,6 +451,7 @@ export default function LoginForm({
             onClick={() => {
               if (m === "signup" && !redirectTo && mode !== "signup") { window.location.assign("/cards/new"); return; }
               setMode(m); setStatus("idle"); setErrorMsg(""); setSigninFailed(false);
+              setConfirm(""); setEmailError(""); setPasswordError(""); setConfirmError(""); setExistingAccount(false); setEmailSuggestion(null);
             }}
             className="flex-1 py-2 text-sm font-semibold rounded-full transition-colors"
             style={{
@@ -413,22 +506,66 @@ export default function LoginForm({
             required
             ref={emailRef}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(""); if (emailSuggestion) setEmailSuggestion(null); }}
+            onBlur={(e) => { if (mode === "signup") { const t = suggestDomain(e.target.value); setEmailSuggestion(t && suggestionDismissed !== e.target.value.trim() ? t : null); } }}
+            aria-invalid={emailError ? true : undefined}
+            aria-describedby={emailError ? "auth-email-error" : emailSuggestion ? "auth-email-hint" : undefined}
             className="sc-input w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl px-4 py-3 text-sm"
           />
+          {emailError && (
+            <p id="auth-email-error" role="alert" className="text-xs text-red-700">{emailError}</p>
+          )}
+          {/* "Did you mean you@gmail.com?" — see the typo gate in handleSubmit
+              for why this is worth one extra tap. Tapping the address applies
+              it; "Keep what I typed" remembers the exact address so the form
+              never asks about it again. */}
+          {mode === "signup" && emailSuggestion && !emailError && (
+            <p id="auth-email-hint" className="text-xs text-slate-700">
+              Did you mean{" "}
+              <button
+                type="button"
+                onClick={() => { setEmail(emailSuggestion); setEmailSuggestion(null); }}
+                className="font-semibold text-[#1D4ED8] hover:text-[#1740C4] underline underline-offset-2"
+              >
+                {emailSuggestion}
+              </button>
+              ?{" "}
+              <button
+                type="button"
+                onClick={() => { setSuggestionDismissed(email.trim()); setEmailSuggestion(null); }}
+                className="text-slate-500 hover:text-slate-800 underline underline-offset-2"
+              >
+                Keep what I typed
+              </button>
+            </p>
+          )}
         </div>
 
-        <div className="space-y-1.5">
-          <div className="flex items-baseline justify-between gap-3">
-            <label htmlFor="auth-password" className="block text-xs font-semibold text-slate-600">
-              Password
-            </label>
-            {/* Where every real platform puts it, and only on the tab where it
-                means anything. It used to sit under the OAuth buttons as 12px
-                slate-400 on the warm card — roughly 2:1 contrast, below the
-                submit button, for the one control someone locked out needs to
-                find first. */}
-            {mode === "signin" && (
+        {/* current-password vs new-password decides whether the browser offers
+            to FILL or to GENERATE — getting it wrong makes managers behave
+            strangely on the tab you are actually on. minLength only on
+            Create account: an account made under the old 6-character rule must
+            still be able to sign in, and the browser would refuse the submit
+            before Supabase was even asked. */}
+        <PasswordField
+          id="auth-password"
+          name="password"
+          label="Password"
+          autoComplete={mode === "signup" ? "new-password" : "current-password"}
+          placeholder={mode === "signup" ? `At least ${MIN_LENGTH} characters` : "Your password"}
+          required
+          minLength={mode === "signup" ? MIN_LENGTH : undefined}
+          value={password}
+          onChange={(v) => { setPassword(v); if (passwordError) setPasswordError(""); }}
+          error={passwordError || null}
+          strength={mode === "signup" && password ? assessPassword(password, email) : null}
+          labelRight={
+            /* Where every real platform puts it, and only on the tab where it
+               means anything. It used to sit under the OAuth buttons as 12px
+               slate-400 on the warm card — roughly 2:1 contrast, below the
+               submit button, for the one control someone locked out needs to
+               find first. */
+            mode === "signin" ? (
               <button
                 type="button"
                 onClick={handleForgot}
@@ -437,52 +574,41 @@ export default function LoginForm({
               >
                 {status === "loading" ? "Sending…" : "Forgot password?"}
               </button>
-            )}
-          </div>
-          <div className="relative">
-            <input
-              id="auth-password"
-              name="password"
-              type={showPassword ? "text" : "password"}
-              // current-password vs new-password decides whether the browser
-              // offers to FILL or to GENERATE — getting it wrong makes managers
-              // behave strangely on the tab you are actually on.
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              placeholder={mode === "signup" ? "At least 6 characters" : "Your password"}
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="sc-input w-full bg-white border border-[#E4DDD4] text-slate-900 placeholder-slate-400 rounded-xl pl-4 pr-12 py-3 text-sm"
-            />
-            {/* Typing a password blind on a phone keyboard is where sign-ins
-                get abandoned. Not rendered when the field is empty so it never
-                sits there as a dead control. */}
-            {password.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                aria-pressed={showPassword}
-                className="absolute inset-y-0 right-0 px-3.5 flex items-center text-slate-500 hover:text-slate-800 transition-colors"
-              >
-                {showPassword ? (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} className="w-4.5 h-4.5" style={{ width: 18, height: 18 }} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} style={{ width: 18, height: 18 }} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
+            ) : null
+          }
+        />
+
+        {/* Typed twice. Only exists on Create account — not hidden, absent —
+            so the sign-in form stays the two fields password managers expect. */}
+        {mode === "signup" && (
+          <PasswordField
+            id="auth-confirm-password"
+            name="confirm_password"
+            label="Confirm password"
+            autoComplete="new-password"
+            placeholder="Type it again"
+            required
+            minLength={MIN_LENGTH}
+            value={confirm}
+            onChange={(v) => { setConfirm(v); if (confirmError) setConfirmError(""); }}
+            error={confirmError || null}
+          />
+        )}
 
         {errorMsg && (
-          <p className="text-red-400 text-xs text-center">{errorMsg}</p>
+          <p role="alert" className="text-red-700 text-xs text-center">{errorMsg}</p>
+        )}
+
+        {/* The one-tap path back to Sign in when the address already has an
+            account — keeps the email they typed, clears the passwords. */}
+        {mode === "signup" && existingAccount && (
+          <button
+            type="button"
+            onClick={() => { setMode("signin"); setExistingAccount(false); setErrorMsg(""); setStatus("idle"); setPassword(""); setConfirm(""); }}
+            className="w-full text-center text-[#1D4ED8] hover:text-[#1740C4] font-semibold text-sm py-1 transition-colors"
+          >
+            Sign in instead →
+          </button>
         )}
 
         {/* After a failed sign-in, a one-tap path to Create-account (keeps the
@@ -511,7 +637,7 @@ export default function LoginForm({
           className={`w-full bg-[#1D4ED8] hover:bg-[#1740C4] text-white font-semibold py-3 px-6 rounded-full transition-colors text-sm ${status === "loading" ? "opacity-50" : ""}`}
         >
           {status === "loading"
-            ? "…"
+            ? mode === "signin" ? "Signing in…" : "Creating your account…"
             : mode === "signin" ? "Sign in →" : "Create account →"}
         </button>
 

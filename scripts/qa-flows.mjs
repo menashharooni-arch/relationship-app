@@ -531,6 +531,60 @@ FLOWS["mobile-tabs"] = async () => {
   } finally { await ctx.close(); }
 };
 
+// ── K. Create account through the form itself ───────────────────────────────
+// Every other flow seeds its account through the admin API. This one is the
+// screen a real person meets: the typo hint, the second password box, and a
+// mismatch that must stay on /login — then a real signup that must land in
+// the app. The typo check uses a throwaway address on a misspelled domain and
+// never submits it; the account that IS created is on the QA mailbox domain.
+FLOWS["signup-ui"] = async () => {
+  const { ctx, page } = await newPage({ signedIn: false });
+  const e2 = `qa-signup-${stamp}@swiftcard-test.invalid`;
+  try {
+    await page.goto(`${BASE}/login?mode=signup&next=${encodeURIComponent("/dashboard")}`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("#auth-confirm-password", { timeout: 15000 }).catch(() => {});
+    if (!(await page.locator("#auth-confirm-password").count())) { fail("signup-ui", "Create account has no Confirm password box"); return; }
+
+    // 1. A misspelled common domain is caught before anything is sent.
+    await typeInto(page, "#auth-email", `qa-typo-${stamp}@gmial.com`);
+    await typeInto(page, "#auth-password", password);
+    await typeInto(page, "#auth-confirm-password", password);
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(1500);
+    const hint = await page.locator("#auth-email-hint").innerText().catch(() => "");
+    if (!/did you mean/i.test(hint) || !hint.includes(`qa-typo-${stamp}@gmail.com`)) fail("signup-ui", `no "Did you mean …@gmail.com" hint for gmial.com (got: ${JSON.stringify(hint)})`);
+    if (!page.url().includes("/login")) { fail("signup-ui", "a typo'd address was submitted straight through"); return; }
+
+    // 2. Two different passwords must not create an account.
+    await page.fill("#auth-email", "");
+    await typeInto(page, "#auth-email", e2);
+    await page.fill("#auth-confirm-password", "");
+    await typeInto(page, "#auth-confirm-password", password + "z");
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(1500);
+    const mismatch = await page.locator("#auth-confirm-password-error").innerText().catch(() => "");
+    if (!/don.t match/i.test(mismatch)) fail("signup-ui", `mismatched passwords showed no "Passwords don't match." (got: ${JSON.stringify(mismatch)})`);
+    if (!page.url().includes("/login")) { fail("signup-ui", "mismatched passwords still created an account"); return; }
+
+    // 3. The real thing.
+    await page.fill("#auth-confirm-password", "");
+    await typeInto(page, "#auth-confirm-password", password);
+    await page.click('button[type="submit"]');
+    // The PATH, not the URL: `next=%2Fdashboard` would match a regex on the
+    // whole address while still sitting on /login.
+    await page.waitForURL((u) => /^\/(dashboard|onboarding|welcome)/.test(u.pathname), { timeout: 45000 }).catch(() => {});
+    const landed = new URL(page.url()).pathname;
+    // Find the account so the finally block removes it whatever happened next.
+    const found = await (await adm(`/auth/v1/admin/users?page=1&per_page=50`)).json().catch(() => null);
+    const created = found?.users?.find((u) => u.email === e2);
+    if (created?.id) extraUsers.push({ id: created.id, uname: `qa-signup-${stamp}` });
+    if (!/^\/(dashboard|onboarding|welcome)/.test(landed)) fail("signup-ui", `a valid signup did not reach the app (at ${landed}; page said: ${JSON.stringify((await page.locator("body").innerText()).replace(/\s+/g, " ").slice(0, 200))})`);
+    else if (!created?.id) fail("signup-ui", `landed on ${landed} but no auth user exists for ${e2}`);
+    else pass("signup-ui", `typo caught, mismatch caught, account created → ${landed}`);
+    await page.screenshot({ path: `${OUT}/signup-ui.png` }).catch(() => {});
+  } finally { await ctx.close(); }
+};
+
 const ONLY = process.env.ONLY || "";
 try {
   console.log("seeding…");
