@@ -20,6 +20,8 @@ const TEMPLATE_MAP: Record<string, React.ComponentType<{ data: CardData }>> = {
 };
 const NATURAL = 460;       // same natural card width the public page renders at
 const CARD_BG = "#FAF7F2"; // the public card page background (shows at the card's rounded corners)
+/** A macrotask break: input queued during a long capture pass runs before the next one. */
+const yieldToInput = () => new Promise<void>((r) => setTimeout(r, 0));
 
 type Props = {
   cardData: CardData;
@@ -133,6 +135,13 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
   const [mounted, setMounted] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const capturingRef = useRef(false);
+  // False once this box has left the screen: an automatic capture still in
+  // flight stops at its next checkpoint instead of running on under the next page.
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
   const lastUrlRef = useRef<string | null>(null);
   const lastSigRef = useRef<string | null>(null); // content hash of the last successful capture
   const Template = TEMPLATE_MAP[template] ?? ClassicPro;
@@ -165,6 +174,7 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     // Never capture/upload without a real card identity (defensive: the dashboard
     // only renders this with a selected card, but guard against any path collision).
     if (!username || !/^[a-z0-9-]{1,40}$/i.test(username)) return null;
+    if (!aliveRef.current) return null;
     if (capturingRef.current) return null;
     capturingRef.current = true;
     setStatus("working");
@@ -240,12 +250,20 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
       // warm-up passes let WebKit decode everything; the third is complete.
       // Chromium/Firefox don't need it, so they skip the extra work.
       const isWebKit = /AppleWebKit/i.test(navigator.userAgent) && !/Chrome|Chromium|Edg\/|Android/i.test(navigator.userAgent);
+      // Each pass holds the main thread for a second or more on a phone.
+      // Between passes, hand it back so a waiting tap is handled — and if that
+      // tap left the page, stop: the next screen must not pay for this one.
+      const stillWanted = async () => { await yieldToInput(); return aliveRef.current; };
       if (isWebKit) {
+        if (!(await stillWanted())) return null;
         await toPng(el, opts).catch(() => undefined);
+        if (!(await stillWanted())) return null;
         await toPng(el, opts).catch(() => undefined);
       }
+      if (!(await stillWanted())) return null;
       const dataUrl = await toPng(el, opts);
       if (!dataUrl || dataUrl.length < 5000) { setStatus("error"); return null; } // blank guard
+      if (!aliveRef.current) return null;
       const res = await fetch("/api/card-signature", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dataUrl, username }),
       });
@@ -281,7 +299,16 @@ export default function EmailSignatureBox({ cardData, template, name, company, c
     let prev = "";
     try { prev = localStorage.getItem(hashKey) || ""; } catch { /* ignore */ }
     if (prev !== contentSig) {
-      const t = setTimeout(() => { captureAndUpload(); }, 500);
+      // The capture is seconds of main-thread work on a phone (three passes on
+      // WebKit), and it used to start 500ms in — exactly while the page was
+      // hydrating and the person reaching for a tab, which then did nothing for
+      // several seconds (2026-09-24 speed review). Let the page settle, then
+      // start when the browser is idle. Copy still waits for a fresh image.
+      const t = setTimeout(() => {
+        const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+        if (ric) ric(() => { void captureAndUpload(); }, { timeout: 3000 });
+        else void captureAndUpload();
+      }, 1500);
       return () => clearTimeout(t);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
