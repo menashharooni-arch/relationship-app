@@ -4,6 +4,7 @@ import { isCardActive } from "@/lib/card-active";
 import { buildVCard, pickContactImage, type VCardPhone } from "@/lib/vcard";
 import { cardHeadshot } from "@/lib/card-media";
 import { fetchVCardPhoto } from "@/lib/contact-photo";
+import { renderInitialsPhoto } from "@/lib/contact-initials-photo";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://swiftcard.me";
 
@@ -64,11 +65,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
   // scanned contact saved with no picture while the same card saved from a
   // phone got one.
   const image = pickContactImage(photoUrl, str(c.logo_url));
-  const photo = image ? await fetchVCardPhoto(image.url, image.kind) : null;
+  const name = str(c.name) ?? username;
+  // …and their initials when there is neither, or when the picture they have
+  // won't load (owner order 2026-09-25) — the sheet never opens on a blank.
+  const photo = (image ? await fetchVCardPhoto(image.url, image.kind) : null)
+    ?? (await renderInitialsPhoto(name));
 
   const vcard = buildVCard(
     {
-      name: str(c.name) ?? username,
+      name,
       title: str(c.title),
       company: str(c.company),
       email: str(c.email),
@@ -90,6 +95,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       instagram: str(c.instagram),
       twitter: str(c.twitter),
       tiktok: str(c.tiktok),
+      // Their Swift Links bio goes into the contact's Notes — the same text
+      // the card page shows under "Swift Links".
+      note: str(custom.bio),
     },
     photo,
   );

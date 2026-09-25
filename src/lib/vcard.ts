@@ -70,11 +70,32 @@ export interface VCardPhoto {
 export type ContactImageKind = "headshot" | "logo";
 
 /**
+ * The last-resort contact picture: the person's initials, white on SwiftCard
+ * blue. Drawn when a card has neither a headshot nor a logo — or when the one
+ * it has fails to load — so the "Create New Contact" sheet never opens on an
+ * empty picture (owner order 2026-09-25: headshot → logo → initials). The
+ * browser draws it on a canvas (SaveContactButton), the server with Satori
+ * (lib/contact-initials-photo); both read these values so they match.
+ */
+export const CONTACT_INITIALS_BG = "#1D4ED8";
+export const CONTACT_INITIALS_FG = "#FFFFFF";
+
+/** Up to two initials from a name ("Alex Morgan" → "AM"), "" when there is no name. */
+export function contactInitials(name: string | null | undefined): string {
+  const words = String(name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "";
+  const firstChar = (w: string) => Array.from(w)[0] ?? "";
+  const picked = words.length === 1 ? [words[0]] : [words[0], words[words.length - 1]];
+  return picked.map(firstChar).join("").toUpperCase();
+}
+
+/**
  * Which picture a saved contact carries: the person's headshot first, their
  * company logo when there is no headshot (owner order 2026-09-24 — a contact
  * exchanged through SwiftCard always lands in the phone with a face or a
- * logo). Pure and client-safe; the server-side lookup for a captured lead
- * lives in lib/contact-photo.ts.
+ * logo), and their initials when there is neither (contactInitials above).
+ * Pure and client-safe; the server-side lookup for a captured lead lives in
+ * lib/contact-photo.ts.
  */
 export function pickContactImage(
   headshotUrl: string | null | undefined,
@@ -97,11 +118,46 @@ export function escapeVCardValue(v?: string | null): string {
     .trim();
 }
 
+// NOTE is free text — a bio is written in paragraphs, and collapsing its line
+// breaks to spaces ran them together in the saved contact. RFC 6350 §3.4 lets a
+// text value carry a newline as the two characters "\n", which every Contacts
+// app turns back into a real line break; a raw CR/LF can still never start a
+// new property, so this is exactly as injection-safe as escapeVCardValue.
+export function escapeVCardText(v?: string | null): string {
+  return String(v ?? "")
+    .replace(/\r\n?/g, "\n")
+    .trim()
+    .replace(/([,;\\])/g, "\\$1")
+    .replace(/\n/g, "\\n");
+}
+
 // Absolute URL for a bare domain / handle so URL/social lines are clickable.
 export function normalizeVCardUrl(url?: string | null): string {
   const s = String(url ?? "").trim();
   if (!s) return "";
   return /^https?:\/\//i.test(s) ? s : `https://${s}`;
+}
+
+// A social profile in the form iOS Contacts itself exports:
+//   X-SOCIALPROFILE;type=instagram;x-user=alex:https://instagram.com/alex
+// The value used to be the bare handle ("alex"), which Contacts shows as text
+// that opens nothing; the profile URL makes the row tappable, and x-user keeps
+// the handle as its visible label. The URL comes from socialUrl — the same one
+// the card's own Instagram button opens — so a pasted link, an @handle and a
+// bare handle all land on the right profile.
+function socialProfileLine(platform: "instagram" | "twitter" | "tiktok", raw?: string | null): string | null {
+  const url = socialUrl(platform, raw);
+  if (!url) return null;
+  let handle = String(raw ?? "").trim().replace(/^@+/, "");
+  try {
+    if (/[/.]/.test(handle)) {
+      const segs = new URL(url).pathname.split("/").filter(Boolean);
+      handle = (segs[segs.length - 1] ?? "").replace(/^@+/, "");
+    }
+  } catch { /* keep the typed value */ }
+  const user = handle.replace(/[^A-Za-z0-9._-]/g, "");
+  const param = user ? `;x-user=${user}` : "";
+  return `X-SOCIALPROFILE;type=${platform}${param}:${escapeVCardValue(url)}`;
 }
 
 // Build the folded PHOTO line, or null if the payload is unusable. iOS/macOS
@@ -192,10 +248,11 @@ export function buildVCard(person: VCardPerson, photo?: VCardPhoto | null): stri
     const li = socialUrl("linkedin", person.linkedin);
     if (li) lines.push(`URL;type=LinkedIn:${esc(li)}`);
   }
-  if (person.note && person.note.trim()) lines.push(`NOTE:${esc(person.note.trim())}`);
-  if (person.instagram) lines.push(`X-SOCIALPROFILE;type=instagram:${esc(person.instagram.replace(/^@/, ""))}`);
-  if (person.twitter) lines.push(`X-SOCIALPROFILE;type=twitter:${esc(person.twitter.replace(/^@/, ""))}`);
-  if (person.tiktok) lines.push(`X-SOCIALPROFILE;type=tiktok:${esc(person.tiktok.replace(/^@/, ""))}`);
+  if (person.note && person.note.trim()) lines.push(`NOTE:${escapeVCardText(person.note)}`);
+  for (const platform of ["instagram", "twitter", "tiktok"] as const) {
+    const line = socialProfileLine(platform, person[platform]);
+    if (line) lines.push(line);
+  }
 
   // Embedded headshot — best-effort; a bad/missing image is silently skipped so
   // saving a contact never breaks over a photo.

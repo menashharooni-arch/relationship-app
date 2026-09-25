@@ -291,6 +291,8 @@ export default async function CardPage({
     photoUrl: cardData.photoUrl,
     // …and the card's logo as the fallback picture when there is no headshot.
     logoUrl: cardData.logoUrl,
+    // …and their Swift Links bio, saved into the contact's Notes.
+    bio,
   };
 
   // The custom designer is Pro-only — a downgraded card falls back to the

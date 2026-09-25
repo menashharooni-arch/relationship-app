@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { getVisitorId, getVisitorInfo, hasSharedWith, markSharedWith, hasSavedContact, markSavedContact } from "@/lib/visitor";
 import { triggerSignupNudge, triggerSignupNudgeWhenVisible } from "@/lib/nudge";
-import { buildVCard, pickContactImage, type VCardPhoto } from "@/lib/vcard";
+import {
+  buildVCard, pickContactImage, contactInitials, CONTACT_INITIALS_BG, CONTACT_INITIALS_FG, type VCardPhoto,
+} from "@/lib/vcard";
 import { openFileViaSystemBrowser } from "@/lib/native-file";
 import { MiniQR } from "@/components/card-templates/MiniQR";
 import MadeWithSwiftCard from "@/components/MadeWithSwiftCard";
@@ -28,6 +30,38 @@ interface Person {
   photoUrl?: string | null;
   /** The card's company logo — embedded instead when there is no headshot. */
   logoUrl?: string | null;
+  /** Their Swift Links bio — saved into the contact's Notes. */
+  bio?: string | null;
+}
+
+// Last-resort picture: the owner's initials, white on SwiftCard blue — the
+// same tile the server vCard draws with Satori (lib/contact-initials-photo),
+// from the same colours in lib/vcard. Drawn locally, so it needs no network
+// and can't fail the way a remote image can. Null only if the browser has no
+// canvas, in which case the contact saves without a picture.
+function drawInitialsPhoto(name: string): VCardPhoto | null {
+  const initials = contactInitials(name);
+  if (!initials) return null;
+  try {
+    const size = 512;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.fillStyle = CONTACT_INITIALS_BG;
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = CONTACT_INITIALS_FG;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const px = Math.round(size * (initials.length > 1 ? 0.38 : 0.46));
+    ctx.font = `600 ${px}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`;
+    ctx.fillText(initials, size / 2, size / 2 + px * 0.04);
+    const m = canvas.toDataURL("image/jpeg", 0.9).match(/^data:([^;,]+);base64,(.+)$/);
+    return m ? { base64: m[2], mime: m[1] } : null;
+  } catch {
+    return null;
+  }
 }
 
 // Fetch the card owner's headshot and base64-encode it for embedding. Routed
@@ -193,10 +227,10 @@ export default function SaveContactButton({
     // used by the server lead export too so contacts save identically everywhere.
 
     // Embed THIS card owner's headshot, or the card's logo when they have no
-    // headshot (owner order 2026-09-24). Best-effort — a failed fetch just
-    // omits the picture and the contact still saves.
+    // headshot (owner order 2026-09-24), or their initials when there is
+    // neither — or when the picture they have fails to load (2026-09-25).
     const image = pickContactImage(person.photoUrl, person.logoUrl);
-    const photo = image ? await fetchHeadshotPhoto(image.url) : null;
+    const photo = (image ? await fetchHeadshotPhoto(image.url) : null) ?? drawInitialsPhoto(person.name);
 
     const vcard = buildVCard(
       {
@@ -216,6 +250,8 @@ export default function SaveContactButton({
         instagram: person.instagram,
         twitter: person.twitter,
         tiktok: person.tiktok,
+        // Swift Links bio → the contact's Notes, same as the server vCard.
+        note: person.bio,
       },
       photo,
     );

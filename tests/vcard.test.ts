@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildVCard, escapeVCardValue, normalizeVCardUrl } from "@/lib/vcard";
+import { readFileSync } from "node:fs";
+import { buildVCard, contactInitials, escapeVCardText, escapeVCardValue, normalizeVCardUrl, pickContactImage } from "@/lib/vcard";
 
 // A tiny 1x1 JPEG's base64 stand-in is enough to exercise the PHOTO path — the
 // builder never decodes it, it only base64-frames + folds.
@@ -78,7 +79,7 @@ describe("buildVCard — structure", () => {
     expect(out).toContain("URL:https://morgan.com");
     expect(out).toContain("ADR;TYPE=WORK:;;1 Main Unit 5;NYC;NY;10001;");
     expect(out).toContain("URL;type=LinkedIn:https://linkedin.com/in/alex");
-    expect(out).toContain("X-SOCIALPROFILE;type=instagram:alex"); // leading @ stripped
+    expect(out).toContain("X-SOCIALPROFILE;type=instagram;x-user=alex:https://instagram.com/alex"); // leading @ stripped, tappable URL
   });
 
   it("falls back to the legacy single phone when no phones[] given", () => {
@@ -172,7 +173,7 @@ describe("a saved contact carries everything the card holds", () => {
       "San Francisco",
       "94122",
       "URL;type=LinkedIn:",
-      "X-SOCIALPROFILE;type=instagram:",
+      "X-SOCIALPROFILE;type=instagram;x-user=",
       "PHOTO;ENCODING=b",
     ]) {
       expect(out, `missing from the saved contact: ${probe}`).toContain(probe);
@@ -194,5 +195,42 @@ describe("a saved contact carries everything the card holds", () => {
 
   it("omits the card link cleanly when there isn't one", () => {
     expect(buildVCard({ name: "A B" })).not.toContain("SwiftCard");
+  });
+});
+
+// Owner order 2026-09-25: the contact a visitor saves carries a picture
+// (headshot → logo → initials) and the Swift Links bio in Notes.
+describe("saved contact — picture fallback and bio", () => {
+  it("picks the headshot, then the logo, then nothing (initials are drawn)", () => {
+    expect(pickContactImage("h.jpg", "l.png")).toEqual({ url: "h.jpg", kind: "headshot" });
+    expect(pickContactImage("", "l.png")).toEqual({ url: "l.png", kind: "logo" });
+    expect(pickContactImage(null, "  ")).toBeNull();
+  });
+
+  it("takes first + last initials", () => {
+    expect(contactInitials("Alex Morgan")).toBe("AM");
+    expect(contactInitials("alex j. van morgan")).toBe("AM");
+    expect(contactInitials("Cher")).toBe("C");
+    expect(contactInitials("  ")).toBe("");
+    expect(contactInitials(null)).toBe("");
+  });
+
+  it("writes the bio into NOTE with its line breaks kept as \\n", () => {
+    const out = buildVCard({ name: "A B", note: "Realtor, 10 yrs.\nCall me; anytime" });
+    expect(out).toContain("NOTE:Realtor\\, 10 yrs.\\nCall me\\; anytime");
+    // A raw line break can never start a new property.
+    expect(escapeVCardText("x\r\nTEL:911")).toBe("x\\nTEL:911");
+    expect(out.split("\r\n").some((l) => l.startsWith("Call me"))).toBe(false);
+  });
+
+  it("the card page, the button and the server vCard all carry the bio and the initials fallback", () => {
+    const btn = readFileSync("src/components/SaveContactButton.tsx", "utf8");
+    const route = readFileSync("src/app/api/card/[username]/vcard/route.ts", "utf8");
+    const page = readFileSync("src/app/[username]/page.tsx", "utf8");
+    expect(btn).toContain("note: person.bio");
+    expect(btn).toContain("?? drawInitialsPhoto(person.name)");
+    expect(route).toContain("note: str(custom.bio)");
+    expect(route).toContain("?? (await renderInitialsPhoto(name))");
+    expect(page).toMatch(/logoUrl: cardData\.logoUrl,[\s\S]{0,120}\bbio,/);
   });
 });
