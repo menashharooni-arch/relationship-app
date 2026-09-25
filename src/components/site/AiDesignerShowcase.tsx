@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import CardScaler from "@/components/CardScaler";
-import NativeHidden from "@/components/NativeHidden";
 import Eyebrow from "@/components/site/Eyebrow";
 import { FreeCard } from "@/components/card-templates/CustomCard";
 import {
@@ -29,8 +28,9 @@ import "@/app/home.css";
 //     data sets: that is literally what the feature does.
 //
 // The feature itself is Pro and lives in Edit card → Card design → Custom
-// design, which Get Started cannot reach — so the CTA is the free builder and
-// the Pro note links to pricing (hidden in the iOS shell, which never sells).
+// design. The CTA is one "Get Started" into the free builder, where the card
+// is made first (owner, 2026-09-25: no pricing line under it). It also keeps
+// the page sell-free for the iOS shell with nothing to hide.
 
 const DEMO_LOGO = "/marketing/demo-logo.svg";
 const DEMO: CardData = { ...withoutSocials(SAMPLE_DATA_WITH_PHOTO), logoUrl: DEMO_LOGO };
@@ -271,8 +271,8 @@ function RecreatePanel() {
       <div className="hp-ai-panel-in">
         <PanelHead
           icon="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2M7 9h10M7 12h6M7 15h8"
-          title="Recreate any design"
-          blurb="Screenshot any card you find online, or snap your printed one. AI rebuilds that exact look with your details."
+          title="Copy any card, exactly"
+          blurb="The card you already have, or one you found and want. Snap or screenshot it and AI rebuilds that exact design with your details."
         />
 
         <div ref={ref} className="flex-1 flex flex-col mt-6">
@@ -333,16 +333,16 @@ export function AiDesignerTeaser() {
           Or let AI <span className="hp-fill">design it.</span>
         </h3>
         <p className="hp-lede mt-4">
-          Give it your headshot, logo and colors, or a screenshot of any card you find online, and get a polished card in seconds.
+          Give it your headshot, logo and colors and get a polished card in seconds.
+          Or have it copy the exact business card you want, or the one you already have.
         </p>
       </div>
       <div className="mt-12 grid lg:grid-cols-2 gap-5">
         <CreatePanel />
         <RecreatePanel />
       </div>
-      <div className="mt-10 flex flex-wrap items-center justify-center gap-3" data-reveal>
+      <div className="mt-10 flex justify-center" data-reveal>
         <Link href="/cards/new" className="rd-btn rd-btn-primary">Create your free card</Link>
-        <Link href="/templates#ai-designer" className="rd-btn rd-btn-ghost-l">See the AI Card Designer →</Link>
       </div>
     </div>
   );
@@ -351,7 +351,7 @@ export function AiDesignerTeaser() {
 // ── The flow ────────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { t: "Details or inspiration", d: "Headshot, logo, colors, style — or any card you find online.", icon: "M4 5h16v14H4zM4 15l4-4 3 3 4-5 5 6M16 8h.01" },
+  { t: "Details or inspiration", d: "Headshot, logo, colors, style — or a card to copy exactly.", icon: "M4 5h16v14H4zM4 15l4-4 3 3 4-5 5 6M16 8h.01" },
   { t: "AI designs it", d: "A polished card in seconds.", icon: "M12 3l1.8 4.6L18.5 9l-4.7 1.6L12 15l-1.8-4.4L5.5 9l4.7-1.4zM5 17l.9 2.1L8 20l-2.1.9L5 23l-.9-2.1L2 20l2.1-.9z" },
   { t: "Customize", d: "Move, resize, restyle anything.", icon: "M4 20h4l10.5-10.5a2.1 2.1 0 00-3-3L5 17v3zM13 7l3 3" },
   { t: "Publish", d: "Live at your link, ready to share.", icon: "M12 16V4m0 0l-4 4m4-4l4 4M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4" },
@@ -359,15 +359,17 @@ const STEPS = [
 
 export default function AiDesignerShowcase() {
   return (
-    <section id="ai-designer" className="hp-ai relative overflow-hidden bg-white py-16 sm:py-24 scroll-mt-16" aria-labelledby="ai-designer-heading">
-      <div className="max-w-6xl mx-auto px-5 sm:px-6">
+    // The top of /templates (its old "Your card, your way" hero was removed,
+    // owner 2026-09-25), so this carries the page's h1 and clears the fixed nav.
+    <section id="ai-designer" className="hp-ai hp-page-hero relative overflow-hidden bg-white pt-28 sm:pt-36 pb-16 sm:pb-24 scroll-mt-16" aria-labelledby="ai-designer-heading">
+      <div className="relative max-w-6xl mx-auto px-5 sm:px-6">
         <div className="max-w-2xl mx-auto text-center" data-hp-head>
           <Eyebrow dark={false}>AI Card Designer</Eyebrow>
-          <h2 id="ai-designer-heading" className="rd-h2 text-[clamp(2.1rem,4.4vw,3.4rem)] text-slate-900 mt-4">
+          <h1 id="ai-designer-heading" className="rd-h2 text-[clamp(2.2rem,5vw,3.6rem)] text-slate-900 mt-4">
             Your card, <span className="hp-fill">designed by AI.</span>
-          </h2>
+          </h1>
           <p className="hp-lede mt-4">
-            Give it your details, or a screenshot of any card you find online. Get a polished card in seconds, then make it yours.
+            Give it your details and get a polished card in seconds. Or have it copy the exact business card you want, or the one you already have.
           </p>
         </div>
 
@@ -396,13 +398,8 @@ export default function AiDesignerShowcase() {
           ))}
         </ol>
 
-        <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4" data-reveal="fade">
-          <Link href="/cards/new" className="rd-btn rd-btn-primary rd-btn-lg">Start free</Link>
-          <NativeHidden>
-            <p className="text-slate-500 text-[0.9rem]">
-              AI Card Designer is included with Pro. <Link href="/pricing" className="text-slate-900 font-semibold underline underline-offset-4 decoration-slate-300 hover:decoration-slate-900">See pricing</Link>
-            </p>
-          </NativeHidden>
+        <div className="mt-12 flex justify-center" data-reveal="fade">
+          <Link href="/cards/new" className="rd-btn rd-btn-primary rd-btn-lg">Get Started</Link>
         </div>
       </div>
     </section>

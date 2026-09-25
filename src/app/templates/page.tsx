@@ -109,117 +109,102 @@ export default function TemplatesPage() {
       {/* data-reveal needs the site-wide observer; only the headings had one here. */}
       <ScrollReveal />
 
-      <section className="hp-page-hero">
-        <div className="relative px-5 pt-28 sm:pt-36 pb-10 sm:pb-14 max-w-2xl mx-auto" data-hp-head>
-          <h1 className="rd-display text-slate-900 text-[clamp(2.2rem,5vw,3.4rem)]">Your card, <span className="hp-fill">your way.</span></h1>
-          <p className="hp-lede mt-4">
-            Design it with AI, or start from a template. You can change it anytime.
-          </p>
-        </div>
-      </section>
-
-      {/* The AI Card Designer: two capabilities and the four-step flow. Every
-          card in it is a real design from the product's own engine. */}
+      {/* The AI Card Designer opens the page: two capabilities and the
+          four-step flow. Every card in it is a real design from the product's
+          own engine. It carries the page's h1 — the "Your card, your way"
+          hero that sat above it was removed (owner, 2026-09-25). */}
       <AiDesignerShowcase />
 
-      {/* Template list */}
-      <section className="hp-soft pt-16 sm:pt-20 pb-16">
-      <div className="max-w-2xl mx-auto px-5 space-y-12">
-        <div className="text-center" data-hp-head>
-          <Eyebrow dark={false}>Templates</Eyebrow>
-          <h2 className="rd-h2 text-[clamp(1.9rem,4vw,2.8rem)] text-slate-900 mt-4">Or start from <span className="hp-fill">a template.</span></h2>
-          <p className="hp-lede mt-3">Six designer templates. Pick one and make it yours.</p>
-        </div>
-        {TEMPLATES.map((tmpl, i) => {
-          const { Component } = tmpl;
-          const isSelected = selected === tmpl.id;
+      {/* Templates — side by side so all six read at a glance (owner,
+          2026-09-25: they used to be stacked one on top of the other). */}
+      <section className="hp-soft pt-20 sm:pt-24 pb-16" aria-labelledby="templates-heading">
+        <div className="max-w-6xl mx-auto px-5 sm:px-6">
+          <div className="max-w-2xl mx-auto text-center" data-hp-head>
+            <Eyebrow dark={false}>Templates</Eyebrow>
+            <h2 id="templates-heading" className="rd-h2 text-[clamp(1.9rem,4vw,2.8rem)] text-slate-900 mt-4">Or start from <span className="hp-fill">a template.</span></h2>
+            <p className="hp-lede mt-3">Six designer templates. Pick one and make it yours.</p>
+          </div>
 
-          return (
-            <div key={tmpl.id}>
-              {/* Template label */}
-              <div className="flex items-center gap-3 mb-3">
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                  style={{
-                    background: isSelected ? "var(--rd-aurora)" : "#fff",
-                    color: isSelected ? "#fff" : "#64748b",
-                    boxShadow: isSelected ? undefined : "inset 0 0 0 1px rgba(11,16,34,0.12)",
-                  }}
-                >
-                  {i + 1}
-                </div>
-                <div>
-                  <span className="text-slate-900 font-semibold text-[0.9375rem]">{tmpl.name}</span>
-                  <span className="text-slate-500 text-sm ml-2">— {tmpl.tagline}</span>
-                </div>
-              </div>
+          <div className="mt-10 sm:mt-14 grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+            {TEMPLATES.map((tmpl, i) => {
+              const { Component } = tmpl;
+              const isSelected = selected === tmpl.id;
 
-              {/* Card preview — clicking selects it */}
-              <button
-                className="w-full text-left group outline-none"
-                onClick={() => handleSelect(tmpl.id)}
-                aria-pressed={isSelected}
-                // Same reason as site/TemplateGallery: the preview is a real
-                // card with real contact links, so it must not be a nest of
-                // controls inside this one. One button, one name.
-                aria-label={`Choose the ${tmpl.name} template`}
-              >
-                <div
-                  // inert, not aria-hidden: the preview holds real tel:/mailto:
-                  // links, and aria-hidden over focusable content is its own
-                  // violation. inert takes them out of BOTH the a11y tree and
-                  // the tab order, which is what "this is a picture of a card"
-                  // actually means.
-                  inert
-                  className="rounded-2xl transition-all duration-200"
-                  style={{
-                    outline: isSelected ? "3px solid #3b82f6" : "2px solid transparent",
-                    outlineOffset: 3,
-                    boxShadow: isSelected ? "0 0 0 5px rgba(59,130,246,0.15)" : undefined,
-                    // The card's phone/email/website are real tel:/mailto:/https:
-                    // links. Sitting inside the selector button they swallowed the
-                    // click: tapping a card on its contact rows opened a mail client
-                    // instead of choosing that template, and the targets here are the
-                    // biggest on the site (~218px). Letting pointer events pass
-                    // through makes the whole card select, which is what it looks
-                    // like it should do. Same as TemplateGallery's grid tiles.
-                    pointerEvents: "none",
-                  }}
-                >
-                  <CardScaler>
-                    <Component data={"data" in tmpl ? tmpl.data : withoutSocials(SAMPLE_DATA_WITH_PHOTO)} />
-                  </CardScaler>
-                </div>
-              </button>
-
-              {/* Tags + select */}
-              <div className="flex items-center justify-between mt-3 gap-4">
-                <div className="flex flex-wrap gap-1.5">
-                  {tmpl.bestFor.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[0.6875rem] font-medium px-2.5 py-0.5 rounded-full bg-white text-slate-600 border border-slate-200"
+              return (
+                // One tile, one button: the whole tile selects. Same reason as
+                // site/TemplateGallery: the preview is a real card with real
+                // contact links, so it must not be a nest of controls inside
+                // this one. One button, one name.
+                // The reveal sits on a wrapper: its transform/transition rules
+                // would otherwise override the tile's own hover lift and delay it.
+                <div key={tmpl.id} data-reveal style={{ transitionDelay: `${(i % 3) * 70}ms` }}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(tmpl.id)}
+                    aria-pressed={isSelected}
+                    aria-label={`Choose the ${tmpl.name} template`}
+                    className={`group w-full h-full text-left rounded-2xl sm:rounded-3xl bg-white p-2.5 sm:p-4 outline-none transition-[box-shadow,translate] duration-300 hover:-translate-y-1 focus-visible:ring-4 focus-visible:ring-blue-500/30 ${
+                      isSelected
+                        ? "ring-2 ring-blue-600 shadow-[0_24px_50px_-28px_rgba(29,63,184,0.55)]"
+                        : "ring-1 ring-slate-900/[0.07] shadow-[0_18px_40px_-30px_rgba(11,16,34,0.35)] hover:shadow-[0_28px_56px_-30px_rgba(29,63,184,0.4)]"
+                    }`}
+                  >
+                    <div
+                      // inert, not aria-hidden: the preview holds real tel:/mailto:
+                      // links, and aria-hidden over focusable content is its own
+                      // violation. inert takes them out of BOTH the a11y tree and
+                      // the tab order, which is what "this is a picture of a card"
+                      // actually means.
+                      inert
+                      className="rounded-xl sm:rounded-2xl overflow-hidden"
+                      style={{
+                        // The card's phone/email/website are real tel:/mailto:/https:
+                        // links. Inside the selector button they would swallow the
+                        // click (tapping a contact row opened a mail client instead
+                        // of choosing the template). Letting pointer events pass
+                        // through makes the whole card select. Same as
+                        // TemplateGallery's grid tiles.
+                        pointerEvents: "none",
+                      }}
                     >
-                      {tag}
-                    </span>
-                  ))}
+                      <CardScaler>
+                        <Component data={"data" in tmpl ? tmpl.data : withoutSocials(SAMPLE_DATA_WITH_PHOTO)} />
+                      </CardScaler>
+                    </div>
+
+                    <div className="flex items-start gap-2 sm:gap-3 mt-2.5 sm:mt-4 px-0.5 sm:px-1">
+                      <div className="min-w-0 flex-1">
+                        <p className={`font-semibold text-[0.8125rem] sm:text-[1rem] leading-snug transition-colors ${isSelected ? "text-blue-700" : "text-slate-900"}`}>{tmpl.name}</p>
+                        <p className="text-slate-500 text-[0.75rem] sm:text-[0.875rem] mt-0.5 leading-snug">{tmpl.tagline}</p>
+                      </div>
+                      {/* A radio mark, so "which one is chosen" reads at a glance. */}
+                      <span
+                        aria-hidden="true"
+                        className={`shrink-0 mt-0.5 w-5 h-5 sm:w-6 sm:h-6 rounded-full grid place-items-center transition-colors ${
+                          isSelected ? "bg-blue-600 text-white" : "ring-1 ring-inset ring-slate-300 text-transparent group-hover:ring-blue-400"
+                        }`}
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+                      </span>
+                    </div>
+
+                    {/* Best-for tags: from a tablet up, where there is room for them. */}
+                    <div className="hidden sm:flex flex-wrap gap-1.5 mt-3 px-1">
+                      {tmpl.bestFor.map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-[0.6875rem] font-medium px-2.5 py-0.5 rounded-full bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-200"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleSelect(tmpl.id)}
-                  className="shrink-0 text-sm font-semibold px-4 py-1.5 rounded-full transition-colors"
-                  style={{
-                    background: isSelected ? "#1d4ed8" : "#ffffff",
-                    color: isSelected ? "#ffffff" : "#334155",
-                    boxShadow: isSelected ? undefined : "inset 0 0 0 1px #cbd5e1",
-                  }}
-                >
-                  {isSelected ? "✓ Selected" : "Select"}
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
       {/* Sticky bottom bar — appears when a template is selected */}
@@ -237,13 +222,18 @@ export default function TemplatesPage() {
             paddingBottom: "max(16px, env(safe-area-inset-bottom))",
           }}
         >
-          <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
+          {/* pr-14 on phones: the sales chat launcher is fixed in the bottom-right
+              corner and sat on top of "Apply this design" there. From sm up
+              the centred bar ends well left of it; data-chat-avoid makes the
+              launcher yield if a short window ever puts them together. */}
+          <div className="max-w-3xl mx-auto flex items-center justify-between gap-4 pr-14 sm:pr-0">
             <div className="min-w-0">
               <p className="text-slate-900 font-semibold text-sm truncate">{selectedTemplate?.name}</p>
-              <p className="text-slate-500 text-xs">{selectedTemplate?.tagline}</p>
+              <p className="hidden sm:block text-slate-500 text-xs">{selectedTemplate?.tagline}</p>
             </div>
             <button
               onClick={handleApply}
+              data-chat-avoid=""
               className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-colors"
             >
               {saved ? "Opening builder…" : "Apply this design →"}
